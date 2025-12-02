@@ -20,7 +20,7 @@ export function AppLayout({ children, showFooter = true }: AppLayoutProps) {
       {showFooter && (
         <footer className="border-t border-border bg-card/50 mt-auto">
           <div className="container mx-auto px-4 py-4">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-sm">
               <div className="flex items-center gap-4">
                 <span className="font-heading font-semibold text-primary">Schivo Medical</span>
                 <span className="text-muted-foreground hidden sm:inline">We make possible happen.</span>
