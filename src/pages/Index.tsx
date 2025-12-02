@@ -36,7 +36,7 @@ import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { ReviewsByStatusChart } from '@/components/dashboard/ReviewsByStatusChart';
 import { AgingChart } from '@/components/dashboard/AgingChart';
 import { ReviewsByDepartmentChart } from '@/components/dashboard/ReviewsByDepartmentChart';
-import schivoLogo from '@/assets/schivo-logo-transparent.webp';
+import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('en-GB', {
@@ -166,7 +166,7 @@ const Index = () => {
       <header className="border-b border-border bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={schivoLogo} alt="Schivo Medical" className="h-10" />
+            <img src={fhxLogoFull} alt="FHX Engineering" className="h-10" />
             <div>
               <p className="text-sm text-primary-foreground/80">Blue Review | WD-FRM-0017</p>
             </div>
