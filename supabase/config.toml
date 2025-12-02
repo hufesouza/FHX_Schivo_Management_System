@@ -4,7 +4,7 @@ project_id = "vbbpwyekwpnbyygdxxlq"
 verify_jwt = true
 
 [functions.advance-workflow]
-verify_jwt = false
+verify_jwt = true
 
 [functions.create-test-users]
 verify_jwt = false
