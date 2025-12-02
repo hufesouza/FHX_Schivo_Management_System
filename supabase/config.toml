@@ -1,1 +1,7 @@
 project_id = "vbbpwyekwpnbyygdxxlq"
+
+[functions.send-invite]
+verify_jwt = true
+
+[functions.advance-workflow]
+verify_jwt = true
