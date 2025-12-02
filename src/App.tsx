@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import WorkOrderForm from "./pages/WorkOrderForm";
+import AdminUsers from "./pages/AdminUsers";
+import AdminFormFields from "./pages/AdminFormFields";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -20,6 +22,8 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/work-order/:id" element={<WorkOrderForm />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/form-fields" element={<AdminFormFields />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
