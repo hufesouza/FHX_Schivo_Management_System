@@ -14,6 +14,7 @@ export interface WorkOrder {
   created_at: string;
   updated_at: string;
   status: 'draft' | 'in_review' | 'completed';
+  current_stage: string;
   
   // Header
   customer: string | null;

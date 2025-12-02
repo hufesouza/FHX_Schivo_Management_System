@@ -11,11 +11,32 @@ import { OperationsReview } from '@/components/form/OperationsReview';
 import { QualityReview } from '@/components/form/QualityReview';
 import { NPIFinalReview } from '@/components/form/NPIFinalReview';
 import { SupplyChainReview } from '@/components/form/SupplyChainReview';
+import { AssignNextReviewer } from '@/components/form/AssignNextReviewer';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Save, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, ChevronLeft, ChevronRight, Send } from 'lucide-react';
 import { toast } from 'sonner';
 
 const sectionOrder: FormSection[] = ['header', 'engineering', 'operations', 'quality', 'npi-final', 'supply-chain'];
+
+// Map form sections to workflow stages
+const SECTION_TO_STAGE: Record<FormSection, string> = {
+  'header': 'header',
+  'engineering': 'engineering',
+  'operations': 'operations',
+  'quality': 'quality',
+  'npi-final': 'npi',
+  'supply-chain': 'supply_chain',
+};
+
+// Signature fields for each section
+const SIGNATURE_FIELDS: Record<FormSection, { signature: string; date: string } | null> = {
+  'header': null,
+  'engineering': { signature: 'engineering_approved_by', date: 'engineering_approved_date' },
+  'operations': null, // Operations doesn't have a signature, uses comments
+  'quality': { signature: 'quality_signature', date: 'quality_signature_date' },
+  'npi-final': { signature: 'npi_final_signature', date: 'npi_final_signature_date' },
+  'supply-chain': { signature: 'supply_chain_signature', date: 'supply_chain_signature_date' },
+};
 
 export default function WorkOrderForm() {
   const { id } = useParams<{ id: string }>();
@@ -28,6 +49,7 @@ export default function WorkOrderForm() {
   const [formData, setFormData] = useState<Partial<WorkOrder>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -70,6 +92,45 @@ export default function WorkOrderForm() {
     }
   };
 
+  // Check if current section is signed (completed)
+  const isSectionSigned = useCallback((section: FormSection) => {
+    const signatureField = SIGNATURE_FIELDS[section];
+    if (!signatureField) {
+      // For sections without signature (header, operations), check if we should move on
+      if (section === 'header') {
+        return !!(formData.work_order_number && formData.customer);
+      }
+      if (section === 'operations') {
+        return !!formData.operations_comments || (formData.operations_work_centres?.length ?? 0) > 0;
+      }
+      return false;
+    }
+    const sig = formData[signatureField.signature as keyof WorkOrder];
+    const date = formData[signatureField.date as keyof WorkOrder];
+    return !!(sig && date);
+  }, [formData]);
+
+  // Check if user can complete section (has signature)
+  const canCompleteSection = useCallback(() => {
+    if (!canEditSection(currentSection)) return false;
+    return isSectionSigned(currentSection);
+  }, [currentSection, canEditSection, isSectionSigned]);
+
+  // Check if this is the user's assigned section
+  const isMySection = useCallback(() => {
+    const stage = SECTION_TO_STAGE[currentSection];
+    const currentStage = formData.current_stage || 'header';
+    return stage === currentStage && canEditSection(currentSection);
+  }, [currentSection, formData.current_stage, canEditSection]);
+
+  const handleCompleteAndAssign = () => {
+    setShowAssignDialog(true);
+  };
+
+  const handleAssignmentSuccess = () => {
+    navigate('/');
+  };
+
   if (authLoading || loading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -96,7 +157,7 @@ export default function WorkOrderForm() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
-          <h2 className="text-xl font-serif mb-2">Work order not found</h2>
+          <h2 className="text-xl font-serif mb-2">Blue Review not found</h2>
           <Button variant="outline" onClick={() => navigate('/')}>
             <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
           </Button>
@@ -108,6 +169,12 @@ export default function WorkOrderForm() {
   const currentIndex = sectionOrder.indexOf(currentSection);
   const isFirstSection = currentIndex === 0;
   const isLastSection = currentIndex === sectionOrder.length - 1;
+  const currentStage = SECTION_TO_STAGE[currentSection];
+  const workOrderStage = formData.current_stage || 'header';
+
+  // Determine if we should show the complete button
+  const showCompleteButton = isMySection() && canCompleteSection() && !isLastSection && workOrderStage === currentStage;
+  const showFinalCompleteButton = isLastSection && isMySection() && canCompleteSection() && workOrderStage === 'supply_chain';
 
   return (
     <div className="min-h-screen bg-background">
@@ -121,21 +188,35 @@ export default function WorkOrderForm() {
               </Button>
               <div>
                 <h1 className="text-lg font-serif font-medium">
-                  Blue Work Order Review
+                  Blue Review Details
                 </h1>
                 <p className="text-sm text-muted-foreground">
                   W/O #{formData.work_order_number || 'New'} • Role: {role?.replace('_', ' ').toUpperCase()}
                 </p>
               </div>
             </div>
-            <Button onClick={handleSave} disabled={isSaving || !hasChanges}>
-              {isSaving ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="h-4 w-4 mr-2" />
+            <div className="flex items-center gap-2">
+              <Button onClick={handleSave} disabled={isSaving || !hasChanges} variant="outline">
+                {isSaving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Save
+              </Button>
+              {showCompleteButton && (
+                <Button onClick={handleCompleteAndAssign}>
+                  <Send className="h-4 w-4 mr-2" />
+                  Complete & Assign Next
+                </Button>
               )}
-              Save
-            </Button>
+              {showFinalCompleteButton && (
+                <Button onClick={handleCompleteAndAssign} className="bg-green-600 hover:bg-green-700">
+                  <Send className="h-4 w-4 mr-2" />
+                  Complete Review
+                </Button>
+              )}
+            </div>
           </div>
           
           <FormNavigation
@@ -183,7 +264,7 @@ export default function WorkOrderForm() {
               ) : (
                 <Save className="h-4 w-4 mr-2" />
               )}
-              Save & Complete
+              Save
             </Button>
           ) : (
             <Button onClick={handleNext}>
@@ -192,6 +273,17 @@ export default function WorkOrderForm() {
           )}
         </div>
       </main>
+
+      {/* Assign Next Reviewer Dialog */}
+      {id && (
+        <AssignNextReviewer
+          open={showAssignDialog}
+          onOpenChange={setShowAssignDialog}
+          workOrderId={id}
+          currentStage={currentStage}
+          onSuccess={handleAssignmentSuccess}
+        />
+      )}
     </div>
   );
 }

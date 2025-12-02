@@ -92,6 +92,74 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string | null
+          full_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          assigned_by: string | null
+          assigned_to: string
+          completed_at: string | null
+          created_at: string
+          department: string
+          id: string
+          status: string
+          work_order_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          assigned_to: string
+          completed_at?: string | null
+          created_at?: string
+          department: string
+          id?: string
+          status?: string
+          work_order_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          assigned_to?: string
+          completed_at?: string | null
+          created_at?: string
+          department?: string
+          id?: string
+          status?: string
+          work_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tasks_work_order_id_fkey"
+            columns: ["work_order_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -130,6 +198,7 @@ export type Database = {
           cmm_program_details: string | null
           cmm_program_required: boolean | null
           created_at: string
+          current_stage: string
           customer: string | null
           deburr_time: number | null
           drawings_available: boolean | null
@@ -205,6 +274,7 @@ export type Database = {
           cmm_program_details?: string | null
           cmm_program_required?: boolean | null
           created_at?: string
+          current_stage?: string
           customer?: string | null
           deburr_time?: number | null
           drawings_available?: boolean | null
@@ -280,6 +350,7 @@ export type Database = {
           cmm_program_details?: string | null
           cmm_program_required?: boolean | null
           created_at?: string
+          current_stage?: string
           customer?: string | null
           deburr_time?: number | null
           drawings_available?: boolean | null

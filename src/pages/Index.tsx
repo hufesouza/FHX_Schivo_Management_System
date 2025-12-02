@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
+import { useTasks } from '@/hooks/useTasks';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -17,7 +18,9 @@ import {
   Eye,
   Users,
   Settings,
-  Shield
+  Shield,
+  ClipboardList,
+  Bell
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -54,8 +57,10 @@ const Index = () => {
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
   const { workOrders, loading, createWorkOrder, deleteWorkOrder } = useWorkOrders();
+  const { getMyTasks, loading: tasksLoading } = useTasks();
 
   const isAdmin = role === 'admin';
+  const myTasks = getMyTasks();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -93,12 +98,28 @@ const Index = () => {
               <FileText className="h-6 w-6 text-primary" />
             </div>
             <div>
-              <h1 className="text-xl font-serif font-medium">Blue Work Order Review</h1>
+              <h1 className="text-xl font-serif font-medium">Blue Review</h1>
               <p className="text-sm text-muted-foreground">WD-FRM-0017</p>
             </div>
           </div>
           
           <div className="flex items-center gap-4">
+            {/* Tasks Button */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate('/tasks')}
+              className="relative"
+            >
+              <ClipboardList className="h-4 w-4 mr-2" />
+              Tasks
+              {myTasks.length > 0 && (
+                <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs absolute -top-2 -right-2">
+                  {myTasks.length}
+                </Badge>
+              )}
+            </Button>
+
             {role && (
               <Badge variant={isAdmin ? 'default' : 'secondary'} className="hidden sm:flex">
                 {isAdmin && <Shield className="h-3 w-3 mr-1" />}
@@ -140,13 +161,49 @@ const Index = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
+        {/* My Tasks Summary */}
+        {myTasks.length > 0 && (
+          <Card className="mb-6 border-primary/50 bg-primary/5">
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-5 w-5 text-primary" />
+                  <CardTitle className="text-base">You have {myTasks.length} pending task{myTasks.length > 1 ? 's' : ''}</CardTitle>
+                </div>
+                <Button variant="link" onClick={() => navigate('/tasks')}>
+                  View all
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {myTasks.slice(0, 3).map(task => (
+                  <Button 
+                    key={task.id} 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => navigate(`/work-order/${task.work_order_id}`)}
+                  >
+                    {task.work_order?.work_order_number || 'New Review'} - {task.department.replace('_', ' ')}
+                  </Button>
+                ))}
+                {myTasks.length > 3 && (
+                  <Button variant="ghost" size="sm" onClick={() => navigate('/tasks')}>
+                    +{myTasks.length - 3} more
+                  </Button>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-serif font-medium">Work Orders</h2>
-            <p className="text-muted-foreground">Manage and review work order forms</p>
+            <h2 className="text-2xl font-serif font-medium">Blue Reviews</h2>
+            <p className="text-muted-foreground">Manage and review Blue Review forms</p>
           </div>
           <Button onClick={handleCreateWorkOrder}>
-            <Plus className="h-4 w-4 mr-2" /> New Work Order
+            <Plus className="h-4 w-4 mr-2" /> New Blue Review
           </Button>
         </div>
 
@@ -156,12 +213,12 @@ const Index = () => {
               <div className="bg-muted rounded-full p-4 w-fit mx-auto mb-4">
                 <FileText className="h-8 w-8 text-muted-foreground" />
               </div>
-              <h3 className="text-lg font-medium mb-2">No work orders yet</h3>
+              <h3 className="text-lg font-medium mb-2">No Blue Reviews yet</h3>
               <p className="text-muted-foreground mb-4">
-                Create your first work order to get started
+                Create your first Blue Review to get started
               </p>
               <Button onClick={handleCreateWorkOrder}>
-                <Plus className="h-4 w-4 mr-2" /> Create Work Order
+                <Plus className="h-4 w-4 mr-2" /> Create Blue Review
               </Button>
             </CardContent>
           </Card>
@@ -178,7 +235,7 @@ const Index = () => {
                   <div className="flex items-start justify-between">
                     <div>
                       <CardTitle className="text-base font-medium">
-                        {wo.work_order_number || 'New Work Order'}
+                        {wo.work_order_number || 'New Blue Review'}
                       </CardTitle>
                       <CardDescription className="mt-1">
                         {wo.customer || 'No customer assigned'}
