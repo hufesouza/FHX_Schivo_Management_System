@@ -14,7 +14,234 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      work_orders: {
+        Row: {
+          acceptable_to_change_details: string | null
+          acceptable_to_change_white: boolean | null
+          additional_requirements: boolean | null
+          additional_requirements_details: string | null
+          all_sections_details: string | null
+          all_sections_filled: boolean | null
+          approval_status_details: string | null
+          approval_status_updated: boolean | null
+          bom_hardware_available: boolean | null
+          bom_hardware_details: string | null
+          bom_lead_time: string | null
+          cmm_lead_time: string | null
+          cmm_program_details: string | null
+          cmm_program_required: boolean | null
+          created_at: string
+          customer: string | null
+          deburr_time: number | null
+          drawings_available: boolean | null
+          drawings_details: string | null
+          engineering_approved_by: string | null
+          engineering_approved_date: string | null
+          est_cycle_time: number | null
+          est_development_time: number | null
+          est_setup_time: number | null
+          est_tooling_cost: number | null
+          fair_complete: boolean | null
+          fair_details: string | null
+          fixtures_details: string | null
+          fixtures_lead_time: string | null
+          fixtures_required: boolean | null
+          gauges_calibrated: boolean | null
+          gauges_details: string | null
+          icn_number: string | null
+          id: string
+          ims_updated: boolean | null
+          ims_updated_details: string | null
+          inspection_aql_details: string | null
+          inspection_aql_specified: boolean | null
+          inspection_sheet_available: boolean | null
+          inspection_sheet_details: string | null
+          inspection_time: number | null
+          material_leadtime: string | null
+          material_size_allowance: string | null
+          material_size_correct: boolean | null
+          material_size_details: string | null
+          npi_approval_by: string | null
+          npi_approval_date: string | null
+          npi_final_comments: string | null
+          npi_final_signature: string | null
+          npi_final_signature_date: string | null
+          operations_comments: string | null
+          operations_work_centres: Json | null
+          part_and_rev: string | null
+          quality_additional_details: string | null
+          quality_additional_requirements: boolean | null
+          quality_gauges_calibrated: boolean | null
+          quality_gauges_details: string | null
+          quality_signature: string | null
+          quality_signature_date: string | null
+          routing_operations_details: string | null
+          routing_operations_removed: boolean | null
+          sap_changes_completed: boolean | null
+          sap_changes_details: string | null
+          status: string
+          supply_chain_signature: string | null
+          supply_chain_signature_date: string | null
+          tooling_details: string | null
+          tooling_in_matrix: boolean | null
+          tooling_lead_time: string | null
+          updated_at: string
+          user_id: string
+          wash_time: number | null
+          work_order_number: string | null
+        }
+        Insert: {
+          acceptable_to_change_details?: string | null
+          acceptable_to_change_white?: boolean | null
+          additional_requirements?: boolean | null
+          additional_requirements_details?: string | null
+          all_sections_details?: string | null
+          all_sections_filled?: boolean | null
+          approval_status_details?: string | null
+          approval_status_updated?: boolean | null
+          bom_hardware_available?: boolean | null
+          bom_hardware_details?: string | null
+          bom_lead_time?: string | null
+          cmm_lead_time?: string | null
+          cmm_program_details?: string | null
+          cmm_program_required?: boolean | null
+          created_at?: string
+          customer?: string | null
+          deburr_time?: number | null
+          drawings_available?: boolean | null
+          drawings_details?: string | null
+          engineering_approved_by?: string | null
+          engineering_approved_date?: string | null
+          est_cycle_time?: number | null
+          est_development_time?: number | null
+          est_setup_time?: number | null
+          est_tooling_cost?: number | null
+          fair_complete?: boolean | null
+          fair_details?: string | null
+          fixtures_details?: string | null
+          fixtures_lead_time?: string | null
+          fixtures_required?: boolean | null
+          gauges_calibrated?: boolean | null
+          gauges_details?: string | null
+          icn_number?: string | null
+          id?: string
+          ims_updated?: boolean | null
+          ims_updated_details?: string | null
+          inspection_aql_details?: string | null
+          inspection_aql_specified?: boolean | null
+          inspection_sheet_available?: boolean | null
+          inspection_sheet_details?: string | null
+          inspection_time?: number | null
+          material_leadtime?: string | null
+          material_size_allowance?: string | null
+          material_size_correct?: boolean | null
+          material_size_details?: string | null
+          npi_approval_by?: string | null
+          npi_approval_date?: string | null
+          npi_final_comments?: string | null
+          npi_final_signature?: string | null
+          npi_final_signature_date?: string | null
+          operations_comments?: string | null
+          operations_work_centres?: Json | null
+          part_and_rev?: string | null
+          quality_additional_details?: string | null
+          quality_additional_requirements?: boolean | null
+          quality_gauges_calibrated?: boolean | null
+          quality_gauges_details?: string | null
+          quality_signature?: string | null
+          quality_signature_date?: string | null
+          routing_operations_details?: string | null
+          routing_operations_removed?: boolean | null
+          sap_changes_completed?: boolean | null
+          sap_changes_details?: string | null
+          status?: string
+          supply_chain_signature?: string | null
+          supply_chain_signature_date?: string | null
+          tooling_details?: string | null
+          tooling_in_matrix?: boolean | null
+          tooling_lead_time?: string | null
+          updated_at?: string
+          user_id: string
+          wash_time?: number | null
+          work_order_number?: string | null
+        }
+        Update: {
+          acceptable_to_change_details?: string | null
+          acceptable_to_change_white?: boolean | null
+          additional_requirements?: boolean | null
+          additional_requirements_details?: string | null
+          all_sections_details?: string | null
+          all_sections_filled?: boolean | null
+          approval_status_details?: string | null
+          approval_status_updated?: boolean | null
+          bom_hardware_available?: boolean | null
+          bom_hardware_details?: string | null
+          bom_lead_time?: string | null
+          cmm_lead_time?: string | null
+          cmm_program_details?: string | null
+          cmm_program_required?: boolean | null
+          created_at?: string
+          customer?: string | null
+          deburr_time?: number | null
+          drawings_available?: boolean | null
+          drawings_details?: string | null
+          engineering_approved_by?: string | null
+          engineering_approved_date?: string | null
+          est_cycle_time?: number | null
+          est_development_time?: number | null
+          est_setup_time?: number | null
+          est_tooling_cost?: number | null
+          fair_complete?: boolean | null
+          fair_details?: string | null
+          fixtures_details?: string | null
+          fixtures_lead_time?: string | null
+          fixtures_required?: boolean | null
+          gauges_calibrated?: boolean | null
+          gauges_details?: string | null
+          icn_number?: string | null
+          id?: string
+          ims_updated?: boolean | null
+          ims_updated_details?: string | null
+          inspection_aql_details?: string | null
+          inspection_aql_specified?: boolean | null
+          inspection_sheet_available?: boolean | null
+          inspection_sheet_details?: string | null
+          inspection_time?: number | null
+          material_leadtime?: string | null
+          material_size_allowance?: string | null
+          material_size_correct?: boolean | null
+          material_size_details?: string | null
+          npi_approval_by?: string | null
+          npi_approval_date?: string | null
+          npi_final_comments?: string | null
+          npi_final_signature?: string | null
+          npi_final_signature_date?: string | null
+          operations_comments?: string | null
+          operations_work_centres?: Json | null
+          part_and_rev?: string | null
+          quality_additional_details?: string | null
+          quality_additional_requirements?: boolean | null
+          quality_gauges_calibrated?: boolean | null
+          quality_gauges_details?: string | null
+          quality_signature?: string | null
+          quality_signature_date?: string | null
+          routing_operations_details?: string | null
+          routing_operations_removed?: boolean | null
+          sap_changes_completed?: boolean | null
+          sap_changes_details?: string | null
+          status?: string
+          supply_chain_signature?: string | null
+          supply_chain_signature_date?: string | null
+          tooling_details?: string | null
+          tooling_in_matrix?: boolean | null
+          tooling_lead_time?: string | null
+          updated_at?: string
+          user_id?: string
+          wash_time?: number | null
+          work_order_number?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
