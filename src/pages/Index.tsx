@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -20,7 +20,8 @@ import {
   Settings,
   Shield,
   ClipboardList,
-  Bell
+  Bell,
+  BarChart3
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -31,6 +32,10 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { InstallBanner } from '@/components/InstallBanner';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { DashboardStats } from '@/components/dashboard/DashboardStats';
+import { ReviewsByStatusChart } from '@/components/dashboard/ReviewsByStatusChart';
+import { AgingChart } from '@/components/dashboard/AgingChart';
+import { ReviewsByUserChart } from '@/components/dashboard/ReviewsByUserChart';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('en-GB', {
@@ -58,10 +63,85 @@ const Index = () => {
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
   const { workOrders, loading, createWorkOrder, deleteWorkOrder } = useWorkOrders();
-  const { getMyTasks, loading: tasksLoading } = useTasks();
+  const { getMyTasks, tasks, loading: tasksLoading } = useTasks();
 
   const isAdmin = role === 'admin';
   const myTasks = getMyTasks();
+
+  // Calculate dashboard metrics
+  const dashboardMetrics = useMemo(() => {
+    const now = new Date();
+    
+    const draftCount = workOrders.filter(wo => wo.status === 'draft').length;
+    const inReviewCount = workOrders.filter(wo => wo.status === 'in_review').length;
+    const completedCount = workOrders.filter(wo => wo.status === 'completed').length;
+    const openCount = draftCount + inReviewCount;
+
+    // Calculate days open for each work order
+    const openWorkOrders = workOrders.filter(wo => wo.status !== 'completed');
+    const agingData = openWorkOrders.map(wo => {
+      const createdAt = new Date(wo.created_at);
+      const daysOpen = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+      return {
+        name: wo.work_order_number || 'New',
+        days: daysOpen,
+        workOrderNumber: wo.work_order_number || 'New Review'
+      };
+    });
+
+    const oldestOpenDays = agingData.length > 0 
+      ? Math.max(...agingData.map(d => d.days)) 
+      : 0;
+
+    // Calculate average turnaround for completed reviews
+    const completedOrders = workOrders.filter(wo => wo.status === 'completed');
+    let avgTurnaround = 0;
+    if (completedOrders.length > 0) {
+      const totalDays = completedOrders.reduce((acc, wo) => {
+        const created = new Date(wo.created_at);
+        const updated = new Date(wo.updated_at);
+        return acc + Math.floor((updated.getTime() - created.getTime()) / (1000 * 60 * 60 * 24));
+      }, 0);
+      avgTurnaround = totalDays / completedOrders.length;
+    }
+
+    // Group tasks by assigned user
+    const tasksByUser = tasks.reduce((acc, task) => {
+      const userId = task.assigned_to;
+      if (!acc[userId]) {
+        acc[userId] = { open: 0, completed: 0 };
+      }
+      if (task.status === 'completed') {
+        acc[userId].completed++;
+      } else {
+        acc[userId].open++;
+      }
+      return acc;
+    }, {} as Record<string, { open: number; completed: number }>);
+
+    // Get user names from work orders (simplified - using email prefix)
+    const userReviewData = Object.entries(tasksByUser).map(([userId, counts]) => {
+      // Find a task with profile info or use ID
+      const userTask = tasks.find(t => t.assigned_to === userId);
+      const name = userId.substring(0, 8) + '...'; // Fallback to truncated ID
+      return {
+        name,
+        open: counts.open,
+        completed: counts.completed
+      };
+    });
+
+    return {
+      openCount,
+      completedCount,
+      inReviewCount,
+      draftCount,
+      avgTurnaround,
+      oldestOpenDays,
+      agingData,
+      userReviewData
+    };
+  }, [workOrders, tasks]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -197,6 +277,31 @@ const Index = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Dashboard Analytics */}
+        <div className="mb-8 space-y-6">
+          <div className="flex items-center gap-2 mb-4">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            <h2 className="text-xl font-heading font-semibold">Dashboard</h2>
+          </div>
+          
+          <DashboardStats 
+            openCount={dashboardMetrics.openCount}
+            completedCount={dashboardMetrics.completedCount}
+            avgTurnaround={dashboardMetrics.avgTurnaround}
+            oldestOpenDays={dashboardMetrics.oldestOpenDays}
+          />
+
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <ReviewsByStatusChart 
+              openCount={dashboardMetrics.draftCount}
+              completedCount={dashboardMetrics.completedCount}
+              inReviewCount={dashboardMetrics.inReviewCount}
+            />
+            <AgingChart data={dashboardMetrics.agingData} />
+            <ReviewsByUserChart data={dashboardMetrics.userReviewData} />
+          </div>
+        </div>
 
         <div className="flex items-center justify-between mb-6">
           <div>
