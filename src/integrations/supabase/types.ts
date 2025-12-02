@@ -14,6 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
+      form_fields: {
+        Row: {
+          created_at: string
+          display_order: number
+          field_key: string
+          field_type: string
+          id: string
+          is_active: boolean
+          label: string
+          options: Json | null
+          placeholder: string | null
+          required: boolean
+          section: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          field_key: string
+          field_type: string
+          id?: string
+          is_active?: boolean
+          label: string
+          options?: Json | null
+          placeholder?: string | null
+          required?: boolean
+          section: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          field_key?: string
+          field_type?: string
+          id?: string
+          is_active?: boolean
+          label?: string
+          options?: Json | null
+          placeholder?: string | null
+          required?: boolean
+          section?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          token: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          role: Database["public"]["Enums"]["app_role"]
+          token?: string
+        }
+        Update: {
+          accepted_at?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          role?: Database["public"]["Enums"]["app_role"]
+          token?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
