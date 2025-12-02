@@ -9,6 +9,7 @@ import WorkOrderForm from "./pages/WorkOrderForm";
 import AdminUsers from "./pages/AdminUsers";
 import AdminFormFields from "./pages/AdminFormFields";
 import Tasks from "./pages/Tasks";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,6 +27,7 @@ const App = () => (
           <Route path="/admin/users" element={<AdminUsers />} />
           <Route path="/admin/form-fields" element={<AdminFormFields />} />
           <Route path="/tasks" element={<Tasks />} />
+          <Route path="/profile" element={<Profile />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
