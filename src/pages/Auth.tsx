@@ -9,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { Loader2, Mail, CheckCircle } from 'lucide-react';
 import { z } from 'zod';
+import schivoLogo from '@/assets/schivo-logo.png';
+import fhxLogo from '@/assets/fhx-logo.png';
 
 const authSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -185,13 +187,10 @@ export default function Auth() {
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md space-y-6 animate-fade-in">
           {/* Logo/Brand Header */}
-          <div className="text-center space-y-2">
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-accent/20 border-2 border-accent/30 mb-4">
-              <span className="text-3xl font-heading font-bold text-accent">S</span>
+          <div className="text-center space-y-4">
+            <div className="inline-flex items-center justify-center bg-white rounded-xl p-4 shadow-elegant">
+              <img src={schivoLogo} alt="Schivo Medical" className="h-12" />
             </div>
-            <h1 className="text-3xl font-heading font-bold text-primary-foreground">
-              Schivo Medical
-            </h1>
             <p className="text-primary-foreground/70 font-medium">
               Blue Review Management System
             </p>
@@ -281,9 +280,10 @@ export default function Auth() {
 
       {/* Footer with FHX branding */}
       <footer className="p-4 text-center border-t border-primary-foreground/10">
-        <p className="text-primary-foreground/60 text-sm">
-          Solution by <span className="text-accent font-semibold">FHX Engineering</span>
-        </p>
+        <div className="flex items-center justify-center gap-2">
+          <span className="text-primary-foreground/60 text-sm">Solution by</span>
+          <img src={fhxLogo} alt="FHX Engineering" className="h-6" />
+        </div>
       </footer>
     </div>
   );
