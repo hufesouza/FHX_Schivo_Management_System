@@ -128,24 +128,13 @@ export default function Auth() {
           if (error.message.includes('already registered')) {
             toast.error('This email is already registered. Please sign in.');
             setMode('login');
+          } else if (error.message.includes('Signups not allowed')) {
+            toast.error('Account creation is restricted. Please use a valid invitation link.');
           } else {
             toast.error(error.message);
           }
         } else {
-          // Mark invitation as accepted and assign role
-          const { data: { user } } = await supabase.auth.getUser();
-          
-          if (user) {
-            // Update invitation
-            await supabase
-              .from('invitations')
-              .update({ accepted_at: new Date().toISOString() })
-              .eq('id', invitation.id);
-
-            // Assign role (this will be done by a trigger or the user can be assigned manually)
-            // For now we'll rely on the admin to manage roles after signup
-          }
-          
+          // Role is assigned automatically via database trigger
           toast.success('Account created successfully!');
           navigate('/');
         }
