@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { useWorkOrders } from '@/hooks/useWorkOrders';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,12 +14,16 @@ import {
   Calendar,
   MoreHorizontal,
   Trash2,
-  Eye
+  Eye,
+  Users,
+  Settings,
+  Shield
 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { InstallBanner } from '@/components/InstallBanner';
@@ -47,7 +52,10 @@ function getStatusBadge(status: string) {
 const Index = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
+  const { role, loading: roleLoading } = useUserRole();
   const { workOrders, loading, createWorkOrder, deleteWorkOrder } = useWorkOrders();
+
+  const isAdmin = role === 'admin';
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -67,7 +75,7 @@ const Index = () => {
     navigate('/auth');
   };
 
-  if (authLoading || loading) {
+  if (authLoading || loading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -91,12 +99,41 @@ const Index = () => {
           </div>
           
           <div className="flex items-center gap-4">
+            {role && (
+              <Badge variant={isAdmin ? 'default' : 'secondary'} className="hidden sm:flex">
+                {isAdmin && <Shield className="h-3 w-3 mr-1" />}
+                {role}
+              </Badge>
+            )}
             <span className="text-sm text-muted-foreground hidden sm:block">
               {user?.email}
             </span>
-            <Button variant="outline" size="sm" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4 mr-2" /> Sign Out
-            </Button>
+            
+            {isAdmin ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Settings className="h-4 w-4 mr-2" /> Admin
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => navigate('/admin/users')}>
+                    <Users className="h-4 w-4 mr-2" /> User Management
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/admin/form-fields')}>
+                    <Settings className="h-4 w-4 mr-2" /> Form Fields
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleSignOut}>
+                    <LogOut className="h-4 w-4 mr-2" /> Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button variant="outline" size="sm" onClick={handleSignOut}>
+                <LogOut className="h-4 w-4 mr-2" /> Sign Out
+              </Button>
+            )}
           </div>
         </div>
       </header>

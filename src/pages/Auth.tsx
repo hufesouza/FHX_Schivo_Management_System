@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, FileText } from 'lucide-react';
+import { Loader2, FileText, Mail, CheckCircle } from 'lucide-react';
 import { z } from 'zod';
 
 const authSchema = z.object({
@@ -14,15 +15,66 @@ const authSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
+interface Invitation {
+  id: string;
+  email: string;
+  role: string;
+  expires_at: string;
+  accepted_at: string | null;
+}
+
 export default function Auth() {
-  const [isLogin, setIsLogin] = useState(true);
+  const [searchParams] = useSearchParams();
+  const token = searchParams.get('token');
+  
+  const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [invitation, setInvitation] = useState<Invitation | null>(null);
+  const [inviteLoading, setInviteLoading] = useState(!!token);
+  const [inviteError, setInviteError] = useState<string | null>(null);
   
   const { signIn, signUp, isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
+
+  // Check invitation token
+  useEffect(() => {
+    if (token) {
+      checkInvitation(token);
+    }
+  }, [token]);
+
+  const checkInvitation = async (inviteToken: string) => {
+    setInviteLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('invitations')
+        .select('*')
+        .eq('token', inviteToken)
+        .is('accepted_at', null)
+        .single();
+
+      if (error || !data) {
+        setInviteError('Invalid or expired invitation link');
+        return;
+      }
+
+      if (new Date(data.expires_at) < new Date()) {
+        setInviteError('This invitation has expired');
+        return;
+      }
+
+      setInvitation(data as Invitation);
+      setEmail(data.email);
+      setMode('signup');
+    } catch (err) {
+      setInviteError('Failed to verify invitation');
+    } finally {
+      setInviteLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -52,7 +104,7 @@ export default function Auth() {
     setIsSubmitting(true);
 
     try {
-      if (isLogin) {
+      if (mode === 'login') {
         const { error } = await signIn(email, password);
         if (error) {
           if (error.message.includes('Invalid login credentials')) {
@@ -65,15 +117,36 @@ export default function Auth() {
           navigate('/');
         }
       } else {
+        // Signup with invitation
+        if (!invitation) {
+          toast.error('Valid invitation required to create an account');
+          return;
+        }
+
         const { error } = await signUp(email, password);
         if (error) {
           if (error.message.includes('already registered')) {
             toast.error('This email is already registered. Please sign in.');
+            setMode('login');
           } else {
             toast.error(error.message);
           }
         } else {
-          toast.success('Account created! You can now sign in.');
+          // Mark invitation as accepted and assign role
+          const { data: { user } } = await supabase.auth.getUser();
+          
+          if (user) {
+            // Update invitation
+            await supabase
+              .from('invitations')
+              .update({ accepted_at: new Date().toISOString() })
+              .eq('id', invitation.id);
+
+            // Assign role (this will be done by a trigger or the user can be assigned manually)
+            // For now we'll rely on the admin to manage roles after signup
+          }
+          
+          toast.success('Account created successfully!');
           navigate('/');
         }
       }
@@ -82,10 +155,32 @@ export default function Auth() {
     }
   };
 
-  if (loading) {
+  if (loading || inviteLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Show error if invalid invitation
+  if (token && inviteError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 bg-destructive/10 rounded-xl p-3 w-fit">
+              <Mail className="h-8 w-8 text-destructive" />
+            </div>
+            <CardTitle className="text-2xl font-serif">Invalid Invitation</CardTitle>
+            <CardDescription>{inviteError}</CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Button onClick={() => navigate('/auth')} variant="outline">
+              Back to Login
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -95,15 +190,19 @@ export default function Auth() {
       <Card className="w-full max-w-md animate-fade-in">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 bg-primary/10 rounded-xl p-3 w-fit">
-            <FileText className="h-8 w-8 text-primary" />
+            {invitation ? (
+              <CheckCircle className="h-8 w-8 text-primary" />
+            ) : (
+              <FileText className="h-8 w-8 text-primary" />
+            )}
           </div>
           <CardTitle className="text-2xl font-serif">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
+            {invitation ? 'Complete Your Registration' : 'Welcome Back'}
           </CardTitle>
           <CardDescription>
-            {isLogin 
-              ? 'Sign in to access work order forms' 
-              : 'Sign up to start reviewing work orders'}
+            {invitation 
+              ? `Create your account as ${invitation.role}`
+              : 'Sign in to access work order forms'}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -116,7 +215,7 @@ export default function Auth() {
                 placeholder="you@company.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !!invitation}
               />
               {errors.email && (
                 <p className="text-sm text-destructive">{errors.email}</p>
@@ -140,25 +239,21 @@ export default function Auth() {
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isLogin ? 'Signing in...' : 'Creating account...'}
+                  {mode === 'login' ? 'Signing in...' : 'Creating account...'}
                 </>
               ) : (
-                isLogin ? 'Sign In' : 'Create Account'
+                mode === 'login' ? 'Sign In' : 'Create Account'
               )}
             </Button>
           </form>
           
-          <div className="mt-6 text-center">
-            <button
-              type="button"
-              onClick={() => setIsLogin(!isLogin)}
-              className="text-sm text-muted-foreground hover:text-primary transition-colors"
-            >
-              {isLogin 
-                ? "Don't have an account? Sign up" 
-                : 'Already have an account? Sign in'}
-            </button>
-          </div>
+          {!invitation && (
+            <div className="mt-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                Need an account? Contact your administrator.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
