@@ -38,6 +38,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import {
@@ -53,27 +54,15 @@ import {
   Loader2, 
   UserPlus, 
   ArrowLeft, 
-  Clock, 
-  CheckCircle,
   Users,
   Shield,
   MoreHorizontal,
   Trash2,
   KeyRound,
-  Copy,
-  Link
+  Edit
 } from 'lucide-react';
 
 type AppRole = 'admin' | 'engineering' | 'operations' | 'quality' | 'npi' | 'supply_chain';
-
-interface Invitation {
-  id: string;
-  email: string;
-  role: AppRole;
-  expires_at: string;
-  accepted_at: string | null;
-  created_at: string;
-}
 
 interface UserWithRole {
   id: string;
@@ -98,26 +87,33 @@ export default function AdminUsers() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { role: userRole, loading: roleLoading } = useUserRole();
   
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [userRoles, setUserRoles] = useState<UserWithRole[]>([]);
   const [loading, setLoading] = useState(true);
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState<AppRole>('engineering');
-  const [sending, setSending] = useState(false);
   
-  // Invite link dialog state
-  const [inviteLinkDialogOpen, setInviteLinkDialogOpen] = useState(false);
-  const [generatedInviteUrl, setGeneratedInviteUrl] = useState('');
-  const [generatedInviteEmail, setGeneratedInviteEmail] = useState('');
+  // Create user dialog state
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [newUserFullName, setNewUserFullName] = useState('');
+  const [newUserRole, setNewUserRole] = useState<AppRole>('engineering');
+  const [creating, setCreating] = useState(false);
+  
+  // Edit role dialog state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserWithRole | null>(null);
+  const [editRole, setEditRole] = useState<AppRole>('engineering');
+  const [updating, setUpdating] = useState(false);
+  
+  // Set password dialog state
+  const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [passwordUser, setPasswordUser] = useState<UserWithRole | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [settingPassword, setSettingPassword] = useState(false);
   
   // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [userToDelete, setUserToDelete] = useState<UserWithRole | null>(null);
   const [deleting, setDeleting] = useState(false);
-  
-  // Reset password state
-  const [resetting, setResetting] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -145,15 +141,6 @@ export default function AdminUsers() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Fetch invitations
-      const { data: inviteData, error: inviteError } = await supabase
-        .from('invitations')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (inviteError) throw inviteError;
-      setInvitations(inviteData as Invitation[]);
-
       // Fetch user roles with profile info
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
@@ -188,42 +175,102 @@ export default function AdminUsers() {
     }
   };
 
-  const handleSendInvite = async () => {
-    if (!inviteEmail || !inviteRole) {
-      toast.error('Please fill in all fields');
+  const handleCreateUser = async () => {
+    if (!newUserEmail || !newUserPassword || !newUserRole) {
+      toast.error('Please fill in all required fields');
       return;
     }
 
-    setSending(true);
+    if (newUserPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    setCreating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-invite', {
-        body: { email: inviteEmail, role: inviteRole },
+      const { data, error } = await supabase.functions.invoke('admin-users', {
+        body: { 
+          action: 'createUser',
+          email: newUserEmail,
+          password: newUserPassword,
+          role: newUserRole,
+          fullName: newUserFullName || newUserEmail
+        },
       });
 
       if (error) throw error;
 
-      // Show the invite link dialog
-      setGeneratedInviteUrl(data.inviteUrl);
-      setGeneratedInviteEmail(inviteEmail);
-      setInviteDialogOpen(false);
-      setInviteLinkDialogOpen(true);
-      setInviteEmail('');
-      setInviteRole('engineering');
+      toast.success('User created successfully!');
+      setCreateDialogOpen(false);
+      setNewUserEmail('');
+      setNewUserPassword('');
+      setNewUserFullName('');
+      setNewUserRole('engineering');
       fetchData();
     } catch (err: any) {
-      console.error('Error sending invite:', err);
-      toast.error(err.message || 'Failed to create invitation');
+      console.error('Error creating user:', err);
+      toast.error(err.message || 'Failed to create user');
     } finally {
-      setSending(false);
+      setCreating(false);
     }
   };
 
-  const handleCopyInviteLink = async () => {
+  const handleUpdateRole = async () => {
+    if (!editingUser) return;
+
+    setUpdating(true);
     try {
-      await navigator.clipboard.writeText(generatedInviteUrl);
-      toast.success('Invite link copied to clipboard!');
-    } catch (err) {
-      toast.error('Failed to copy link');
+      const { data, error } = await supabase.functions.invoke('admin-users', {
+        body: { 
+          action: 'updateRole',
+          userId: editingUser.user_id,
+          role: editRole
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success('Role updated successfully!');
+      setEditDialogOpen(false);
+      setEditingUser(null);
+      fetchData();
+    } catch (err: any) {
+      console.error('Error updating role:', err);
+      toast.error(err.message || 'Failed to update role');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const handleSetPassword = async () => {
+    if (!passwordUser || !newPassword) return;
+
+    if (newPassword.length < 6) {
+      toast.error('Password must be at least 6 characters');
+      return;
+    }
+
+    setSettingPassword(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-users', {
+        body: { 
+          action: 'setPassword',
+          userId: passwordUser.user_id,
+          password: newPassword
+        },
+      });
+
+      if (error) throw error;
+
+      toast.success('Password updated successfully!');
+      setPasswordDialogOpen(false);
+      setPasswordUser(null);
+      setNewPassword('');
+    } catch (err: any) {
+      console.error('Error setting password:', err);
+      toast.error(err.message || 'Failed to set password');
+    } finally {
+      setSettingPassword(false);
     }
   };
 
@@ -250,22 +297,16 @@ export default function AdminUsers() {
     }
   };
 
-  const handleResetPassword = async (userRole: UserWithRole) => {
-    setResetting(userRole.user_id);
-    try {
-      const { data, error } = await supabase.functions.invoke('admin-users', {
-        body: { action: 'resetPassword', userId: userRole.user_id },
-      });
+  const openEditDialog = (ur: UserWithRole) => {
+    setEditingUser(ur);
+    setEditRole(ur.role);
+    setEditDialogOpen(true);
+  };
 
-      if (error) throw error;
-
-      toast.success('Password reset email sent');
-    } catch (err: any) {
-      console.error('Error resetting password:', err);
-      toast.error(err.message || 'Failed to send password reset email');
-    } finally {
-      setResetting(null);
-    }
+  const openPasswordDialog = (ur: UserWithRole) => {
+    setPasswordUser(ur);
+    setNewPassword('');
+    setPasswordDialogOpen(true);
   };
 
   const confirmDelete = (ur: UserWithRole) => {
@@ -279,10 +320,6 @@ export default function AdminUsers() {
       month: 'short',
       year: 'numeric',
     });
-  };
-
-  const isExpired = (expiresAt: string) => {
-    return new Date(expiresAt) < new Date();
   };
 
   const isCurrentUser = (userId: string) => {
@@ -301,9 +338,6 @@ export default function AdminUsers() {
     return null;
   }
 
-  const pendingInvitations = invitations.filter(i => !i.accepted_at && !isExpired(i.expires_at));
-  const acceptedInvitations = invitations.filter(i => i.accepted_at);
-
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -314,41 +348,61 @@ export default function AdminUsers() {
           </Button>
           <div>
             <h1 className="text-xl font-serif font-medium">User Management</h1>
-            <p className="text-sm text-muted-foreground">Invite and manage users</p>
+            <p className="text-sm text-muted-foreground">Create and manage users</p>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-8">
-        {/* Invite Button */}
+        {/* Create User Button */}
         <div className="flex justify-end">
-          <Dialog open={inviteDialogOpen} onOpenChange={setInviteDialogOpen}>
+          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
               <Button>
-                <UserPlus className="h-4 w-4 mr-2" /> Invite User
+                <UserPlus className="h-4 w-4 mr-2" /> Create User
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Invite New User</DialogTitle>
+                <DialogTitle>Create New User</DialogTitle>
                 <DialogDescription>
-                  Send an email invitation to add a new team member.
+                  Create a new user account with login credentials.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
+                  <Label htmlFor="email">Email Address *</Label>
                   <Input
                     id="email"
                     type="email"
                     placeholder="user@company.com"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="role">Role</Label>
-                  <Select value={inviteRole} onValueChange={(v) => setInviteRole(v as AppRole)}>
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input
+                    id="fullName"
+                    type="text"
+                    placeholder="John Doe"
+                    value={newUserFullName}
+                    onChange={(e) => setNewUserFullName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password *</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="Minimum 6 characters"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role">Role *</Label>
+                  <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v as AppRole)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -363,120 +417,42 @@ export default function AdminUsers() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setInviteDialogOpen(false)}>
+                <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
                   Cancel
                 </Button>
-                <Button onClick={handleSendInvite} disabled={sending}>
-                  {sending ? (
+                <Button onClick={handleCreateUser} disabled={creating}>
+                  {creating ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                       Creating...
                     </>
                   ) : (
                     <>
-                      <Link className="h-4 w-4 mr-2" />
-                      Create Invite
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Create User
                     </>
                   )}
                 </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
-
-          {/* Invite Link Dialog */}
-          <Dialog open={inviteLinkDialogOpen} onOpenChange={setInviteLinkDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Invitation Created</DialogTitle>
-                <DialogDescription>
-                  Share this link with <strong>{generatedInviteEmail}</strong> to complete their registration.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label>Invite Link</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={generatedInviteUrl}
-                      readOnly
-                      className="font-mono text-sm"
-                    />
-                    <Button onClick={handleCopyInviteLink} variant="outline" size="icon">
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    This link expires in 7 days. Copy and share it manually via email, chat, or any other method.
-                  </p>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={() => setInviteLinkDialogOpen(false)}>
-                  Done
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </div>
 
-        {/* Pending Invitations */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-lg">Pending Invitations</CardTitle>
-            </div>
-            <CardDescription>
-              {pendingInvitations.length} invitation(s) waiting to be accepted
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {pendingInvitations.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No pending invitations
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Sent</TableHead>
-                    <TableHead>Expires</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {pendingInvitations.map((inv) => (
-                    <TableRow key={inv.id}>
-                      <TableCell className="font-medium">{inv.email}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{inv.role}</Badge>
-                      </TableCell>
-                      <TableCell>{formatDate(inv.created_at)}</TableCell>
-                      <TableCell>{formatDate(inv.expires_at)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Active Users */}
+        {/* Users Table */}
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
               <Users className="h-5 w-5 text-muted-foreground" />
-              <CardTitle className="text-lg">Active Users</CardTitle>
+              <CardTitle className="text-lg">Users</CardTitle>
             </div>
             <CardDescription>
-              {userRoles.length} user(s) with assigned roles
+              {userRoles.length} user(s) in the system
             </CardDescription>
           </CardHeader>
           <CardContent>
             {userRoles.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
-                No users found
+                No users found. Create one to get started.
               </p>
             ) : (
               <Table>
@@ -484,7 +460,7 @@ export default function AdminUsers() {
                   <TableRow>
                     <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
-                    <TableHead>Assigned</TableHead>
+                    <TableHead>Created</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -519,24 +495,24 @@ export default function AdminUsers() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem 
-                              onClick={() => handleResetPassword(ur)}
-                              disabled={resetting === ur.user_id}
-                            >
-                              {resetting === ur.user_id ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              ) : (
-                                <KeyRound className="h-4 w-4 mr-2" />
-                              )}
-                              Reset Password
+                            <DropdownMenuItem onClick={() => openEditDialog(ur)}>
+                              <Edit className="h-4 w-4 mr-2" />
+                              Change Role
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => openPasswordDialog(ur)}>
+                              <KeyRound className="h-4 w-4 mr-2" />
+                              Set Password
                             </DropdownMenuItem>
                             {!isCurrentUser(ur.user_id) && (
-                              <DropdownMenuItem 
-                                onClick={() => confirmDelete(ur)}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4 mr-2" /> Delete User
-                              </DropdownMenuItem>
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  onClick={() => confirmDelete(ur)}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="h-4 w-4 mr-2" /> Delete User
+                                </DropdownMenuItem>
+                              </>
                             )}
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -548,41 +524,89 @@ export default function AdminUsers() {
             )}
           </CardContent>
         </Card>
-
-        {/* Accepted Invitations */}
-        {acceptedInvitations.length > 0 && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <CardTitle className="text-lg">Accepted Invitations</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Accepted</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {acceptedInvitations.map((inv) => (
-                    <TableRow key={inv.id}>
-                      <TableCell className="font-medium">{inv.email}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{inv.role}</Badge>
-                      </TableCell>
-                      <TableCell>{formatDate(inv.accepted_at!)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
       </main>
+
+      {/* Edit Role Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change User Role</DialogTitle>
+            <DialogDescription>
+              Update role for {editingUser?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>New Role</Label>
+              <Select value={editRole} onValueChange={(v) => setEditRole(v as AppRole)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((role) => (
+                    <SelectItem key={role.value} value={role.value}>
+                      {role.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleUpdateRole} disabled={updating}>
+              {updating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                'Update Role'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Set Password Dialog */}
+      <Dialog open={passwordDialogOpen} onOpenChange={setPasswordDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Set New Password</DialogTitle>
+            <DialogDescription>
+              Set a new password for {passwordUser?.email}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>New Password</Label>
+              <Input
+                type="password"
+                placeholder="Minimum 6 characters"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPasswordDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSetPassword} disabled={settingPassword}>
+              {settingPassword ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Setting...
+                </>
+              ) : (
+                'Set Password'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -590,13 +614,13 @@ export default function AdminUsers() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete User</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {userToDelete?.email || 'this user'}? This action cannot be undone and will remove all their data.
+              Are you sure you want to delete {userToDelete?.email}? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDeleteUser} 
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUser}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
