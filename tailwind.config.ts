@@ -14,8 +14,8 @@ export default {
     },
     extend: {
       fontFamily: {
-        serif: ['Crimson Pro', 'Georgia', 'serif'],
-        sans: ['Inter', 'system-ui', 'sans-serif'],
+        heading: ['Montserrat', 'system-ui', 'sans-serif'],
+        sans: ['Open Sans', 'system-ui', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -68,8 +68,9 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       boxShadow: {
-        'elegant': '0 4px 12px hsl(30 10% 15% / 0.08)',
-        'glow': '0 0 20px hsl(15 60% 50% / 0.15)',
+        'elegant': '0 4px 12px hsl(210 50% 15% / 0.1)',
+        'glow': '0 0 20px hsl(40 70% 55% / 0.3)',
+        'schivo': '0 4px 20px hsl(210 100% 20% / 0.15)',
       },
       keyframes: {
         "accordion-down": {

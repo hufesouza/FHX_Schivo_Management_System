@@ -30,6 +30,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { InstallBanner } from '@/components/InstallBanner';
+import { AppLayout } from '@/components/layout/AppLayout';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('en-GB', {
@@ -89,17 +90,17 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <AppLayout>
       {/* Header */}
-      <header className="border-b border-border bg-card">
+      <header className="border-b border-border bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-primary/10 rounded-lg p-2">
-              <FileText className="h-6 w-6 text-primary" />
+            <div className="bg-primary-foreground/10 rounded-lg p-2">
+              <FileText className="h-6 w-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-serif font-medium">Blue Review</h1>
-              <p className="text-sm text-muted-foreground">WD-FRM-0017</p>
+              <h1 className="text-xl font-heading font-semibold text-primary-foreground">Schivo</h1>
+              <p className="text-sm text-primary-foreground/80">Blue Review | WD-FRM-0017</p>
             </div>
           </div>
           
@@ -288,7 +289,7 @@ const Index = () => {
       </main>
 
       <InstallBanner />
-    </div>
+    </AppLayout>
   );
 };
 
