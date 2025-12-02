@@ -9,7 +9,7 @@ interface FormNavigationProps {
 }
 
 const sections: { id: FormSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: 'header', label: 'Work Order', icon: FileText },
+  { id: 'header', label: 'Details', icon: FileText },
   { id: 'engineering', label: 'Engineering', icon: Settings },
   { id: 'operations', label: 'Operations', icon: ClipboardCheck },
   { id: 'quality', label: 'Quality', icon: CheckCircle },
