@@ -27,21 +27,28 @@ export function useUserRole() {
       console.log('useUserRole: Fetching role for user:', user.id);
       
       try {
+        // Fetch all roles for the user (they may have multiple)
         const { data, error } = await supabase
           .from('user_roles')
           .select('role')
-          .eq('user_id', user.id)
-          .maybeSingle();
+          .eq('user_id', user.id);
 
         console.log('useUserRole: Query result:', { data, error });
 
         if (error) {
           console.error('Error fetching user role:', error);
           setRole(null);
+        } else if (data && data.length > 0) {
+          // User has at least one role - use the first one
+          // Priority: admin > engineering > operations > quality > npi > supply_chain
+          const rolePriority: AppRole[] = ['admin', 'engineering', 'operations', 'quality', 'npi', 'supply_chain'];
+          const userRoles = data.map(r => r.role as AppRole);
+          const primaryRole = rolePriority.find(r => userRoles.includes(r)) || userRoles[0];
+          console.log('useUserRole: User has roles:', userRoles, 'Using primary:', primaryRole);
+          setRole(primaryRole);
         } else {
-          const fetchedRole = data?.role as AppRole || null;
-          console.log('useUserRole: Setting role to:', fetchedRole);
-          setRole(fetchedRole);
+          console.log('useUserRole: No roles found');
+          setRole(null);
         }
       } catch (err) {
         console.error('Error fetching user role:', err);
