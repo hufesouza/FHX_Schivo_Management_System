@@ -48,8 +48,8 @@ export function FormNavigation({
                 index + 1
               )}
             </span>
-            <Icon className="h-4 w-4 hidden sm:block" />
-            <span className="hidden md:inline">{section.label}</span>
+            <Icon className="h-4 w-4" />
+            <span>{section.label}</span>
           </button>
         );
       })}
