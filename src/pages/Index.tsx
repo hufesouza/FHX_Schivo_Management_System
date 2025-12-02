@@ -35,7 +35,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { ReviewsByStatusChart } from '@/components/dashboard/ReviewsByStatusChart';
 import { AgingChart } from '@/components/dashboard/AgingChart';
-import { ReviewsByUserChart } from '@/components/dashboard/ReviewsByUserChart';
+import { ReviewsByDepartmentChart } from '@/components/dashboard/ReviewsByDepartmentChart';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('en-GB', {
@@ -105,31 +105,21 @@ const Index = () => {
       avgTurnaround = totalDays / completedOrders.length;
     }
 
-    // Group tasks by assigned user
-    const tasksByUser = tasks.reduce((acc, task) => {
-      const userId = task.assigned_to;
-      if (!acc[userId]) {
-        acc[userId] = { open: 0, completed: 0 };
-      }
-      if (task.status === 'completed') {
-        acc[userId].completed++;
-      } else {
-        acc[userId].open++;
-      }
+    // Group open reviews by current department/stage
+    const departmentCounts = openWorkOrders.reduce((acc, wo) => {
+      const stage = wo.current_stage || 'header';
+      acc[stage] = (acc[stage] || 0) + 1;
       return acc;
-    }, {} as Record<string, { open: number; completed: number }>);
+    }, {} as Record<string, number>);
 
-    // Get user names from work orders (simplified - using email prefix)
-    const userReviewData = Object.entries(tasksByUser).map(([userId, counts]) => {
-      // Find a task with profile info or use ID
-      const userTask = tasks.find(t => t.assigned_to === userId);
-      const name = userId.substring(0, 8) + '...'; // Fallback to truncated ID
-      return {
-        name,
-        open: counts.open,
-        completed: counts.completed
-      };
-    });
+    const departmentData = [
+      { department: 'header', count: departmentCounts['header'] || 0 },
+      { department: 'engineering', count: departmentCounts['engineering'] || 0 },
+      { department: 'operations', count: departmentCounts['operations'] || 0 },
+      { department: 'quality', count: departmentCounts['quality'] || 0 },
+      { department: 'npi', count: departmentCounts['npi'] || 0 },
+      { department: 'supply_chain', count: departmentCounts['supply_chain'] || 0 },
+    ];
 
     return {
       openCount,
@@ -139,7 +129,7 @@ const Index = () => {
       avgTurnaround,
       oldestOpenDays,
       agingData,
-      userReviewData
+      departmentData
     };
   }, [workOrders, tasks]);
 
@@ -299,7 +289,7 @@ const Index = () => {
               inReviewCount={dashboardMetrics.inReviewCount}
             />
             <AgingChart data={dashboardMetrics.agingData} />
-            <ReviewsByUserChart data={dashboardMetrics.userReviewData} />
+            <ReviewsByDepartmentChart data={dashboardMetrics.departmentData} />
           </div>
         </div>
 
