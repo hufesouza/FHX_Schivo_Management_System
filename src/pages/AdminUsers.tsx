@@ -25,6 +25,22 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
   Table,
   TableBody,
   TableCell,
@@ -40,9 +56,11 @@ import {
   Mail, 
   Clock, 
   CheckCircle,
-  XCircle,
   Users,
-  Shield
+  Shield,
+  MoreHorizontal,
+  Trash2,
+  KeyRound
 } from 'lucide-react';
 
 type AppRole = 'admin' | 'engineering' | 'operations' | 'quality' | 'npi' | 'supply_chain';
@@ -61,6 +79,8 @@ interface UserWithRole {
   user_id: string;
   role: AppRole;
   created_at: string;
+  email?: string;
+  full_name?: string;
 }
 
 const ROLES: { value: AppRole; label: string }[] = [
@@ -74,7 +94,7 @@ const ROLES: { value: AppRole; label: string }[] = [
 
 export default function AdminUsers() {
   const navigate = useNavigate();
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { role: userRole, loading: roleLoading } = useUserRole();
   
   const [invitations, setInvitations] = useState<Invitation[]>([]);
@@ -84,6 +104,14 @@ export default function AdminUsers() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<AppRole>('engineering');
   const [sending, setSending] = useState(false);
+  
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<UserWithRole | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  
+  // Reset password state
+  const [resetting, setResetting] = useState<string | null>(null);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -92,13 +120,10 @@ export default function AdminUsers() {
   }, [isAuthenticated, authLoading, navigate]);
 
   useEffect(() => {
-    // Only redirect if role loading is complete AND user has a role that's NOT admin
-    // If userRole is null, it means no role was found - this user shouldn't have access
     if (!roleLoading && userRole !== null && userRole !== 'admin') {
       toast.error('Access denied. Admin only.');
       navigate('/');
     }
-    // If no role found after loading, also deny access
     if (!roleLoading && !authLoading && isAuthenticated && userRole === null) {
       toast.error('Access denied. No role assigned.');
       navigate('/');
@@ -123,14 +148,32 @@ export default function AdminUsers() {
       if (inviteError) throw inviteError;
       setInvitations(inviteData as Invitation[]);
 
-      // Fetch user roles
+      // Fetch user roles with profile info
       const { data: rolesData, error: rolesError } = await supabase
         .from('user_roles')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (rolesError) throw rolesError;
-      setUserRoles(rolesData as UserWithRole[]);
+
+      // Fetch profiles to get emails
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('user_id, email, full_name');
+
+      if (profilesError) throw profilesError;
+
+      // Merge role data with profile data
+      const mergedData = (rolesData as UserWithRole[]).map(ur => {
+        const profile = profilesData?.find(p => p.user_id === ur.user_id);
+        return {
+          ...ur,
+          email: profile?.email || undefined,
+          full_name: profile?.full_name || undefined,
+        };
+      });
+
+      setUserRoles(mergedData);
     } catch (err) {
       console.error('Error fetching data:', err);
       toast.error('Failed to load user data');
@@ -166,6 +209,52 @@ export default function AdminUsers() {
     }
   };
 
+  const handleDeleteUser = async () => {
+    if (!userToDelete) return;
+
+    setDeleting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-users', {
+        body: { action: 'delete', userId: userToDelete.user_id },
+      });
+
+      if (error) throw error;
+
+      toast.success('User deleted successfully');
+      setDeleteDialogOpen(false);
+      setUserToDelete(null);
+      fetchData();
+    } catch (err: any) {
+      console.error('Error deleting user:', err);
+      toast.error(err.message || 'Failed to delete user');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleResetPassword = async (userRole: UserWithRole) => {
+    setResetting(userRole.user_id);
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-users', {
+        body: { action: 'resetPassword', userId: userRole.user_id },
+      });
+
+      if (error) throw error;
+
+      toast.success('Password reset email sent');
+    } catch (err: any) {
+      console.error('Error resetting password:', err);
+      toast.error(err.message || 'Failed to send password reset email');
+    } finally {
+      setResetting(null);
+    }
+  };
+
+  const confirmDelete = (ur: UserWithRole) => {
+    setUserToDelete(ur);
+    setDeleteDialogOpen(true);
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-GB', {
       day: 'numeric',
@@ -176,6 +265,10 @@ export default function AdminUsers() {
 
   const isExpired = (expiresAt: string) => {
     return new Date(expiresAt) < new Date();
+  };
+
+  const isCurrentUser = (userId: string) => {
+    return user?.id === userId;
   };
 
   if (authLoading || roleLoading || loading) {
@@ -336,22 +429,65 @@ export default function AdminUsers() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>User ID</TableHead>
+                    <TableHead>User</TableHead>
                     <TableHead>Role</TableHead>
                     <TableHead>Assigned</TableHead>
+                    <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {userRoles.map((ur) => (
                     <TableRow key={ur.id}>
-                      <TableCell className="font-mono text-xs">{ur.user_id.slice(0, 8)}...</TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="font-medium">
+                            {ur.email || 'No email'}
+                            {isCurrentUser(ur.user_id) && (
+                              <span className="text-xs text-muted-foreground ml-2">(you)</span>
+                            )}
+                          </p>
+                          {ur.full_name && (
+                            <p className="text-sm text-muted-foreground">{ur.full_name}</p>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         <Badge variant={ur.role === 'admin' ? 'default' : 'outline'}>
                           {ur.role === 'admin' && <Shield className="h-3 w-3 mr-1" />}
-                          {ur.role}
+                          {ur.role.replace('_', ' ')}
                         </Badge>
                       </TableCell>
                       <TableCell>{formatDate(ur.created_at)}</TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem 
+                              onClick={() => handleResetPassword(ur)}
+                              disabled={resetting === ur.user_id}
+                            >
+                              {resetting === ur.user_id ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              ) : (
+                                <KeyRound className="h-4 w-4 mr-2" />
+                              )}
+                              Reset Password
+                            </DropdownMenuItem>
+                            {!isCurrentUser(ur.user_id) && (
+                              <DropdownMenuItem 
+                                onClick={() => confirmDelete(ur)}
+                                className="text-destructive focus:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" /> Delete User
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -394,6 +530,35 @@ export default function AdminUsers() {
           </Card>
         )}
       </main>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete User</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {userToDelete?.email || 'this user'}? This action cannot be undone and will remove all their data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteUser} 
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete User'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
