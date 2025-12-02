@@ -279,8 +279,8 @@ export default function Auth() {
       {/* Footer with FHX branding - subtle */}
       <footer className="p-3 text-center">
         <div className="flex items-center justify-center gap-2">
-          <span className="text-muted-foreground text-xs">Solution by</span>
-          <img src={fhxLogo} alt="FHX Engineering" className="h-4 opacity-70" />
+          <span className="text-foreground/70 text-xs font-medium">Solution by</span>
+          <img src={fhxLogo} alt="FHX Engineering" className="h-4" />
         </div>
       </footer>
     </div>
