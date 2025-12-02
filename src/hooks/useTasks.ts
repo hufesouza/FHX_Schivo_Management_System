@@ -76,59 +76,59 @@ export function useTasks() {
 export function useUsersByRole() {
   const [users, setUsers] = useState<{ id: string; email: string; full_name: string | null; role: string }[]>([]);
   const [loading, setLoading] = useState(true);
+  const [usersByDept, setUsersByDept] = useState<Record<string, { id: string; email: string; full_name: string | null }[]>>({});
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true);
+  const fetchUsersByDepartment = useCallback(async (department: string) => {
+    const { data, error } = await supabase.rpc('get_users_by_department', { _department: department });
     
-    // Fetch user_roles with profiles
-    const { data: rolesData, error: rolesError } = await supabase
-      .from('user_roles')
-      .select('user_id, role');
-
-    if (rolesError) {
-      console.error('Error fetching roles:', rolesError);
-      setLoading(false);
-      return;
+    if (error) {
+      console.error('Error fetching users by department:', error);
+      return [];
     }
-
-    // Fetch profiles
-    const { data: profilesData, error: profilesError } = await supabase
-      .from('profiles')
-      .select('user_id, email, full_name');
-
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError);
-      setLoading(false);
-      return;
-    }
-
-    // Combine data
-    const combined = rolesData.map(role => {
-      const profile = profilesData.find(p => p.user_id === role.user_id);
-      return {
-        id: role.user_id,
-        email: profile?.email || '',
-        full_name: profile?.full_name || null,
-        role: role.role,
-      };
-    });
-
-    setUsers(combined);
-    setLoading(false);
+    
+    return (data || []).map((u: { user_id: string; email: string; full_name: string | null }) => ({
+      id: u.user_id,
+      email: u.email || '',
+      full_name: u.full_name,
+    }));
   }, []);
 
+  // Pre-fetch all departments on mount
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+    const departments = ['engineering', 'operations', 'quality', 'npi', 'supply_chain'];
+    
+    const fetchAll = async () => {
+      setLoading(true);
+      const results: Record<string, { id: string; email: string; full_name: string | null }[]> = {};
+      
+      for (const dept of departments) {
+        results[dept] = await fetchUsersByDepartment(dept);
+      }
+      
+      setUsersByDept(results);
+      
+      // Also populate the flat users array for backward compatibility
+      const allUsers: { id: string; email: string; full_name: string | null; role: string }[] = [];
+      for (const [role, deptUsers] of Object.entries(results)) {
+        for (const user of deptUsers) {
+          allUsers.push({ ...user, role });
+        }
+      }
+      setUsers(allUsers);
+      setLoading(false);
+    };
+    
+    fetchAll();
+  }, [fetchUsersByDepartment]);
 
   const getUsersByDepartment = useCallback((department: string) => {
-    return users.filter(u => u.role === department);
-  }, [users]);
+    return usersByDept[department] || [];
+  }, [usersByDept]);
 
   return {
     users,
     loading,
     getUsersByDepartment,
-    refetch: fetchUsers,
+    refetch: () => {},
   };
 }
