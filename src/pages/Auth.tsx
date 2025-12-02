@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Loader2, FileText, Mail, CheckCircle } from 'lucide-react';
+import { Loader2, Mail, CheckCircle } from 'lucide-react';
 import { z } from 'zod';
 
 const authSchema = z.object({
@@ -146,8 +146,8 @@ export default function Auth() {
 
   if (loading || inviteLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="min-h-screen flex items-center justify-center bg-primary">
+        <Loader2 className="h-8 w-8 animate-spin text-accent" />
       </div>
     );
   }
@@ -155,96 +155,136 @@ export default function Auth() {
   // Show error if invalid invitation
   if (token && inviteError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 bg-destructive/10 rounded-xl p-3 w-fit">
-              <Mail className="h-8 w-8 text-destructive" />
-            </div>
-            <CardTitle className="text-2xl font-serif">Invalid Invitation</CardTitle>
-            <CardDescription>{inviteError}</CardDescription>
-          </CardHeader>
-          <CardContent className="text-center">
-            <Button onClick={() => navigate('/auth')} variant="outline">
-              Back to Login
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen flex flex-col bg-primary">
+        <div className="flex-1 flex items-center justify-center p-4">
+          <Card className="w-full max-w-md border-accent/20 shadow-elegant">
+            <CardHeader className="text-center">
+              <div className="mx-auto mb-4 bg-destructive/10 rounded-xl p-3 w-fit">
+                <Mail className="h-8 w-8 text-destructive" />
+              </div>
+              <CardTitle className="text-2xl font-serif">Invalid Invitation</CardTitle>
+              <CardDescription>{inviteError}</CardDescription>
+            </CardHeader>
+            <CardContent className="text-center">
+              <Button onClick={() => navigate('/auth')} variant="outline">
+                Back to Login
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+        <footer className="p-4 text-center text-primary-foreground/60 text-sm">
+          Solution by <span className="text-accent font-medium">FHX Engineering</span>
+        </footer>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md animate-fade-in">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 bg-primary/10 rounded-xl p-3 w-fit">
-            {invitation ? (
-              <CheckCircle className="h-8 w-8 text-primary" />
-            ) : (
-              <FileText className="h-8 w-8 text-primary" />
-            )}
+    <div className="min-h-screen flex flex-col bg-primary">
+      {/* Main content */}
+      <div className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-6 animate-fade-in">
+          {/* Logo/Brand Header */}
+          <div className="text-center space-y-2">
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-accent/20 border-2 border-accent/30 mb-4">
+              <span className="text-3xl font-heading font-bold text-accent">S</span>
+            </div>
+            <h1 className="text-3xl font-heading font-bold text-primary-foreground">
+              Schivo Medical
+            </h1>
+            <p className="text-primary-foreground/70 font-medium">
+              Blue Review Management System
+            </p>
           </div>
-          <CardTitle className="text-2xl font-serif">
-            {invitation ? 'Complete Your Registration' : 'Welcome Back'}
-          </CardTitle>
-          <CardDescription>
-            {invitation 
-              ? `Create your account as ${invitation.role}`
-              : 'Sign in to access Blue Review forms'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isSubmitting || !!invitation}
-              />
-              {errors.email && (
-                <p className="text-sm text-destructive">{errors.email}</p>
+
+          {/* Login Card */}
+          <Card className="border-accent/20 shadow-elegant bg-card">
+            <CardHeader className="text-center pb-4">
+              {invitation ? (
+                <div className="mx-auto mb-2 bg-accent/10 rounded-xl p-3 w-fit">
+                  <CheckCircle className="h-6 w-6 text-accent" />
+                </div>
+              ) : null}
+              <CardTitle className="text-xl font-serif">
+                {invitation ? 'Complete Your Registration' : 'Welcome Back'}
+              </CardTitle>
+              <CardDescription>
+                {invitation 
+                  ? `Create your account as ${invitation.role.replace('_', ' ')}`
+                  : 'Sign in to access Blue Review forms'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="you@schivomedical.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={isSubmitting || !!invitation}
+                    className="border-border focus:border-accent focus:ring-accent"
+                  />
+                  {errors.email && (
+                    <p className="text-sm text-destructive">{errors.email}</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={isSubmitting}
+                    className="border-border focus:border-accent focus:ring-accent"
+                  />
+                  {errors.password && (
+                    <p className="text-sm text-destructive">{errors.password}</p>
+                  )}
+                </div>
+                <Button 
+                  type="submit" 
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground" 
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {mode === 'login' ? 'Signing in...' : 'Creating account...'}
+                    </>
+                  ) : (
+                    mode === 'login' ? 'Sign In' : 'Create Account'
+                  )}
+                </Button>
+              </form>
+              
+              {!invitation && (
+                <div className="mt-6 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    Need an account? Contact your administrator.
+                  </p>
+                </div>
               )}
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isSubmitting}
-              />
-              {errors.password && (
-                <p className="text-sm text-destructive">{errors.password}</p>
-              )}
-            </div>
-            <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {mode === 'login' ? 'Signing in...' : 'Creating account...'}
-                </>
-              ) : (
-                mode === 'login' ? 'Sign In' : 'Create Account'
-              )}
-            </Button>
-          </form>
-          
-          {!invitation && (
-            <div className="mt-6 text-center">
-              <p className="text-sm text-muted-foreground">
-                Need an account? Contact your administrator.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+
+          {/* Security note */}
+          <p className="text-center text-primary-foreground/50 text-xs">
+            Secure access for authorized personnel only
+          </p>
+        </div>
+      </div>
+
+      {/* Footer with FHX branding */}
+      <footer className="p-4 text-center border-t border-primary-foreground/10">
+        <p className="text-primary-foreground/60 text-sm">
+          Solution by <span className="text-accent font-semibold">FHX Engineering</span>
+        </p>
+      </footer>
     </div>
   );
 }
