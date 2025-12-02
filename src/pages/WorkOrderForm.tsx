@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useWorkOrder } from '@/hooks/useWorkOrders';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRole } from '@/hooks/useUserRole';
 import { WorkOrder, FormSection } from '@/types/workOrder';
 import { FormNavigation } from '@/components/form/FormNavigation';
 import { FormHeader } from '@/components/form/FormHeader';
@@ -21,6 +22,7 @@ export default function WorkOrderForm() {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
   const { workOrder, loading, updateWorkOrder } = useWorkOrder(id);
+  const { role, loading: roleLoading, canEditSection, hasRole } = useUserRole();
   
   const [currentSection, setCurrentSection] = useState<FormSection>('header');
   const [formData, setFormData] = useState<Partial<WorkOrder>>({});
@@ -68,10 +70,24 @@ export default function WorkOrderForm() {
     }
   };
 
-  if (authLoading || loading) {
+  if (authLoading || loading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!hasRole) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <h2 className="text-xl font-serif mb-2">No Role Assigned</h2>
+          <p className="text-muted-foreground mb-4">Contact an administrator to assign your department role.</p>
+          <Button variant="outline" onClick={() => navigate('/')}>
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Dashboard
+          </Button>
+        </div>
       </div>
     );
   }
@@ -108,7 +124,7 @@ export default function WorkOrderForm() {
                   Blue Work Order Review
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  W/O #{formData.work_order_number || 'New'}
+                  W/O #{formData.work_order_number || 'New'} • Role: {role?.replace('_', ' ').toUpperCase()}
                 </p>
               </div>
             </div>
@@ -132,22 +148,22 @@ export default function WorkOrderForm() {
       {/* Form Content */}
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         {currentSection === 'header' && (
-          <FormHeader data={formData} onChange={handleChange} />
+          <FormHeader data={formData} onChange={handleChange} disabled={!canEditSection('header')} />
         )}
         {currentSection === 'engineering' && (
-          <EngineeringReview data={formData} onChange={handleChange} />
+          <EngineeringReview data={formData} onChange={handleChange} disabled={!canEditSection('engineering')} />
         )}
         {currentSection === 'operations' && (
-          <OperationsReview data={formData} onChange={handleChange} />
+          <OperationsReview data={formData} onChange={handleChange} disabled={!canEditSection('operations')} />
         )}
         {currentSection === 'quality' && (
-          <QualityReview data={formData} onChange={handleChange} />
+          <QualityReview data={formData} onChange={handleChange} disabled={!canEditSection('quality')} />
         )}
         {currentSection === 'npi-final' && (
-          <NPIFinalReview data={formData} onChange={handleChange} />
+          <NPIFinalReview data={formData} onChange={handleChange} disabled={!canEditSection('npi-final')} />
         )}
         {currentSection === 'supply-chain' && (
-          <SupplyChainReview data={formData} onChange={handleChange} />
+          <SupplyChainReview data={formData} onChange={handleChange} disabled={!canEditSection('supply-chain')} />
         )}
 
         {/* Navigation Buttons */}

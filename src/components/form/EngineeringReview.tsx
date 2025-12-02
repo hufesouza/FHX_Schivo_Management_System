@@ -1,20 +1,23 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { WorkOrder } from '@/types/workOrder';
 import { YesNoField } from './YesNoField';
+import { cn } from '@/lib/utils';
 
 interface EngineeringReviewProps {
   data: Partial<WorkOrder>;
   onChange: (updates: Partial<WorkOrder>) => void;
+  disabled?: boolean;
 }
 
-export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
+export function EngineeringReview({ data, onChange, disabled = false }: EngineeringReviewProps) {
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className={cn("space-y-8 animate-fade-in", disabled && "opacity-60")}>
       <div>
         <h2 className="text-xl font-serif font-medium mb-1">Engineering Review</h2>
-        <p className="text-sm text-muted-foreground">Pre-Release to Floor</p>
+        <p className="text-sm text-muted-foreground">
+          {disabled ? 'View only - you do not have permission to edit this section' : 'Pre-Release to Floor'}
+        </p>
       </div>
       
       {/* 1. Process Parameter Estimation */}
@@ -28,6 +31,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
               value={data.est_development_time || ''}
               onChange={(e) => onChange({ est_development_time: e.target.value ? parseInt(e.target.value) : null })}
               placeholder="Minutes"
+              disabled={disabled}
             />
           </div>
           <div className="space-y-2">
@@ -37,6 +41,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
               value={data.est_setup_time || ''}
               onChange={(e) => onChange({ est_setup_time: e.target.value ? parseInt(e.target.value) : null })}
               placeholder="Minutes"
+              disabled={disabled}
             />
           </div>
           <div className="space-y-2">
@@ -46,6 +51,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
               value={data.est_cycle_time || ''}
               onChange={(e) => onChange({ est_cycle_time: e.target.value ? parseInt(e.target.value) : null })}
               placeholder="Minutes"
+              disabled={disabled}
             />
           </div>
           <div className="space-y-2">
@@ -56,6 +62,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
               value={data.est_tooling_cost || ''}
               onChange={(e) => onChange({ est_tooling_cost: e.target.value ? parseFloat(e.target.value) : null })}
               placeholder="€"
+              disabled={disabled}
             />
           </div>
           <div className="space-y-2">
@@ -64,6 +71,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
               value={data.tooling_lead_time || ''}
               onChange={(e) => onChange({ tooling_lead_time: e.target.value })}
               placeholder="Lead time"
+              disabled={disabled}
             />
           </div>
           <div className="space-y-2">
@@ -74,18 +82,21 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
                 value={data.deburr_time || ''}
                 onChange={(e) => onChange({ deburr_time: e.target.value ? parseInt(e.target.value) : null })}
                 placeholder="Deburr"
+                disabled={disabled}
               />
               <Input
                 type="number"
                 value={data.wash_time || ''}
                 onChange={(e) => onChange({ wash_time: e.target.value ? parseInt(e.target.value) : null })}
                 placeholder="Wash"
+                disabled={disabled}
               />
               <Input
                 type="number"
                 value={data.inspection_time || ''}
                 onChange={(e) => onChange({ inspection_time: e.target.value ? parseInt(e.target.value) : null })}
                 placeholder="Inspect"
+                disabled={disabled}
               />
             </div>
           </div>
@@ -102,6 +113,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
               value={data.material_size_allowance || ''}
               onChange={(e) => onChange({ material_size_allowance: e.target.value })}
               placeholder="Size and allowance"
+              disabled={disabled}
             />
           </div>
           <div className="space-y-2">
@@ -110,6 +122,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
               value={data.material_leadtime || ''}
               onChange={(e) => onChange({ material_leadtime: e.target.value })}
               placeholder="Lead time"
+              disabled={disabled}
             />
           </div>
         </div>
@@ -120,6 +133,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
           details={data.material_size_details}
           onDetailsChange={(v) => onChange({ material_size_details: v })}
           detailsLabel="Details (If No)"
+          disabled={disabled}
         />
       </section>
       
@@ -133,6 +147,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
           details={data.bom_hardware_details}
           onDetailsChange={(v) => onChange({ bom_hardware_details: v })}
           detailsLabel="Details (If No)"
+          disabled={disabled}
         />
         <div className="space-y-2">
           <Label>Lead Time</Label>
@@ -140,6 +155,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
             value={data.bom_lead_time || ''}
             onChange={(e) => onChange({ bom_lead_time: e.target.value })}
             placeholder="Lead time"
+            disabled={disabled}
           />
         </div>
       </section>
@@ -154,6 +170,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
           details={data.drawings_details}
           onDetailsChange={(v) => onChange({ drawings_details: v })}
           detailsLabel="Details (If No)"
+          disabled={disabled}
         />
       </section>
       
@@ -167,6 +184,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
           details={data.tooling_details}
           onDetailsChange={(v) => onChange({ tooling_details: v })}
           detailsLabel="Details (If No)"
+          disabled={disabled}
         />
         <YesNoField
           label="Are there any fixtures required?"
@@ -176,6 +194,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
           onDetailsChange={(v) => onChange({ fixtures_details: v })}
           detailsLabel="Details (If Yes)"
           showDetailsWhen="yes"
+          disabled={disabled}
         />
         <div className="space-y-2">
           <Label>Fixtures Lead Time</Label>
@@ -183,6 +202,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
             value={data.fixtures_lead_time || ''}
             onChange={(e) => onChange({ fixtures_lead_time: e.target.value })}
             placeholder="Lead time"
+            disabled={disabled}
           />
         </div>
       </section>
@@ -197,6 +217,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
           details={data.gauges_details}
           onDetailsChange={(v) => onChange({ gauges_details: v })}
           detailsLabel="Details (If No)"
+          disabled={disabled}
         />
         <YesNoField
           label="Is a CMM or Vici-Vision Program Required?"
@@ -206,6 +227,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
           onDetailsChange={(v) => onChange({ cmm_program_details: v })}
           detailsLabel="Details (If Yes)"
           showDetailsWhen="yes"
+          disabled={disabled}
         />
         <div className="space-y-2">
           <Label>CMM Lead Time</Label>
@@ -213,6 +235,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
             value={data.cmm_lead_time || ''}
             onChange={(e) => onChange({ cmm_lead_time: e.target.value })}
             placeholder="Lead time"
+            disabled={disabled}
           />
         </div>
       </section>
@@ -227,6 +250,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
           details={data.inspection_sheet_details}
           onDetailsChange={(v) => onChange({ inspection_sheet_details: v })}
           detailsLabel="Details (If No)"
+          disabled={disabled}
         />
       </section>
       
@@ -241,6 +265,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
           onDetailsChange={(v) => onChange({ additional_requirements_details: v })}
           detailsLabel="Details (If Yes)"
           showDetailsWhen="yes"
+          disabled={disabled}
         />
       </section>
       
@@ -254,6 +279,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
               value={data.engineering_approved_by || ''}
               onChange={(e) => onChange({ engineering_approved_by: e.target.value })}
               placeholder="Name"
+              disabled={disabled}
             />
           </div>
           <div className="space-y-2">
@@ -262,6 +288,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
               type="date"
               value={data.engineering_approved_date || ''}
               onChange={(e) => onChange({ engineering_approved_date: e.target.value })}
+              disabled={disabled}
             />
           </div>
           <div className="space-y-2">
@@ -270,6 +297,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
               value={data.npi_approval_by || ''}
               onChange={(e) => onChange({ npi_approval_by: e.target.value })}
               placeholder="Name"
+              disabled={disabled}
             />
           </div>
           <div className="space-y-2">
@@ -278,6 +306,7 @@ export function EngineeringReview({ data, onChange }: EngineeringReviewProps) {
               type="date"
               value={data.npi_approval_date || ''}
               onChange={(e) => onChange({ npi_approval_date: e.target.value })}
+              disabled={disabled}
             />
           </div>
         </div>

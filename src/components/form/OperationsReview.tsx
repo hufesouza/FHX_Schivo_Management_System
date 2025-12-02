@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { WorkOrder, WorkCentre } from '@/types/workOrder';
 import { Plus, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface OperationsReviewProps {
   data: Partial<WorkOrder>;
   onChange: (updates: Partial<WorkOrder>) => void;
+  disabled?: boolean;
 }
 
 const defaultWorkCentre: WorkCentre = {
@@ -21,16 +23,18 @@ const defaultWorkCentre: WorkCentre = {
   initialDate: '',
 };
 
-export function OperationsReview({ data, onChange }: OperationsReviewProps) {
+export function OperationsReview({ data, onChange, disabled = false }: OperationsReviewProps) {
   const workCentres = data.operations_work_centres || [];
 
   const addWorkCentre = () => {
+    if (disabled) return;
     onChange({
       operations_work_centres: [...workCentres, { ...defaultWorkCentre }],
     });
   };
 
   const updateWorkCentre = (index: number, updates: Partial<WorkCentre>) => {
+    if (disabled) return;
     const updated = workCentres.map((wc, i) =>
       i === index ? { ...wc, ...updates } : wc
     );
@@ -38,30 +42,35 @@ export function OperationsReview({ data, onChange }: OperationsReviewProps) {
   };
 
   const removeWorkCentre = (index: number) => {
+    if (disabled) return;
     onChange({
       operations_work_centres: workCentres.filter((_, i) => i !== index),
     });
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className={cn("space-y-6 animate-fade-in", disabled && "opacity-60")}>
       <div>
         <h2 className="text-xl font-serif font-medium mb-1">Operations Review</h2>
-        <p className="text-sm text-muted-foreground">Post Release to Floor</p>
+        <p className="text-sm text-muted-foreground">
+          {disabled ? 'View only - you do not have permission to edit this section' : 'Post Release to Floor'}
+        </p>
       </div>
 
       {/* Work Centres */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <Label className="text-base font-medium">Work Centres</Label>
-          <Button type="button" variant="outline" size="sm" onClick={addWorkCentre}>
-            <Plus className="h-4 w-4 mr-1" /> Add Work Centre
-          </Button>
+          {!disabled && (
+            <Button type="button" variant="outline" size="sm" onClick={addWorkCentre}>
+              <Plus className="h-4 w-4 mr-1" /> Add Work Centre
+            </Button>
+          )}
         </div>
 
         {workCentres.length === 0 ? (
           <p className="text-sm text-muted-foreground italic py-4 text-center border border-dashed rounded-lg">
-            No work centres added yet. Click "Add Work Centre" to begin.
+            No work centres added yet. {!disabled && 'Click "Add Work Centre" to begin.'}
           </p>
         ) : (
           <div className="space-y-4">
@@ -79,17 +88,20 @@ export function OperationsReview({ data, onChange }: OperationsReviewProps) {
                         updateWorkCentre(index, { workCentre: e.target.value })
                       }
                       placeholder="Work centre name"
+                      disabled={disabled}
                     />
                   </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="text-destructive hover:text-destructive"
-                    onClick={() => removeWorkCentre(index)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {!disabled && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive"
+                      onClick={() => removeWorkCentre(index)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -100,6 +112,7 @@ export function OperationsReview({ data, onChange }: OperationsReviewProps) {
                       onCheckedChange={(checked) =>
                         updateWorkCentre(index, { progAdequate: checked as boolean })
                       }
+                      disabled={disabled}
                     />
                     <Label htmlFor={`prog-${index}`} className="text-sm">
                       Prog. Adequate & Saved
@@ -112,6 +125,7 @@ export function OperationsReview({ data, onChange }: OperationsReviewProps) {
                       onCheckedChange={(checked) =>
                         updateWorkCentre(index, { workInstInPlace: checked as boolean })
                       }
+                      disabled={disabled}
                     />
                     <Label htmlFor={`work-inst-${index}`} className="text-sm">
                       Work Inst. In Place
@@ -124,6 +138,7 @@ export function OperationsReview({ data, onChange }: OperationsReviewProps) {
                       onCheckedChange={(checked) =>
                         updateWorkCentre(index, { gaugesInPlace: checked as boolean })
                       }
+                      disabled={disabled}
                     />
                     <Label htmlFor={`gauges-${index}`} className="text-sm">
                       Gauges in Place
@@ -136,6 +151,7 @@ export function OperationsReview({ data, onChange }: OperationsReviewProps) {
                       onCheckedChange={(checked) =>
                         updateWorkCentre(index, { imsOkSubmitted: checked as boolean })
                       }
+                      disabled={disabled}
                     />
                     <Label htmlFor={`ims-${index}`} className="text-sm">
                       IMS OK & Submitted
@@ -148,6 +164,7 @@ export function OperationsReview({ data, onChange }: OperationsReviewProps) {
                       onCheckedChange={(checked) =>
                         updateWorkCentre(index, { timesCorrect: checked as boolean })
                       }
+                      disabled={disabled}
                     />
                     <Label htmlFor={`times-${index}`} className="text-sm">
                       Times Correct
@@ -163,6 +180,7 @@ export function OperationsReview({ data, onChange }: OperationsReviewProps) {
                       updateWorkCentre(index, { initialDate: e.target.value })
                     }
                     placeholder="Initials and date"
+                    disabled={disabled}
                   />
                 </div>
               </div>
@@ -179,6 +197,7 @@ export function OperationsReview({ data, onChange }: OperationsReviewProps) {
           onChange={(e) => onChange({ operations_comments: e.target.value })}
           placeholder="Enter any additional comments..."
           rows={4}
+          disabled={disabled}
         />
         <p className="text-xs text-muted-foreground">
           NOTE: IF ACTUAL CYCLE TIME IS SIGNIFICANTLY HIGHER THAN PLANNED, CONTACT THE
