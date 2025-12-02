@@ -1,12 +1,42 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useNotes } from '@/hooks/useNotes';
+import { NotesList } from '@/components/NotesList';
+import { NoteEditor } from '@/components/NoteEditor';
+import { EmptyState } from '@/components/EmptyState';
+import { InstallBanner } from '@/components/InstallBanner';
 
 const Index = () => {
+  const { 
+    notes, 
+    selectedNote, 
+    selectedNoteId,
+    setSelectedNoteId, 
+    createNote, 
+    updateNote, 
+    deleteNote 
+  } = useNotes();
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
+    <div className="flex h-screen bg-background">
+      <NotesList
+        notes={notes}
+        selectedNoteId={selectedNoteId}
+        onSelectNote={setSelectedNoteId}
+        onCreateNote={createNote}
+      />
+      
+      <main className="flex-1 flex flex-col">
+        {selectedNote ? (
+          <NoteEditor
+            note={selectedNote}
+            onUpdateNote={updateNote}
+            onDeleteNote={deleteNote}
+          />
+        ) : (
+          <EmptyState onCreateNote={createNote} />
+        )}
+      </main>
+      
+      <InstallBanner />
     </div>
   );
 };
