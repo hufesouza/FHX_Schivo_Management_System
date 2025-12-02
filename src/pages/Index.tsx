@@ -350,15 +350,17 @@ const Index = () => {
                         }}>
                           <Eye className="h-4 w-4 mr-2" /> View
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteWorkOrder(wo.id);
-                          }}
-                          className="text-destructive focus:text-destructive"
-                        >
-                          <Trash2 className="h-4 w-4 mr-2" /> Delete
-                        </DropdownMenuItem>
+                        {isAdmin && (
+                          <DropdownMenuItem 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteWorkOrder(wo.id);
+                            }}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" /> Delete
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
