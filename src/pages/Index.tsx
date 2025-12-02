@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { 
   Plus, 
-  FileText, 
+  FileText,
   Loader2, 
   LogOut, 
   Calendar,
@@ -36,6 +36,7 @@ import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { ReviewsByStatusChart } from '@/components/dashboard/ReviewsByStatusChart';
 import { AgingChart } from '@/components/dashboard/AgingChart';
 import { ReviewsByDepartmentChart } from '@/components/dashboard/ReviewsByDepartmentChart';
+import schivoLogo from '@/assets/schivo-logo-transparent.webp';
 
 function formatDate(dateString: string): string {
   return new Date(dateString).toLocaleDateString('en-GB', {
@@ -165,11 +166,8 @@ const Index = () => {
       <header className="border-b border-border bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="bg-primary-foreground/10 rounded-lg p-2">
-              <FileText className="h-6 w-6 text-primary-foreground" />
-            </div>
+            <img src={schivoLogo} alt="Schivo Medical" className="h-10" />
             <div>
-              <h1 className="text-xl font-heading font-semibold text-primary-foreground">Schivo</h1>
               <p className="text-sm text-primary-foreground/80">Blue Review | WD-FRM-0017</p>
             </div>
           </div>
