@@ -47,24 +47,116 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { action, userId } = await req.json();
+    const body = await req.json();
+    const { action, userId, email, password, role, fullName } = body;
 
-    if (!action || !userId) {
-      return new Response(JSON.stringify({ error: 'Missing action or userId' }), {
+    if (!action) {
+      return new Response(JSON.stringify({ error: 'Missing action' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
-    // Prevent admin from deleting themselves
-    if (action === 'delete' && userId === user.id) {
-      return new Response(JSON.stringify({ error: 'Cannot delete your own account' }), {
-        status: 400,
+    // CREATE USER - Admin creates a new user directly
+    if (action === 'createUser') {
+      if (!email || !password || !role) {
+        return new Response(JSON.stringify({ error: 'Email, password, and role are required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log(`Creating user: ${email} with role: ${role}`);
+
+      // Create user in auth
+      const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true, // Auto-confirm email
+        user_metadata: { full_name: fullName || email }
+      });
+
+      if (createError) {
+        console.error('Create user error:', createError);
+        return new Response(JSON.stringify({ error: createError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Create user role
+      const { error: roleInsertError } = await supabaseAdmin
+        .from('user_roles')
+        .insert({ user_id: newUser.user.id, role });
+
+      if (roleInsertError) {
+        console.error('Role insert error:', roleInsertError);
+        // Rollback: delete the created user
+        await supabaseAdmin.auth.admin.deleteUser(newUser.user.id);
+        return new Response(JSON.stringify({ error: 'Failed to assign role' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log(`User created successfully: ${newUser.user.id}`);
+
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'User created successfully',
+        userId: newUser.user.id 
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // UPDATE ROLE - Change a user's role
+    if (action === 'updateRole') {
+      if (!userId || !role) {
+        return new Response(JSON.stringify({ error: 'userId and role are required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log(`Updating role for user ${userId} to ${role}`);
+
+      // Update the user's role
+      const { error: updateError } = await supabaseAdmin
+        .from('user_roles')
+        .update({ role })
+        .eq('user_id', userId);
+
+      if (updateError) {
+        console.error('Update role error:', updateError);
+        return new Response(JSON.stringify({ error: updateError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, message: 'Role updated successfully' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // DELETE USER
     if (action === 'delete') {
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'userId is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Prevent admin from deleting themselves
+      if (userId === user.id) {
+        return new Response(JSON.stringify({ error: 'Cannot delete your own account' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       // Delete user from auth (this will cascade delete from user_roles and profiles)
       const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
       
@@ -81,7 +173,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    // RESET PASSWORD
     if (action === 'resetPassword') {
+      if (!userId) {
+        return new Response(JSON.stringify({ error: 'userId is required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
       // Get user's email first
       const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
       
@@ -92,8 +192,8 @@ Deno.serve(async (req) => {
         });
       }
 
-      const email = userData.user.email;
-      if (!email) {
+      const userEmail = userData.user.email;
+      if (!userEmail) {
         return new Response(JSON.stringify({ error: 'User has no email' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -101,7 +201,7 @@ Deno.serve(async (req) => {
       }
 
       // Send password reset email
-      const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(email, {
+      const { error: resetError } = await supabaseAdmin.auth.resetPasswordForEmail(userEmail, {
         redirectTo: `${req.headers.get('origin')}/auth`,
       });
 
@@ -114,6 +214,32 @@ Deno.serve(async (req) => {
       }
 
       return new Response(JSON.stringify({ success: true, message: 'Password reset email sent' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // SET PASSWORD - Admin sets a new password directly
+    if (action === 'setPassword') {
+      if (!userId || !password) {
+        return new Response(JSON.stringify({ error: 'userId and password are required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(userId, {
+        password
+      });
+
+      if (updateError) {
+        console.error('Set password error:', updateError);
+        return new Response(JSON.stringify({ error: updateError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, message: 'Password updated successfully' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
