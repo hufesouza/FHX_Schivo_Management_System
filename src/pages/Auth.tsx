@@ -11,7 +11,6 @@ import { Loader2, Mail, CheckCircle } from 'lucide-react';
 import { z } from 'zod';
 import schivoLogo from '@/assets/schivo-logo-transparent.webp';
 import fhxLogo from '@/assets/fhx-logo.png';
-import fhxHexagon from '@/assets/fhx-hexagon.png';
 
 const authSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -149,7 +148,7 @@ export default function Auth() {
 
   if (loading || inviteLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 via-orange-50/30 to-slate-100">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -158,7 +157,7 @@ export default function Auth() {
   // Show error if invalid invitation
   if (token && inviteError) {
     return (
-      <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-orange-50/30 to-slate-100">
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-slate-100">
         <div className="flex-1 flex items-center justify-center p-4">
           <Card className="w-full max-w-md border-primary/20 shadow-elegant">
             <CardHeader className="text-center">
@@ -183,25 +182,7 @@ export default function Auth() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-50 via-orange-50/30 to-slate-100 relative overflow-hidden">
-      {/* FHX Hexagon Background Elements */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        <img 
-          src={fhxHexagon} 
-          alt="" 
-          className="absolute -top-20 -right-20 w-72 h-72 opacity-10 rotate-12"
-        />
-        <img 
-          src={fhxHexagon} 
-          alt="" 
-          className="absolute -bottom-32 -left-16 w-96 h-96 opacity-[0.07] -rotate-12"
-        />
-        <img 
-          src={fhxHexagon} 
-          alt="" 
-          className="absolute top-1/3 -left-24 w-48 h-48 opacity-[0.05] rotate-45"
-        />
-      </div>
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-slate-100">
       {/* Main content */}
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md space-y-6 animate-fade-in">
