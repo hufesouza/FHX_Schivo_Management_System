@@ -34,6 +34,9 @@ const STAGE_DISPLAY_NAMES: Record<string, string> = {
 };
 
 serve(async (req) => {
+  console.log("=== ADVANCE-WORKFLOW REQUEST ===");
+  console.log("Method:", req.method);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -48,25 +51,33 @@ serve(async (req) => {
 
     // Get auth token from request
     const authHeader = req.headers.get("Authorization");
+    console.log("Auth header present:", !!authHeader);
+    
     if (!authHeader) {
+      console.log("ERROR: No authorization header");
       return new Response(JSON.stringify({ error: "No authorization header" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Create user client to verify auth
-    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
+    // Extract token from header
+    const token = authHeader.replace("Bearer ", "");
+    console.log("Token length:", token.length);
 
-    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
+    // Verify the token directly using getUser with the token
+    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    console.log("Auth result - user:", !!user, "error:", authError?.message);
+    
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      console.log("ERROR: Auth failed -", authError?.message || "No user");
+      return new Response(JSON.stringify({ error: "Unauthorized", details: authError?.message }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    
+    console.log("User authenticated:", user.id);
 
     const { work_order_id, current_stage, next_assignee_id }: AdvanceWorkflowRequest = await req.json();
 
