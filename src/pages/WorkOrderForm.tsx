@@ -110,11 +110,31 @@ export default function WorkOrderForm() {
     return !!(sig && date);
   }, [formData]);
 
-  // Check if user can complete section (has signature)
-  const canCompleteSection = useCallback(() => {
-    if (!canEditSection(currentSection)) return false;
-    return isSectionSigned(currentSection);
-  }, [currentSection, canEditSection, isSectionSigned]);
+  // Get missing fields message for current section
+  const getMissingFieldsMessage = useCallback((section: FormSection): string | null => {
+    const signatureField = SIGNATURE_FIELDS[section];
+    if (!signatureField) {
+      if (section === 'header') {
+        const missing: string[] = [];
+        if (!formData.customer) missing.push('Customer');
+        if (!formData.work_order_number) missing.push('W/O #');
+        return missing.length > 0 ? `Fill in: ${missing.join(', ')}` : null;
+      }
+      if (section === 'operations') {
+        if (!formData.operations_comments && (formData.operations_work_centres?.length ?? 0) === 0) {
+          return 'Add work centres or comments';
+        }
+        return null;
+      }
+      return null;
+    }
+    const sig = formData[signatureField.signature as keyof WorkOrder];
+    const date = formData[signatureField.date as keyof WorkOrder];
+    const missing: string[] = [];
+    if (!sig) missing.push('Signature');
+    if (!date) missing.push('Date');
+    return missing.length > 0 ? `Add: ${missing.join(', ')}` : null;
+  }, [formData]);
 
   // Check if this is the user's assigned section
   const isMySection = useCallback(() => {
@@ -123,7 +143,18 @@ export default function WorkOrderForm() {
     return stage === currentStage && canEditSection(currentSection);
   }, [currentSection, formData.current_stage, canEditSection]);
 
-  const handleCompleteAndAssign = () => {
+  const handleCompleteAndAssign = async () => {
+    // Save first if there are changes
+    if (hasChanges) {
+      setIsSaving(true);
+      const success = await updateWorkOrder(formData);
+      setIsSaving(false);
+      if (!success) {
+        toast.error('Please save your changes first');
+        return;
+      }
+      setHasChanges(false);
+    }
     setShowAssignDialog(true);
   };
 
@@ -172,9 +203,12 @@ export default function WorkOrderForm() {
   const currentStage = SECTION_TO_STAGE[currentSection];
   const workOrderStage = formData.current_stage || 'header';
 
-  // Determine if we should show the complete button
-  const showCompleteButton = isMySection() && canCompleteSection() && !isLastSection && workOrderStage === currentStage;
-  const showFinalCompleteButton = isLastSection && isMySection() && canCompleteSection() && workOrderStage === 'supply_chain';
+  // Determine if we should show the complete button (always show when it's user's turn)
+  const isUsersTurn = isMySection() && workOrderStage === currentStage;
+  const sectionComplete = isSectionSigned(currentSection);
+  const missingMessage = getMissingFieldsMessage(currentSection);
+  const showCompleteButton = isUsersTurn && !isLastSection;
+  const showFinalCompleteButton = isLastSection && isUsersTurn && workOrderStage === 'supply_chain';
 
   return (
     <div className="min-h-screen bg-background">
@@ -205,16 +239,33 @@ export default function WorkOrderForm() {
                 Save
               </Button>
               {showCompleteButton && (
-                <Button onClick={handleCompleteAndAssign}>
-                  <Send className="h-4 w-4 mr-2" />
-                  Complete & Assign Next
-                </Button>
+                <div className="flex flex-col items-end gap-1">
+                  <Button 
+                    onClick={handleCompleteAndAssign} 
+                    disabled={!sectionComplete || isSaving}
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Complete & Assign Next
+                  </Button>
+                  {missingMessage && (
+                    <span className="text-xs text-muted-foreground">{missingMessage}</span>
+                  )}
+                </div>
               )}
               {showFinalCompleteButton && (
-                <Button onClick={handleCompleteAndAssign} className="bg-green-600 hover:bg-green-700">
-                  <Send className="h-4 w-4 mr-2" />
-                  Complete Review
-                </Button>
+                <div className="flex flex-col items-end gap-1">
+                  <Button 
+                    onClick={handleCompleteAndAssign} 
+                    disabled={!sectionComplete || isSaving}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Complete Review
+                  </Button>
+                  {missingMessage && (
+                    <span className="text-xs text-muted-foreground">{missingMessage}</span>
+                  )}
+                </div>
               )}
             </div>
           </div>
