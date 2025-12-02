@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -7,6 +7,7 @@ import { useTasks } from '@/hooks/useTasks';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { 
   Plus, 
   FileText,
@@ -22,7 +23,9 @@ import {
   ClipboardList,
   Bell,
   BarChart3,
-  User
+  User,
+  LayoutGrid,
+  Columns3
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -37,6 +40,7 @@ import { DashboardStats } from '@/components/dashboard/DashboardStats';
 import { ReviewsByStatusChart } from '@/components/dashboard/ReviewsByStatusChart';
 import { AgingChart } from '@/components/dashboard/AgingChart';
 import { ReviewsByDepartmentChart } from '@/components/dashboard/ReviewsByDepartmentChart';
+import { KanbanBoard } from '@/components/dashboard/KanbanBoard';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
 function formatDate(dateString: string): string {
@@ -69,6 +73,7 @@ const Index = () => {
 
   const isAdmin = role === 'admin';
   const myTasks = getMyTasks();
+  const [viewMode, setViewMode] = useState<'kanban' | 'grid'>('kanban');
 
   // Calculate dashboard metrics
   const dashboardMetrics = useMemo(() => {
@@ -314,9 +319,19 @@ const Index = () => {
             <h2 className="text-2xl font-serif font-medium">Blue Reviews</h2>
             <p className="text-muted-foreground">Manage and review Blue Review forms</p>
           </div>
-          <Button onClick={handleCreateWorkOrder}>
-            <Plus className="h-4 w-4 mr-2" /> New Blue Review
-          </Button>
+          <div className="flex items-center gap-3">
+            <ToggleGroup type="single" value={viewMode} onValueChange={(v) => v && setViewMode(v as 'kanban' | 'grid')}>
+              <ToggleGroupItem value="kanban" aria-label="Kanban view" size="sm">
+                <Columns3 className="h-4 w-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="grid" aria-label="Grid view" size="sm">
+                <LayoutGrid className="h-4 w-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <Button onClick={handleCreateWorkOrder}>
+              <Plus className="h-4 w-4 mr-2" /> New Blue Review
+            </Button>
+          </div>
         </div>
 
         {workOrders.length === 0 ? (
@@ -334,6 +349,8 @@ const Index = () => {
               </Button>
             </CardContent>
           </Card>
+        ) : viewMode === 'kanban' ? (
+          <KanbanBoard workOrders={workOrders} />
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {workOrders.map((wo, index) => (
