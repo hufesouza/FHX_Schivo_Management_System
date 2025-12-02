@@ -148,8 +148,8 @@ export default function Auth() {
 
   if (loading || inviteLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-primary">
-        <Loader2 className="h-8 w-8 animate-spin text-accent" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -157,14 +157,14 @@ export default function Auth() {
   // Show error if invalid invitation
   if (token && inviteError) {
     return (
-      <div className="min-h-screen flex flex-col bg-primary">
+      <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-slate-100">
         <div className="flex-1 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md border-accent/20 shadow-elegant">
+          <Card className="w-full max-w-md border-primary/20 shadow-elegant">
             <CardHeader className="text-center">
               <div className="mx-auto mb-4 bg-destructive/10 rounded-xl p-3 w-fit">
                 <Mail className="h-8 w-8 text-destructive" />
               </div>
-              <CardTitle className="text-2xl font-serif">Invalid Invitation</CardTitle>
+              <CardTitle className="text-2xl font-serif text-primary">Invalid Invitation</CardTitle>
               <CardDescription>{inviteError}</CardDescription>
             </CardHeader>
             <CardContent className="text-center">
@@ -174,35 +174,35 @@ export default function Auth() {
             </CardContent>
           </Card>
         </div>
-        <footer className="p-4 text-center text-primary-foreground/60 text-sm">
-          Solution by <span className="text-accent font-medium">FHX Engineering</span>
+        <footer className="p-3 text-center">
+          <span className="text-muted-foreground text-xs opacity-50">Solution by FHX Engineering</span>
         </footer>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-primary">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 to-slate-100">
       {/* Main content */}
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-md space-y-6 animate-fade-in">
           {/* Logo/Brand Header */}
           <div className="text-center space-y-4">
             <img src={schivoLogo} alt="Schivo Medical" className="h-16 mx-auto" />
-            <p className="text-[#0072CE] font-semibold tracking-wide">
+            <p className="text-primary font-semibold tracking-wide">
               Blue Review Management System
             </p>
           </div>
 
           {/* Login Card */}
-          <Card className="border-accent/20 shadow-elegant bg-card">
+          <Card className="border-primary/20 shadow-elegant bg-card">
             <CardHeader className="text-center pb-4">
               {invitation ? (
                 <div className="mx-auto mb-2 bg-accent/10 rounded-xl p-3 w-fit">
                   <CheckCircle className="h-6 w-6 text-accent" />
                 </div>
               ) : null}
-              <CardTitle className="text-xl font-serif">
+              <CardTitle className="text-xl font-serif text-primary">
                 {invitation ? 'Complete Your Registration' : 'Welcome Back'}
               </CardTitle>
               <CardDescription>
@@ -270,17 +270,17 @@ export default function Auth() {
           </Card>
 
           {/* Security note */}
-          <p className="text-center text-primary-foreground/50 text-xs">
+          <p className="text-center text-muted-foreground text-xs">
             Secure access for authorized personnel only
           </p>
         </div>
       </div>
 
-      {/* Footer with FHX branding */}
-      <footer className="p-4 text-center border-t border-primary-foreground/10">
-        <div className="flex items-center justify-center gap-2">
-          <span className="text-primary-foreground/60 text-sm">Solution by</span>
-          <img src={fhxLogo} alt="FHX Engineering" className="h-6" />
+      {/* Footer with FHX branding - subtle */}
+      <footer className="p-3 text-center">
+        <div className="flex items-center justify-center gap-2 opacity-50 hover:opacity-70 transition-opacity">
+          <span className="text-muted-foreground text-xs">Solution by</span>
+          <img src={fhxLogo} alt="FHX Engineering" className="h-4" />
         </div>
       </footer>
     </div>
