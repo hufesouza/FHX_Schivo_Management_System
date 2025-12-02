@@ -34,9 +34,6 @@ const STAGE_DISPLAY_NAMES: Record<string, string> = {
 };
 
 serve(async (req) => {
-  console.log("=== ADVANCE-WORKFLOW REQUEST RECEIVED ===");
-  console.log("Method:", req.method);
-  
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -44,6 +41,7 @@ serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
     // Create admin client for database operations
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -57,22 +55,18 @@ serve(async (req) => {
       });
     }
 
-    // Extract JWT token
-    const token = authHeader.replace("Bearer ", "");
-    
-    // Verify the JWT using the admin client
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    
-    console.log("Auth result - user:", !!user, "error:", authError?.message);
-    
+    // Create user client to verify auth
+    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
     if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized", details: authError?.message }), {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    
-    console.log("User authenticated:", user.id);
 
     const { work_order_id, current_stage, next_assignee_id }: AdvanceWorkflowRequest = await req.json();
 
