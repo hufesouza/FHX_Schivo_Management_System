@@ -5,13 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface UserToCreate {
-  email: string;
-  role: string;
-  password?: string;
-}
-
-const defaultTestUsers: UserToCreate[] = [
+const testUsers = [
   { email: 'hufesouza@gmail.com', role: 'engineering' },
   { email: 'hufesouza+ops@gmail.com', role: 'operations' },
   { email: 'hufesouza+qa@gmail.com', role: 'quality' },
@@ -25,18 +19,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // Check if custom users are provided in the request body
-    let usersToCreate: UserToCreate[] = defaultTestUsers;
-    
-    if (req.method === 'POST') {
-      const body = await req.json().catch(() => ({}));
-      if (body.users && Array.isArray(body.users)) {
-        usersToCreate = body.users;
-      } else if (body.email && body.role) {
-        usersToCreate = [{ email: body.email, role: body.role, password: body.password || '123456789' }];
-      }
-    }
-
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
@@ -45,13 +27,11 @@ Deno.serve(async (req) => {
 
     const results = [];
 
-    for (const user of usersToCreate) {
-      const userPassword = user.password || '123456789';
-      
+    for (const user of testUsers) {
       // Create user
       const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: user.email,
-        password: userPassword,
+        password: '123456789',
         email_confirm: true,
       });
 
