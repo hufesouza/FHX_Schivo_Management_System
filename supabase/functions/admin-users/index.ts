@@ -84,10 +84,10 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Create user role
+      // Create user role (upsert to handle case where trigger already created it)
       const { error: roleInsertError } = await supabaseAdmin
         .from('user_roles')
-        .insert({ user_id: newUser.user.id, role });
+        .upsert({ user_id: newUser.user.id, role }, { onConflict: 'user_id,role', ignoreDuplicates: true });
 
       if (roleInsertError) {
         console.error('Role insert error:', roleInsertError);
@@ -97,6 +97,16 @@ Deno.serve(async (req) => {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
+      }
+
+      // If a different role was already assigned by trigger, update it to the requested role
+      const { error: roleUpdateError } = await supabaseAdmin
+        .from('user_roles')
+        .update({ role })
+        .eq('user_id', newUser.user.id);
+
+      if (roleUpdateError) {
+        console.error('Role update error:', roleUpdateError);
       }
 
       console.log(`User created successfully: ${newUser.user.id}`);
