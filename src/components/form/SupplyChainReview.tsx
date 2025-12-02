@@ -2,18 +2,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { WorkOrder } from '@/types/workOrder';
 import { YesNoField } from './YesNoField';
+import { cn } from '@/lib/utils';
 
 interface SupplyChainReviewProps {
   data: Partial<WorkOrder>;
   onChange: (updates: Partial<WorkOrder>) => void;
+  disabled?: boolean;
 }
 
-export function SupplyChainReview({ data, onChange }: SupplyChainReviewProps) {
+export function SupplyChainReview({ data, onChange, disabled = false }: SupplyChainReviewProps) {
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className={cn("space-y-6 animate-fade-in", disabled && "opacity-60")}>
       <div>
         <h2 className="text-xl font-serif font-medium mb-1">Completion – Supply Chain Administration</h2>
-        <p className="text-sm text-muted-foreground">Final administrative tasks</p>
+        <p className="text-sm text-muted-foreground">
+          {disabled ? 'View only - you do not have permission to edit this section' : 'Final administrative tasks'}
+        </p>
       </div>
 
       <YesNoField
@@ -23,6 +27,7 @@ export function SupplyChainReview({ data, onChange }: SupplyChainReviewProps) {
         details={data.sap_changes_details}
         onDetailsChange={(v) => onChange({ sap_changes_details: v })}
         detailsLabel="Details (If No)"
+        disabled={disabled}
       />
 
       <YesNoField
@@ -32,6 +37,7 @@ export function SupplyChainReview({ data, onChange }: SupplyChainReviewProps) {
         details={data.ims_updated_details}
         onDetailsChange={(v) => onChange({ ims_updated_details: v })}
         detailsLabel="Details (If No)"
+        disabled={disabled}
       />
 
       <YesNoField
@@ -41,6 +47,7 @@ export function SupplyChainReview({ data, onChange }: SupplyChainReviewProps) {
         details={data.approval_status_details}
         onDetailsChange={(v) => onChange({ approval_status_details: v })}
         detailsLabel="Details (If No)"
+        disabled={disabled}
       />
 
       <YesNoField
@@ -50,6 +57,7 @@ export function SupplyChainReview({ data, onChange }: SupplyChainReviewProps) {
         details={data.routing_operations_details}
         onDetailsChange={(v) => onChange({ routing_operations_details: v })}
         detailsLabel="Details (If No)"
+        disabled={disabled}
       />
 
       {/* Signature */}
@@ -62,6 +70,7 @@ export function SupplyChainReview({ data, onChange }: SupplyChainReviewProps) {
               value={data.supply_chain_signature || ''}
               onChange={(e) => onChange({ supply_chain_signature: e.target.value })}
               placeholder="Name"
+              disabled={disabled}
             />
           </div>
           <div className="space-y-2">
@@ -70,6 +79,7 @@ export function SupplyChainReview({ data, onChange }: SupplyChainReviewProps) {
               type="date"
               value={data.supply_chain_signature_date || ''}
               onChange={(e) => onChange({ supply_chain_signature_date: e.target.value })}
+              disabled={disabled}
             />
           </div>
         </div>

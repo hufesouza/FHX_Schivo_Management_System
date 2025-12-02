@@ -3,18 +3,22 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { WorkOrder } from '@/types/workOrder';
 import { YesNoField } from './YesNoField';
+import { cn } from '@/lib/utils';
 
 interface NPIFinalReviewProps {
   data: Partial<WorkOrder>;
   onChange: (updates: Partial<WorkOrder>) => void;
+  disabled?: boolean;
 }
 
-export function NPIFinalReview({ data, onChange }: NPIFinalReviewProps) {
+export function NPIFinalReview({ data, onChange, disabled = false }: NPIFinalReviewProps) {
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className={cn("space-y-6 animate-fade-in", disabled && "opacity-60")}>
       <div>
         <h2 className="text-xl font-serif font-medium mb-1">Final Review – NPI</h2>
-        <p className="text-sm text-muted-foreground">Final approval for production</p>
+        <p className="text-sm text-muted-foreground">
+          {disabled ? 'View only - you do not have permission to edit this section' : 'Final approval for production'}
+        </p>
       </div>
 
       <YesNoField
@@ -24,6 +28,7 @@ export function NPIFinalReview({ data, onChange }: NPIFinalReviewProps) {
         details={data.all_sections_details}
         onDetailsChange={(v) => onChange({ all_sections_details: v })}
         detailsLabel="Details (If No)"
+        disabled={disabled}
       />
 
       <YesNoField
@@ -33,6 +38,7 @@ export function NPIFinalReview({ data, onChange }: NPIFinalReviewProps) {
         details={data.acceptable_to_change_details}
         onDetailsChange={(v) => onChange({ acceptable_to_change_details: v })}
         detailsLabel="Details (If No)"
+        disabled={disabled}
       />
 
       <div className="space-y-2">
@@ -42,6 +48,7 @@ export function NPIFinalReview({ data, onChange }: NPIFinalReviewProps) {
           onChange={(e) => onChange({ npi_final_comments: e.target.value })}
           placeholder="Enter any additional comments..."
           rows={4}
+          disabled={disabled}
         />
       </div>
 
@@ -55,6 +62,7 @@ export function NPIFinalReview({ data, onChange }: NPIFinalReviewProps) {
               value={data.npi_final_signature || ''}
               onChange={(e) => onChange({ npi_final_signature: e.target.value })}
               placeholder="Name"
+              disabled={disabled}
             />
           </div>
           <div className="space-y-2">
@@ -63,6 +71,7 @@ export function NPIFinalReview({ data, onChange }: NPIFinalReviewProps) {
               type="date"
               value={data.npi_final_signature_date || ''}
               onChange={(e) => onChange({ npi_final_signature_date: e.target.value })}
+              disabled={disabled}
             />
           </div>
         </div>
