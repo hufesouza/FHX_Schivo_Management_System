@@ -92,11 +92,18 @@ export default function AdminUsers() {
   }, [isAuthenticated, authLoading, navigate]);
 
   useEffect(() => {
-    if (!roleLoading && userRole !== 'admin') {
+    // Only redirect if role loading is complete AND user has a role that's NOT admin
+    // If userRole is null, it means no role was found - this user shouldn't have access
+    if (!roleLoading && userRole !== null && userRole !== 'admin') {
       toast.error('Access denied. Admin only.');
       navigate('/');
     }
-  }, [userRole, roleLoading, navigate]);
+    // If no role found after loading, also deny access
+    if (!roleLoading && !authLoading && isAuthenticated && userRole === null) {
+      toast.error('Access denied. No role assigned.');
+      navigate('/');
+    }
+  }, [userRole, roleLoading, authLoading, isAuthenticated, navigate]);
 
   useEffect(() => {
     if (userRole === 'admin') {
