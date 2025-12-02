@@ -12,6 +12,7 @@ import { QualityReview } from '@/components/form/QualityReview';
 import { NPIFinalReview } from '@/components/form/NPIFinalReview';
 import { SupplyChainReview } from '@/components/form/SupplyChainReview';
 import { AssignNextReviewer } from '@/components/form/AssignNextReviewer';
+import { ExportPDF } from '@/components/form/ExportPDF';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Save, Loader2, ChevronLeft, ChevronRight, Send } from 'lucide-react';
 import { toast } from 'sonner';
@@ -230,6 +231,7 @@ export default function WorkOrderForm() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <ExportPDF workOrder={formData} />
               <Button onClick={handleSave} disabled={isSaving || !hasChanges} variant="outline">
                 {isSaving ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

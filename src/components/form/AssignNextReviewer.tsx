@@ -18,7 +18,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send, CheckCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface AssignNextReviewerProps {
@@ -58,6 +58,44 @@ export function AssignNextReviewer({
 
   const nextDepartment = STAGE_TO_NEXT_DEPARTMENT[currentStage];
   const departmentUsers = nextDepartment ? getUsersByDepartment(nextDepartment) : [];
+  const isFinalStage = currentStage === 'supply_chain';
+
+  const handleFinalComplete = async () => {
+    setIsSubmitting(true);
+    try {
+      // Update work order to completed status
+      const { error: updateError } = await supabase
+        .from('work_orders')
+        .update({ 
+          status: 'completed',
+          current_stage: 'completed'
+        })
+        .eq('id', workOrderId);
+
+      if (updateError) throw updateError;
+
+      // Close any pending tasks for this work order
+      const { error: taskError } = await supabase
+        .from('tasks')
+        .update({ 
+          status: 'completed',
+          completed_at: new Date().toISOString()
+        })
+        .eq('work_order_id', workOrderId)
+        .eq('status', 'pending');
+
+      if (taskError) throw taskError;
+
+      toast.success('Blue Review completed successfully!');
+      onSuccess();
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error completing review:', error);
+      toast.error('Failed to complete review');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!selectedUser) {
@@ -88,6 +126,48 @@ export function AssignNextReviewer({
       setIsSubmitting(false);
     }
   };
+
+  // Final stage - show completion dialog
+  if (isFinalStage) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Complete Blue Review</DialogTitle>
+            <DialogDescription>
+              This is the final stage. Completing this review will mark the entire 
+              Blue Review as complete.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="py-4 text-center">
+            <CheckCircle className="h-16 w-16 text-green-500 mx-auto mb-4" />
+            <p className="text-sm text-muted-foreground">
+              All departments have completed their reviews. Click below to finalize.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleFinalComplete} 
+              disabled={isSubmitting}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-2" />
+              )}
+              Complete Review
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   if (!nextDepartment) {
     return null;
