@@ -191,7 +191,7 @@ export default function Auth() {
           <CardDescription>
             {invitation 
               ? `Create your account as ${invitation.role}`
-              : 'Sign in to access work order forms'}
+              : 'Sign in to access Blue Review forms'}
           </CardDescription>
         </CardHeader>
         <CardContent>

@@ -46,7 +46,7 @@ export function useWorkOrders() {
       .order('updated_at', { ascending: false });
     
     if (error) {
-      toast.error('Failed to load work orders');
+      toast.error('Failed to load Blue Reviews');
       console.error(error);
     } else {
       setWorkOrders((data as unknown as DbWorkOrder[]).map(transformDbToWorkOrder));
@@ -68,14 +68,14 @@ export function useWorkOrders() {
       .single();
     
     if (error) {
-      toast.error('Failed to create work order');
+      toast.error('Failed to create Blue Review');
       console.error(error);
       return null;
     }
     
     const newOrder = transformDbToWorkOrder(data as unknown as DbWorkOrder);
     setWorkOrders(prev => [newOrder, ...prev]);
-    toast.success('Work order created');
+    toast.success('Blue Review created');
     return newOrder;
   }, [user]);
 
@@ -106,13 +106,13 @@ export function useWorkOrders() {
       .eq('id', id);
     
     if (error) {
-      toast.error('Failed to delete work order');
+      toast.error('Failed to delete Blue Review');
       console.error(error);
       return false;
     }
     
     setWorkOrders(prev => prev.filter(wo => wo.id !== id));
-    toast.success('Work order deleted');
+    toast.success('Blue Review deleted');
     return true;
   }, []);
 
@@ -144,7 +144,7 @@ export function useWorkOrder(id: string | undefined) {
         .maybeSingle();
       
       if (error) {
-        toast.error('Failed to load work order');
+        toast.error('Failed to load Blue Review');
         console.error(error);
       } else if (data) {
         setWorkOrder(transformDbToWorkOrder(data as unknown as DbWorkOrder));

@@ -13,9 +13,9 @@ export function FormHeader({ data, onChange, disabled = false }: FormHeaderProps
   return (
     <div className={cn("space-y-6 animate-fade-in", disabled && "opacity-60")}>
       <div>
-        <h2 className="text-xl font-serif font-medium mb-1">Work Order Details</h2>
+        <h2 className="text-xl font-serif font-medium mb-1">Blue Review Details</h2>
         <p className="text-sm text-muted-foreground">
-          {disabled ? 'View only - you do not have permission to edit this section' : 'Enter the basic work order information'}
+          {disabled ? 'View only - you do not have permission to edit this section' : 'Enter the basic review information'}
         </p>
       </div>
       
