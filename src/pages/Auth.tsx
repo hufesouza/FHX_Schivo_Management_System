@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toast } from 'sonner';
 import { Loader2, Mail, CheckCircle } from 'lucide-react';
 import { z } from 'zod';
-import schivoLogo from '@/assets/schivo-logo.png';
+import schivoLogo from '@/assets/schivo-logo-transparent.webp';
 import fhxLogo from '@/assets/fhx-logo.png';
 
 const authSchema = z.object({
@@ -188,10 +188,8 @@ export default function Auth() {
         <div className="w-full max-w-md space-y-6 animate-fade-in">
           {/* Logo/Brand Header */}
           <div className="text-center space-y-4">
-            <div className="inline-flex items-center justify-center bg-white rounded-xl p-4 shadow-elegant">
-              <img src={schivoLogo} alt="Schivo Medical" className="h-12" />
-            </div>
-            <p className="text-primary-foreground/70 font-medium">
+            <img src={schivoLogo} alt="Schivo Medical" className="h-16 mx-auto" />
+            <p className="text-[#0072CE] font-semibold tracking-wide">
               Blue Review Management System
             </p>
           </div>
