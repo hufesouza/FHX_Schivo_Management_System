@@ -79,9 +79,26 @@ serve(async (req: Request): Promise<Response> => {
 
     console.log("Invitation created:", invitation.id);
 
-    // Build the invite URL
-    const baseUrl = req.headers.get("origin") || "https://lovable.dev";
+    // Build the invite URL - get the origin from headers
+    const origin = req.headers.get("origin");
+    const referer = req.headers.get("referer");
+    // Extract base URL from referer if origin is not available
+    let baseUrl = origin;
+    if (!baseUrl && referer) {
+      try {
+        const refererUrl = new URL(referer);
+        baseUrl = `${refererUrl.protocol}//${refererUrl.host}`;
+      } catch {
+        baseUrl = null;
+      }
+    }
+    
+    if (!baseUrl) {
+      throw new Error("Could not determine application URL");
+    }
+    
     const inviteUrl = `${baseUrl}/auth?token=${invitation.token}`;
+    console.log("Invite URL:", inviteUrl);
 
     // Send the email using Resend API
     const emailResponse = await fetch("https://api.resend.com/emails", {
