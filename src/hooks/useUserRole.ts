@@ -5,18 +5,27 @@ import { useAuth } from './useAuth';
 export type AppRole = 'admin' | 'engineering' | 'operations' | 'quality' | 'npi' | 'supply_chain';
 
 export function useUserRole() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [role, setRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchRole() {
+      // Don't set loading=false until auth is done loading
+      if (authLoading) {
+        console.log('useUserRole: Auth still loading, waiting...');
+        return;
+      }
+      
       if (!user) {
+        console.log('useUserRole: No user, setting role to null');
         setRole(null);
         setLoading(false);
         return;
       }
 
+      console.log('useUserRole: Fetching role for user:', user.id);
+      
       try {
         const { data, error } = await supabase
           .from('user_roles')
@@ -24,11 +33,15 @@ export function useUserRole() {
           .eq('user_id', user.id)
           .maybeSingle();
 
+        console.log('useUserRole: Query result:', { data, error });
+
         if (error) {
           console.error('Error fetching user role:', error);
           setRole(null);
         } else {
-          setRole(data?.role as AppRole || null);
+          const fetchedRole = data?.role as AppRole || null;
+          console.log('useUserRole: Setting role to:', fetchedRole);
+          setRole(fetchedRole);
         }
       } catch (err) {
         console.error('Error fetching user role:', err);
@@ -39,7 +52,7 @@ export function useUserRole() {
     }
 
     fetchRole();
-  }, [user]);
+  }, [user, authLoading]);
 
   // Check if user can edit a specific section
   const canEditSection = (section: 'header' | 'engineering' | 'operations' | 'quality' | 'npi-final' | 'supply-chain'): boolean => {
