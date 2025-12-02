@@ -110,7 +110,7 @@ const Index = () => {
               variant="outline" 
               size="sm" 
               onClick={() => navigate('/tasks')}
-              className="relative border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+              className="relative border-primary-foreground/50 text-primary-foreground bg-transparent hover:bg-accent hover:text-accent-foreground hover:border-accent"
             >
               <ClipboardList className="h-4 w-4 mr-2" />
               Tasks
@@ -127,14 +127,14 @@ const Index = () => {
                 {role}
               </Badge>
             )}
-            <span className="text-sm text-primary-foreground/80 hidden sm:block">
+            <span className="text-sm text-primary-foreground/90 hidden sm:block">
               {user?.email}
             </span>
             
             {isAdmin ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
+                  <Button variant="outline" size="sm" className="border-primary-foreground/50 text-primary-foreground bg-transparent hover:bg-accent hover:text-accent-foreground hover:border-accent">
                     <Settings className="h-4 w-4 mr-2" /> Admin
                   </Button>
                 </DropdownMenuTrigger>
@@ -152,7 +152,7 @@ const Index = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button variant="outline" size="sm" onClick={handleSignOut} className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
+              <Button variant="outline" size="sm" onClick={handleSignOut} className="border-primary-foreground/50 text-primary-foreground bg-transparent hover:bg-accent hover:text-accent-foreground hover:border-accent">
                 <LogOut className="h-4 w-4 mr-2" /> Sign Out
               </Button>
             )}
