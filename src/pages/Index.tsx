@@ -110,7 +110,7 @@ const Index = () => {
               variant="outline" 
               size="sm" 
               onClick={() => navigate('/tasks')}
-              className="relative"
+              className="relative border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
             >
               <ClipboardList className="h-4 w-4 mr-2" />
               Tasks
@@ -122,19 +122,19 @@ const Index = () => {
             </Button>
 
             {role && (
-              <Badge variant={isAdmin ? 'default' : 'secondary'} className="hidden sm:flex">
+              <Badge variant={isAdmin ? 'default' : 'secondary'} className="hidden sm:flex bg-accent text-accent-foreground">
                 {isAdmin && <Shield className="h-3 w-3 mr-1" />}
                 {role}
               </Badge>
             )}
-            <span className="text-sm text-muted-foreground hidden sm:block">
+            <span className="text-sm text-primary-foreground/80 hidden sm:block">
               {user?.email}
             </span>
             
             {isAdmin ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
+                  <Button variant="outline" size="sm" className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
                     <Settings className="h-4 w-4 mr-2" /> Admin
                   </Button>
                 </DropdownMenuTrigger>
@@ -152,7 +152,7 @@ const Index = () => {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <Button variant="outline" size="sm" onClick={handleSignOut}>
+              <Button variant="outline" size="sm" onClick={handleSignOut} className="border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground">
                 <LogOut className="h-4 w-4 mr-2" /> Sign Out
               </Button>
             )}
