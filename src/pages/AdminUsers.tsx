@@ -53,14 +53,15 @@ import {
   Loader2, 
   UserPlus, 
   ArrowLeft, 
-  Mail, 
   Clock, 
   CheckCircle,
   Users,
   Shield,
   MoreHorizontal,
   Trash2,
-  KeyRound
+  KeyRound,
+  Copy,
+  Link
 } from 'lucide-react';
 
 type AppRole = 'admin' | 'engineering' | 'operations' | 'quality' | 'npi' | 'supply_chain';
@@ -104,6 +105,11 @@ export default function AdminUsers() {
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<AppRole>('engineering');
   const [sending, setSending] = useState(false);
+  
+  // Invite link dialog state
+  const [inviteLinkDialogOpen, setInviteLinkDialogOpen] = useState(false);
+  const [generatedInviteUrl, setGeneratedInviteUrl] = useState('');
+  const [generatedInviteEmail, setGeneratedInviteEmail] = useState('');
   
   // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -196,16 +202,28 @@ export default function AdminUsers() {
 
       if (error) throw error;
 
-      toast.success('Invitation sent successfully!');
+      // Show the invite link dialog
+      setGeneratedInviteUrl(data.inviteUrl);
+      setGeneratedInviteEmail(inviteEmail);
       setInviteDialogOpen(false);
+      setInviteLinkDialogOpen(true);
       setInviteEmail('');
       setInviteRole('engineering');
       fetchData();
     } catch (err: any) {
       console.error('Error sending invite:', err);
-      toast.error(err.message || 'Failed to send invitation');
+      toast.error(err.message || 'Failed to create invitation');
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleCopyInviteLink = async () => {
+    try {
+      await navigator.clipboard.writeText(generatedInviteUrl);
+      toast.success('Invite link copied to clipboard!');
+    } catch (err) {
+      toast.error('Failed to copy link');
     }
   };
 
@@ -352,14 +370,49 @@ export default function AdminUsers() {
                   {sending ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Sending...
+                      Creating...
                     </>
                   ) : (
                     <>
-                      <Mail className="h-4 w-4 mr-2" />
-                      Send Invite
+                      <Link className="h-4 w-4 mr-2" />
+                      Create Invite
                     </>
                   )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Invite Link Dialog */}
+          <Dialog open={inviteLinkDialogOpen} onOpenChange={setInviteLinkDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Invitation Created</DialogTitle>
+                <DialogDescription>
+                  Share this link with <strong>{generatedInviteEmail}</strong> to complete their registration.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label>Invite Link</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      value={generatedInviteUrl}
+                      readOnly
+                      className="font-mono text-sm"
+                    />
+                    <Button onClick={handleCopyInviteLink} variant="outline" size="icon">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    This link expires in 7 days. Copy and share it manually via email, chat, or any other method.
+                  </p>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button onClick={() => setInviteLinkDialogOpen(false)}>
+                  Done
                 </Button>
               </DialogFooter>
             </DialogContent>
