@@ -26,7 +26,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
-import schivoLogo from '@/assets/schivo-logo-transparent.webp';
 
 const modules = [
   {
@@ -90,7 +89,7 @@ const HomePage = () => {
       <header className="border-b border-border bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src={schivoLogo} alt="Schivo Medical" className="h-10" />
+            <img src={fhxLogoFull} alt="FHX Engineering" className="h-10" />
             <div>
               <h1 className="font-heading font-semibold text-lg">Schivo Management System</h1>
             </div>
