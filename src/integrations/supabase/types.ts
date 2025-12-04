@@ -116,6 +116,59 @@ export type Database = {
         }
         Relationships: []
       }
+      meeting_actions: {
+        Row: {
+          action: string
+          comments: string | null
+          created_at: string
+          created_by: string | null
+          due_date: string | null
+          id: string
+          meeting_id: string
+          owner_id: string | null
+          owner_name: string | null
+          priority: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          action: string
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          meeting_id: string
+          owner_id?: string | null
+          owner_name?: string | null
+          priority?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          action?: string
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          due_date?: string | null
+          id?: string
+          meeting_id?: string
+          owner_id?: string | null
+          owner_name?: string | null
+          priority?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_actions_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "daily_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_customers: {
         Row: {
           created_at: string
