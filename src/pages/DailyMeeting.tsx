@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -25,7 +25,7 @@ import {
   Check,
   X
 } from 'lucide-react';
-import { format, addDays, subDays, isAfter, isBefore, parseISO, startOfDay, isEqual } from 'date-fns';
+import { format, addDays, subDays, startOfDay, isBefore } from 'date-fns';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
 type FlagStatus = 'none' | 'green' | 'amber' | 'red';
@@ -110,45 +110,58 @@ const DailyMeeting = () => {
   // Filter topics and customers based on current date
   // For today/future: show active items only
   // For past: show items that were active on that date (created before/on and not deactivated yet or deactivated after)
-  const today = startOfDay(new Date());
-  const viewingDate = startOfDay(currentDate);
-  const isPastDate = isBefore(viewingDate, today);
+  const { topics, customers, isPastDate } = useMemo(() => {
+    const today = startOfDay(new Date());
+    const viewingDate = startOfDay(currentDate);
+    const isPast = isBefore(viewingDate, today);
+    const viewingDateStr = format(viewingDate, 'yyyy-MM-dd');
+    const todayStr = format(today, 'yyyy-MM-dd');
 
-  const topics = allTopics.filter(topic => {
-    if (isPastDate) {
-      // For past dates: show if created on/before that date AND (still active OR deactivated after that date)
-      const createdDate = startOfDay(parseISO(topic.created_at));
-      const wasCreatedByThen = isBefore(createdDate, viewingDate) || isEqual(createdDate, viewingDate);
-      if (!wasCreatedByThen) return false;
+    const filteredTopics = allTopics.filter(topic => {
+      // Get just the date part from created_at
+      const createdDateStr = topic.created_at.split('T')[0];
       
-      if (topic.is_active) return true;
-      if (topic.deactivated_at) {
-        const deactivatedDate = startOfDay(parseISO(topic.deactivated_at));
-        return isAfter(deactivatedDate, viewingDate);
+      if (isPast) {
+        // For past dates: show if created on/before that date AND (still active OR deactivated after that date)
+        if (createdDateStr > viewingDateStr) return false;
+        
+        if (topic.is_active) return true;
+        if (topic.deactivated_at) {
+          const deactivatedDateStr = topic.deactivated_at.split('T')[0];
+          return deactivatedDateStr > viewingDateStr;
+        }
+        return false;
+      } else {
+        // For today/future: show only active topics created on/before today
+        if (createdDateStr > todayStr) return false;
+        return topic.is_active;
       }
-      return false;
-    } else {
-      // For today/future: show only active topics
-      return topic.is_active;
-    }
-  });
+    });
 
-  const customers = allCustomers.filter(customer => {
-    if (isPastDate) {
-      const createdDate = startOfDay(parseISO(customer.created_at));
-      const wasCreatedByThen = isBefore(createdDate, viewingDate) || isEqual(createdDate, viewingDate);
-      if (!wasCreatedByThen) return false;
+    const filteredCustomers = allCustomers.filter(customer => {
+      const createdDateStr = customer.created_at.split('T')[0];
       
-      if (customer.is_active) return true;
-      if (customer.deactivated_at) {
-        const deactivatedDate = startOfDay(parseISO(customer.deactivated_at));
-        return isAfter(deactivatedDate, viewingDate);
+      if (isPast) {
+        if (createdDateStr > viewingDateStr) return false;
+        
+        if (customer.is_active) return true;
+        if (customer.deactivated_at) {
+          const deactivatedDateStr = customer.deactivated_at.split('T')[0];
+          return deactivatedDateStr > viewingDateStr;
+        }
+        return false;
+      } else {
+        if (createdDateStr > todayStr) return false;
+        return customer.is_active;
       }
-      return false;
-    } else {
-      return customer.is_active;
-    }
-  });
+    });
+
+    return { 
+      topics: filteredTopics, 
+      customers: filteredCustomers, 
+      isPastDate: isPast 
+    };
+  }, [allTopics, allCustomers, currentDate]);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
