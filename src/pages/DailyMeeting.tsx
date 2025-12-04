@@ -238,7 +238,8 @@ const DailyMeeting = () => {
     // Generate minutes text
     const dateStr = format(currentDate, 'MMMM d, yyyy');
     let minutes = `Daily Meeting Minutes - ${dateStr}\n\n`;
-    minutes += `Attendees: ${participants.filter(p => p.attended).map(p => p.full_name || p.email).join(', ')}\n\n`;
+    const attendees = participants.filter(p => p.attended);
+    minutes += `Attendees: ${attendees.map(p => p.full_name || p.email).join(', ')}\n\n`;
     minutes += `STATUS SUMMARY:\n`;
     minutes += `🟢 Good  |  🟡 Need Attention  |  🔴 Under Risk\n\n`;
 
@@ -258,11 +259,19 @@ const DailyMeeting = () => {
       });
     });
 
-    // For now, copy to clipboard and show toast
+    // Copy to clipboard
     await navigator.clipboard.writeText(minutes);
+    
+    // Get attendee emails and open mailto link
+    const attendeeEmails = attendees.map(p => p.email).filter(Boolean).join(';');
+    const subject = encodeURIComponent(`Daily Meeting Minutes - ${dateStr}`);
+    const mailtoLink = `mailto:${attendeeEmails}?subject=${subject}`;
+    
+    window.open(mailtoLink, '_blank');
+    
     toast({ 
       title: 'Minutes copied to clipboard',
-      description: 'You can paste the minutes into an email to send to attendees'
+      description: 'Outlook opened - paste the minutes into the email body'
     });
   };
 
