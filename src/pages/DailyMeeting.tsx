@@ -115,7 +115,7 @@ const DailyMeeting = () => {
         if (flagsData) {
           const flagMap: FlagData = {};
           flagsData.forEach(f => {
-            const key = `${f.topic_id}-${f.customer_id}`;
+            const key = `${f.topic_id}|${f.customer_id}`;
             flagMap[key] = { status: f.status as FlagStatus, comment: f.comment || '' };
           });
           setFlags(flagMap);
@@ -167,7 +167,7 @@ const DailyMeeting = () => {
   };
 
   const handleFlagClick = (topicId: string, customerId: string) => {
-    const key = `${topicId}-${customerId}`;
+    const key = `${topicId}|${customerId}`;
     const current = flags[key]?.status || 'none';
     const nextStatus: FlagStatus = current === 'none' ? 'green' : current === 'green' ? 'amber' : current === 'amber' ? 'red' : 'none';
     
@@ -178,7 +178,7 @@ const DailyMeeting = () => {
   };
 
   const handleCommentChange = (topicId: string, customerId: string, comment: string) => {
-    const key = `${topicId}-${customerId}`;
+    const key = `${topicId}|${customerId}`;
     setFlags(prev => ({
       ...prev,
       [key]: { ...prev[key], status: prev[key]?.status || 'none', comment }
@@ -192,7 +192,7 @@ const DailyMeeting = () => {
 
       // Upsert all flags
       const flagRecords = Object.entries(flags).map(([key, value]) => {
-        const [topic_id, customer_id] = key.split('-');
+        const [topic_id, customer_id] = key.split('|');
         return {
           meeting_id: mId,
           topic_id,
@@ -245,7 +245,7 @@ const DailyMeeting = () => {
     topics.forEach(topic => {
       minutes += `\n${topic.name}:\n`;
       customers.forEach(customer => {
-        const key = `${topic.id}-${customer.id}`;
+        const key = `${topic.id}|${customer.id}`;
         const flag = flags[key];
         if (flag && flag.status !== 'none') {
           const statusIcon = flag.status === 'green' ? '🟢' : flag.status === 'amber' ? '🟡' : '🔴';
@@ -432,7 +432,7 @@ const DailyMeeting = () => {
                       <tr key={topic.id} className="border-b">
                         <td className="p-2 font-medium">{topic.name}</td>
                         {customers.map(customer => {
-                          const key = `${topic.id}-${customer.id}`;
+                          const key = `${topic.id}|${customer.id}`;
                           const flag = flags[key];
                           return (
                             <td key={customer.id} className="text-center p-2">
