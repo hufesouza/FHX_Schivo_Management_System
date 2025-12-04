@@ -190,7 +190,7 @@ export default function Auth() {
           <div className="text-center space-y-4">
             <img src={fhxLogoDark} alt="FHX Engineering" className="h-16 mx-auto" />
             <p className="text-primary font-semibold tracking-wide">
-              Blue Review Management System
+              Schivo Management System
             </p>
           </div>
 
@@ -208,7 +208,7 @@ export default function Auth() {
               <CardDescription>
                 {invitation 
                   ? `Create your account as ${invitation.role.replace('_', ' ')}`
-                  : 'Sign in to access Blue Review forms'}
+                  : 'Sign in to access your workspace'}
               </CardDescription>
             </CardHeader>
             <CardContent>
