@@ -19,7 +19,8 @@ import {
   ChevronRight,
   ArrowLeft,
   ClipboardList,
-  Bell
+  Bell,
+  CalendarDays
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -38,6 +39,15 @@ const subModules = [
     icon: FileCheck,
     href: '/npi/blue-review',
     color: 'bg-primary/10 text-primary border-primary/20',
+    available: true,
+  },
+  {
+    id: 'daily-meeting',
+    title: 'Daily Meeting',
+    description: 'Track daily status with RAG flags per customer and topic, generate meeting minutes',
+    icon: CalendarDays,
+    href: '/npi/daily-meeting',
+    color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
     available: true,
   },
   {
