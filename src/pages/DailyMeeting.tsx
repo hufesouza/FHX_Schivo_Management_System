@@ -25,7 +25,7 @@ import {
   Check,
   X
 } from 'lucide-react';
-import { format, addDays, subDays } from 'date-fns';
+import { format, addDays, subDays, isAfter, isBefore, parseISO, startOfDay, isEqual } from 'date-fns';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
 type FlagStatus = 'none' | 'green' | 'amber' | 'red';
@@ -36,12 +36,18 @@ interface Topic {
   id: string;
   name: string;
   display_order: number;
+  is_active: boolean;
+  created_at: string;
+  deactivated_at: string | null;
 }
 
 interface Customer {
   id: string;
   name: string;
   display_order: number;
+  is_active: boolean;
+  created_at: string;
+  deactivated_at: string | null;
 }
 
 interface FlagData {
@@ -73,8 +79,8 @@ const DailyMeeting = () => {
   const { toast } = useToast();
 
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [topics, setTopics] = useState<Topic[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [allTopics, setAllTopics] = useState<Topic[]>([]);
+  const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
   const [flags, setFlags] = useState<FlagData>({});
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [allUsers, setAllUsers] = useState<{ user_id: string; full_name: string; email: string }[]>([]);
@@ -101,6 +107,49 @@ const DailyMeeting = () => {
     comments: null
   });
 
+  // Filter topics and customers based on current date
+  // For today/future: show active items only
+  // For past: show items that were active on that date (created before/on and not deactivated yet or deactivated after)
+  const today = startOfDay(new Date());
+  const viewingDate = startOfDay(currentDate);
+  const isPastDate = isBefore(viewingDate, today);
+
+  const topics = allTopics.filter(topic => {
+    if (isPastDate) {
+      // For past dates: show if created on/before that date AND (still active OR deactivated after that date)
+      const createdDate = startOfDay(parseISO(topic.created_at));
+      const wasCreatedByThen = isBefore(createdDate, viewingDate) || isEqual(createdDate, viewingDate);
+      if (!wasCreatedByThen) return false;
+      
+      if (topic.is_active) return true;
+      if (topic.deactivated_at) {
+        const deactivatedDate = startOfDay(parseISO(topic.deactivated_at));
+        return isAfter(deactivatedDate, viewingDate);
+      }
+      return false;
+    } else {
+      // For today/future: show only active topics
+      return topic.is_active;
+    }
+  });
+
+  const customers = allCustomers.filter(customer => {
+    if (isPastDate) {
+      const createdDate = startOfDay(parseISO(customer.created_at));
+      const wasCreatedByThen = isBefore(createdDate, viewingDate) || isEqual(createdDate, viewingDate);
+      if (!wasCreatedByThen) return false;
+      
+      if (customer.is_active) return true;
+      if (customer.deactivated_at) {
+        const deactivatedDate = startOfDay(parseISO(customer.deactivated_at));
+        return isAfter(deactivatedDate, viewingDate);
+      }
+      return false;
+    } else {
+      return customer.is_active;
+    }
+  });
+
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
       navigate('/auth');
@@ -116,15 +165,15 @@ const DailyMeeting = () => {
   const loadMeetingData = async () => {
     setLoading(true);
     try {
-      // Load topics and customers
+      // Load ALL topics and customers (including inactive for historical view)
       const [topicsRes, customersRes, usersRes] = await Promise.all([
-        supabase.from('meeting_topics').select('*').eq('is_active', true).order('display_order'),
-        supabase.from('meeting_customers').select('*').eq('is_active', true).order('display_order'),
+        supabase.from('meeting_topics').select('*').order('display_order'),
+        supabase.from('meeting_customers').select('*').order('display_order'),
         supabase.from('profiles').select('user_id, full_name, email')
       ]);
 
-      if (topicsRes.data) setTopics(topicsRes.data);
-      if (customersRes.data) setCustomers(customersRes.data);
+      if (topicsRes.data) setAllTopics(topicsRes.data);
+      if (customersRes.data) setAllCustomers(customersRes.data);
       if (usersRes.data) setAllUsers(usersRes.data);
 
       // Load or create meeting for current date
@@ -451,11 +500,11 @@ const DailyMeeting = () => {
     try {
       const { data, error } = await supabase
         .from('meeting_topics')
-        .insert({ name: newTopic.trim(), display_order: topics.length + 1 })
+        .insert({ name: newTopic.trim(), display_order: allTopics.length + 1 })
         .select()
         .single();
       if (error) throw error;
-      setTopics(prev => [...prev, data]);
+      setAllTopics(prev => [...prev, data]);
       setNewTopic('');
       setShowAddTopic(false);
       toast({ title: 'Topic added' });
@@ -464,21 +513,53 @@ const DailyMeeting = () => {
     }
   };
 
+  const removeTopic = async (topicId: string) => {
+    try {
+      const { error } = await supabase
+        .from('meeting_topics')
+        .update({ is_active: false, deactivated_at: new Date().toISOString() })
+        .eq('id', topicId);
+      if (error) throw error;
+      setAllTopics(prev => prev.map(t => 
+        t.id === topicId ? { ...t, is_active: false, deactivated_at: new Date().toISOString() } : t
+      ));
+      toast({ title: 'Topic removed' });
+    } catch (error) {
+      toast({ title: 'Error removing topic', variant: 'destructive' });
+    }
+  };
+
   const addCustomer = async () => {
     if (!newCustomer.trim()) return;
     try {
       const { data, error } = await supabase
         .from('meeting_customers')
-        .insert({ name: newCustomer.trim(), display_order: customers.length + 1 })
+        .insert({ name: newCustomer.trim(), display_order: allCustomers.length + 1 })
         .select()
         .single();
       if (error) throw error;
-      setCustomers(prev => [...prev, data]);
+      setAllCustomers(prev => [...prev, data]);
       setNewCustomer('');
       setShowAddCustomer(false);
       toast({ title: 'Customer added' });
     } catch (error) {
       toast({ title: 'Error adding customer', variant: 'destructive' });
+    }
+  };
+
+  const removeCustomer = async (customerId: string) => {
+    try {
+      const { error } = await supabase
+        .from('meeting_customers')
+        .update({ is_active: false, deactivated_at: new Date().toISOString() })
+        .eq('id', customerId);
+      if (error) throw error;
+      setAllCustomers(prev => prev.map(c => 
+        c.id === customerId ? { ...c, is_active: false, deactivated_at: new Date().toISOString() } : c
+      ));
+      toast({ title: 'Customer removed' });
+    } catch (error) {
+      toast({ title: 'Error removing customer', variant: 'destructive' });
     }
   };
 
@@ -605,6 +686,7 @@ const DailyMeeting = () => {
                         </th>
                       ))}
                       <th className="text-left p-2 font-medium min-w-[200px]">Comments</th>
+                      {!isPastDate && <th className="text-center p-2 font-medium w-12"></th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -633,7 +715,6 @@ const DailyMeeting = () => {
                               .filter(Boolean)
                               .join('; ') || ''}
                             onChange={(e) => {
-                              // Apply comment to first customer with a flag
                               const firstCustomer = customers[0];
                               if (firstCustomer) {
                                 handleCommentChange(topic.id, firstCustomer.id, e.target.value);
@@ -641,50 +722,65 @@ const DailyMeeting = () => {
                             }}
                           />
                         </td>
+                        {!isPastDate && (
+                          <td className="p-2 text-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                              onClick={() => removeTopic(topic.id)}
+                              title="Remove topic"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
 
-              {/* Add Topic/Customer buttons */}
-              <div className="flex gap-4 mt-4">
-                {showAddTopic ? (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      placeholder="Topic name"
-                      value={newTopic}
-                      onChange={(e) => setNewTopic(e.target.value)}
-                      className="h-8 w-48"
-                      onKeyDown={(e) => e.key === 'Enter' && addTopic()}
-                    />
-                    <Button size="sm" onClick={addTopic}>Add</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setShowAddTopic(false)}>Cancel</Button>
-                  </div>
-                ) : (
-                  <Button variant="outline" size="sm" onClick={() => setShowAddTopic(true)}>
-                    <Plus className="h-4 w-4 mr-1" /> Add Topic
-                  </Button>
-                )}
+              {/* Add Topic/Customer buttons - only show for current/future dates */}
+              {!isPastDate && (
+                <div className="flex gap-4 mt-4">
+                  {showAddTopic ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="Topic name"
+                        value={newTopic}
+                        onChange={(e) => setNewTopic(e.target.value)}
+                        className="h-8 w-48"
+                        onKeyDown={(e) => e.key === 'Enter' && addTopic()}
+                      />
+                      <Button size="sm" onClick={addTopic}>Add</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setShowAddTopic(false)}>Cancel</Button>
+                    </div>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={() => setShowAddTopic(true)}>
+                      <Plus className="h-4 w-4 mr-1" /> Add Topic
+                    </Button>
+                  )}
 
-                {showAddCustomer ? (
-                  <div className="flex items-center gap-2">
-                    <Input
-                      placeholder="Customer name"
-                      value={newCustomer}
-                      onChange={(e) => setNewCustomer(e.target.value)}
-                      className="h-8 w-48"
-                      onKeyDown={(e) => e.key === 'Enter' && addCustomer()}
-                    />
-                    <Button size="sm" onClick={addCustomer}>Add</Button>
-                    <Button size="sm" variant="ghost" onClick={() => setShowAddCustomer(false)}>Cancel</Button>
-                  </div>
-                ) : (
-                  <Button variant="outline" size="sm" onClick={() => setShowAddCustomer(true)}>
-                    <Plus className="h-4 w-4 mr-1" /> Add Customer
-                  </Button>
-                )}
-              </div>
+                  {showAddCustomer ? (
+                    <div className="flex items-center gap-2">
+                      <Input
+                        placeholder="Customer name"
+                        value={newCustomer}
+                        onChange={(e) => setNewCustomer(e.target.value)}
+                        className="h-8 w-48"
+                        onKeyDown={(e) => e.key === 'Enter' && addCustomer()}
+                      />
+                      <Button size="sm" onClick={addCustomer}>Add</Button>
+                      <Button size="sm" variant="ghost" onClick={() => setShowAddCustomer(false)}>Cancel</Button>
+                    </div>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={() => setShowAddCustomer(true)}>
+                      <Plus className="h-4 w-4 mr-1" /> Add Customer
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 
