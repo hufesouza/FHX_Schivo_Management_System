@@ -172,6 +172,7 @@ export type Database = {
       meeting_customers: {
         Row: {
           created_at: string
+          deactivated_at: string | null
           display_order: number
           id: string
           is_active: boolean
@@ -179,6 +180,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deactivated_at?: string | null
           display_order?: number
           id?: string
           is_active?: boolean
@@ -186,6 +188,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deactivated_at?: string | null
           display_order?: number
           id?: string
           is_active?: boolean
@@ -283,6 +286,7 @@ export type Database = {
       meeting_topics: {
         Row: {
           created_at: string
+          deactivated_at: string | null
           display_order: number
           id: string
           is_active: boolean
@@ -290,6 +294,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deactivated_at?: string | null
           display_order?: number
           id?: string
           is_active?: boolean
@@ -297,6 +302,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deactivated_at?: string | null
           display_order?: number
           id?: string
           is_active?: boolean
