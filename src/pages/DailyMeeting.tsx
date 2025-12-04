@@ -688,257 +688,6 @@ const DailyMeeting = () => {
             </CardContent>
           </Card>
 
-          {/* Action Items */}
-          <Card className="mt-6">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Action Items</CardTitle>
-                <Button variant="outline" size="sm" onClick={() => setShowAddAction(true)}>
-                  <Plus className="h-4 w-4 mr-1" /> Add Action
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-sm">
-                  <thead>
-                    <tr className="border-b bg-muted/50">
-                      <th className="text-left p-2 font-medium">Action</th>
-                      <th className="text-left p-2 font-medium w-32">Owner</th>
-                      <th className="text-center p-2 font-medium w-24">Priority</th>
-                      <th className="text-center p-2 font-medium w-28">Due Date</th>
-                      <th className="text-center p-2 font-medium w-28">Status</th>
-                      <th className="text-left p-2 font-medium w-40">Comments</th>
-                      <th className="text-center p-2 font-medium w-16">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {actions.map(action => (
-                      <tr key={action.id} className="border-b hover:bg-muted/30">
-                        <td className="p-2">
-                          {editingActionId === action.id ? (
-                            <Input
-                              value={action.action}
-                              onChange={(e) => updateAction(action.id, { action: e.target.value })}
-                              className="h-8 text-sm"
-                            />
-                          ) : (
-                            <span>{action.action}</span>
-                          )}
-                        </td>
-                        <td className="p-2">
-                          <Select
-                            value={action.owner_id || ''}
-                            onValueChange={(value) => {
-                              const owner = allUsers.find(u => u.user_id === value);
-                              updateAction(action.id, { 
-                                owner_id: value || null, 
-                                owner_name: owner?.full_name || owner?.email || null 
-                              });
-                            }}
-                          >
-                            <SelectTrigger className="h-8 text-sm">
-                              <SelectValue placeholder="Assign..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {allUsers.map(u => (
-                                <SelectItem key={u.user_id} value={u.user_id}>
-                                  {u.full_name || u.email}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="p-2 text-center">
-                          <Select
-                            value={action.priority}
-                            onValueChange={(value: ActionPriority) => updateAction(action.id, { priority: value })}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="low">Low</SelectItem>
-                              <SelectItem value="medium">Medium</SelectItem>
-                              <SelectItem value="high">High</SelectItem>
-                              <SelectItem value="critical">Critical</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="p-2 text-center">
-                          <Input
-                            type="date"
-                            value={action.due_date || ''}
-                            onChange={(e) => updateAction(action.id, { due_date: e.target.value || null })}
-                            className="h-8 text-xs"
-                          />
-                        </td>
-                        <td className="p-2 text-center">
-                          <Select
-                            value={action.status}
-                            onValueChange={(value: ActionStatus) => updateAction(action.id, { status: value })}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="open">Open</SelectItem>
-                              <SelectItem value="in_progress">In Progress</SelectItem>
-                              <SelectItem value="completed">Completed</SelectItem>
-                              <SelectItem value="cancelled">Cancelled</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            value={action.comments || ''}
-                            onChange={(e) => updateAction(action.id, { comments: e.target.value || null })}
-                            placeholder="Notes..."
-                            className="h-8 text-xs"
-                          />
-                        </td>
-                        <td className="p-2 text-center">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                            onClick={() => deleteAction(action.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
-                    
-                    {/* Add new action row */}
-                    {showAddAction && (
-                      <tr className="border-b bg-primary/5">
-                        <td className="p-2">
-                          <Input
-                            value={newAction.action || ''}
-                            onChange={(e) => setNewAction(prev => ({ ...prev, action: e.target.value }))}
-                            placeholder="Enter action..."
-                            className="h-8 text-sm"
-                            autoFocus
-                          />
-                        </td>
-                        <td className="p-2">
-                          <Select
-                            value={newAction.owner_id || ''}
-                            onValueChange={(value) => {
-                              const owner = allUsers.find(u => u.user_id === value);
-                              setNewAction(prev => ({ 
-                                ...prev, 
-                                owner_id: value || null,
-                                owner_name: owner?.full_name || owner?.email || null
-                              }));
-                            }}
-                          >
-                            <SelectTrigger className="h-8 text-sm">
-                              <SelectValue placeholder="Assign..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {allUsers.map(u => (
-                                <SelectItem key={u.user_id} value={u.user_id}>
-                                  {u.full_name || u.email}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="p-2 text-center">
-                          <Select
-                            value={newAction.priority || 'medium'}
-                            onValueChange={(value: ActionPriority) => setNewAction(prev => ({ ...prev, priority: value }))}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="low">Low</SelectItem>
-                              <SelectItem value="medium">Medium</SelectItem>
-                              <SelectItem value="high">High</SelectItem>
-                              <SelectItem value="critical">Critical</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="p-2 text-center">
-                          <Input
-                            type="date"
-                            value={newAction.due_date || ''}
-                            onChange={(e) => setNewAction(prev => ({ ...prev, due_date: e.target.value || null }))}
-                            className="h-8 text-xs"
-                          />
-                        </td>
-                        <td className="p-2 text-center">
-                          <Select
-                            value={newAction.status || 'open'}
-                            onValueChange={(value: ActionStatus) => setNewAction(prev => ({ ...prev, status: value }))}
-                          >
-                            <SelectTrigger className="h-8 text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="open">Open</SelectItem>
-                              <SelectItem value="in_progress">In Progress</SelectItem>
-                              <SelectItem value="completed">Completed</SelectItem>
-                              <SelectItem value="cancelled">Cancelled</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </td>
-                        <td className="p-2">
-                          <Input
-                            value={newAction.comments || ''}
-                            onChange={(e) => setNewAction(prev => ({ ...prev, comments: e.target.value || null }))}
-                            placeholder="Notes..."
-                            className="h-8 text-xs"
-                          />
-                        </td>
-                        <td className="p-2 text-center">
-                          <div className="flex gap-1 justify-center">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-green-600 hover:text-green-700"
-                              onClick={addAction}
-                            >
-                              <Check className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-7 w-7 p-0 text-muted-foreground"
-                              onClick={() => {
-                                setShowAddAction(false);
-                                setNewAction({
-                                  action: '',
-                                  owner_id: null,
-                                  owner_name: null,
-                                  priority: 'medium',
-                                  due_date: null,
-                                  status: 'open',
-                                  comments: null
-                                });
-                              }}
-                            >
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-                
-                {actions.length === 0 && !showAddAction && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No action items yet. Click "Add Action" to create one.
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Participants Sidebar */}
           <Card>
             <CardHeader className="pb-3">
@@ -1001,6 +750,257 @@ const DailyMeeting = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Action Items - Full Width */}
+        <Card className="mt-6">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg">Action Items</CardTitle>
+              <Button variant="outline" size="sm" onClick={() => setShowAddAction(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Add Action
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left p-2 font-medium">Action</th>
+                    <th className="text-left p-2 font-medium w-32">Owner</th>
+                    <th className="text-center p-2 font-medium w-24">Priority</th>
+                    <th className="text-center p-2 font-medium w-28">Due Date</th>
+                    <th className="text-center p-2 font-medium w-28">Status</th>
+                    <th className="text-left p-2 font-medium w-40">Comments</th>
+                    <th className="text-center p-2 font-medium w-16">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {actions.map(action => (
+                    <tr key={action.id} className="border-b hover:bg-muted/30">
+                      <td className="p-2">
+                        {editingActionId === action.id ? (
+                          <Input
+                            value={action.action}
+                            onChange={(e) => updateAction(action.id, { action: e.target.value })}
+                            className="h-8 text-sm"
+                          />
+                        ) : (
+                          <span>{action.action}</span>
+                        )}
+                      </td>
+                      <td className="p-2">
+                        <Select
+                          value={action.owner_id || ''}
+                          onValueChange={(value) => {
+                            const owner = allUsers.find(u => u.user_id === value);
+                            updateAction(action.id, { 
+                              owner_id: value || null, 
+                              owner_name: owner?.full_name || owner?.email || null 
+                            });
+                          }}
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue placeholder="Assign..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allUsers.map(u => (
+                              <SelectItem key={u.user_id} value={u.user_id}>
+                                {u.full_name || u.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="p-2 text-center">
+                        <Select
+                          value={action.priority}
+                          onValueChange={(value: ActionPriority) => updateAction(action.id, { priority: value })}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="critical">Critical</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="p-2 text-center">
+                        <Input
+                          type="date"
+                          value={action.due_date || ''}
+                          onChange={(e) => updateAction(action.id, { due_date: e.target.value || null })}
+                          className="h-8 text-xs"
+                        />
+                      </td>
+                      <td className="p-2 text-center">
+                        <Select
+                          value={action.status}
+                          onValueChange={(value: ActionStatus) => updateAction(action.id, { status: value })}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="in_progress">In Progress</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="p-2">
+                        <Input
+                          value={action.comments || ''}
+                          onChange={(e) => updateAction(action.id, { comments: e.target.value || null })}
+                          placeholder="Notes..."
+                          className="h-8 text-xs"
+                        />
+                      </td>
+                      <td className="p-2 text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          onClick={() => deleteAction(action.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  
+                  {/* Add new action row */}
+                  {showAddAction && (
+                    <tr className="border-b bg-primary/5">
+                      <td className="p-2">
+                        <Input
+                          value={newAction.action || ''}
+                          onChange={(e) => setNewAction(prev => ({ ...prev, action: e.target.value }))}
+                          placeholder="Enter action..."
+                          className="h-8 text-sm"
+                          autoFocus
+                        />
+                      </td>
+                      <td className="p-2">
+                        <Select
+                          value={newAction.owner_id || ''}
+                          onValueChange={(value) => {
+                            const owner = allUsers.find(u => u.user_id === value);
+                            setNewAction(prev => ({ 
+                              ...prev, 
+                              owner_id: value || null,
+                              owner_name: owner?.full_name || owner?.email || null
+                            }));
+                          }}
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue placeholder="Assign..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allUsers.map(u => (
+                              <SelectItem key={u.user_id} value={u.user_id}>
+                                {u.full_name || u.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="p-2 text-center">
+                        <Select
+                          value={newAction.priority || 'medium'}
+                          onValueChange={(value: ActionPriority) => setNewAction(prev => ({ ...prev, priority: value }))}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="low">Low</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="high">High</SelectItem>
+                            <SelectItem value="critical">Critical</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="p-2 text-center">
+                        <Input
+                          type="date"
+                          value={newAction.due_date || ''}
+                          onChange={(e) => setNewAction(prev => ({ ...prev, due_date: e.target.value || null }))}
+                          className="h-8 text-xs"
+                        />
+                      </td>
+                      <td className="p-2 text-center">
+                        <Select
+                          value={newAction.status || 'open'}
+                          onValueChange={(value: ActionStatus) => setNewAction(prev => ({ ...prev, status: value }))}
+                        >
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="open">Open</SelectItem>
+                            <SelectItem value="in_progress">In Progress</SelectItem>
+                            <SelectItem value="completed">Completed</SelectItem>
+                            <SelectItem value="cancelled">Cancelled</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="p-2">
+                        <Input
+                          value={newAction.comments || ''}
+                          onChange={(e) => setNewAction(prev => ({ ...prev, comments: e.target.value || null }))}
+                          placeholder="Notes..."
+                          className="h-8 text-xs"
+                        />
+                      </td>
+                      <td className="p-2 text-center">
+                        <div className="flex gap-1 justify-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-green-600 hover:text-green-700"
+                            onClick={addAction}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-muted-foreground"
+                            onClick={() => {
+                              setShowAddAction(false);
+                              setNewAction({
+                                action: '',
+                                owner_id: null,
+                                owner_name: null,
+                                priority: 'medium',
+                                due_date: null,
+                                status: 'open',
+                                comments: null
+                              });
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+              
+              {actions.length === 0 && !showAddAction && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No action items yet. Click "Add Action" to create one.
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </main>
     </AppLayout>
   );
