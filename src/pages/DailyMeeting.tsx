@@ -118,8 +118,8 @@ const DailyMeeting = () => {
     const todayStr = format(today, 'yyyy-MM-dd');
 
     const filteredTopics = allTopics.filter(topic => {
-      // Get just the date part from created_at
-      const createdDateStr = topic.created_at.split('T')[0];
+      // Get just the date part from created_at (first 10 chars: YYYY-MM-DD)
+      const createdDateStr = topic.created_at.substring(0, 10);
       
       if (isPast) {
         // For past dates: show if created on/before that date AND (still active OR deactivated after that date)
@@ -127,7 +127,7 @@ const DailyMeeting = () => {
         
         if (topic.is_active) return true;
         if (topic.deactivated_at) {
-          const deactivatedDateStr = topic.deactivated_at.split('T')[0];
+          const deactivatedDateStr = topic.deactivated_at.substring(0, 10);
           return deactivatedDateStr > viewingDateStr;
         }
         return false;
@@ -139,14 +139,14 @@ const DailyMeeting = () => {
     });
 
     const filteredCustomers = allCustomers.filter(customer => {
-      const createdDateStr = customer.created_at.split('T')[0];
+      const createdDateStr = customer.created_at.substring(0, 10);
       
       if (isPast) {
         if (createdDateStr > viewingDateStr) return false;
         
         if (customer.is_active) return true;
         if (customer.deactivated_at) {
-          const deactivatedDateStr = customer.deactivated_at.split('T')[0];
+          const deactivatedDateStr = customer.deactivated_at.substring(0, 10);
           return deactivatedDateStr > viewingDateStr;
         }
         return false;
