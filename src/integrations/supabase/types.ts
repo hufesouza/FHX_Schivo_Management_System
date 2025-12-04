@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      daily_meetings: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          meeting_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          meeting_date?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          meeting_date?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       form_fields: {
         Row: {
           created_at: string
@@ -89,6 +113,141 @@ export type Database = {
           invited_by?: string | null
           role?: Database["public"]["Enums"]["app_role"]
           token?: string
+        }
+        Relationships: []
+      }
+      meeting_customers: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+        }
+        Relationships: []
+      }
+      meeting_flags: {
+        Row: {
+          comment: string | null
+          customer_id: string
+          id: string
+          meeting_id: string
+          status: string
+          topic_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          comment?: string | null
+          customer_id: string
+          id?: string
+          meeting_id: string
+          status?: string
+          topic_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          comment?: string | null
+          customer_id?: string
+          id?: string
+          meeting_id?: string
+          status?: string
+          topic_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_flags_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_flags_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "daily_meetings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "meeting_flags_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_participants: {
+        Row: {
+          attended: boolean
+          created_at: string
+          id: string
+          meeting_id: string
+          user_id: string
+        }
+        Insert: {
+          attended?: boolean
+          created_at?: string
+          id?: string
+          meeting_id: string
+          user_id: string
+        }
+        Update: {
+          attended?: boolean
+          created_at?: string
+          id?: string
+          meeting_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_participants_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "daily_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meeting_topics: {
+        Row: {
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+        }
+        Update: {
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
         }
         Relationships: []
       }

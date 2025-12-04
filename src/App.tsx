@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import NPIHub from "./pages/NPIHub";
 import BlueReviewDashboard from "./pages/BlueReviewDashboard";
+import DailyMeeting from "./pages/DailyMeeting";
 import ChangeControlHub from "./pages/ChangeControlHub";
 import ManufacturingHub from "./pages/ManufacturingHub";
 import Auth from "./pages/Auth";
@@ -32,6 +33,7 @@ const App = () => (
           {/* NPI Engineering Module */}
           <Route path="/npi" element={<NPIHub />} />
           <Route path="/npi/blue-review" element={<BlueReviewDashboard />} />
+          <Route path="/npi/daily-meeting" element={<DailyMeeting />} />
           
           {/* Change Control Module */}
           <Route path="/change-control" element={<ChangeControlHub />} />
