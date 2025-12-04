@@ -25,7 +25,7 @@ import {
   Check,
   X
 } from 'lucide-react';
-import { format, addDays, subDays, startOfDay, isBefore } from 'date-fns';
+import { format, addDays, subDays } from 'date-fns';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
 type FlagStatus = 'none' | 'green' | 'amber' | 'red';
@@ -111,11 +111,12 @@ const DailyMeeting = () => {
   // For today/future: show active items only
   // For past: show items that were active on that date (created before/on and not deactivated yet or deactivated after)
   const { topics, customers, isPastDate } = useMemo(() => {
-    const today = startOfDay(new Date());
-    const viewingDate = startOfDay(currentDate);
-    const isPast = isBefore(viewingDate, today);
-    const viewingDateStr = format(viewingDate, 'yyyy-MM-dd');
-    const todayStr = format(today, 'yyyy-MM-dd');
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const viewingDateStr = format(currentDate, 'yyyy-MM-dd');
+    // Use string comparison to avoid timezone issues
+    const isPast = viewingDateStr < todayStr;
+    
+    console.log('Date filter debug:', { todayStr, viewingDateStr, isPast });
 
     const filteredTopics = allTopics.filter(topic => {
       // Get just the date part from created_at (first 10 chars: YYYY-MM-DD)
