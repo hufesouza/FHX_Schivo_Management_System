@@ -445,11 +445,11 @@ const QuotationNew = () => {
                 </div>
 
                 <div>
-                  <Label>Notes to AI (optional)</Label>
+                  <Label>Notes to IlluminAI (optional)</Label>
                   <Textarea 
                     value={notesToAi} 
                     onChange={(e) => setNotesToAi(e.target.value)}
-                    placeholder="Any additional instructions or context for the AI..."
+                    placeholder="Any additional instructions or context for IlluminAI..."
                     rows={3}
                   />
                 </div>
