@@ -728,7 +728,7 @@ const QuotationNew = () => {
                 <CardContent className="py-12 text-center">
                   <Info className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">
-                    Upload a drawing and click "IlluminAI Quotation" to get AI-powered cycle time estimates
+                    Upload a drawing and click "IlluminAI Quotation" to get cycle time estimates
                   </p>
                 </CardContent>
               </Card>
