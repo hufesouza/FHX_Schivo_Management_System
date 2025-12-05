@@ -7,6 +7,9 @@ import HomePage from "./pages/HomePage";
 import NPIHub from "./pages/NPIHub";
 import BlueReviewDashboard from "./pages/BlueReviewDashboard";
 import DailyMeeting from "./pages/DailyMeeting";
+import QuotationHub from "./pages/QuotationHub";
+import QuotationNew from "./pages/QuotationNew";
+import QuotationMachines from "./pages/QuotationMachines";
 import ChangeControlHub from "./pages/ChangeControlHub";
 import ManufacturingHub from "./pages/ManufacturingHub";
 import Auth from "./pages/Auth";
@@ -34,6 +37,9 @@ const App = () => (
           <Route path="/npi" element={<NPIHub />} />
           <Route path="/npi/blue-review" element={<BlueReviewDashboard />} />
           <Route path="/npi/daily-meeting" element={<DailyMeeting />} />
+          <Route path="/npi/quotation" element={<QuotationHub />} />
+          <Route path="/npi/quotation/new" element={<QuotationNew />} />
+          <Route path="/npi/quotation/machines" element={<QuotationMachines />} />
           
           {/* Change Control Module */}
           <Route path="/change-control" element={<ChangeControlHub />} />

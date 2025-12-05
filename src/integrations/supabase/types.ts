@@ -116,6 +116,78 @@ export type Database = {
         }
         Relationships: []
       }
+      machines: {
+        Row: {
+          created_at: string
+          description: string
+          group_name: string
+          id: string
+          is_active: boolean | null
+          load_unload_time: number | null
+          machine_type: string
+          max_cutting_feedrate: number | null
+          max_spindle_rpm: number | null
+          performance_factor: number | null
+          probing_time: number | null
+          rapid_rate_x: number | null
+          rapid_rate_y: number | null
+          rapid_rate_z: number | null
+          resource: string
+          suitable_for_5axis: boolean | null
+          suitable_for_prismatic: boolean | null
+          suitable_for_small_detailed: boolean | null
+          suitable_for_turned: boolean | null
+          tool_change_time: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          group_name: string
+          id?: string
+          is_active?: boolean | null
+          load_unload_time?: number | null
+          machine_type?: string
+          max_cutting_feedrate?: number | null
+          max_spindle_rpm?: number | null
+          performance_factor?: number | null
+          probing_time?: number | null
+          rapid_rate_x?: number | null
+          rapid_rate_y?: number | null
+          rapid_rate_z?: number | null
+          resource: string
+          suitable_for_5axis?: boolean | null
+          suitable_for_prismatic?: boolean | null
+          suitable_for_small_detailed?: boolean | null
+          suitable_for_turned?: boolean | null
+          tool_change_time?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          group_name?: string
+          id?: string
+          is_active?: boolean | null
+          load_unload_time?: number | null
+          machine_type?: string
+          max_cutting_feedrate?: number | null
+          max_spindle_rpm?: number | null
+          performance_factor?: number | null
+          probing_time?: number | null
+          rapid_rate_x?: number | null
+          rapid_rate_y?: number | null
+          rapid_rate_z?: number | null
+          resource?: string
+          suitable_for_5axis?: boolean | null
+          suitable_for_prismatic?: boolean | null
+          suitable_for_small_detailed?: boolean | null
+          suitable_for_turned?: boolean | null
+          tool_change_time?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       meeting_actions: {
         Row: {
           action: string
@@ -336,6 +408,99 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      quotations: {
+        Row: {
+          ai_interpretation: Json | null
+          blank_diameter: number | null
+          blank_length: number | null
+          blank_thickness: number | null
+          blank_type: string | null
+          blank_width: number | null
+          calculated_cycle_time: number | null
+          created_at: string
+          drawing_url: string | null
+          id: string
+          material: string | null
+          notes_to_ai: string | null
+          order_quantity: number | null
+          part_name: string | null
+          production_type: string | null
+          selected_machine_id: string | null
+          status: string | null
+          suggested_machine_id: string | null
+          surface_finish: string | null
+          tolerance_level: string | null
+          total_machining_time: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_interpretation?: Json | null
+          blank_diameter?: number | null
+          blank_length?: number | null
+          blank_thickness?: number | null
+          blank_type?: string | null
+          blank_width?: number | null
+          calculated_cycle_time?: number | null
+          created_at?: string
+          drawing_url?: string | null
+          id?: string
+          material?: string | null
+          notes_to_ai?: string | null
+          order_quantity?: number | null
+          part_name?: string | null
+          production_type?: string | null
+          selected_machine_id?: string | null
+          status?: string | null
+          suggested_machine_id?: string | null
+          surface_finish?: string | null
+          tolerance_level?: string | null
+          total_machining_time?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_interpretation?: Json | null
+          blank_diameter?: number | null
+          blank_length?: number | null
+          blank_thickness?: number | null
+          blank_type?: string | null
+          blank_width?: number | null
+          calculated_cycle_time?: number | null
+          created_at?: string
+          drawing_url?: string | null
+          id?: string
+          material?: string | null
+          notes_to_ai?: string | null
+          order_quantity?: number | null
+          part_name?: string | null
+          production_type?: string | null
+          selected_machine_id?: string | null
+          status?: string | null
+          suggested_machine_id?: string | null
+          surface_finish?: string | null
+          tolerance_level?: string | null
+          total_machining_time?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotations_selected_machine_id_fkey"
+            columns: ["selected_machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotations_suggested_machine_id_fkey"
+            columns: ["suggested_machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {
