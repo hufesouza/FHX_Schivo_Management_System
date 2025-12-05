@@ -212,11 +212,47 @@ const QuotationNew = () => {
       if (error) throw error;
 
       if (data.success && data.interpretation) {
-        setInterpretation(data.interpretation);
+        const interp = data.interpretation as AIInterpretation;
+        setInterpretation(interp);
         setComplianceMetadata(data.metadata);
         
+        // Auto-populate form fields from AI interpretation
+        if (interp.part_name && !partName) {
+          setPartName(interp.part_name);
+        }
+        if (interp.material_detected && !material) {
+          setMaterial(interp.material_detected);
+        }
+        
+        // Auto-populate blank dimensions from overall_dimensions_mm
+        if (interp.overall_dimensions_mm) {
+          const dims = interp.overall_dimensions_mm;
+          // Check if dimensions look like round bar (x and y are similar, z is longest)
+          const isRoundStock = Math.abs(dims.x - dims.y) < 5 && dims.z > dims.x * 1.5;
+          
+          if (isRoundStock && blankDiameter === 0) {
+            setBlankType('Round bar');
+            setBlankDiameter(Math.max(dims.x, dims.y) + 5); // Add stock allowance
+            setBlankLength(dims.z + 5);
+          } else {
+            if (blankLength === 0) setBlankLength(dims.z + 5);
+            if (blankWidth === 0) setBlankWidth(dims.y + 5);
+            if (blankThickness === 0) setBlankThickness(dims.x + 5);
+          }
+        }
+        
+        // Auto-set tolerance level based on interpretation
+        if (interp.features_summary?.special_requirements?.length > 0) {
+          const hasGdtOrTight = interp.features_summary.special_requirements.some(r => 
+            r.toLowerCase().includes('tight') || r.toLowerCase().includes('gd&t')
+          );
+          if (hasGdtOrTight) {
+            setToleranceLevel('Tight');
+          }
+        }
+        
         // Find suggested machine
-        const suggestedGroup = data.interpretation.suggested_machine_group;
+        const suggestedGroup = interp.suggested_machine_group;
         const suggestedMachine = machines.find(m => 
           m.group_name.toLowerCase().includes(suggestedGroup.toLowerCase()) ||
           suggestedGroup.toLowerCase().includes(m.group_name.toLowerCase())
@@ -225,7 +261,7 @@ const QuotationNew = () => {
           setSelectedMachineId(suggestedMachine.id);
         }
         
-        toast.success('Drawing interpreted successfully');
+        toast.success('Drawing interpreted - parameters auto-populated');
       } else {
         throw new Error(data.error || 'Interpretation failed');
       }
