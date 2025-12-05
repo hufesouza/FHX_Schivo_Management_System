@@ -385,6 +385,47 @@ export type Database = {
           },
         ]
       }
+      meeting_recognitions: {
+        Row: {
+          created_at: string
+          id: string
+          meeting_id: string
+          reason: string
+          recognized_by_id: string | null
+          recognized_by_name: string
+          recognized_user_id: string | null
+          recognized_user_name: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          meeting_id: string
+          reason: string
+          recognized_by_id?: string | null
+          recognized_by_name: string
+          recognized_user_id?: string | null
+          recognized_user_name: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          meeting_id?: string
+          reason?: string
+          recognized_by_id?: string | null
+          recognized_by_name?: string
+          recognized_user_id?: string | null
+          recognized_user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_recognitions_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "daily_meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       meeting_topics: {
         Row: {
           created_at: string

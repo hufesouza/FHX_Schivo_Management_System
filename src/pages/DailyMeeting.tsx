@@ -23,7 +23,8 @@ import {
   Trash2,
   Edit2,
   Check,
-  X
+  X,
+  Award
 } from 'lucide-react';
 import { format, addDays, subDays } from 'date-fns';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
@@ -72,6 +73,16 @@ interface ActionItem {
   comments: string | null;
 }
 
+interface Recognition {
+  id: string;
+  recognized_user_id: string | null;
+  recognized_user_name: string;
+  recognized_by_id: string | null;
+  recognized_by_name: string;
+  reason: string;
+  created_at: string;
+}
+
 const DailyMeeting = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
@@ -105,6 +116,15 @@ const DailyMeeting = () => {
     due_date: null,
     status: 'open',
     comments: null
+  });
+
+  // Recognition state
+  const [recognitions, setRecognitions] = useState<Recognition[]>([]);
+  const [showAddRecognition, setShowAddRecognition] = useState(false);
+  const [newRecognition, setNewRecognition] = useState<Partial<Recognition>>({
+    recognized_user_id: null,
+    recognized_user_name: '',
+    reason: ''
   });
 
   // Filter topics and customers based on current date
@@ -254,11 +274,31 @@ const DailyMeeting = () => {
             comments: a.comments
           })));
         }
+
+        // Load recognitions for this meeting
+        const { data: recognitionsData } = await supabase
+          .from('meeting_recognitions')
+          .select('*')
+          .eq('meeting_id', existingMeeting.id)
+          .order('created_at');
+
+        if (recognitionsData) {
+          setRecognitions(recognitionsData.map(r => ({
+            id: r.id,
+            recognized_user_id: r.recognized_user_id,
+            recognized_user_name: r.recognized_user_name,
+            recognized_by_id: r.recognized_by_id,
+            recognized_by_name: r.recognized_by_name,
+            reason: r.reason,
+            created_at: r.created_at
+          })));
+        }
       } else {
         setMeetingId(null);
         setFlags({});
         setParticipants([]);
         setActions([]);
+        setRecognitions([]);
       }
     } catch (error) {
       console.error('Error loading meeting data:', error);
@@ -391,6 +431,36 @@ const DailyMeeting = () => {
         }
       }
 
+      // Save recognitions
+      const existingRecognitionIds = recognitions.filter(r => r.id && !r.id.startsWith('temp-')).map(r => r.id);
+      
+      if (meetingId) {
+        await supabase
+          .from('meeting_recognitions')
+          .delete()
+          .eq('meeting_id', mId)
+          .not('id', 'in', `(${existingRecognitionIds.join(',') || 'null'})`);
+      }
+
+      for (const recognition of recognitions) {
+        if (recognition.id.startsWith('temp-')) {
+          const { data, error } = await supabase
+            .from('meeting_recognitions')
+            .insert({
+              meeting_id: mId,
+              recognized_user_id: recognition.recognized_user_id,
+              recognized_user_name: recognition.recognized_user_name,
+              recognized_by_id: recognition.recognized_by_id,
+              recognized_by_name: recognition.recognized_by_name,
+              reason: recognition.reason
+            })
+            .select()
+            .single();
+          if (error) throw error;
+          setRecognitions(prev => prev.map(r => r.id === recognition.id ? { ...r, id: data.id } : r));
+        }
+      }
+
       toast({ title: 'Meeting saved successfully' });
     } catch (error) {
       console.error('Error saving meeting:', error);
@@ -443,6 +513,17 @@ const DailyMeeting = () => {
       });
     }
 
+    // Add recognitions to minutes
+    if (recognitions.length > 0) {
+      minutes += `\n\nRECOGNITIONS 🏆:\n`;
+      minutes += `${'─'.repeat(50)}\n`;
+      recognitions.forEach(recognition => {
+        minutes += `🌟 ${recognition.recognized_user_name}\n`;
+        minutes += `   Reason: ${recognition.reason}\n`;
+        minutes += `   Recognized by: ${recognition.recognized_by_name}\n\n`;
+      });
+    }
+
     await navigator.clipboard.writeText(minutes);
     
     const attendeeEmails = attendees.map(p => p.email).filter(Boolean).join(';');
@@ -489,6 +570,32 @@ const DailyMeeting = () => {
 
   const deleteAction = (id: string) => {
     setActions(prev => prev.filter(a => a.id !== id));
+  };
+
+  // Recognition management
+  const addRecognition = () => {
+    if (!newRecognition.recognized_user_name?.trim() || !newRecognition.reason?.trim()) return;
+    const tempId = `temp-${Date.now()}`;
+    const currentUserProfile = allUsers.find(u => u.user_id === user?.id);
+    setRecognitions(prev => [...prev, {
+      id: tempId,
+      recognized_user_id: newRecognition.recognized_user_id || null,
+      recognized_user_name: newRecognition.recognized_user_name || '',
+      recognized_by_id: user?.id || null,
+      recognized_by_name: currentUserProfile?.full_name || currentUserProfile?.email || 'Unknown',
+      reason: newRecognition.reason || '',
+      created_at: new Date().toISOString()
+    }]);
+    setNewRecognition({
+      recognized_user_id: null,
+      recognized_user_name: '',
+      reason: ''
+    });
+    setShowAddRecognition(false);
+  };
+
+  const deleteRecognition = (id: string) => {
+    setRecognitions(prev => prev.filter(r => r.id !== id));
   };
 
   const getPriorityColor = (priority: ActionPriority) => {
@@ -1106,6 +1213,138 @@ const DailyMeeting = () => {
               {actions.length === 0 && !showAddAction && (
                 <div className="text-center py-8 text-muted-foreground">
                   No action items yet. Click "Add Action" to create one.
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recognitions - Full Width */}
+        <Card className="mt-6">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Award className="h-5 w-5 text-yellow-500" />
+                <CardTitle className="text-lg">Recognitions</CardTitle>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => setShowAddRecognition(true)}>
+                <Plus className="h-4 w-4 mr-1" /> Add Recognition
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left p-2 font-medium">Person Recognized</th>
+                    <th className="text-left p-2 font-medium">Reason</th>
+                    <th className="text-left p-2 font-medium w-40">Recognized By</th>
+                    <th className="text-left p-2 font-medium w-32">When</th>
+                    <th className="text-center p-2 font-medium w-16">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recognitions.map(recognition => (
+                    <tr key={recognition.id} className="border-b hover:bg-muted/30">
+                      <td className="p-2 font-medium">
+                        <div className="flex items-center gap-2">
+                          <span className="text-yellow-500">🌟</span>
+                          {recognition.recognized_user_name}
+                        </div>
+                      </td>
+                      <td className="p-2">{recognition.reason}</td>
+                      <td className="p-2 text-muted-foreground">{recognition.recognized_by_name}</td>
+                      <td className="p-2 text-muted-foreground text-xs">
+                        {format(new Date(recognition.created_at), 'MMM d, HH:mm')}
+                      </td>
+                      <td className="p-2 text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                          onClick={() => deleteRecognition(recognition.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                  
+                  {/* Add new recognition row */}
+                  {showAddRecognition && (
+                    <tr className="border-b bg-primary/5">
+                      <td className="p-2">
+                        <Select
+                          value={newRecognition.recognized_user_id || ''}
+                          onValueChange={(value) => {
+                            const selectedUser = allUsers.find(u => u.user_id === value);
+                            setNewRecognition(prev => ({
+                              ...prev,
+                              recognized_user_id: value || null,
+                              recognized_user_name: selectedUser?.full_name || selectedUser?.email || ''
+                            }));
+                          }}
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue placeholder="Select person..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allUsers.map(u => (
+                              <SelectItem key={u.user_id} value={u.user_id}>
+                                {u.full_name || u.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </td>
+                      <td className="p-2">
+                        <Input
+                          value={newRecognition.reason || ''}
+                          onChange={(e) => setNewRecognition(prev => ({ ...prev, reason: e.target.value }))}
+                          placeholder="Reason for recognition..."
+                          className="h-8 text-sm"
+                        />
+                      </td>
+                      <td className="p-2 text-muted-foreground text-sm">
+                        {allUsers.find(u => u.user_id === user?.id)?.full_name || 'You'}
+                      </td>
+                      <td className="p-2 text-muted-foreground text-xs">Now</td>
+                      <td className="p-2 text-center">
+                        <div className="flex gap-1 justify-center">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-green-600 hover:text-green-700"
+                            onClick={addRecognition}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-muted-foreground"
+                            onClick={() => {
+                              setShowAddRecognition(false);
+                              setNewRecognition({
+                                recognized_user_id: null,
+                                recognized_user_name: '',
+                                reason: ''
+                              });
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+              
+              {recognitions.length === 0 && !showAddRecognition && (
+                <div className="text-center py-8 text-muted-foreground">
+                  No recognitions yet. Click "Add Recognition" to celebrate someone!
                 </div>
               )}
             </div>
