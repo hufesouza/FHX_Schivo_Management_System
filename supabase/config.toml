@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.create-test-users]
 verify_jwt = false
+
+[functions.interpret-drawing]
+verify_jwt = false
