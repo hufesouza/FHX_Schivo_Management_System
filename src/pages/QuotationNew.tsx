@@ -468,7 +468,7 @@ const QuotationNew = () => {
                   ) : (
                     <>
                       <Sparkles className="h-5 w-5 mr-2" />
-                      Generate Technical Interpretation
+                      IlluminAI Quotation
                     </>
                   )}
                 </Button>
@@ -657,7 +657,7 @@ const QuotationNew = () => {
                 <CardContent className="py-12 text-center">
                   <Info className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                   <p className="text-muted-foreground">
-                    Upload a drawing and click "Generate Technical Interpretation" to get AI-powered cycle time estimates
+                    Upload a drawing and click "IlluminAI Quotation" to get AI-powered cycle time estimates
                   </p>
                 </CardContent>
               </Card>
