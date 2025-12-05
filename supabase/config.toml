@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.interpret-drawing]
 verify_jwt = false
+
+[functions.recalculate-cycle-time]
+verify_jwt = false
+
+[functions.admin-users]
+verify_jwt = false

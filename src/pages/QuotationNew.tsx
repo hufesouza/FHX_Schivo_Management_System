@@ -26,7 +26,9 @@ import {
   Cog,
   FileImage,
   Sparkles,
-  Calculator
+  Calculator,
+  Shield,
+  Lock
 } from 'lucide-react';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
@@ -70,6 +72,13 @@ interface AIInterpretation {
   warnings: string[];
 }
 
+interface ComplianceMetadata {
+  apiMode: string;
+  promptVersion: string;
+  drawingStored: boolean;
+  auditLogged: boolean;
+}
+
 const BLANK_TYPES = ['Plate', 'Saw block', 'Round bar', 'Bar stock', 'Custom'];
 const PRODUCTION_TYPES = ['Prototype', 'Small batch', 'Series'];
 const TOLERANCE_LEVELS = ['Rough', 'Medium', 'Tight', 'Very tight'];
@@ -100,7 +109,9 @@ const QuotationNew = () => {
   const [interpretation, setInterpretation] = useState<AIInterpretation | null>(null);
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
   const [isInterpreting, setIsInterpreting] = useState(false);
+  const [complianceMetadata, setComplianceMetadata] = useState<ComplianceMetadata | null>(null);
 
+  // Fetch machines
   const { data: machines = [] } = useQuery({
     queryKey: ['machines'],
     queryFn: async () => {
@@ -111,6 +122,21 @@ const QuotationNew = () => {
         .order('group_name', { ascending: true });
       if (error) throw error;
       return data as Machine[];
+    },
+  });
+
+  // Fetch compliance settings
+  const { data: complianceSettings } = useQuery({
+    queryKey: ['compliance-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('compliance_settings')
+        .select('*');
+      if (error) throw error;
+      return data?.reduce((acc: Record<string, string>, s: any) => {
+        acc[s.setting_key] = s.setting_value;
+        return acc;
+      }, {}) || {};
     },
   });
 
@@ -134,6 +160,7 @@ const QuotationNew = () => {
 
     setIsInterpreting(true);
     setInterpretation(null);
+    setComplianceMetadata(null);
 
     try {
       let drawingBase64 = '';
@@ -153,6 +180,7 @@ const QuotationNew = () => {
         drawingMimeType = drawing.type;
       }
 
+      // Call backend edge function - ALL AI processing is server-side only
       const { data, error } = await supabase.functions.invoke('interpret-drawing', {
         body: {
           drawingBase64,
@@ -176,6 +204,8 @@ const QuotationNew = () => {
             description: m.description,
             machine_type: m.machine_type,
           })),
+          userId: user?.id,
+          userEmail: user?.email,
         },
       });
 
@@ -183,6 +213,7 @@ const QuotationNew = () => {
 
       if (data.success && data.interpretation) {
         setInterpretation(data.interpretation);
+        setComplianceMetadata(data.metadata);
         
         // Find suggested machine
         const suggestedGroup = data.interpretation.suggested_machine_group;
@@ -281,13 +312,37 @@ const QuotationNew = () => {
             <img src={fhxLogoFull} alt="FHX Engineering" className="h-10" />
             <div>
               <h1 className="font-heading font-semibold text-lg">New Quote</h1>
-              <p className="text-sm text-primary-foreground/80">CNC Smart Quoter</p>
+              <p className="text-sm text-primary-foreground/80">IlluminAI Quoter</p>
             </div>
+          </div>
+          
+          {/* Compliance Badge */}
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="bg-green-500/20 text-green-100 border-green-400">
+              <Lock className="h-3 w-3 mr-1" />
+              OpenAI API Mode
+            </Badge>
+            <Badge variant="outline" className="bg-blue-500/20 text-blue-100 border-blue-400">
+              <Shield className="h-3 w-3 mr-1" />
+              FDA-Ready
+            </Badge>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8">
+        {/* Compliance & Security Banner */}
+        <Alert className="mb-6 bg-muted/50">
+          <Shield className="h-4 w-4" />
+          <AlertTitle>Secure Processing Mode</AlertTitle>
+          <AlertDescription className="text-sm">
+            <span className="font-medium">API Mode:</span> OpenAI API (No Training) • 
+            <span className="font-medium ml-2">Prompt Version:</span> {complianceSettings?.ai_prompt_version || 'v1.0'} • 
+            <span className="font-medium ml-2">Drawings Stored:</span> {complianceSettings?.store_uploaded_drawings === 'true' ? 'Yes' : 'No (Transient)'} • 
+            <span className="font-medium ml-2">Audit Logs:</span> {complianceSettings?.enable_audit_logs !== 'false' ? 'Enabled' : 'Disabled'}
+          </AlertDescription>
+        </Alert>
+
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left Column: Inputs */}
           <div className="space-y-6">
@@ -298,7 +353,12 @@ const QuotationNew = () => {
                   <FileImage className="h-5 w-5" />
                   Upload Drawing
                 </CardTitle>
-                <CardDescription>Upload a PDF or image of the machining drawing</CardDescription>
+                <CardDescription>
+                  Upload a PDF or image of the machining drawing. 
+                  {complianceSettings?.store_uploaded_drawings !== 'true' && (
+                    <span className="text-green-600 ml-1">(Processed transiently - not stored)</span>
+                  )}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="border-2 border-dashed border-border rounded-lg p-6 text-center">
@@ -485,8 +545,19 @@ const QuotationNew = () => {
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
                       <Cpu className="h-5 w-5" />
-                      AI Interpretation
+                      IlluminAI Interpretation
                     </CardTitle>
+                    {complianceMetadata && (
+                      <CardDescription className="flex items-center gap-2 text-xs">
+                        <Badge variant="outline" className="text-xs">
+                          v{complianceMetadata.promptVersion}
+                        </Badge>
+                        <span className="text-green-600">
+                          <Lock className="h-3 w-3 inline mr-1" />
+                          {complianceMetadata.apiMode === 'openai_api_no_training' ? 'OpenAI API (No Training)' : complianceMetadata.apiMode}
+                        </span>
+                      </CardDescription>
+                    )}
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
