@@ -31,10 +31,10 @@ import {
   Lock
 } from 'lucide-react';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
-import * as pdfjsLib from 'pdfjs-dist';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 // Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs`;
 
 // Helper function to convert PDF first page to PNG image
 async function convertPdfToImage(file: File): Promise<{ base64: string; mimeType: string }> {
