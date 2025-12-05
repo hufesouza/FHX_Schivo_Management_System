@@ -124,6 +124,8 @@ const DailyMeeting = () => {
   const [newRecognition, setNewRecognition] = useState<Partial<Recognition>>({
     recognized_user_id: null,
     recognized_user_name: '',
+    recognized_by_id: null,
+    recognized_by_name: '',
     reason: ''
   });
 
@@ -574,21 +576,22 @@ const DailyMeeting = () => {
 
   // Recognition management
   const addRecognition = () => {
-    if (!newRecognition.recognized_user_name?.trim() || !newRecognition.reason?.trim()) return;
+    if (!newRecognition.recognized_user_name?.trim() || !newRecognition.reason?.trim() || !newRecognition.recognized_by_name?.trim()) return;
     const tempId = `temp-${Date.now()}`;
-    const currentUserProfile = allUsers.find(u => u.user_id === user?.id);
     setRecognitions(prev => [...prev, {
       id: tempId,
       recognized_user_id: newRecognition.recognized_user_id || null,
       recognized_user_name: newRecognition.recognized_user_name || '',
-      recognized_by_id: user?.id || null,
-      recognized_by_name: currentUserProfile?.full_name || currentUserProfile?.email || 'Unknown',
+      recognized_by_id: newRecognition.recognized_by_id || null,
+      recognized_by_name: newRecognition.recognized_by_name || '',
       reason: newRecognition.reason || '',
       created_at: new Date().toISOString()
     }]);
     setNewRecognition({
       recognized_user_id: null,
       recognized_user_name: '',
+      recognized_by_id: null,
+      recognized_by_name: '',
       reason: ''
     });
     setShowAddRecognition(false);
@@ -1306,8 +1309,29 @@ const DailyMeeting = () => {
                           className="h-8 text-sm"
                         />
                       </td>
-                      <td className="p-2 text-muted-foreground text-sm">
-                        {allUsers.find(u => u.user_id === user?.id)?.full_name || 'You'}
+                      <td className="p-2">
+                        <Select
+                          value={newRecognition.recognized_by_id || ''}
+                          onValueChange={(value) => {
+                            const selectedUser = allUsers.find(u => u.user_id === value);
+                            setNewRecognition(prev => ({
+                              ...prev,
+                              recognized_by_id: value || null,
+                              recognized_by_name: selectedUser?.full_name || selectedUser?.email || ''
+                            }));
+                          }}
+                        >
+                          <SelectTrigger className="h-8 text-sm">
+                            <SelectValue placeholder="Select person..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {allUsers.map(u => (
+                              <SelectItem key={u.user_id} value={u.user_id}>
+                                {u.full_name || u.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </td>
                       <td className="p-2 text-muted-foreground text-xs">Now</td>
                       <td className="p-2 text-center">
@@ -1329,6 +1353,8 @@ const DailyMeeting = () => {
                               setNewRecognition({
                                 recognized_user_id: null,
                                 recognized_user_name: '',
+                                recognized_by_id: null,
+                                recognized_by_name: '',
                                 reason: ''
                               });
                             }}
