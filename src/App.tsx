@@ -10,6 +10,7 @@ import DailyMeeting from "./pages/DailyMeeting";
 import QuotationHub from "./pages/QuotationHub";
 import QuotationNew from "./pages/QuotationNew";
 import QuotationMachines from "./pages/QuotationMachines";
+import QuotationComplianceSettings from "./pages/QuotationComplianceSettings";
 import ChangeControlHub from "./pages/ChangeControlHub";
 import ManufacturingHub from "./pages/ManufacturingHub";
 import Auth from "./pages/Auth";
@@ -40,6 +41,7 @@ const App = () => (
           <Route path="/npi/quotation" element={<QuotationHub />} />
           <Route path="/npi/quotation/new" element={<QuotationNew />} />
           <Route path="/npi/quotation/machines" element={<QuotationMachines />} />
+          <Route path="/npi/quotation/compliance" element={<QuotationComplianceSettings />} />
           
           {/* Change Control Module */}
           <Route path="/change-control" element={<ChangeControlHub />} />

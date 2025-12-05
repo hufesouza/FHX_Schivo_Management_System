@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      compliance_settings: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       daily_meetings: {
         Row: {
           created_at: string
@@ -408,6 +438,81 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      quotation_audit_trail: {
+        Row: {
+          action_type: string
+          ai_prompt_version: string | null
+          created_at: string
+          cycle_time_result: number | null
+          drawing_stored: boolean | null
+          id: string
+          ip_address: string | null
+          machine_group: string | null
+          machine_id: string | null
+          material: string | null
+          part_name: string | null
+          quotation_id: string | null
+          request_payload: Json | null
+          response_summary: Json | null
+          user_agent: string | null
+          user_email: string | null
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          ai_prompt_version?: string | null
+          created_at?: string
+          cycle_time_result?: number | null
+          drawing_stored?: boolean | null
+          id?: string
+          ip_address?: string | null
+          machine_group?: string | null
+          machine_id?: string | null
+          material?: string | null
+          part_name?: string | null
+          quotation_id?: string | null
+          request_payload?: Json | null
+          response_summary?: Json | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          ai_prompt_version?: string | null
+          created_at?: string
+          cycle_time_result?: number | null
+          drawing_stored?: boolean | null
+          id?: string
+          ip_address?: string | null
+          machine_group?: string | null
+          machine_id?: string | null
+          material?: string | null
+          part_name?: string | null
+          quotation_id?: string | null
+          request_payload?: Json | null
+          response_summary?: Json | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_audit_trail_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotation_audit_trail_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quotations: {
         Row: {

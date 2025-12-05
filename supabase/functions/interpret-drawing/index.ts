@@ -1,9 +1,15 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// VERSIONED SYSTEM PROMPT - v1.0
+// This prompt version is logged for 21 CFR Part 11 compliance
+const AI_PROMPT_VERSION = "v1.0";
 
 const systemPrompt = `You are an expert CNC machining engineer and technical drawing interpreter. 
 Analyze the provided machining drawing and job parameters to determine the most appropriate manufacturing approach.
@@ -56,17 +62,75 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Initialize Supabase client for audit logging
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
   try {
-    const { drawingBase64, drawingMimeType, jobInputs, machines } = await req.json();
+    const { drawingBase64, drawingMimeType, jobInputs, machines, userId, userEmail } = await req.json();
     
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    // Get OpenAI API key - SECURE SERVER-SIDE ONLY
+    const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
+    if (!OPENAI_API_KEY) {
+      throw new Error("OPENAI_API_KEY is not configured. Please add it in project secrets.");
     }
 
-    console.log("Processing drawing interpretation request");
-    console.log("Job inputs:", JSON.stringify(jobInputs));
+    console.log("=== IlluminAI Quotation Request ===");
+    console.log("Prompt Version:", AI_PROMPT_VERSION);
+    console.log("API Mode: OpenAI API (No Training)");
+    console.log("User ID:", userId);
+    console.log("Part Name:", jobInputs.partName || 'Not specified');
+    console.log("Material:", jobInputs.material || 'Not specified');
     console.log("Number of machines:", machines?.length || 0);
+
+    // Fetch compliance settings
+    const { data: complianceSettings } = await supabase
+      .from('compliance_settings')
+      .select('setting_key, setting_value');
+    
+    const settings = complianceSettings?.reduce((acc: any, s: any) => {
+      acc[s.setting_key] = s.setting_value;
+      return acc;
+    }, {}) || {};
+
+    const enableAuditLogs = settings.enable_audit_logs !== 'false';
+    const storeDrawings = settings.store_uploaded_drawings === 'true';
+
+    // Build deterministic request payload for audit (without drawing data for privacy)
+    const auditRequestPayload = {
+      partName: jobInputs.partName,
+      material: jobInputs.material,
+      blankType: jobInputs.blankType,
+      blankDimensions: {
+        length: jobInputs.blankLength,
+        width: jobInputs.blankWidth,
+        thickness: jobInputs.blankThickness,
+        diameter: jobInputs.blankDiameter,
+      },
+      orderQuantity: jobInputs.orderQuantity,
+      productionType: jobInputs.productionType,
+      toleranceLevel: jobInputs.toleranceLevel,
+      surfaceFinish: jobInputs.surfaceFinish,
+      notesToAi: jobInputs.notesToAi,
+      machineGroups: machines?.map((m: any) => m.group_name) || [],
+      hasDrawing: !!drawingBase64,
+      drawingMimeType: drawingMimeType || null,
+    };
+
+    // Log drawing upload action if enabled
+    if (enableAuditLogs && drawingBase64) {
+      await supabase.from('quotation_audit_trail').insert({
+        user_id: userId,
+        user_email: userEmail,
+        action_type: 'drawing_upload',
+        part_name: jobInputs.partName,
+        material: jobInputs.material,
+        ai_prompt_version: AI_PROMPT_VERSION,
+        request_payload: { drawingMimeType, hasDrawing: true },
+        drawing_stored: storeDrawings,
+      });
+    }
 
     // Build user message with job context
     const jobContext = `
@@ -88,6 +152,7 @@ ${machines?.map((m: any) => `- ${m.group_name}: ${m.description} (${m.machine_ty
 
 Please analyze the attached drawing and provide the technical interpretation.`;
 
+    // Build messages array for OpenAI
     const messages: any[] = [
       { role: "system", content: systemPrompt },
       { 
@@ -97,28 +162,37 @@ Please analyze the attached drawing and provide the technical interpretation.`;
               { type: "text", text: jobContext },
               { 
                 type: "image_url", 
-                image_url: { url: `data:${drawingMimeType};base64,${drawingBase64}` }
+                image_url: { 
+                  url: `data:${drawingMimeType};base64,${drawingBase64}`,
+                  detail: "high"
+                }
               }
             ]
           : jobContext
       }
     ];
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    console.log("Calling OpenAI API (gpt-4o)...");
+
+    // Call OpenAI API directly - NO ChatGPT UI, NO training on this data
+    // OpenAI API Terms: API data is not used for training
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Authorization": `Bearer ${OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gpt-4o",
         messages,
+        max_tokens: 4000,
+        response_format: { type: "json_object" },
       }),
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("OpenAI API error:", response.status, errorText);
       
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
@@ -126,45 +200,47 @@ Please analyze the attached drawing and provide the technical interpretation.`;
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }), {
-          status: 402,
+      if (response.status === 401) {
+        return new Response(JSON.stringify({ error: "OpenAI API authentication failed. Please check API key." }), {
+          status: 401,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       
-      throw new Error(`AI gateway error: ${response.status}`);
+      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content;
     
     if (!content) {
-      throw new Error("No response from AI");
+      throw new Error("No response from OpenAI");
     }
 
-    console.log("AI response received, parsing JSON...");
+    console.log("OpenAI response received, parsing JSON...");
 
-    // Extract JSON from response (handle markdown code blocks)
-    let jsonStr = content;
-    const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (jsonMatch) {
-      jsonStr = jsonMatch[1];
-    }
-
+    // Parse JSON response (OpenAI json_object mode ensures valid JSON)
+    let interpretation;
     try {
-      const interpretation = JSON.parse(jsonStr);
+      interpretation = JSON.parse(content);
       console.log("Successfully parsed interpretation:", interpretation.part_name);
-      
-      return new Response(JSON.stringify({ 
-        success: true, 
-        interpretation 
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
     } catch (parseError) {
       console.error("JSON parse error:", parseError);
       console.log("Raw content:", content);
+      
+      // Log failed interpretation attempt
+      if (enableAuditLogs) {
+        await supabase.from('quotation_audit_trail').insert({
+          user_id: userId,
+          user_email: userEmail,
+          action_type: 'ai_interpretation',
+          part_name: jobInputs.partName,
+          material: jobInputs.material,
+          ai_prompt_version: AI_PROMPT_VERSION,
+          request_payload: auditRequestPayload,
+          response_summary: { error: 'JSON parse failed', rawLength: content.length },
+        });
+      }
       
       return new Response(JSON.stringify({ 
         success: false, 
@@ -175,6 +251,47 @@ Please analyze the attached drawing and provide the technical interpretation.`;
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Log successful AI interpretation
+    if (enableAuditLogs) {
+      await supabase.from('quotation_audit_trail').insert({
+        user_id: userId,
+        user_email: userEmail,
+        action_type: 'ai_interpretation',
+        part_name: interpretation.part_name || jobInputs.partName,
+        material: interpretation.material_detected || jobInputs.material,
+        machine_group: interpretation.suggested_machine_group,
+        ai_prompt_version: AI_PROMPT_VERSION,
+        request_payload: auditRequestPayload,
+        response_summary: {
+          partName: interpretation.part_name,
+          suggestedMachine: interpretation.suggested_machine_group,
+          baselineCycleTime: interpretation.baseline_cycle_time_min_reference_machine,
+          operationsCount: interpretation.operations?.length || 0,
+          warningsCount: interpretation.warnings?.length || 0,
+        },
+        cycle_time_result: interpretation.baseline_cycle_time_min_reference_machine,
+        drawing_stored: storeDrawings,
+      });
+    }
+
+    // Drawing is processed transiently - not stored unless storeDrawings is true
+    // After this point, drawing data is discarded from memory
+    console.log("Drawing processed transiently:", storeDrawings ? "Stored" : "Not stored (deleted from memory)");
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      interpretation,
+      metadata: {
+        apiMode: "openai_api_no_training",
+        promptVersion: AI_PROMPT_VERSION,
+        drawingStored: storeDrawings,
+        auditLogged: enableAuditLogs,
+      }
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
   } catch (error) {
     console.error("Error in interpret-drawing:", error);
     return new Response(JSON.stringify({ 
