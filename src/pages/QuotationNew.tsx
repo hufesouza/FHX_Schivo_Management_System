@@ -31,6 +31,37 @@ import {
   Lock
 } from 'lucide-react';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configure PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.js`;
+
+// Helper function to convert PDF first page to PNG image
+async function convertPdfToImage(file: File): Promise<{ base64: string; mimeType: string }> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const page = await pdf.getPage(1);
+  
+  // Render at 2x scale for better quality
+  const scale = 2;
+  const viewport = page.getViewport({ scale });
+  
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d')!;
+  canvas.height = viewport.height;
+  canvas.width = viewport.width;
+  
+  await page.render({
+    canvasContext: context,
+    viewport: viewport
+  }).promise;
+  
+  // Convert to PNG base64
+  const dataUrl = canvas.toDataURL('image/png');
+  const base64 = dataUrl.split(',')[1];
+  
+  return { base64, mimeType: 'image/png' };
+}
 
 interface Machine {
   id: string;
@@ -167,25 +198,40 @@ const QuotationNew = () => {
       let drawingMimeType = '';
 
       if (drawing) {
-        // Validate file type before sending - OpenAI only accepts images
-        const supportedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-        if (!supportedTypes.includes(drawing.type)) {
-          toast.error(`Unsupported file type: ${drawing.type}. Please upload an image (JPEG, PNG, GIF, or WEBP). PDF files must be converted to images first.`);
+        const supportedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        
+        if (drawing.type === 'application/pdf') {
+          // Convert PDF to image
+          toast.info('Converting PDF to image...');
+          try {
+            const result = await convertPdfToImage(drawing);
+            drawingBase64 = result.base64;
+            drawingMimeType = result.mimeType;
+            toast.success('PDF converted successfully');
+          } catch (pdfError) {
+            console.error('PDF conversion error:', pdfError);
+            toast.error('Failed to convert PDF. Please try uploading an image file instead.');
+            setIsInterpreting(false);
+            return;
+          }
+        } else if (supportedImageTypes.includes(drawing.type)) {
+          // Handle regular image files
+          const reader = new FileReader();
+          const base64Promise = new Promise<string>((resolve) => {
+            reader.onloadend = () => {
+              const result = reader.result as string;
+              const base64 = result.split(',')[1];
+              resolve(base64);
+            };
+          });
+          reader.readAsDataURL(drawing);
+          drawingBase64 = await base64Promise;
+          drawingMimeType = drawing.type;
+        } else {
+          toast.error(`Unsupported file type: ${drawing.type}. Please upload an image (JPEG, PNG, GIF, WEBP) or PDF.`);
           setIsInterpreting(false);
           return;
         }
-
-        const reader = new FileReader();
-        const base64Promise = new Promise<string>((resolve) => {
-          reader.onloadend = () => {
-            const result = reader.result as string;
-            const base64 = result.split(',')[1];
-            resolve(base64);
-          };
-        });
-        reader.readAsDataURL(drawing);
-        drawingBase64 = await base64Promise;
-        drawingMimeType = drawing.type;
       }
 
       // Call backend edge function - ALL AI processing is server-side only
