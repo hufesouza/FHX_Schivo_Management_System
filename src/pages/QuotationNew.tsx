@@ -167,6 +167,14 @@ const QuotationNew = () => {
       let drawingMimeType = '';
 
       if (drawing) {
+        // Validate file type before sending - OpenAI only accepts images
+        const supportedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+        if (!supportedTypes.includes(drawing.type)) {
+          toast.error(`Unsupported file type: ${drawing.type}. Please upload an image (JPEG, PNG, GIF, or WEBP). PDF files must be converted to images first.`);
+          setIsInterpreting(false);
+          return;
+        }
+
         const reader = new FileReader();
         const base64Promise = new Promise<string>((resolve) => {
           reader.onloadend = () => {
@@ -209,6 +217,10 @@ const QuotationNew = () => {
         },
       });
 
+      // Check for error in response data first (from non-2xx status codes)
+      if (data?.error) {
+        throw new Error(data.error);
+      }
       if (error) throw error;
 
       if (data.success && data.interpretation) {
