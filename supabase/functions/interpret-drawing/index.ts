@@ -70,6 +70,18 @@ serve(async (req) => {
   try {
     const { drawingBase64, drawingMimeType, jobInputs, machines, userId, userEmail } = await req.json();
     
+    // Validate MIME type - OpenAI vision API only supports images
+    const supportedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    if (drawingBase64 && drawingMimeType && !supportedImageTypes.includes(drawingMimeType)) {
+      console.error("Unsupported file type:", drawingMimeType);
+      return new Response(JSON.stringify({ 
+        error: `Unsupported file type: ${drawingMimeType}. Please upload an image file (JPEG, PNG, GIF, or WEBP). PDF files must be converted to images first.` 
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
     // Get OpenAI API key - SECURE SERVER-SIDE ONLY
     const OPENAI_API_KEY = Deno.env.get("OPENAI_API_KEY");
     if (!OPENAI_API_KEY) {
@@ -80,6 +92,7 @@ serve(async (req) => {
     console.log("Prompt Version:", AI_PROMPT_VERSION);
     console.log("API Mode: OpenAI API (No Training)");
     console.log("User ID:", userId);
+    console.log("Drawing MIME type:", drawingMimeType || 'No drawing');
     console.log("Part Name:", jobInputs.partName || 'Not specified');
     console.log("Material:", jobInputs.material || 'Not specified');
     console.log("Number of machines:", machines?.length || 0);
