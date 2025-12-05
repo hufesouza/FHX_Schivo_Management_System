@@ -31,13 +31,31 @@ import {
   Lock
 } from 'lucide-react';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
-
-// Configure PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs`;
+// Helper function to load pdf.js from CDN
+function loadPdfJs(): Promise<any> {
+  return new Promise((resolve, reject) => {
+    // Check if already loaded
+    if ((window as any).pdfjsLib) {
+      resolve((window as any).pdfjsLib);
+      return;
+    }
+    
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.onload = () => {
+      const pdfjsLib = (window as any).pdfjsLib;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      resolve(pdfjsLib);
+    };
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
 
 // Helper function to convert PDF first page to PNG image
 async function convertPdfToImage(file: File): Promise<{ base64: string; mimeType: string }> {
+  const pdfjsLib = await loadPdfJs();
+  
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
   const page = await pdf.getPage(1);
