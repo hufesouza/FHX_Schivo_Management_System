@@ -111,7 +111,7 @@ const QuotationHub = () => {
             <img src={fhxLogoFull} alt="FHX Engineering" className="h-10" />
             <div>
               <h1 className="font-heading font-semibold text-lg">CNC Smart Quoter</h1>
-              <p className="text-sm text-primary-foreground/80">AI-Powered Cycle Time Estimation</p>
+              <p className="text-sm text-primary-foreground/80">IlluminAI Cycle Time Estimation</p>
             </div>
           </div>
           
