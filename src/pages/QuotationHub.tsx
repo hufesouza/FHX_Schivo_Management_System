@@ -18,7 +18,8 @@ import {
   PlusCircle,
   Cog,
   History,
-  FileText
+  FileText,
+  Calculator
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -32,11 +33,20 @@ import fhxLogoFull from '@/assets/fhx-logo-full.png';
 const features = [
   {
     id: 'new-quote',
-    title: 'New Quote',
-    description: 'Create a new quotation by uploading a drawing and getting AI-powered cycle time estimates',
+    title: 'IlluminAI Quoter',
+    description: 'AI-powered cycle time estimates from machining drawings',
     icon: PlusCircle,
     href: '/npi/quotation/new',
     color: 'bg-primary/10 text-primary border-primary/20',
+    available: true,
+  },
+  {
+    id: 'quick-quote',
+    title: 'Quick Quote',
+    description: 'RFQ material & post-process cost estimation using PERT statistical model',
+    icon: Calculator,
+    href: '/npi/quotation/quick',
+    color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
     available: true,
   },
   {
