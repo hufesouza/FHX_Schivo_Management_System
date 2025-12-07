@@ -29,6 +29,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
+import { Calculator } from 'lucide-react';
+
 const features = [
   {
     id: 'new-quote',
@@ -37,6 +39,15 @@ const features = [
     icon: PlusCircle,
     href: '/npi/quotation/new',
     color: 'bg-primary/10 text-primary border-primary/20',
+    available: true,
+  },
+  {
+    id: 'estimator',
+    title: 'PERT Estimator',
+    description: 'Estimate material and post-processing costs using PERT statistical method with detailed breakdown',
+    icon: Calculator,
+    href: '/npi/quotation/estimator',
+    color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
     available: true,
   },
   {
