@@ -14,6 +14,8 @@ import QuotationComplianceSettings from "./pages/QuotationComplianceSettings";
 import PertEstimator from "./pages/PertEstimator";
 import ChangeControlHub from "./pages/ChangeControlHub";
 import ManufacturingHub from "./pages/ManufacturingHub";
+import ProductionHub from "./pages/ProductionHub";
+import CapacityPlanning from "./pages/CapacityPlanning";
 import Auth from "./pages/Auth";
 import WorkOrderForm from "./pages/WorkOrderForm";
 import AdminUsers from "./pages/AdminUsers";
@@ -47,6 +49,10 @@ const App = () => (
           
           {/* Change Control Module */}
           <Route path="/change-control" element={<ChangeControlHub />} />
+          
+          {/* Production Module */}
+          <Route path="/production" element={<ProductionHub />} />
+          <Route path="/production/capacity" element={<CapacityPlanning />} />
           
           {/* Manufacturing Engineering Module */}
           <Route path="/manufacturing" element={<ManufacturingHub />} />

@@ -13,10 +13,8 @@ import {
   Users, 
   Shield, 
   User,
-  Cog,
-  FileCheck,
-  Factory,
-  Gauge,
+  ArrowLeft,
+  BarChart3,
   ChevronRight
 } from 'lucide-react';
 import {
@@ -28,46 +26,19 @@ import {
 } from '@/components/ui/dropdown-menu';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
-const modules = [
+const subModules = [
   {
-    id: 'npi',
-    title: 'NPI Engineering',
-    description: 'New Product Introduction management including Blue Reviews and Quotations',
-    icon: FileCheck,
-    href: '/npi',
-    color: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-    available: true,
-  },
-  {
-    id: 'production',
-    title: 'Production',
-    description: 'Capacity planning, machine scheduling, and production resource management',
-    icon: Gauge,
-    href: '/production',
+    id: 'capacity',
+    title: 'Capacity Planning',
+    description: 'Upload production schedules, visualize machine capacity, and identify bottlenecks',
+    icon: BarChart3,
+    href: '/production/capacity',
     color: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
     available: true,
   },
-  {
-    id: 'change-control',
-    title: 'Change Control',
-    description: 'Manage Internal Change Notices (ICN) and Engineering Change Notices (ECN)',
-    icon: Cog,
-    href: '/change-control',
-    color: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-    available: false,
-  },
-  {
-    id: 'manufacturing',
-    title: 'Manufacturing Engineering',
-    description: 'Scrap Management, Projects, and manufacturing operations',
-    icon: Factory,
-    href: '/manufacturing',
-    color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
-    available: false,
-  },
 ];
 
-const HomePage = () => {
+const ProductionHub = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
@@ -99,9 +70,18 @@ const HomePage = () => {
       <header className="border-b border-border bg-primary text-primary-foreground">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/')}
+              className="text-primary-foreground hover:bg-accent hover:text-accent-foreground"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <img src={fhxLogoFull} alt="FHX Engineering" className="h-10" />
             <div>
-              <h1 className="font-heading font-semibold text-lg">Schivo Management System</h1>
+              <h1 className="font-heading font-semibold text-lg">Production</h1>
+              <p className="text-xs text-primary-foreground/70">Schivo Management System</p>
             </div>
           </div>
           
@@ -165,14 +145,14 @@ const HomePage = () => {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-12">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-heading font-semibold mb-3">Welcome to Schivo Management System</h2>
+          <h2 className="text-3xl font-heading font-semibold mb-3">Production</h2>
           <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Select a module below to access the management tools for your department.
+            Manage production capacity, scheduling, and resource planning.
           </p>
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 max-w-5xl mx-auto">
-          {modules.map((module, index) => (
+          {subModules.map((module, index) => (
             <Card 
               key={module.id}
               className={`relative overflow-hidden transition-all duration-300 animate-fade-in ${
@@ -213,4 +193,4 @@ const HomePage = () => {
   );
 };
 
-export default HomePage;
+export default ProductionHub;
