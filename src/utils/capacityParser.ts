@@ -1,43 +1,45 @@
 import * as XLSX from 'xlsx';
-import { RawJobData, CleanedJob, MachineSchedule, GanttJob, CapacityData } from '@/types/capacity';
+import { CleanedJob, MachineSchedule, GanttJob, CapacityData } from '@/types/capacity';
 import { format, startOfWeek, addHours, isAfter } from 'date-fns';
 
-// Column mapping from raw to clean schema
-const COLUMN_MAP: Record<string, keyof CleanedJob> = {
-  'Dept': 'Machine',
-  'Process Order': 'Process_Order',
-  'Production Order': 'Production_Order',
-  'EndProduct': 'End_Product',
-  'ItemName': 'Item_Name',
-  'Customer Code': 'Customer',
-  'Start Date': 'Start_DateTime',
-  'Time': 'Duration_Hours',
-  'Qty': 'Qty',
-  'Days From Today': 'Days_From_Today',
-  'Priority': 'Priority',
-  'Product Status': 'Status',
-  'Comments': 'Comments',
-};
+// Headers to ignore when detecting resource names
+const IGNORED_RESOURCE_VALUES = [
+  'process order',
+  'production plan',
+  'product status',
+  'days from today',
+  'production order',
+  'op no.',
+  'endproduct',
+  'itemname',
+  'sales order',
+  'customer code',
+  'start date',
+  'time',
+  'qty',
+  'fg commit date',
+  'priority',
+  'comments',
+];
 
-// Expected headers to detect the real header row
-const EXPECTED_HEADERS = ['Dept', 'Process Order', 'Start Date', 'Time', 'Qty'];
-
-function detectHeaderRow(data: unknown[][]): number {
-  for (let i = 0; i < Math.min(20, data.length); i++) {
-    const row = data[i];
-    if (!Array.isArray(row)) continue;
-    
-    const rowValues = row.map(cell => String(cell || '').trim());
-    const matchCount = EXPECTED_HEADERS.filter(header => 
-      rowValues.some(val => val.toLowerCase().includes(header.toLowerCase()))
-    ).length;
-    
-    if (matchCount >= 3) {
-      return i;
-    }
-  }
-  return 0;
-}
+// Expected header columns for validation
+const EXPECTED_HEADER_COLUMNS = [
+  'Process Order',
+  'Production Order', 
+  'Op No.',
+  'EndProduct',
+  'ItemName',
+  'Sales Order',
+  'Customer Code',
+  'Start Date',
+  'Time',
+  'Qty',
+  'Days From Today',
+  'Product Status',
+  'FG Commit Date',
+  'Priority',
+  'Comments',
+];
 
 function parseExcelDate(value: unknown): Date | null {
   if (!value) return null;
@@ -91,6 +93,51 @@ function generateId(): string {
   return Math.random().toString(36).substring(2, 11);
 }
 
+function isNumericValue(value: unknown): boolean {
+  if (typeof value === 'number' && !isNaN(value)) return true;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    return trimmed !== '' && !isNaN(Number(trimmed));
+  }
+  return false;
+}
+
+function isBlankRow(row: unknown[]): boolean {
+  if (!row || !Array.isArray(row)) return true;
+  return row.every(cell => cell === null || cell === undefined || cell === '' || 
+    (typeof cell === 'number' && isNaN(cell)));
+}
+
+function isHeaderRow(row: unknown[]): boolean {
+  const firstCell = String(row[0] || '').trim();
+  return firstCell.toLowerCase() === 'process order';
+}
+
+function isResourceRow(value: unknown): boolean {
+  if (value === null || value === undefined || value === '') return false;
+  const strValue = String(value).trim().toLowerCase();
+  if (strValue === '') return false;
+  
+  // Not a resource if it's a known header value
+  if (IGNORED_RESOURCE_VALUES.includes(strValue)) return false;
+  
+  // Not a resource if it's numeric (job row)
+  if (isNumericValue(value)) return false;
+  
+  return true;
+}
+
+function buildHeaderMap(row: unknown[]): Record<string, number> {
+  const headerMap: Record<string, number> = {};
+  row.forEach((cell, index) => {
+    const header = String(cell || '').trim();
+    if (header) {
+      headerMap[header] = index;
+    }
+  });
+  return headerMap;
+}
+
 export function parseCapacityFile(file: File): Promise<CapacityData> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -100,8 +147,8 @@ export function parseCapacityFile(file: File): Promise<CapacityData> {
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         
-        // Try to find "Download" sheet, fallback to first sheet
-        let sheetName = 'Download';
+        // Always read Sheet1, fallback to first sheet
+        let sheetName = 'Sheet1';
         if (!workbook.SheetNames.includes(sheetName)) {
           sheetName = workbook.SheetNames[0];
         }
@@ -109,57 +156,85 @@ export function parseCapacityFile(file: File): Promise<CapacityData> {
         const sheet = workbook.Sheets[sheetName];
         const rawData: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
         
-        // Detect header row
-        const headerRowIndex = detectHeaderRow(rawData);
-        const headerRow = rawData[headerRowIndex] as string[];
+        // State variables for hierarchical parsing
+        let currentResource: string | null = null;
+        let currentHeaderMap: Record<string, number> | null = null;
+        let foundAnyHeader = false;
         
-        // Build column index map
-        const columnIndices: Record<string, number> = {};
-        headerRow.forEach((header, index) => {
-          const cleanHeader = String(header).trim();
-          columnIndices[cleanHeader] = index;
-        });
-        
-        // Parse data rows
         const jobs: CleanedJob[] = [];
         
-        for (let i = headerRowIndex + 1; i < rawData.length; i++) {
+        for (let i = 0; i < rawData.length; i++) {
           const row = rawData[i] as unknown[];
-          if (!row || row.every(cell => !cell)) continue;
           
-          const getValue = (header: string): unknown => {
-            const index = columnIndices[header];
-            return index !== undefined ? row[index] : undefined;
-          };
+          // Skip blank rows
+          if (isBlankRow(row)) continue;
           
-          const machine = String(getValue('Dept') || '').trim();
-          if (!machine) continue;
+          const firstCell = row[0];
           
-          const startDate = parseExcelDate(getValue('Start Date'));
-          if (!startDate) continue;
+          // Case B: Header row (starts with "Process Order")
+          if (isHeaderRow(row)) {
+            currentHeaderMap = buildHeaderMap(row);
+            foundAnyHeader = true;
+            continue;
+          }
           
-          const durationHours = parseNumber(getValue('Time'));
-          const endDateTime = addHours(startDate, durationHours);
+          // Case C: Job row (first cell is numeric and we have header + resource)
+          if (currentHeaderMap && currentResource && isNumericValue(firstCell)) {
+            const getValue = (header: string): unknown => {
+              const index = currentHeaderMap![header];
+              return index !== undefined ? row[index] : undefined;
+            };
+            
+            const startDate = parseExcelDate(getValue('Start Date'));
+            if (!startDate) continue; // Skip rows without valid start date
+            
+            const durationHours = parseNumber(getValue('Time'));
+            const endDateTime = addHours(startDate, durationHours);
+            
+            const job: CleanedJob = {
+              id: generateId(),
+              Machine: currentResource,
+              Process_Order: String(getValue('Process Order') || '').trim(),
+              Production_Order: String(getValue('Production Order') || '').trim(),
+              End_Product: String(getValue('EndProduct') || '').trim(),
+              Item_Name: String(getValue('ItemName') || '').trim(),
+              Customer: String(getValue('Customer Code') || '').trim(),
+              Start_DateTime: startDate,
+              Duration_Hours: durationHours,
+              End_DateTime: endDateTime,
+              Qty: parseNumber(getValue('Qty')),
+              Days_From_Today: parseNumber(getValue('Days From Today')),
+              Priority: parseNumber(getValue('Priority')),
+              Status: String(getValue('Product Status') || '').trim(),
+              Comments: String(getValue('Comments') || '').trim(),
+            };
+            
+            jobs.push(job);
+            continue;
+          }
           
-          const job: CleanedJob = {
-            id: generateId(),
-            Machine: machine,
-            Process_Order: String(getValue('Process Order') || '').trim(),
-            Production_Order: String(getValue('Production Order') || '').trim(),
-            End_Product: String(getValue('EndProduct') || '').trim(),
-            Item_Name: String(getValue('ItemName') || '').trim(),
-            Customer: String(getValue('Customer Code') || '').trim(),
-            Start_DateTime: startDate,
-            Duration_Hours: durationHours,
-            End_DateTime: endDateTime,
-            Qty: parseNumber(getValue('Qty')),
-            Days_From_Today: parseNumber(getValue('Days From Today')),
-            Priority: parseNumber(getValue('Priority')),
-            Status: String(getValue('Product Status') || '').trim(),
-            Comments: String(getValue('Comments') || '').trim(),
-          };
-          
-          jobs.push(job);
+          // Case A: Resource/machine row (text, not a header, not numeric)
+          if (isResourceRow(firstCell)) {
+            currentResource = String(firstCell).trim();
+            continue;
+          }
+        }
+        
+        // Validate that we found at least one header
+        if (!foundAnyHeader) {
+          reject(new Error(
+            'Invalid file structure: No "Process Order" header row found. ' +
+            'The file must follow the hierarchical format with resource names followed by header rows starting with "Process Order".'
+          ));
+          return;
+        }
+        
+        if (jobs.length === 0) {
+          reject(new Error(
+            'No valid jobs found in the file. ' +
+            'Please ensure the file contains job rows with numeric Process Order values and valid Start Dates.'
+          ));
+          return;
         }
         
         // Build machine schedules
