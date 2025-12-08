@@ -1,7 +1,6 @@
 import { useCallback, useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Upload, FileSpreadsheet, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { parseCapacityFile } from '@/utils/capacityParser';
 import { CapacityData } from '@/types/capacity';
@@ -77,91 +76,69 @@ export function FileUpload({ onDataLoaded, isLoading = false }: FileUploadProps)
   }, [handleFile]);
 
   return (
-    <Card className="border-dashed">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileSpreadsheet className="h-5 w-5" />
-          Upload Production Schedule
-        </CardTitle>
-        <CardDescription>
-          Upload your Excel file containing the production planning data. The system will automatically clean and process the data.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div
-          className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-            dragActive 
-              ? 'border-primary bg-primary/5' 
-              : 'border-muted-foreground/25 hover:border-muted-foreground/50'
-          }`}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-        >
-          <input
-            type="file"
-            accept=".xlsx,.xls"
-            onChange={handleInputChange}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            disabled={isLoading || uploadStatus === 'loading'}
-          />
-          
-          <div className="flex flex-col items-center gap-4">
-            {uploadStatus === 'loading' ? (
-              <>
-                <Loader2 className="h-12 w-12 text-primary animate-spin" />
-                <div>
-                  <p className="font-medium">Processing {fileName}...</p>
-                  <p className="text-sm text-muted-foreground">Cleaning and structuring data</p>
-                </div>
-              </>
-            ) : uploadStatus === 'success' ? (
-              <>
-                <CheckCircle className="h-12 w-12 text-green-500" />
-                <div>
-                  <p className="font-medium text-green-600">Successfully processed!</p>
-                  <p className="text-sm text-muted-foreground">{fileName}</p>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => setUploadStatus('idle')}>
-                  Upload Another File
-                </Button>
-              </>
-            ) : uploadStatus === 'error' ? (
-              <>
-                <AlertCircle className="h-12 w-12 text-destructive" />
-                <div>
-                  <p className="font-medium text-destructive">Failed to process file</p>
-                  <p className="text-sm text-muted-foreground">Please check the file format and try again</p>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => setUploadStatus('idle')}>
-                  Try Again
-                </Button>
-              </>
-            ) : (
-              <>
-                <Upload className="h-12 w-12 text-muted-foreground" />
-                <div>
-                  <p className="font-medium">Drag and drop your Excel file here</p>
-                  <p className="text-sm text-muted-foreground">or click to browse</p>
-                </div>
-                <Button variant="secondary" size="sm">
-                  Select File
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-        
-        <div className="mt-4 text-xs text-muted-foreground">
-          <p className="font-medium mb-1">Supported formats:</p>
-          <ul className="list-disc list-inside space-y-0.5">
-            <li>Excel files (.xlsx, .xls)</li>
-            <li>Sheet named "Download" or first sheet</li>
-            <li>Columns: Dept, Process Order, Start Date, Time, Qty, Priority</li>
-          </ul>
-        </div>
-      </CardContent>
-    </Card>
+    <div
+      className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+        dragActive 
+          ? 'border-primary bg-primary/5' 
+          : 'border-muted-foreground/25 hover:border-muted-foreground/50'
+      }`}
+      onDragEnter={handleDrag}
+      onDragLeave={handleDrag}
+      onDragOver={handleDrag}
+      onDrop={handleDrop}
+    >
+      <input
+        type="file"
+        accept=".xlsx,.xls"
+        onChange={handleInputChange}
+        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+        disabled={isLoading || uploadStatus === 'loading'}
+      />
+      
+      <div className="flex flex-col items-center gap-4">
+        {uploadStatus === 'loading' ? (
+          <>
+            <Loader2 className="h-12 w-12 text-primary animate-spin" />
+            <div>
+              <p className="font-medium">Processing {fileName}...</p>
+              <p className="text-sm text-muted-foreground">Cleaning and structuring data</p>
+            </div>
+          </>
+        ) : uploadStatus === 'success' ? (
+          <>
+            <CheckCircle className="h-12 w-12 text-green-500" />
+            <div>
+              <p className="font-medium text-green-600">Successfully processed!</p>
+              <p className="text-sm text-muted-foreground">{fileName}</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setUploadStatus('idle')}>
+              Upload Another File
+            </Button>
+          </>
+        ) : uploadStatus === 'error' ? (
+          <>
+            <AlertCircle className="h-12 w-12 text-destructive" />
+            <div>
+              <p className="font-medium text-destructive">Failed to process file</p>
+              <p className="text-sm text-muted-foreground">Please check the file format and try again</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => setUploadStatus('idle')}>
+              Try Again
+            </Button>
+          </>
+        ) : (
+          <>
+            <Upload className="h-12 w-12 text-muted-foreground" />
+            <div>
+              <p className="font-medium">Drag and drop your Excel file here</p>
+              <p className="text-sm text-muted-foreground">or click to browse</p>
+            </div>
+            <Button variant="secondary" size="sm">
+              Select File
+            </Button>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
