@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { 
   Loader2, 
   ArrowLeft, 
@@ -20,7 +21,9 @@ import {
   Table as TableIcon,
   Upload,
   Wrench,
-  RotateCcw
+  RotateCcw,
+  Search,
+  X
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -331,6 +334,33 @@ const DepartmentCapacityView = ({
   setSelectedJobId,
 }: DepartmentCapacityViewProps) => {
   const departmentLabel = department === 'milling' ? 'Milling' : 'Turning';
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter data based on search query
+  const filteredData = data ? {
+    ...data,
+    jobs: data.jobs.filter(job => {
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        job.Process_Order?.toLowerCase().includes(query) ||
+        job.End_Product?.toLowerCase().includes(query)
+      );
+    }),
+    ganttJobs: data.ganttJobs.filter(job => {
+      if (!searchQuery.trim()) return true;
+      const query = searchQuery.toLowerCase();
+      return (
+        job.processOrder?.toLowerCase().includes(query) ||
+        job.endProduct?.toLowerCase().includes(query)
+      );
+    }),
+  } : null;
+
+  // Get machines that have matching jobs
+  const filteredMachines = filteredData ? 
+    data!.machines.filter(m => filteredData.jobs.some(j => j.Machine === m.machine)) : 
+    [];
 
   return (
     <div className="space-y-6">
@@ -362,17 +392,41 @@ const DepartmentCapacityView = ({
       {/* Data Visualization - Only shown after upload */}
       {data && (
         <div className="space-y-6">
-          {/* File info */}
-          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+          {/* File info and Search */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted/50 rounded-lg">
             <div className="flex items-center gap-3">
               <Upload className="h-5 w-5 text-muted-foreground" />
               <div>
                 <p className="font-medium">{data.fileName}</p>
                 <p className="text-sm text-muted-foreground">
-                  {data.jobs.length} jobs • {data.machines.length} machines • 
+                  {filteredData?.jobs.length === data.jobs.length 
+                    ? `${data.jobs.length} jobs` 
+                    : `${filteredData?.jobs.length} of ${data.jobs.length} jobs`
+                  } • {data.machines.length} machines • 
                   Uploaded {data.uploadedAt.toLocaleString()}
                 </p>
               </div>
+            </div>
+            
+            {/* Search Bar */}
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by Process Order or Part Number..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-9"
+              />
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                  onClick={() => setSearchQuery('')}
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              )}
             </div>
           </div>
 
@@ -395,7 +449,7 @@ const DepartmentCapacityView = ({
 
             <TabsContent value="dashboard" className="mt-6">
               <CapacityDashboard 
-                machines={data.machines}
+                machines={searchQuery ? filteredMachines : data.machines}
                 onSelectMachine={onSelectMachine}
                 selectedMachine={selectedMachine}
               />
@@ -405,7 +459,7 @@ const DepartmentCapacityView = ({
               {selectedMachineData ? (
                 <MachineTimeline 
                   machine={selectedMachineData}
-                  ganttJobs={data.ganttJobs}
+                  ganttJobs={filteredData?.ganttJobs || []}
                   onJobClick={setSelectedJobId}
                   selectedJobId={selectedJobId}
                 />
@@ -419,7 +473,7 @@ const DepartmentCapacityView = ({
 
             <TabsContent value="jobs" className="mt-6">
               <JobExplorer 
-                jobs={data.jobs}
+                jobs={filteredData?.jobs || []}
                 machines={data.machines.map(m => m.machine)}
                 onJobClick={onJobClick}
                 selectedJobId={selectedJobId}
