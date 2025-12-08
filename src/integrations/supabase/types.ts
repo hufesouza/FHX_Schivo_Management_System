@@ -497,6 +497,48 @@ export type Database = {
         }
         Relationships: []
       }
+      personal_actions: {
+        Row: {
+          action: string
+          comments: string | null
+          created_at: string
+          due_date: string | null
+          id: string
+          owner_id: string | null
+          owner_name: string | null
+          priority: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          comments?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          owner_id?: string | null
+          owner_name?: string | null
+          priority?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          comments?: string | null
+          created_at?: string
+          due_date?: string | null
+          id?: string
+          owner_id?: string | null
+          owner_name?: string | null
+          priority?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       post_process_types: {
         Row: {
           created_at: string

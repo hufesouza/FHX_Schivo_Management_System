@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { 
   Loader2, 
@@ -16,7 +17,10 @@ import {
   User,
   Shield,
   KeyRound,
-  Mail
+  Mail,
+  Plus,
+  Trash2,
+  ClipboardList
 } from 'lucide-react';
 import { z } from 'zod';
 
@@ -28,6 +32,22 @@ const passwordSchema = z.object({
   path: ["confirmPassword"],
 });
 
+type ActionPriority = 'low' | 'medium' | 'high' | 'critical';
+type ActionStatus = 'open' | 'in_progress' | 'completed' | 'cancelled';
+
+interface PersonalAction {
+  id: string;
+  action: string;
+  owner_id: string | null;
+  owner_name: string | null;
+  priority: ActionPriority;
+  due_date: string | null;
+  status: ActionStatus;
+  comments: string | null;
+}
+
+const MANAGER_EMAIL = 'hferreira@schivomedical.com';
+
 export default function Profile() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -37,6 +57,119 @@ export default function Profile() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [updating, setUpdating] = useState(false);
   const [errors, setErrors] = useState<{ newPassword?: string; confirmPassword?: string }>({});
+
+  // Action Manager state
+  const [actions, setActions] = useState<PersonalAction[]>([]);
+  const [allUsers, setAllUsers] = useState<{ user_id: string; full_name: string; email: string }[]>([]);
+  const [showAddAction, setShowAddAction] = useState(false);
+  const [loadingActions, setLoadingActions] = useState(false);
+  const [newAction, setNewAction] = useState<Partial<PersonalAction>>({
+    action: '',
+    owner_id: null,
+    owner_name: null,
+    priority: 'medium',
+    due_date: null,
+    status: 'open',
+    comments: null
+  });
+
+  const isManager = user?.email === MANAGER_EMAIL;
+
+  useEffect(() => {
+    if (isManager && user) {
+      loadActions();
+      loadUsers();
+    }
+  }, [isManager, user]);
+
+  const loadUsers = async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('user_id, full_name, email');
+    
+    if (!error && data) {
+      setAllUsers(data.map(p => ({
+        user_id: p.user_id,
+        full_name: p.full_name || '',
+        email: p.email || ''
+      })));
+    }
+  };
+
+  const loadActions = async () => {
+    if (!user) return;
+    setLoadingActions(true);
+    
+    const { data, error } = await supabase
+      .from('personal_actions')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      setActions(data as PersonalAction[]);
+    }
+    setLoadingActions(false);
+  };
+
+  const addAction = async () => {
+    if (!newAction.action?.trim() || !user) return;
+    
+    const { data, error } = await supabase
+      .from('personal_actions')
+      .insert({
+        user_id: user.id,
+        action: newAction.action,
+        owner_id: newAction.owner_id,
+        owner_name: newAction.owner_name,
+        priority: newAction.priority || 'medium',
+        due_date: newAction.due_date,
+        status: newAction.status || 'open',
+        comments: newAction.comments
+      })
+      .select()
+      .single();
+    
+    if (!error && data) {
+      setActions(prev => [data as PersonalAction, ...prev]);
+      setNewAction({
+        action: '',
+        owner_id: null,
+        owner_name: null,
+        priority: 'medium',
+        due_date: null,
+        status: 'open',
+        comments: null
+      });
+      setShowAddAction(false);
+      toast.success('Action added');
+    } else {
+      toast.error('Failed to add action');
+    }
+  };
+
+  const updateAction = async (id: string, updates: Partial<PersonalAction>) => {
+    const { error } = await supabase
+      .from('personal_actions')
+      .update(updates)
+      .eq('id', id);
+    
+    if (!error) {
+      setActions(prev => prev.map(a => a.id === id ? { ...a, ...updates } : a));
+    }
+  };
+
+  const deleteAction = async (id: string) => {
+    const { error } = await supabase
+      .from('personal_actions')
+      .delete()
+      .eq('id', id);
+    
+    if (!error) {
+      setActions(prev => prev.filter(a => a.id !== id));
+      toast.success('Action deleted');
+    }
+  };
 
   const handleChangePassword = async () => {
     setErrors({});
@@ -99,7 +232,7 @@ export default function Profile() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-2xl space-y-6">
+      <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
         {/* Profile Info */}
         <Card>
           <CardHeader>
@@ -192,6 +325,256 @@ export default function Profile() {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Action Manager - Only for specific user */}
+        {isManager && (
+          <Card>
+            <CardHeader className="pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="h-5 w-5 text-muted-foreground" />
+                  <CardTitle className="text-lg">Action Manager</CardTitle>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setShowAddAction(true)}>
+                  <Plus className="h-4 w-4 mr-1" /> Add Action
+                </Button>
+              </div>
+              <CardDescription>Your personal action items</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {loadingActions ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="border-b bg-muted/50">
+                        <th className="text-left p-2 font-medium">Action</th>
+                        <th className="text-left p-2 font-medium w-32">Owner</th>
+                        <th className="text-center p-2 font-medium w-24">Priority</th>
+                        <th className="text-center p-2 font-medium w-28">Due Date</th>
+                        <th className="text-center p-2 font-medium w-28">Status</th>
+                        <th className="text-left p-2 font-medium w-40">Comments</th>
+                        <th className="text-center p-2 font-medium w-16">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {actions.map(action => (
+                        <tr key={action.id} className="border-b hover:bg-muted/30">
+                          <td className="p-2">
+                            <Input
+                              value={action.action}
+                              onChange={(e) => updateAction(action.id, { action: e.target.value })}
+                              className="h-8 text-sm"
+                            />
+                          </td>
+                          <td className="p-2">
+                            <Select
+                              value={action.owner_id || ''}
+                              onValueChange={(value) => {
+                                const owner = allUsers.find(u => u.user_id === value);
+                                updateAction(action.id, { 
+                                  owner_id: value || null, 
+                                  owner_name: owner?.full_name || owner?.email || null 
+                                });
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue placeholder="Assign..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {allUsers.map(u => (
+                                  <SelectItem key={u.user_id} value={u.user_id}>
+                                    {u.full_name || u.email}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="p-2 text-center">
+                            <Select
+                              value={action.priority}
+                              onValueChange={(value: ActionPriority) => updateAction(action.id, { priority: value })}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="low">Low</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="high">High</SelectItem>
+                                <SelectItem value="critical">Critical</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="p-2 text-center">
+                            <Input
+                              type="date"
+                              value={action.due_date || ''}
+                              onChange={(e) => updateAction(action.id, { due_date: e.target.value || null })}
+                              className="h-8 text-xs"
+                            />
+                          </td>
+                          <td className="p-2 text-center">
+                            <Select
+                              value={action.status}
+                              onValueChange={(value: ActionStatus) => updateAction(action.id, { status: value })}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="open">Open</SelectItem>
+                                <SelectItem value="in_progress">In Progress</SelectItem>
+                                <SelectItem value="completed">Completed</SelectItem>
+                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="p-2">
+                            <Input
+                              value={action.comments || ''}
+                              onChange={(e) => updateAction(action.id, { comments: e.target.value || null })}
+                              placeholder="Notes..."
+                              className="h-8 text-xs"
+                            />
+                          </td>
+                          <td className="p-2 text-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                              onClick={() => deleteAction(action.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                      
+                      {/* Add new action row */}
+                      {showAddAction && (
+                        <tr className="border-b bg-primary/5">
+                          <td className="p-2">
+                            <Input
+                              value={newAction.action || ''}
+                              onChange={(e) => setNewAction(prev => ({ ...prev, action: e.target.value }))}
+                              placeholder="Enter action..."
+                              className="h-8 text-sm"
+                              autoFocus
+                            />
+                          </td>
+                          <td className="p-2">
+                            <Select
+                              value={newAction.owner_id || ''}
+                              onValueChange={(value) => {
+                                const owner = allUsers.find(u => u.user_id === value);
+                                setNewAction(prev => ({ 
+                                  ...prev, 
+                                  owner_id: value || null,
+                                  owner_name: owner?.full_name || owner?.email || null
+                                }));
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue placeholder="Assign..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {allUsers.map(u => (
+                                  <SelectItem key={u.user_id} value={u.user_id}>
+                                    {u.full_name || u.email}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="p-2 text-center">
+                            <Select
+                              value={newAction.priority || 'medium'}
+                              onValueChange={(value: ActionPriority) => setNewAction(prev => ({ ...prev, priority: value }))}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="low">Low</SelectItem>
+                                <SelectItem value="medium">Medium</SelectItem>
+                                <SelectItem value="high">High</SelectItem>
+                                <SelectItem value="critical">Critical</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="p-2 text-center">
+                            <Input
+                              type="date"
+                              value={newAction.due_date || ''}
+                              onChange={(e) => setNewAction(prev => ({ ...prev, due_date: e.target.value || null }))}
+                              className="h-8 text-xs"
+                            />
+                          </td>
+                          <td className="p-2 text-center">
+                            <Select
+                              value={newAction.status || 'open'}
+                              onValueChange={(value: ActionStatus) => setNewAction(prev => ({ ...prev, status: value }))}
+                            >
+                              <SelectTrigger className="h-8 text-xs">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="open">Open</SelectItem>
+                                <SelectItem value="in_progress">In Progress</SelectItem>
+                                <SelectItem value="completed">Completed</SelectItem>
+                                <SelectItem value="cancelled">Cancelled</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </td>
+                          <td className="p-2">
+                            <Input
+                              value={newAction.comments || ''}
+                              onChange={(e) => setNewAction(prev => ({ ...prev, comments: e.target.value || null }))}
+                              placeholder="Notes..."
+                              className="h-8 text-xs"
+                            />
+                          </td>
+                          <td className="p-2 text-center">
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-primary"
+                                onClick={addAction}
+                              >
+                                <Plus className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0"
+                                onClick={() => setShowAddAction(false)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+
+                      {actions.length === 0 && !showAddAction && (
+                        <tr>
+                          <td colSpan={7} className="p-8 text-center text-muted-foreground">
+                            No actions yet. Click "Add Action" to create one.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </main>
     </AppLayout>
   );
