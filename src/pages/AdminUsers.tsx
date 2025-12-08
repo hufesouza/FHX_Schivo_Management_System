@@ -6,6 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -64,10 +65,9 @@ import {
 
 type AppRole = 'admin' | 'engineering' | 'operations' | 'quality' | 'npi' | 'supply_chain';
 
-interface UserWithRole {
-  id: string;
+interface UserWithRoles {
   user_id: string;
-  role: AppRole;
+  roles: AppRole[];
   created_at: string;
   email?: string;
   full_name?: string;
@@ -87,7 +87,7 @@ export default function AdminUsers() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { role: userRole, loading: roleLoading } = useUserRole();
   
-  const [userRoles, setUserRoles] = useState<UserWithRole[]>([]);
+  const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [loading, setLoading] = useState(true);
   
   // Create user dialog state
@@ -95,24 +95,24 @@ export default function AdminUsers() {
   const [newUserEmail, setNewUserEmail] = useState('');
   const [newUserPassword, setNewUserPassword] = useState('');
   const [newUserFullName, setNewUserFullName] = useState('');
-  const [newUserRole, setNewUserRole] = useState<AppRole>('engineering');
+  const [newUserRoles, setNewUserRoles] = useState<AppRole[]>(['engineering']);
   const [creating, setCreating] = useState(false);
   
   // Edit role dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<UserWithRole | null>(null);
-  const [editRole, setEditRole] = useState<AppRole>('engineering');
+  const [editingUser, setEditingUser] = useState<UserWithRoles | null>(null);
+  const [editRoles, setEditRoles] = useState<AppRole[]>([]);
   const [updating, setUpdating] = useState(false);
   
   // Set password dialog state
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
-  const [passwordUser, setPasswordUser] = useState<UserWithRole | null>(null);
+  const [passwordUser, setPasswordUser] = useState<UserWithRoles | null>(null);
   const [newPassword, setNewPassword] = useState('');
   const [settingPassword, setSettingPassword] = useState(false);
   
   // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [userToDelete, setUserToDelete] = useState<UserWithRole | null>(null);
+  const [userToDelete, setUserToDelete] = useState<UserWithRoles | null>(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -156,17 +156,26 @@ export default function AdminUsers() {
 
       if (profilesError) throw profilesError;
 
-      // Merge role data with profile data
-      const mergedData = (rolesData as UserWithRole[]).map(ur => {
-        const profile = profilesData?.find(p => p.user_id === ur.user_id);
-        return {
-          ...ur,
-          email: profile?.email || undefined,
-          full_name: profile?.full_name || undefined,
-        };
+      // Group roles by user_id
+      const usersMap = new Map<string, UserWithRoles>();
+      
+      rolesData?.forEach((roleRecord: any) => {
+        const existing = usersMap.get(roleRecord.user_id);
+        if (existing) {
+          existing.roles.push(roleRecord.role);
+        } else {
+          const profile = profilesData?.find(p => p.user_id === roleRecord.user_id);
+          usersMap.set(roleRecord.user_id, {
+            user_id: roleRecord.user_id,
+            roles: [roleRecord.role],
+            created_at: roleRecord.created_at,
+            email: profile?.email || undefined,
+            full_name: profile?.full_name || undefined,
+          });
+        }
       });
 
-      setUserRoles(mergedData);
+      setUsers(Array.from(usersMap.values()));
     } catch (err) {
       console.error('Error fetching data:', err);
       toast.error('Failed to load user data');
@@ -176,8 +185,8 @@ export default function AdminUsers() {
   };
 
   const handleCreateUser = async () => {
-    if (!newUserEmail || !newUserPassword || !newUserRole) {
-      toast.error('Please fill in all required fields');
+    if (!newUserEmail || !newUserPassword || newUserRoles.length === 0) {
+      toast.error('Please fill in all required fields and select at least one role');
       return;
     }
 
@@ -193,19 +202,31 @@ export default function AdminUsers() {
           action: 'createUser',
           email: newUserEmail,
           password: newUserPassword,
-          role: newUserRole,
+          role: newUserRoles[0], // Primary role for initial creation
           fullName: newUserFullName || newUserEmail
         },
       });
 
       if (error) throw error;
 
+      // If multiple roles, add the rest
+      if (newUserRoles.length > 1) {
+        const { error: rolesError } = await supabase.functions.invoke('admin-users', {
+          body: { 
+            action: 'updateRoles',
+            userId: data.userId,
+            roles: newUserRoles
+          },
+        });
+        if (rolesError) throw rolesError;
+      }
+
       toast.success('User created successfully!');
       setCreateDialogOpen(false);
       setNewUserEmail('');
       setNewUserPassword('');
       setNewUserFullName('');
-      setNewUserRole('engineering');
+      setNewUserRoles(['engineering']);
       fetchData();
     } catch (err: any) {
       console.error('Error creating user:', err);
@@ -215,28 +236,31 @@ export default function AdminUsers() {
     }
   };
 
-  const handleUpdateRole = async () => {
-    if (!editingUser) return;
+  const handleUpdateRoles = async () => {
+    if (!editingUser || editRoles.length === 0) {
+      toast.error('Please select at least one role');
+      return;
+    }
 
     setUpdating(true);
     try {
       const { data, error } = await supabase.functions.invoke('admin-users', {
         body: { 
-          action: 'updateRole',
+          action: 'updateRoles',
           userId: editingUser.user_id,
-          role: editRole
+          roles: editRoles
         },
       });
 
       if (error) throw error;
 
-      toast.success('Role updated successfully!');
+      toast.success('Roles updated successfully!');
       setEditDialogOpen(false);
       setEditingUser(null);
       fetchData();
     } catch (err: any) {
-      console.error('Error updating role:', err);
-      toast.error(err.message || 'Failed to update role');
+      console.error('Error updating roles:', err);
+      toast.error(err.message || 'Failed to update roles');
     } finally {
       setUpdating(false);
     }
@@ -297,29 +321,29 @@ export default function AdminUsers() {
     }
   };
 
-  const openEditDialog = (ur: UserWithRole) => {
+  const openEditDialog = (ur: UserWithRoles) => {
     setEditingUser(ur);
-    setEditRole(ur.role);
+    setEditRoles([...ur.roles]);
     setEditDialogOpen(true);
   };
 
-  const openPasswordDialog = (ur: UserWithRole) => {
+  const openPasswordDialog = (ur: UserWithRoles) => {
     setPasswordUser(ur);
     setNewPassword('');
     setPasswordDialogOpen(true);
   };
 
-  const confirmDelete = (ur: UserWithRole) => {
+  const confirmDelete = (ur: UserWithRoles) => {
     setUserToDelete(ur);
     setDeleteDialogOpen(true);
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-GB', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    });
+  const toggleRole = (role: AppRole, roles: AppRole[], setRoles: (roles: AppRole[]) => void) => {
+    if (roles.includes(role)) {
+      setRoles(roles.filter(r => r !== role));
+    } else {
+      setRoles([...roles, role]);
+    }
   };
 
   const isCurrentUser = (userId: string) => {
@@ -401,19 +425,21 @@ export default function AdminUsers() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="role">Role *</Label>
-                  <Select value={newUserRole} onValueChange={(v) => setNewUserRole(v as AppRole)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLES.map((role) => (
-                        <SelectItem key={role.value} value={role.value}>
+                  <Label>Roles *</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {ROLES.map((role) => (
+                      <div key={role.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`new-role-${role.value}`}
+                          checked={newUserRoles.includes(role.value)}
+                          onCheckedChange={() => toggleRole(role.value, newUserRoles, setNewUserRoles)}
+                        />
+                        <Label htmlFor={`new-role-${role.value}`} className="text-sm font-normal cursor-pointer">
                           {role.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
               <DialogFooter>
@@ -446,11 +472,11 @@ export default function AdminUsers() {
               <CardTitle className="text-lg">Users</CardTitle>
             </div>
             <CardDescription>
-              {userRoles.length} user(s) in the system
+              {users.length} user(s) in the system
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {userRoles.length === 0 ? (
+            {users.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
                 No users found. Create one to get started.
               </p>
@@ -459,14 +485,14 @@ export default function AdminUsers() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>User</TableHead>
-                    <TableHead>Role</TableHead>
+                    <TableHead>Roles</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {userRoles.map((ur) => (
-                    <TableRow key={ur.id}>
+                  {users.map((ur) => (
+                    <TableRow key={ur.user_id}>
                       <TableCell>
                         <div>
                           <p className="font-medium">
@@ -481,12 +507,22 @@ export default function AdminUsers() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={ur.role === 'admin' ? 'default' : 'outline'}>
-                          {ur.role === 'admin' && <Shield className="h-3 w-3 mr-1" />}
-                          {ur.role.replace('_', ' ')}
-                        </Badge>
+                        <div className="flex flex-wrap gap-1">
+                          {ur.roles.map((role) => (
+                            <Badge key={role} variant={role === 'admin' ? 'default' : 'outline'}>
+                              {role === 'admin' && <Shield className="h-3 w-3 mr-1" />}
+                              {role.replace('_', ' ')}
+                            </Badge>
+                          ))}
+                        </div>
                       </TableCell>
-                      <TableCell>{formatDate(ur.created_at)}</TableCell>
+                      <TableCell>
+                        {new Date(ur.created_at).toLocaleDateString('en-GB', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </TableCell>
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -497,7 +533,7 @@ export default function AdminUsers() {
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={() => openEditDialog(ur)}>
                               <Edit className="h-4 w-4 mr-2" />
-                              Change Role
+                              Change Roles
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => openPasswordDialog(ur)}>
                               <KeyRound className="h-4 w-4 mr-2" />
@@ -526,44 +562,46 @@ export default function AdminUsers() {
         </Card>
       </main>
 
-      {/* Edit Role Dialog */}
+      {/* Edit Roles Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Change User Role</DialogTitle>
+            <DialogTitle>Change User Roles</DialogTitle>
             <DialogDescription>
-              Update role for {editingUser?.email}
+              Update roles for {editingUser?.email}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>New Role</Label>
-              <Select value={editRole} onValueChange={(v) => setEditRole(v as AppRole)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLES.map((role) => (
-                    <SelectItem key={role.value} value={role.value}>
+              <Label>Roles</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {ROLES.map((role) => (
+                  <div key={role.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`edit-role-${role.value}`}
+                      checked={editRoles.includes(role.value)}
+                      onCheckedChange={() => toggleRole(role.value, editRoles, setEditRoles)}
+                    />
+                    <Label htmlFor={`edit-role-${role.value}`} className="text-sm font-normal cursor-pointer">
                       {role.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    </Label>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleUpdateRole} disabled={updating}>
+            <Button onClick={handleUpdateRoles} disabled={updating || editRoles.length === 0}>
               {updating ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Updating...
                 </>
               ) : (
-                'Update Role'
+                'Update Roles'
               )}
             </Button>
           </DialogFooter>
