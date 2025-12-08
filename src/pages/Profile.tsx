@@ -348,26 +348,27 @@ export default function Profile() {
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full border-collapse text-sm">
+                  <table className="w-full border-collapse text-sm table-fixed">
                     <thead>
                       <tr className="border-b bg-muted/50">
-                        <th className="text-left p-2 font-medium">Action</th>
-                        <th className="text-left p-2 font-medium w-32">Owner</th>
+                        <th className="text-left p-2 font-medium w-[40%]">Action</th>
+                        <th className="text-left p-2 font-medium w-28">Owner</th>
                         <th className="text-center p-2 font-medium w-24">Priority</th>
                         <th className="text-center p-2 font-medium w-28">Due Date</th>
-                        <th className="text-center p-2 font-medium w-28">Status</th>
-                        <th className="text-left p-2 font-medium w-40">Comments</th>
-                        <th className="text-center p-2 font-medium w-16">Actions</th>
+                        <th className="text-center p-2 font-medium w-24">Status</th>
+                        <th className="text-left p-2 font-medium w-32">Comments</th>
+                        <th className="text-center p-2 font-medium w-12"></th>
                       </tr>
                     </thead>
                     <tbody>
                       {actions.map(action => (
                         <tr key={action.id} className="border-b hover:bg-muted/30">
                           <td className="p-2">
-                            <Input
+                            <textarea
                               value={action.action}
                               onChange={(e) => updateAction(action.id, { action: e.target.value })}
-                              className="h-8 text-sm"
+                              className="w-full min-h-[60px] p-2 text-sm border border-input rounded-md bg-background resize-y"
+                              rows={2}
                             />
                           </td>
                           <td className="p-2">
@@ -458,11 +459,12 @@ export default function Profile() {
                       {showAddAction && (
                         <tr className="border-b bg-primary/5">
                           <td className="p-2">
-                            <Input
+                            <textarea
                               value={newAction.action || ''}
                               onChange={(e) => setNewAction(prev => ({ ...prev, action: e.target.value }))}
                               placeholder="Enter action..."
-                              className="h-8 text-sm"
+                              className="w-full min-h-[60px] p-2 text-sm border border-input rounded-md bg-background resize-y"
+                              rows={2}
                               autoFocus
                             />
                           </td>
