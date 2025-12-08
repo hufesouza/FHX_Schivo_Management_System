@@ -120,7 +120,52 @@ Deno.serve(async (req) => {
       });
     }
 
-    // UPDATE ROLE - Change a user's role
+    // UPDATE ROLES - Set multiple roles for a user
+    if (action === 'updateRoles') {
+      const { roles } = body;
+      if (!userId || !roles || !Array.isArray(roles) || roles.length === 0) {
+        return new Response(JSON.stringify({ error: 'userId and roles array are required' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      console.log(`Updating roles for user ${userId} to: ${roles.join(', ')}`);
+
+      // Delete all existing roles for the user
+      const { error: deleteError } = await supabaseAdmin
+        .from('user_roles')
+        .delete()
+        .eq('user_id', userId);
+
+      if (deleteError) {
+        console.error('Delete existing roles error:', deleteError);
+        return new Response(JSON.stringify({ error: deleteError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      // Insert new roles
+      const roleInserts = roles.map((r: string) => ({ user_id: userId, role: r }));
+      const { error: insertError } = await supabaseAdmin
+        .from('user_roles')
+        .insert(roleInserts);
+
+      if (insertError) {
+        console.error('Insert roles error:', insertError);
+        return new Response(JSON.stringify({ error: insertError.message }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+
+      return new Response(JSON.stringify({ success: true, message: 'Roles updated successfully' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // UPDATE ROLE - Change a user's role (legacy support)
     if (action === 'updateRole') {
       if (!userId || !role) {
         return new Response(JSON.stringify({ error: 'userId and role are required' }), {
@@ -131,15 +176,19 @@ Deno.serve(async (req) => {
 
       console.log(`Updating role for user ${userId} to ${role}`);
 
-      // Update the user's role
-      const { error: updateError } = await supabaseAdmin
+      // Delete all existing roles and add the new one
+      await supabaseAdmin
         .from('user_roles')
-        .update({ role })
+        .delete()
         .eq('user_id', userId);
 
-      if (updateError) {
-        console.error('Update role error:', updateError);
-        return new Response(JSON.stringify({ error: updateError.message }), {
+      const { error: insertError } = await supabaseAdmin
+        .from('user_roles')
+        .insert({ user_id: userId, role });
+
+      if (insertError) {
+        console.error('Update role error:', insertError);
+        return new Response(JSON.stringify({ error: insertError.message }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
