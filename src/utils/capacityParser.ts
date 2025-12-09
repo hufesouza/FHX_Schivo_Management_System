@@ -2,6 +2,21 @@ import * as XLSX from 'xlsx';
 import { CleanedJob, MachineSchedule, GanttJob, CapacityData } from '@/types/capacity';
 import { format, startOfWeek, addHours, isAfter } from 'date-fns';
 
+// Milling machine prefixes - any machine starting with these is Milling, rest is Turning
+const MILLING_PREFIXES = [
+  'Horiz',
+  'Doosan',
+  'Mori',
+  'Hurco',
+  'Laser Cutting Starcut',
+  'Matsuura',
+  'Tool Room',
+  'Laser Marking',
+  'Laser Welding',
+  'Laser Welding Benchtop',
+  'Roders',
+];
+
 // Headers to ignore when detecting resource names
 const IGNORED_RESOURCE_VALUES = [
   'process order',
@@ -138,7 +153,18 @@ function buildHeaderMap(row: unknown[]): Record<string, number> {
   return headerMap;
 }
 
-export function parseCapacityFile(file: File): Promise<CapacityData> {
+// Determine if a machine belongs to Milling based on prefixes
+function isMillingMachine(machineName: string): boolean {
+  const lowerMachine = machineName.toLowerCase();
+  return MILLING_PREFIXES.some(prefix => lowerMachine.startsWith(prefix.toLowerCase()));
+}
+
+export interface ParsedCapacityResult {
+  milling: CapacityData | null;
+  turning: CapacityData | null;
+}
+
+export function parseCapacityFile(file: File): Promise<ParsedCapacityResult> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
@@ -161,7 +187,7 @@ export function parseCapacityFile(file: File): Promise<CapacityData> {
         let currentHeaderMap: Record<string, number> | null = null;
         let foundAnyHeader = false;
         
-        const jobs: CleanedJob[] = [];
+        const allJobs: CleanedJob[] = [];
         
         for (let i = 0; i < rawData.length; i++) {
           const row = rawData[i] as unknown[];
@@ -209,7 +235,7 @@ export function parseCapacityFile(file: File): Promise<CapacityData> {
               Comments: String(getValue('Comments') || '').trim(),
             };
             
-            jobs.push(job);
+            allJobs.push(job);
             continue;
           }
           
@@ -229,7 +255,7 @@ export function parseCapacityFile(file: File): Promise<CapacityData> {
           return;
         }
         
-        if (jobs.length === 0) {
+        if (allJobs.length === 0) {
           reject(new Error(
             'No valid jobs found in the file. ' +
             'Please ensure the file contains job rows with numeric Process Order values and valid Start Dates.'
@@ -237,18 +263,26 @@ export function parseCapacityFile(file: File): Promise<CapacityData> {
           return;
         }
         
-        // Build machine schedules
-        const machines = buildMachineSchedules(jobs);
+        // Split jobs into Milling and Turning
+        const millingJobs = allJobs.filter(job => isMillingMachine(job.Machine));
+        const turningJobs = allJobs.filter(job => !isMillingMachine(job.Machine));
         
-        // Build Gantt jobs
-        const ganttJobs = buildGanttJobs(jobs);
+        // Build result for each category
+        const buildCapacityData = (jobs: CleanedJob[], category: string): CapacityData | null => {
+          if (jobs.length === 0) return null;
+          
+          return {
+            jobs,
+            machines: buildMachineSchedules(jobs),
+            ganttJobs: buildGanttJobs(jobs),
+            uploadedAt: new Date(),
+            fileName: `${file.name} (${category})`,
+          };
+        };
         
         resolve({
-          jobs,
-          machines,
-          ganttJobs,
-          uploadedAt: new Date(),
-          fileName: file.name,
+          milling: buildCapacityData(millingJobs, 'Milling'),
+          turning: buildCapacityData(turningJobs, 'Turning'),
         });
         
       } catch (error) {

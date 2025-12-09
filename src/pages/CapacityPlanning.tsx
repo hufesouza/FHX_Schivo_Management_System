@@ -33,11 +33,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
-import { FileUpload } from '@/components/capacity/FileUpload';
 import { CapacityDashboard } from '@/components/capacity/CapacityDashboard';
 import { MachineTimeline } from '@/components/capacity/MachineTimeline';
 import { JobExplorer } from '@/components/capacity/JobExplorer';
 import { CapacityData } from '@/types/capacity';
+import { parseCapacityFile, ParsedCapacityResult } from '@/utils/capacityParser';
+import { toast } from 'sonner';
 
 const STORAGE_KEY_MILLING = 'capacity_data_milling';
 const STORAGE_KEY_TURNING = 'capacity_data_turning';
@@ -55,6 +56,7 @@ const CapacityPlanning = () => {
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isUploading, setIsUploading] = useState(false);
 
   const isAdmin = role === 'admin';
 
@@ -114,17 +116,47 @@ const CapacityPlanning = () => {
     }
   };
 
-  const handleDataLoaded = (data: CapacityData, department: DepartmentType) => {
-    if (department === 'milling') {
-      setMillingData(data);
-      saveToStorage(STORAGE_KEY_MILLING, data);
-    } else {
-      setTurningData(data);
-      saveToStorage(STORAGE_KEY_TURNING, data);
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const result: ParsedCapacityResult = await parseCapacityFile(file);
+      
+      // Update milling data
+      if (result.milling) {
+        setMillingData(result.milling);
+        saveToStorage(STORAGE_KEY_MILLING, result.milling);
+      } else {
+        setMillingData(null);
+        localStorage.removeItem(STORAGE_KEY_MILLING);
+      }
+      
+      // Update turning data
+      if (result.turning) {
+        setTurningData(result.turning);
+        saveToStorage(STORAGE_KEY_TURNING, result.turning);
+      } else {
+        setTurningData(null);
+        localStorage.removeItem(STORAGE_KEY_TURNING);
+      }
+      
+      setSelectedMachine(null);
+      setSelectedJobId(null);
+      setActiveTab('dashboard');
+      
+      const millingCount = result.milling?.jobs.length || 0;
+      const turningCount = result.turning?.jobs.length || 0;
+      toast.success(`File loaded: ${millingCount} milling jobs, ${turningCount} turning jobs`);
+      
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to parse file');
+    } finally {
+      setIsUploading(false);
+      // Reset input so same file can be re-uploaded
+      event.target.value = '';
     }
-    setSelectedMachine(null);
-    setSelectedJobId(null);
-    setActiveTab('dashboard');
   };
 
   const handleSelectMachine = (machine: string) => {
@@ -142,16 +174,14 @@ const CapacityPlanning = () => {
     }
   };
 
-  const handleClearData = (department: DepartmentType) => {
-    if (department === 'milling') {
-      setMillingData(null);
-      localStorage.removeItem(STORAGE_KEY_MILLING);
-    } else {
-      setTurningData(null);
-      localStorage.removeItem(STORAGE_KEY_TURNING);
-    }
+  const handleClearData = () => {
+    setMillingData(null);
+    setTurningData(null);
+    localStorage.removeItem(STORAGE_KEY_MILLING);
+    localStorage.removeItem(STORAGE_KEY_TURNING);
     setSelectedMachine(null);
     setSelectedJobId(null);
+    toast.success('All data cleared');
   };
 
   if (authLoading || roleLoading) {
@@ -164,6 +194,7 @@ const CapacityPlanning = () => {
 
   const currentData = activeDepartment === 'milling' ? millingData : turningData;
   const selectedMachineData = currentData?.machines.find(m => m.machine === selectedMachine);
+  const hasAnyData = millingData || turningData;
 
   return (
     <AppLayout>
@@ -245,60 +276,136 @@ const CapacityPlanning = () => {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
+        {/* Upload Section */}
+        <Card className="border-dashed mb-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Upload className="h-5 w-5" />
+                  Production Schedule
+                </CardTitle>
+                <CardDescription>
+                  Upload your Excel file. Machines are automatically categorized into Milling and Turning.
+                </CardDescription>
+              </div>
+              {hasAnyData && (
+                <Button variant="outline" size="sm" onClick={handleClearData}>
+                  Clear All Data
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <label className="flex-1">
+                <div className="flex items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
+                  {isUploading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>Processing...</span>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                      <Upload className="h-8 w-8" />
+                      <span className="text-sm">Click to upload Excel file (.xlsx, .xls)</span>
+                    </div>
+                  )}
+                </div>
+                <input
+                  type="file"
+                  accept=".xlsx,.xls"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={isUploading}
+                />
+              </label>
+            </div>
+            {hasAnyData && (
+              <div className="mt-4 flex gap-4 text-sm text-muted-foreground">
+                {millingData && (
+                  <span className="flex items-center gap-1">
+                    <Wrench className="h-4 w-4" />
+                    {millingData.machines.length} milling machines, {millingData.jobs.length} jobs
+                  </span>
+                )}
+                {turningData && (
+                  <span className="flex items-center gap-1">
+                    <RotateCcw className="h-4 w-4" />
+                    {turningData.machines.length} turning machines, {turningData.jobs.length} jobs
+                  </span>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* Department Selection */}
-        <Tabs value={activeDepartment} onValueChange={(v) => {
-          setActiveDepartment(v as DepartmentType);
-          setSelectedMachine(null);
-          setSelectedJobId(null);
-          setActiveTab('dashboard');
-        }} className="mb-6">
-          <TabsList className="grid w-full grid-cols-2 max-w-md">
-            <TabsTrigger value="milling" className="gap-2">
-              <Wrench className="h-4 w-4" />
-              Milling
-              {millingData && <Badge variant="secondary" className="ml-1">{millingData.machines.length}</Badge>}
-            </TabsTrigger>
-            <TabsTrigger value="turning" className="gap-2">
-              <RotateCcw className="h-4 w-4" />
-              Turning
-              {turningData && <Badge variant="secondary" className="ml-1">{turningData.machines.length}</Badge>}
-            </TabsTrigger>
-          </TabsList>
+        {hasAnyData && (
+          <Tabs value={activeDepartment} onValueChange={(v) => {
+            setActiveDepartment(v as DepartmentType);
+            setSelectedMachine(null);
+            setSelectedJobId(null);
+            setActiveTab('dashboard');
+          }} className="mb-6">
+            <TabsList className="grid w-full grid-cols-2 max-w-md">
+              <TabsTrigger value="milling" className="gap-2">
+                <Wrench className="h-4 w-4" />
+                Milling
+                {millingData && <Badge variant="secondary" className="ml-1">{millingData.machines.length}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="turning" className="gap-2">
+                <RotateCcw className="h-4 w-4" />
+                Turning
+                {turningData && <Badge variant="secondary" className="ml-1">{turningData.machines.length}</Badge>}
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="milling" className="mt-6">
-            <DepartmentCapacityView
-              department="milling"
-              data={millingData}
-              onDataLoaded={(data) => handleDataLoaded(data, 'milling')}
-              onClearData={() => handleClearData('milling')}
-              selectedMachine={selectedMachine}
-              selectedMachineData={activeDepartment === 'milling' ? selectedMachineData : undefined}
-              selectedJobId={selectedJobId}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              onSelectMachine={handleSelectMachine}
-              onJobClick={handleJobClick}
-              setSelectedJobId={setSelectedJobId}
-            />
-          </TabsContent>
+            <TabsContent value="milling" className="mt-6">
+              {millingData ? (
+                <DepartmentCapacityView
+                  department="milling"
+                  data={millingData}
+                  selectedMachine={selectedMachine}
+                  selectedMachineData={activeDepartment === 'milling' ? selectedMachineData : undefined}
+                  selectedJobId={selectedJobId}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  onSelectMachine={handleSelectMachine}
+                  onJobClick={handleJobClick}
+                  setSelectedJobId={setSelectedJobId}
+                />
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No milling machines found in the uploaded file.</p>
+                </div>
+              )}
+            </TabsContent>
 
-          <TabsContent value="turning" className="mt-6">
-            <DepartmentCapacityView
-              department="turning"
-              data={turningData}
-              onDataLoaded={(data) => handleDataLoaded(data, 'turning')}
-              onClearData={() => handleClearData('turning')}
-              selectedMachine={selectedMachine}
-              selectedMachineData={activeDepartment === 'turning' ? selectedMachineData : undefined}
-              selectedJobId={selectedJobId}
-              activeTab={activeTab}
-              setActiveTab={setActiveTab}
-              onSelectMachine={handleSelectMachine}
-              onJobClick={handleJobClick}
-              setSelectedJobId={setSelectedJobId}
-            />
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="turning" className="mt-6">
+              {turningData ? (
+                <DepartmentCapacityView
+                  department="turning"
+                  data={turningData}
+                  selectedMachine={selectedMachine}
+                  selectedMachineData={activeDepartment === 'turning' ? selectedMachineData : undefined}
+                  selectedJobId={selectedJobId}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  onSelectMachine={handleSelectMachine}
+                  onJobClick={handleJobClick}
+                  setSelectedJobId={setSelectedJobId}
+                />
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <RotateCcw className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No turning machines found in the uploaded file.</p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
+        )}
       </main>
     </AppLayout>
   );
@@ -306,9 +413,7 @@ const CapacityPlanning = () => {
 
 interface DepartmentCapacityViewProps {
   department: DepartmentType;
-  data: CapacityData | null;
-  onDataLoaded: (data: CapacityData) => void;
-  onClearData: () => void;
+  data: CapacityData;
   selectedMachine: string | null;
   selectedMachineData: any;
   selectedJobId: string | null;
@@ -322,8 +427,6 @@ interface DepartmentCapacityViewProps {
 const DepartmentCapacityView = ({
   department,
   data,
-  onDataLoaded,
-  onClearData,
   selectedMachine,
   selectedMachineData,
   selectedJobId,
@@ -333,11 +436,10 @@ const DepartmentCapacityView = ({
   onJobClick,
   setSelectedJobId,
 }: DepartmentCapacityViewProps) => {
-  const departmentLabel = department === 'milling' ? 'Milling' : 'Turning';
   const [searchQuery, setSearchQuery] = useState('');
 
   // Filter data based on search query
-  const filteredData = data ? {
+  const filteredData = {
     ...data,
     jobs: data.jobs.filter(job => {
       if (!searchQuery.trim()) return true;
@@ -355,133 +457,101 @@ const DepartmentCapacityView = ({
         job.endProduct?.toLowerCase().includes(query)
       );
     }),
-  } : null;
+  };
 
   // Get machines that have matching jobs
-  const filteredMachines = filteredData ? 
-    data!.machines.filter(m => filteredData.jobs.some(j => j.Machine === m.machine)) : 
-    [];
+  const filteredMachines = data.machines.filter(m => filteredData.jobs.some(j => j.Machine === m.machine));
 
   return (
     <div className="space-y-6">
-      {/* Upload Section */}
-      <Card className="border-dashed">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <Upload className="h-5 w-5" />
-                {departmentLabel} Production Schedule
-              </CardTitle>
-              <CardDescription>
-                Upload your {departmentLabel.toLowerCase()} department Excel file. Data will persist until replaced.
-              </CardDescription>
-            </div>
-            {data && (
-              <Button variant="outline" size="sm" onClick={onClearData}>
-                Clear Data
-              </Button>
-            )}
+      {/* File info and Search */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted/50 rounded-lg">
+        <div className="flex items-center gap-3">
+          <Upload className="h-5 w-5 text-muted-foreground" />
+          <div>
+            <p className="font-medium">{data.fileName}</p>
+            <p className="text-sm text-muted-foreground">
+              {filteredData.jobs.length === data.jobs.length 
+                ? `${data.jobs.length} jobs` 
+                : `${filteredData.jobs.length} of ${data.jobs.length} jobs`
+              } • {data.machines.length} machines • 
+              Uploaded {data.uploadedAt.toLocaleString()}
+            </p>
           </div>
-        </CardHeader>
-        <CardContent>
-          <FileUpload onDataLoaded={onDataLoaded} />
-        </CardContent>
-      </Card>
-
-      {/* Data Visualization - Only shown after upload */}
-      {data && (
-        <div className="space-y-6">
-          {/* File info and Search */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 bg-muted/50 rounded-lg">
-            <div className="flex items-center gap-3">
-              <Upload className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="font-medium">{data.fileName}</p>
-                <p className="text-sm text-muted-foreground">
-                  {filteredData?.jobs.length === data.jobs.length 
-                    ? `${data.jobs.length} jobs` 
-                    : `${filteredData?.jobs.length} of ${data.jobs.length} jobs`
-                  } • {data.machines.length} machines • 
-                  Uploaded {data.uploadedAt.toLocaleString()}
-                </p>
-              </div>
-            </div>
-            
-            {/* Search Bar */}
-            <div className="relative w-full sm:w-72">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by Process Order or Part Number..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-9"
-              />
-              {searchQuery && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
-                  onClick={() => setSearchQuery('')}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              )}
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3 max-w-md">
-              <TabsTrigger value="dashboard" className="gap-2">
-                <LayoutDashboard className="h-4 w-4" />
-                Dashboard
-              </TabsTrigger>
-              <TabsTrigger value="timeline" className="gap-2" disabled={!selectedMachine}>
-                <Clock className="h-4 w-4" />
-                Timeline
-              </TabsTrigger>
-              <TabsTrigger value="jobs" className="gap-2">
-                <TableIcon className="h-4 w-4" />
-                Jobs
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="dashboard" className="mt-6">
-              <CapacityDashboard 
-                machines={searchQuery ? filteredMachines : data.machines}
-                onSelectMachine={onSelectMachine}
-                selectedMachine={selectedMachine}
-              />
-            </TabsContent>
-
-            <TabsContent value="timeline" className="mt-6">
-              {selectedMachineData ? (
-                <MachineTimeline 
-                  machine={selectedMachineData}
-                  ganttJobs={filteredData?.ganttJobs || []}
-                  onJobClick={setSelectedJobId}
-                  selectedJobId={selectedJobId}
-                />
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p>Select a machine from the Dashboard to view its timeline</p>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="jobs" className="mt-6">
-              <JobExplorer 
-                jobs={filteredData?.jobs || []}
-                machines={data.machines.map(m => m.machine)}
-                onJobClick={onJobClick}
-                selectedJobId={selectedJobId}
-              />
-            </TabsContent>
-          </Tabs>
         </div>
-      )}
+        
+        {/* Search Bar */}
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by Process Order or Part Number..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-9"
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+              onClick={() => setSearchQuery('')}
+            >
+              <X className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-3 max-w-md">
+          <TabsTrigger value="dashboard" className="gap-2">
+            <LayoutDashboard className="h-4 w-4" />
+            Dashboard
+          </TabsTrigger>
+          <TabsTrigger value="timeline" className="gap-2" disabled={!selectedMachine}>
+            <Clock className="h-4 w-4" />
+            Timeline
+          </TabsTrigger>
+          <TabsTrigger value="jobs" className="gap-2">
+            <TableIcon className="h-4 w-4" />
+            Jobs
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="dashboard" className="mt-6">
+          <CapacityDashboard 
+            machines={searchQuery ? filteredMachines : data.machines}
+            onSelectMachine={onSelectMachine}
+            selectedMachine={selectedMachine}
+          />
+        </TabsContent>
+
+        <TabsContent value="timeline" className="mt-6">
+          {selectedMachineData ? (
+            <MachineTimeline 
+              machine={selectedMachineData}
+              ganttJobs={filteredData.ganttJobs}
+              onJobClick={setSelectedJobId}
+              selectedJobId={selectedJobId}
+            />
+          ) : (
+            <div className="text-center py-12 text-muted-foreground">
+              <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
+              <p>Select a machine from the Dashboard to view its timeline</p>
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="jobs" className="mt-6">
+          <JobExplorer 
+            jobs={filteredData.jobs}
+            machines={data.machines.map(m => m.machine)}
+            onJobClick={onJobClick}
+            selectedJobId={selectedJobId}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };
