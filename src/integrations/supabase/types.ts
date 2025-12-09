@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      capacity_data: {
+        Row: {
+          created_at: string
+          data: Json
+          department: string
+          file_name: string
+          id: string
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          data: Json
+          department: string
+          file_name: string
+          id?: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          department?: string
+          file_name?: string
+          id?: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
       compliance_settings: {
         Row: {
           created_at: string

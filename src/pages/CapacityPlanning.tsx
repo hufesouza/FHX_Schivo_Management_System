@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useCapacityData } from '@/hooks/useCapacityData';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,22 +43,26 @@ import { CapacityData } from '@/types/capacity';
 import { parseCapacityFile, ParsedCapacityResult } from '@/utils/capacityParser';
 import { toast } from 'sonner';
 
-const STORAGE_KEY_MILLING = 'capacity_data_milling';
-const STORAGE_KEY_TURNING = 'capacity_data_turning';
-const STORAGE_KEY_SLIDING_HEAD = 'capacity_data_sliding_head';
-const STORAGE_KEY_MISC = 'capacity_data_misc';
-
 type DepartmentType = 'milling' | 'turning' | 'sliding_head' | 'misc';
 
 const CapacityPlanning = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
+  const {
+    millingData,
+    turningData,
+    slidingHeadData,
+    miscData,
+    setMillingData,
+    setTurningData,
+    setSlidingHeadData,
+    setMiscData,
+    isLoading: dataLoading,
+    saveCapacityData,
+    clearAllData,
+  } = useCapacityData();
 
-  const [millingData, setMillingData] = useState<CapacityData | null>(null);
-  const [turningData, setTurningData] = useState<CapacityData | null>(null);
-  const [slidingHeadData, setSlidingHeadData] = useState<CapacityData | null>(null);
-  const [miscData, setMiscData] = useState<CapacityData | null>(null);
   const [activeDepartment, setActiveDepartment] = useState<DepartmentType>('milling');
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -65,45 +70,6 @@ const CapacityPlanning = () => {
   const [isUploading, setIsUploading] = useState(false);
 
   const isAdmin = role === 'admin';
-
-  // Load data from localStorage on mount
-  useEffect(() => {
-    const loadStoredData = (key: string): CapacityData | null => {
-      try {
-        const stored = localStorage.getItem(key);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          // Convert date strings back to Date objects
-          return {
-            ...parsed,
-            uploadedAt: new Date(parsed.uploadedAt),
-            jobs: parsed.jobs.map((job: any) => ({
-              ...job,
-              Start_DateTime: new Date(job.Start_DateTime),
-              End_DateTime: new Date(job.End_DateTime),
-            })),
-            machines: parsed.machines.map((machine: any) => ({
-              ...machine,
-              nextFreeDate: new Date(machine.nextFreeDate),
-            })),
-            ganttJobs: parsed.ganttJobs.map((job: any) => ({
-              ...job,
-              Start_DateTime: new Date(job.Start_DateTime),
-              End_DateTime: new Date(job.End_DateTime),
-            })),
-          };
-        }
-      } catch (error) {
-        console.error('Error loading stored data:', error);
-      }
-      return null;
-    };
-
-    setMillingData(loadStoredData(STORAGE_KEY_MILLING));
-    setTurningData(loadStoredData(STORAGE_KEY_TURNING));
-    setSlidingHeadData(loadStoredData(STORAGE_KEY_SLIDING_HEAD));
-    setMiscData(loadStoredData(STORAGE_KEY_MISC));
-  }, []);
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -116,57 +82,27 @@ const CapacityPlanning = () => {
     navigate('/auth');
   };
 
-  const saveToStorage = (key: string, data: CapacityData) => {
-    try {
-      localStorage.setItem(key, JSON.stringify(data));
-    } catch (error) {
-      console.error('Error saving to storage:', error);
-    }
-  };
-
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) return;
+    if (!file || !user?.id) return;
 
     setIsUploading(true);
     try {
       const result: ParsedCapacityResult = await parseCapacityFile(file);
       
-      // Update milling data
-      if (result.milling) {
-        setMillingData(result.milling);
-        saveToStorage(STORAGE_KEY_MILLING, result.milling);
-      } else {
-        setMillingData(null);
-        localStorage.removeItem(STORAGE_KEY_MILLING);
-      }
+      // Save all departments to database
+      await Promise.all([
+        saveCapacityData('milling', result.milling, user.id),
+        saveCapacityData('turning', result.turning, user.id),
+        saveCapacityData('sliding_head', result.sliding_head, user.id),
+        saveCapacityData('misc', result.misc, user.id),
+      ]);
       
-      // Update turning data
-      if (result.turning) {
-        setTurningData(result.turning);
-        saveToStorage(STORAGE_KEY_TURNING, result.turning);
-      } else {
-        setTurningData(null);
-        localStorage.removeItem(STORAGE_KEY_TURNING);
-      }
-      
-      // Update misc data
-      if (result.misc) {
-        setMiscData(result.misc);
-        saveToStorage(STORAGE_KEY_MISC, result.misc);
-      } else {
-        setMiscData(null);
-        localStorage.removeItem(STORAGE_KEY_MISC);
-      }
-      
-      // Update sliding head data
-      if (result.sliding_head) {
-        setSlidingHeadData(result.sliding_head);
-        saveToStorage(STORAGE_KEY_SLIDING_HEAD, result.sliding_head);
-      } else {
-        setSlidingHeadData(null);
-        localStorage.removeItem(STORAGE_KEY_SLIDING_HEAD);
-      }
+      // Update local state
+      setMillingData(result.milling);
+      setTurningData(result.turning);
+      setSlidingHeadData(result.sliding_head);
+      setMiscData(result.misc);
       
       setSelectedMachine(null);
       setSelectedJobId(null);
@@ -204,21 +140,18 @@ const CapacityPlanning = () => {
     }
   };
 
-  const handleClearData = () => {
-    setMillingData(null);
-    setTurningData(null);
-    setSlidingHeadData(null);
-    setMiscData(null);
-    localStorage.removeItem(STORAGE_KEY_MILLING);
-    localStorage.removeItem(STORAGE_KEY_TURNING);
-    localStorage.removeItem(STORAGE_KEY_SLIDING_HEAD);
-    localStorage.removeItem(STORAGE_KEY_MISC);
-    setSelectedMachine(null);
-    setSelectedJobId(null);
-    toast.success('All data cleared');
+  const handleClearData = async () => {
+    try {
+      await clearAllData();
+      setSelectedMachine(null);
+      setSelectedJobId(null);
+      toast.success('All data cleared');
+    } catch (error) {
+      toast.error('Failed to clear data');
+    }
   };
 
-  if (authLoading || roleLoading) {
+  if (authLoading || roleLoading || dataLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
