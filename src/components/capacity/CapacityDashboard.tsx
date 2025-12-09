@@ -4,11 +4,13 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { MachineSchedule, CleanedJob } from '@/types/capacity';
-import { format, differenceInHours, addHours, differenceInDays } from 'date-fns';
-import { Clock, Calendar, AlertTriangle, TrendingUp, Info, Search, CheckCircle2, XCircle, ChevronLeft, ChevronRight, PieChart } from 'lucide-react';
+import { format, differenceInHours, addHours, differenceInDays, startOfDay, endOfDay, addDays, addWeeks, addMonths, isWithinInterval, startOfWeek, endOfWeek, startOfMonth, endOfMonth } from 'date-fns';
+import { Clock, Calendar, AlertTriangle, TrendingUp, Info, Search, CheckCircle2, XCircle, ChevronLeft, ChevronRight, PieChart, CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useState, useMemo } from 'react';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 const HOURS_PER_DAY = 24; // 24 hours per machine per day
 
@@ -122,26 +124,107 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
   const [searchResults, setSearchResults] = useState<Record<string, IdleWindow[]>>({});
   const [currentSlotIndex, setCurrentSlotIndex] = useState<Record<string, number>>({});
   
+  // Date range filtering
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [activePreset, setActivePreset] = useState<string | null>(null);
+
+  const handlePreset = (preset: 'today' | 'week' | 'month' | 'all') => {
+    const now = new Date();
+    setActivePreset(preset);
+    
+    switch (preset) {
+      case 'today':
+        setDateFrom(startOfDay(now));
+        setDateTo(endOfDay(now));
+        break;
+      case 'week':
+        setDateFrom(startOfWeek(now, { weekStartsOn: 1 }));
+        setDateTo(endOfWeek(now, { weekStartsOn: 1 }));
+        break;
+      case 'month':
+        setDateFrom(startOfMonth(now));
+        setDateTo(endOfMonth(now));
+        break;
+      case 'all':
+        setDateFrom(undefined);
+        setDateTo(undefined);
+        break;
+    }
+  };
+
+  // Filter machines and jobs based on date range
+  const filteredMachines = useMemo(() => {
+    if (!dateFrom && !dateTo) return machines;
+    
+    return machines.map(machine => {
+      const filteredJobs = machine.jobs.filter(job => {
+        const jobStart = new Date(job.Start_DateTime);
+        const jobEnd = new Date(job.End_DateTime);
+        
+        // Job overlaps with date range if it starts before range ends AND ends after range starts
+        const rangeStart = dateFrom || new Date(0);
+        const rangeEnd = dateTo || new Date(8640000000000000); // max date
+        
+        return jobStart <= rangeEnd && jobEnd >= rangeStart;
+      });
+      
+      const totalScheduledHours = filteredJobs.reduce((sum, job) => {
+        const jobStart = new Date(job.Start_DateTime);
+        const jobEnd = new Date(job.End_DateTime);
+        
+        // Clip job hours to date range
+        const effectiveStart = dateFrom && jobStart < dateFrom ? dateFrom : jobStart;
+        const effectiveEnd = dateTo && jobEnd > dateTo ? dateTo : jobEnd;
+        
+        return sum + Math.max(0, differenceInHours(effectiveEnd, effectiveStart));
+      }, 0);
+      
+      // Recalculate utilization based on date range
+      let rangeHours = 0;
+      if (dateFrom && dateTo) {
+        rangeHours = differenceInHours(dateTo, dateFrom);
+      } else if (filteredJobs.length > 0) {
+        const starts = filteredJobs.map(j => new Date(j.Start_DateTime));
+        const ends = filteredJobs.map(j => new Date(j.End_DateTime));
+        const earliest = new Date(Math.min(...starts.map(d => d.getTime())));
+        const latest = new Date(Math.max(...ends.map(d => d.getTime())));
+        rangeHours = differenceInHours(latest, earliest);
+      }
+      
+      const utilization = rangeHours > 0 ? (totalScheduledHours / rangeHours) * 100 : 0;
+      
+      return {
+        ...machine,
+        jobs: filteredJobs,
+        totalScheduledHours,
+        utilization: Math.min(100, utilization),
+      };
+    }).filter(machine => machine.jobs.length > 0 || !dateFrom); // Keep machines with no jobs in range only if no filter
+  }, [machines, dateFrom, dateTo]);
+  
   // Calculate department-level capacity metrics
   const departmentMetrics = useMemo(() => {
-    if (machines.length === 0) return null;
+    if (filteredMachines.length === 0) return null;
     
-    // Find the date range across all jobs
-    let earliestStart: Date | null = null;
-    let latestEnd: Date | null = null;
+    // Use date filter range if set, otherwise find from jobs
+    let earliestStart: Date | null = dateFrom || null;
+    let latestEnd: Date | null = dateTo || null;
     
-    machines.forEach(machine => {
-      machine.jobs.forEach(job => {
-        const start = new Date(job.Start_DateTime);
-        const end = new Date(job.End_DateTime);
-        if (!earliestStart || start < earliestStart) earliestStart = start;
-        if (!latestEnd || end > latestEnd) latestEnd = end;
+    if (!earliestStart || !latestEnd) {
+      filteredMachines.forEach(machine => {
+        machine.jobs.forEach(job => {
+          const start = new Date(job.Start_DateTime);
+          const end = new Date(job.End_DateTime);
+          if (!earliestStart || start < earliestStart) earliestStart = start;
+          if (!latestEnd || end > latestEnd) latestEnd = end;
+        });
       });
-    });
+    }
     
     if (!earliestStart || !latestEnd) {
       return {
-        totalMachines: machines.length,
+        totalMachines: filteredMachines.length,
         totalDays: 0,
         totalAvailableHours: 0,
         totalBookedHours: 0,
@@ -153,8 +236,8 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
     }
     
     const totalDays = Math.max(1, differenceInDays(latestEnd, earliestStart) + 1);
-    const totalAvailableHours = machines.length * HOURS_PER_DAY * totalDays;
-    const totalBookedHours = machines.reduce((sum, m) => sum + m.totalScheduledHours, 0);
+    const totalAvailableHours = machines.length * HOURS_PER_DAY * totalDays; // Use original machines count for available
+    const totalBookedHours = filteredMachines.reduce((sum, m) => sum + m.totalScheduledHours, 0);
     const totalFreeHours = Math.max(0, totalAvailableHours - totalBookedHours);
     const overallUtilization = totalAvailableHours > 0 ? (totalBookedHours / totalAvailableHours) * 100 : 0;
     
@@ -168,15 +251,15 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
       earliestStart,
       latestEnd,
     };
-  }, [machines]);
+  }, [filteredMachines, machines.length, dateFrom, dateTo]);
   
-  const totalHours = machines.reduce((sum, m) => sum + m.totalScheduledHours, 0);
-  const avgUtilization = machines.length > 0 
-    ? machines.reduce((sum, m) => sum + m.utilization, 0) / machines.length 
+  const totalHours = filteredMachines.reduce((sum, m) => sum + m.totalScheduledHours, 0);
+  const avgUtilization = filteredMachines.length > 0 
+    ? filteredMachines.reduce((sum, m) => sum + m.utilization, 0) / filteredMachines.length 
     : 0;
   
-  const bottlenecks = machines
-    .filter(m => m.utilization > 90 || machines.indexOf(m) < 3)
+  const bottlenecks = filteredMachines
+    .filter(m => m.utilization > 90 || filteredMachines.indexOf(m) < 3)
     .slice(0, 3);
 
   const handleFindSlot = (machine: MachineSchedule) => {
@@ -242,6 +325,135 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
 
   return (
     <div className="space-y-6">
+      {/* Date Range Filter */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <CalendarIcon className="h-4 w-4" />
+            Date Range Filter
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Quick Presets */}
+            <div className="flex gap-2">
+              <Button 
+                variant={activePreset === 'today' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => handlePreset('today')}
+              >
+                Today
+              </Button>
+              <Button 
+                variant={activePreset === 'week' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => handlePreset('week')}
+              >
+                This Week
+              </Button>
+              <Button 
+                variant={activePreset === 'month' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => handlePreset('month')}
+              >
+                This Month
+              </Button>
+              <Button 
+                variant={activePreset === 'all' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => handlePreset('all')}
+              >
+                All Data
+              </Button>
+            </div>
+            
+            <div className="h-6 w-px bg-border" />
+            
+            {/* Custom Date Range */}
+            <div className="flex items-center gap-2">
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "w-[130px] justify-start text-left font-normal",
+                      !dateFrom && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateFrom ? format(dateFrom, "MMM d, yyyy") : "From"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateFrom}
+                    onSelect={(date) => {
+                      setDateFrom(date ? startOfDay(date) : undefined);
+                      setActivePreset(null);
+                    }}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              
+              <span className="text-muted-foreground">→</span>
+              
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "w-[130px] justify-start text-left font-normal",
+                      !dateTo && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateTo ? format(dateTo, "MMM d, yyyy") : "To"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="single"
+                    selected={dateTo}
+                    onSelect={(date) => {
+                      setDateTo(date ? endOfDay(date) : undefined);
+                      setActivePreset(null);
+                    }}
+                    initialFocus
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContent>
+              </Popover>
+              
+              {(dateFrom || dateTo) && (
+                <Button 
+                  variant="ghost" 
+                  size="sm"
+                  onClick={() => {
+                    setDateFrom(undefined);
+                    setDateTo(undefined);
+                    setActivePreset(null);
+                  }}
+                >
+                  Clear
+                </Button>
+              )}
+            </div>
+            
+            {/* Active filter indicator */}
+            {(dateFrom || dateTo) && (
+              <Badge variant="secondary" className="ml-auto">
+                Showing: {dateFrom ? format(dateFrom, "MMM d") : "Start"} - {dateTo ? format(dateTo, "MMM d, yyyy") : "End"}
+              </Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Department Capacity Summary */}
       {departmentMetrics && (
         <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
@@ -428,7 +640,7 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
           <CardContent>
             <div className="text-2xl font-bold">{totalHours.toFixed(1)}h</div>
             <p className="text-xs text-muted-foreground">
-              Across {machines.length} machines
+              Across {filteredMachines.length} machines
             </p>
           </CardContent>
         </Card>
@@ -454,9 +666,9 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{machines.length}</div>
+            <div className="text-2xl font-bold">{filteredMachines.length}</div>
             <p className="text-xs text-muted-foreground">
-              Active in schedule
+              {dateFrom || dateTo ? 'With jobs in range' : 'Active in schedule'}
             </p>
           </CardContent>
         </Card>
@@ -487,7 +699,7 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
         </CardHeader>
         <CardContent>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-            {machines.map((machine) => {
+            {filteredMachines.map((machine) => {
               const isBottleneck = machine.utilization > 90;
               const isSelected = selectedMachine === machine.machine;
               const { totalIdleHours, windowCount } = getNextAvailability(machine);
