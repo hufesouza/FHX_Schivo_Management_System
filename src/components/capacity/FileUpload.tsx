@@ -2,15 +2,13 @@ import { useCallback, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { parseCapacityFile } from '@/utils/capacityParser';
-import { CapacityData } from '@/types/capacity';
 
 interface FileUploadProps {
-  onDataLoaded: (data: CapacityData) => void;
+  onFileSelected: (file: File) => void;
   isLoading?: boolean;
 }
 
-export function FileUpload({ onDataLoaded, isLoading = false }: FileUploadProps) {
+export function FileUpload({ onFileSelected, isLoading = false }: FileUploadProps) {
   const { toast } = useToast();
   const [dragActive, setDragActive] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -28,26 +26,8 @@ export function FileUpload({ onDataLoaded, isLoading = false }: FileUploadProps)
 
     setUploadStatus('loading');
     setFileName(file.name);
-
-    try {
-      const data = await parseCapacityFile(file);
-      setUploadStatus('success');
-      
-      toast({
-        title: 'File processed successfully',
-        description: `Loaded ${data.jobs.length} jobs across ${data.machines.length} machines`,
-      });
-      
-      onDataLoaded(data);
-    } catch (error) {
-      setUploadStatus('error');
-      toast({
-        title: 'Failed to process file',
-        description: error instanceof Error ? error.message : 'Unknown error occurred',
-        variant: 'destructive',
-      });
-    }
-  }, [onDataLoaded, toast]);
+    onFileSelected(file);
+  }, [onFileSelected, toast]);
 
   const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -96,35 +76,13 @@ export function FileUpload({ onDataLoaded, isLoading = false }: FileUploadProps)
       />
       
       <div className="flex flex-col items-center gap-4">
-        {uploadStatus === 'loading' ? (
+        {isLoading || uploadStatus === 'loading' ? (
           <>
             <Loader2 className="h-12 w-12 text-primary animate-spin" />
             <div>
               <p className="font-medium">Processing {fileName}...</p>
               <p className="text-sm text-muted-foreground">Cleaning and structuring data</p>
             </div>
-          </>
-        ) : uploadStatus === 'success' ? (
-          <>
-            <CheckCircle className="h-12 w-12 text-green-500" />
-            <div>
-              <p className="font-medium text-green-600">Successfully processed!</p>
-              <p className="text-sm text-muted-foreground">{fileName}</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setUploadStatus('idle')}>
-              Upload Another File
-            </Button>
-          </>
-        ) : uploadStatus === 'error' ? (
-          <>
-            <AlertCircle className="h-12 w-12 text-destructive" />
-            <div>
-              <p className="font-medium text-destructive">Failed to process file</p>
-              <p className="text-sm text-muted-foreground">Please check the file format and try again</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => setUploadStatus('idle')}>
-              Try Again
-            </Button>
           </>
         ) : (
           <>
