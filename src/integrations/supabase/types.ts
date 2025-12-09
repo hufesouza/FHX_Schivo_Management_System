@@ -1281,6 +1281,36 @@ export type Database = {
         }
         Relationships: []
       }
+      resource_configurations: {
+        Row: {
+          created_at: string
+          department: string
+          id: string
+          is_active: boolean | null
+          resource_name: string
+          updated_at: string
+          working_hours_per_day: number
+        }
+        Insert: {
+          created_at?: string
+          department?: string
+          id?: string
+          is_active?: boolean | null
+          resource_name: string
+          updated_at?: string
+          working_hours_per_day?: number
+        }
+        Update: {
+          created_at?: string
+          department?: string
+          id?: string
+          is_active?: boolean | null
+          resource_name?: string
+          updated_at?: string
+          working_hours_per_day?: number
+        }
+        Relationships: []
+      }
       tasks: {
         Row: {
           assigned_by: string | null
