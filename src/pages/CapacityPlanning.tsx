@@ -199,22 +199,8 @@ const CapacityPlanning = () => {
     }
   };
 
-  if (authLoading || roleLoading || dataLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  const currentData = activeDepartment === 'milling' ? millingData : 
-                      activeDepartment === 'turning' ? turningData : 
-                      activeDepartment === 'sliding_head' ? slidingHeadData :
-                      activeDepartment === 'misc' ? miscData : null;
-  const selectedMachineData = currentData?.machines.find(m => m.machine === selectedMachine);
-  const hasAnyData = millingData || turningData || slidingHeadData || miscData;
-
   // Get all machines and their detected departments for the Resource Manager
+  // These hooks must be called before any early returns
   const allMachines = useMemo(() => {
     const machines = new Set<string>();
     [millingData, turningData, slidingHeadData, miscData].forEach(data => {
@@ -231,6 +217,21 @@ const CapacityPlanning = () => {
     miscData?.machines.forEach(m => { depts[m.machine] = 'misc'; });
     return depts;
   }, [millingData, turningData, slidingHeadData, miscData]);
+
+  if (authLoading || roleLoading || dataLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  const currentData = activeDepartment === 'milling' ? millingData : 
+                      activeDepartment === 'turning' ? turningData : 
+                      activeDepartment === 'sliding_head' ? slidingHeadData :
+                      activeDepartment === 'misc' ? miscData : null;
+  const selectedMachineData = currentData?.machines.find(m => m.machine === selectedMachine);
+  const hasAnyData = millingData || turningData || slidingHeadData || miscData;
 
   return (
     <AppLayout>
