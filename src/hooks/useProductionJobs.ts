@@ -139,18 +139,36 @@ export function useProductionJobs() {
   const fetchJobs = useCallback(async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('production_jobs')
-        .select('*')
-        .order('start_datetime', { ascending: true });
+      // Fetch all jobs - Supabase has a 1000 row default limit, so we need to paginate
+      let allJobs: ProductionJob[] = [];
+      let offset = 0;
+      const pageSize = 1000;
+      let hasMore = true;
 
-      if (error) {
-        console.error('Error fetching production jobs:', error);
-        toast.error('Failed to load production jobs');
-        return;
+      while (hasMore) {
+        const { data, error } = await supabase
+          .from('production_jobs')
+          .select('*')
+          .order('start_datetime', { ascending: true })
+          .range(offset, offset + pageSize - 1);
+
+        if (error) {
+          console.error('Error fetching production jobs:', error);
+          toast.error('Failed to load production jobs');
+          return;
+        }
+
+        if (data && data.length > 0) {
+          allJobs = [...allJobs, ...data];
+          offset += pageSize;
+          hasMore = data.length === pageSize;
+        } else {
+          hasMore = false;
+        }
       }
 
-      setJobs(data || []);
+      console.log(`Loaded ${allJobs.length} total production jobs`);
+      setJobs(allJobs);
     } catch (error) {
       console.error('Error fetching production jobs:', error);
       toast.error('Failed to load production jobs');
