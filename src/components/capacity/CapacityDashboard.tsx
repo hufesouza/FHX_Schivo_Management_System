@@ -124,12 +124,13 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
   const [searchResults, setSearchResults] = useState<Record<string, IdleWindow[]>>({});
   const [currentSlotIndex, setCurrentSlotIndex] = useState<Record<string, number>>({});
   
-  // Date range filtering
-  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
-  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
-  const [activePreset, setActivePreset] = useState<string | null>(null);
+  // Date range filtering - default to current month
+  const now = new Date();
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(startOfMonth(now));
+  const [dateTo, setDateTo] = useState<Date | undefined>(endOfMonth(now));
+  const [activePreset, setActivePreset] = useState<string | null>('month');
 
-  const handlePreset = (preset: 'today' | 'week' | 'month' | 'all') => {
+  const handlePreset = (preset: 'today' | 'week' | 'month') => {
     const now = new Date();
     setActivePreset(preset);
     
@@ -146,53 +147,53 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
         setDateFrom(startOfMonth(now));
         setDateTo(endOfMonth(now));
         break;
-      case 'all':
-        setDateFrom(undefined);
-        setDateTo(undefined);
-        break;
     }
   };
 
-  // Filter machines and jobs based on date range - ALWAYS recalculate utilization for consistency
+  // Calculate the date range period (consistent for all machines)
+  const dateRangeDays = useMemo(() => {
+    if (dateFrom && dateTo) {
+      return Math.max(1, differenceInDays(dateTo, dateFrom) + 1);
+    }
+    return 0;
+  }, [dateFrom, dateTo]);
+  
+  const dateRangeAvailableHours = dateRangeDays * HOURS_PER_DAY;
+
+  // Filter machines and jobs based on date range - use SAME available hours for all machines
   const filteredMachines = useMemo(() => {
+    if (!dateFrom || !dateTo) {
+      // No filter = show all but can't calculate meaningful utilization
+      return machines.map(machine => ({
+        ...machine,
+        totalScheduledHours: machine.jobs.reduce((sum, job) => 
+          sum + differenceInHours(new Date(job.End_DateTime), new Date(job.Start_DateTime)), 0
+        ),
+        utilization: 0,
+      }));
+    }
+    
     return machines.map(machine => {
-      // Apply date filter to jobs if specified
-      const filteredJobs = (!dateFrom && !dateTo) 
-        ? machine.jobs 
-        : machine.jobs.filter(job => {
-            const jobStart = new Date(job.Start_DateTime);
-            const jobEnd = new Date(job.End_DateTime);
-            const rangeStart = dateFrom || new Date(0);
-            const rangeEnd = dateTo || new Date(8640000000000000);
-            return jobStart <= rangeEnd && jobEnd >= rangeStart;
-          });
+      // Filter jobs that overlap with the date range
+      const filteredJobs = machine.jobs.filter(job => {
+        const jobStart = new Date(job.Start_DateTime);
+        const jobEnd = new Date(job.End_DateTime);
+        return jobStart <= dateTo && jobEnd >= dateFrom;
+      });
       
-      // Calculate total scheduled hours (clip to date range if filter applied)
+      // Calculate total scheduled hours (clip to date range)
       const totalScheduledHours = filteredJobs.reduce((sum, job) => {
         const jobStart = new Date(job.Start_DateTime);
         const jobEnd = new Date(job.End_DateTime);
-        
-        if (dateFrom || dateTo) {
-          const effectiveStart = dateFrom && jobStart < dateFrom ? dateFrom : jobStart;
-          const effectiveEnd = dateTo && jobEnd > dateTo ? dateTo : jobEnd;
-          return sum + Math.max(0, differenceInHours(effectiveEnd, effectiveStart));
-        }
-        return sum + differenceInHours(jobEnd, jobStart);
+        const effectiveStart = jobStart < dateFrom ? dateFrom : jobStart;
+        const effectiveEnd = jobEnd > dateTo ? dateTo : jobEnd;
+        return sum + Math.max(0, differenceInHours(effectiveEnd, effectiveStart));
       }, 0);
       
-      // ALWAYS recalculate utilization based on job schedule period (days × 24h/day)
-      let schedulePeriodDays = 0;
-      if (filteredJobs.length > 0) {
-        const sortedJobs = [...filteredJobs].sort((a, b) => 
-          new Date(a.Start_DateTime).getTime() - new Date(b.Start_DateTime).getTime()
-        );
-        const earliestStart = new Date(sortedJobs[0].Start_DateTime);
-        const latestEnd = new Date(sortedJobs[sortedJobs.length - 1].End_DateTime);
-        schedulePeriodDays = Math.max(1, differenceInDays(latestEnd, earliestStart) + 1);
-      }
-      
-      const availableHours = schedulePeriodDays * HOURS_PER_DAY;
-      const utilization = availableHours > 0 ? (totalScheduledHours / availableHours) * 100 : 0;
+      // Use the SAME available hours for all machines (based on date filter)
+      const utilization = dateRangeAvailableHours > 0 
+        ? (totalScheduledHours / dateRangeAvailableHours) * 100 
+        : 0;
       
       return {
         ...machine,
@@ -200,31 +201,14 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
         totalScheduledHours,
         utilization: Math.min(100, utilization),
       };
-    }).filter(machine => machine.jobs.length > 0 || !dateFrom);
-  }, [machines, dateFrom, dateTo]);
+    });
+  }, [machines, dateFrom, dateTo, dateRangeAvailableHours]);
   
-  // Calculate department-level capacity metrics
+  // Calculate department-level capacity metrics using the date filter range
   const departmentMetrics = useMemo(() => {
-    if (filteredMachines.length === 0) return null;
-    
-    // Use date filter range if set, otherwise find from jobs
-    let earliestStart: Date | null = dateFrom || null;
-    let latestEnd: Date | null = dateTo || null;
-    
-    if (!earliestStart || !latestEnd) {
-      filteredMachines.forEach(machine => {
-        machine.jobs.forEach(job => {
-          const start = new Date(job.Start_DateTime);
-          const end = new Date(job.End_DateTime);
-          if (!earliestStart || start < earliestStart) earliestStart = start;
-          if (!latestEnd || end > latestEnd) latestEnd = end;
-        });
-      });
-    }
-    
-    if (!earliestStart || !latestEnd) {
+    if (!dateFrom || !dateTo) {
       return {
-        totalMachines: filteredMachines.length,
+        totalMachines: machines.length,
         totalDays: 0,
         totalAvailableHours: 0,
         totalBookedHours: 0,
@@ -235,8 +219,8 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
       };
     }
     
-    const totalDays = Math.max(1, differenceInDays(latestEnd, earliestStart) + 1);
-    const totalAvailableHours = machines.length * HOURS_PER_DAY * totalDays; // Use original machines count for available
+    const totalDays = dateRangeDays;
+    const totalAvailableHours = machines.length * dateRangeAvailableHours;
     const totalBookedHours = filteredMachines.reduce((sum, m) => sum + m.totalScheduledHours, 0);
     const totalFreeHours = Math.max(0, totalAvailableHours - totalBookedHours);
     const overallUtilization = totalAvailableHours > 0 ? (totalBookedHours / totalAvailableHours) * 100 : 0;
@@ -248,10 +232,10 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
       totalBookedHours,
       totalFreeHours,
       overallUtilization,
-      earliestStart,
-      latestEnd,
+      earliestStart: dateFrom,
+      latestEnd: dateTo,
     };
-  }, [filteredMachines, machines.length, dateFrom, dateTo]);
+  }, [machines.length, dateFrom, dateTo, dateRangeDays, dateRangeAvailableHours, filteredMachines]);
   
   const totalHours = filteredMachines.reduce((sum, m) => sum + m.totalScheduledHours, 0);
   const avgUtilization = filteredMachines.length > 0 
@@ -286,40 +270,33 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
     }
   };
   
-  // Calculate utilization breakdown for a machine
+  // Calculate utilization breakdown for a machine using the date range
   const getUtilizationBreakdown = (machine: MachineSchedule) => {
-    const jobs = [...machine.jobs].sort((a, b) => 
-      new Date(a.Start_DateTime).getTime() - new Date(b.Start_DateTime).getTime()
-    );
-    
-    if (jobs.length === 0) {
+    if (!dateFrom || !dateTo) {
       return {
         schedulePeriodDays: 0,
         availableHours: 0,
         bookedHours: 0,
         freeHours: 0,
         utilizationPercent: 0,
-        earliestJob: null,
-        latestJob: null,
+        dateFrom: null,
+        dateTo: null,
       };
     }
     
-    const earliestStart = new Date(jobs[0].Start_DateTime);
-    const latestEnd = new Date(jobs[jobs.length - 1].End_DateTime);
-    const schedulePeriodDays = Math.max(1, differenceInDays(latestEnd, earliestStart) + 1);
-    const availableHours = schedulePeriodDays * HOURS_PER_DAY;
+    const availableHours = dateRangeAvailableHours;
     const bookedHours = machine.totalScheduledHours;
     const freeHours = Math.max(0, availableHours - bookedHours);
     const utilizationPercent = availableHours > 0 ? (bookedHours / availableHours) * 100 : 0;
     
     return {
-      schedulePeriodDays,
+      schedulePeriodDays: dateRangeDays,
       availableHours,
       bookedHours,
       freeHours,
       utilizationPercent,
-      earliestJob: jobs[0],
-      latestJob: jobs[jobs.length - 1],
+      dateFrom,
+      dateTo,
     };
   };
 
@@ -357,13 +334,6 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
                 onClick={() => handlePreset('month')}
               >
                 This Month
-              </Button>
-              <Button 
-                variant={activePreset === 'all' ? 'default' : 'outline'} 
-                size="sm"
-                onClick={() => handlePreset('all')}
-              >
-                All Data
               </Button>
             </div>
             
@@ -770,9 +740,9 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
                                   <span className="text-muted-foreground">Schedule Period:</span>
                                   <span className="font-medium">{utilBreakdown.schedulePeriodDays} days</span>
                                 </div>
-                                {utilBreakdown.earliestJob && utilBreakdown.latestJob && (
+                                {utilBreakdown.dateFrom && utilBreakdown.dateTo && (
                                   <p className="text-xs text-muted-foreground">
-                                    {format(new Date(utilBreakdown.earliestJob.Start_DateTime), 'MMM d')} → {format(new Date(utilBreakdown.latestJob.End_DateTime), 'MMM d, yyyy')}
+                                    {format(utilBreakdown.dateFrom, 'MMM d')} → {format(utilBreakdown.dateTo, 'MMM d, yyyy')}
                                   </p>
                                 )}
                               </div>
