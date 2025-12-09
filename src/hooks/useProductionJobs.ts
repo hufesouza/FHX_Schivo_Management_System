@@ -185,13 +185,20 @@ export function useProductionJobs() {
 
     const newProcessOrders = new Set(newJobs.map(j => j.Process_Order));
 
+    // Dedupe new jobs by process_order (keep last occurrence)
+    const deduped = new Map<string, CleanedJob>();
+    newJobs.forEach(job => {
+      deduped.set(job.Process_Order, job);
+    });
+    const uniqueNewJobs = Array.from(deduped.values());
+
     // 1. Find jobs to remove (in DB but not in new upload, and not manually moved)
     const toRemove = (existingJobs || []).filter(job => 
       !newProcessOrders.has(job.process_order) && !job.is_manually_moved
     );
 
     // 2. Find jobs to add (in new upload but not in DB)
-    const toAdd = newJobs.filter(job => !existingMap.has(job.Process_Order));
+    const toAdd = uniqueNewJobs.filter(job => !existingMap.has(job.Process_Order));
 
     // 3. Find manually moved jobs to preserve
     const manuallyMoved = (existingJobs || []).filter(job => 
@@ -199,7 +206,7 @@ export function useProductionJobs() {
     );
 
     // 4. Find jobs already in DB (skip)
-    const skipped = newJobs.filter(job => existingMap.has(job.Process_Order));
+    const skipped = uniqueNewJobs.filter(job => existingMap.has(job.Process_Order));
 
     // Execute removals
     if (toRemove.length > 0) {
