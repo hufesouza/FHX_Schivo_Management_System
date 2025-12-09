@@ -27,9 +27,15 @@ const PRIORITY_COLORS: Record<number, string> = {
 };
 
 export function MachineTimeline({ machine, ganttJobs, onJobClick, selectedJobId }: MachineTimelineProps) {
+  // Convert date strings to Date objects (they come as strings from localStorage)
   const machineJobs = useMemo(() => 
     ganttJobs
       .filter(job => job.machine === machine.machine)
+      .map(job => ({
+        ...job,
+        startDateTime: new Date(job.startDateTime),
+        endDateTime: new Date(job.endDateTime),
+      }))
       .sort((a, b) => a.startDateTime.getTime() - b.startDateTime.getTime()),
     [ganttJobs, machine.machine]
   );
