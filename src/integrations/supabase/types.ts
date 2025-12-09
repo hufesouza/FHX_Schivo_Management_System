@@ -179,6 +179,56 @@ export type Database = {
         }
         Relationships: []
       }
+      job_move_history: {
+        Row: {
+          from_machine: string
+          id: string
+          job_id: string
+          moved_at: string
+          moved_by: string
+          new_duration_hours: number
+          new_start_datetime: string | null
+          old_duration_hours: number
+          old_start_datetime: string | null
+          reason: string | null
+          to_machine: string
+        }
+        Insert: {
+          from_machine: string
+          id?: string
+          job_id: string
+          moved_at?: string
+          moved_by: string
+          new_duration_hours: number
+          new_start_datetime?: string | null
+          old_duration_hours: number
+          old_start_datetime?: string | null
+          reason?: string | null
+          to_machine: string
+        }
+        Update: {
+          from_machine?: string
+          id?: string
+          job_id?: string
+          moved_at?: string
+          moved_by?: string
+          new_duration_hours?: number
+          new_start_datetime?: string | null
+          old_duration_hours?: number
+          old_start_datetime?: string | null
+          reason?: string | null
+          to_machine?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_move_history_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "production_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       machines: {
         Row: {
           created_at: string
@@ -608,6 +658,87 @@ export type Database = {
           setup_fee?: number | null
           unit_cost?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      production_jobs: {
+        Row: {
+          comments: string | null
+          created_at: string
+          customer: string | null
+          days_from_today: number | null
+          department: string
+          duration_hours: number
+          end_product: string | null
+          id: string
+          is_manually_moved: boolean
+          item_name: string | null
+          machine: string
+          moved_at: string | null
+          moved_by: string | null
+          original_duration_hours: number
+          original_machine: string
+          priority: number | null
+          process_order: string
+          production_order: string | null
+          qty: number | null
+          start_datetime: string
+          status: string | null
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          comments?: string | null
+          created_at?: string
+          customer?: string | null
+          days_from_today?: number | null
+          department: string
+          duration_hours?: number
+          end_product?: string | null
+          id?: string
+          is_manually_moved?: boolean
+          item_name?: string | null
+          machine: string
+          moved_at?: string | null
+          moved_by?: string | null
+          original_duration_hours?: number
+          original_machine: string
+          priority?: number | null
+          process_order: string
+          production_order?: string | null
+          qty?: number | null
+          start_datetime: string
+          status?: string | null
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          comments?: string | null
+          created_at?: string
+          customer?: string | null
+          days_from_today?: number | null
+          department?: string
+          duration_hours?: number
+          end_product?: string | null
+          id?: string
+          is_manually_moved?: boolean
+          item_name?: string | null
+          machine?: string
+          moved_at?: string | null
+          moved_by?: string | null
+          original_duration_hours?: number
+          original_machine?: string
+          priority?: number | null
+          process_order?: string
+          production_order?: string | null
+          qty?: number | null
+          start_datetime?: string
+          status?: string | null
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string
         }
         Relationships: []
       }
