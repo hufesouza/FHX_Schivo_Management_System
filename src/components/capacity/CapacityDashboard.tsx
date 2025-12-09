@@ -243,8 +243,7 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
     : 0;
   
   const bottlenecks = filteredMachines
-    .filter(m => m.utilization > 90 || filteredMachines.indexOf(m) < 3)
-    .slice(0, 3);
+    .filter(m => m.utilization > 90);
 
   const handleFindSlot = (machine: MachineSchedule) => {
     const hours = parseFloat(searchHours[machine.machine] || '0');
