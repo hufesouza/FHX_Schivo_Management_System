@@ -248,7 +248,10 @@ export function useProductionJobs() {
 
       const { error: insertError } = await supabase
         .from('production_jobs')
-        .insert(insertData);
+        .upsert(insertData, { 
+          onConflict: 'process_order,department',
+          ignoreDuplicates: true 
+        });
 
       if (insertError) {
         console.error('Error inserting new jobs:', insertError);
