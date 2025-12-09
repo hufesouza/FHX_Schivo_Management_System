@@ -117,6 +117,7 @@ function getNextAvailability(machine: MachineSchedule): {
 export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }: CapacityDashboardProps) {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
   const [openUtilPopover, setOpenUtilPopover] = useState<string | null>(null);
+  const [openDeptPopover, setOpenDeptPopover] = useState<string | null>(null);
   const [searchHours, setSearchHours] = useState<Record<string, string>>({});
   const [searchResults, setSearchResults] = useState<Record<string, IdleWindow[]>>({});
   const [currentSlotIndex, setCurrentSlotIndex] = useState<Record<string, number>>({});
@@ -260,23 +261,156 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
           </CardHeader>
           <CardContent>
             <div className="grid gap-4 md:grid-cols-4">
-              <div className="p-3 rounded-lg bg-background/80">
-                <p className="text-xs text-muted-foreground">Total Available</p>
-                <p className="text-xl font-bold">{departmentMetrics.totalAvailableHours.toLocaleString()}h</p>
-              </div>
-              <div className="p-3 rounded-lg bg-background/80">
-                <p className="text-xs text-muted-foreground">Booked Hours</p>
-                <p className="text-xl font-bold text-amber-600">{departmentMetrics.totalBookedHours.toFixed(0)}h</p>
-              </div>
-              <div className="p-3 rounded-lg bg-background/80">
-                <p className="text-xs text-muted-foreground">Free Hours</p>
-                <p className="text-xl font-bold text-green-600">{departmentMetrics.totalFreeHours.toFixed(0)}h</p>
-              </div>
-              <div className="p-3 rounded-lg bg-background/80">
-                <p className="text-xs text-muted-foreground">Overall Utilization</p>
-                <p className="text-xl font-bold">{departmentMetrics.overallUtilization.toFixed(1)}%</p>
-                <Progress value={departmentMetrics.overallUtilization} className="mt-1 h-2" />
-              </div>
+              {/* Total Available */}
+              <Popover open={openDeptPopover === 'available'} onOpenChange={(open) => setOpenDeptPopover(open ? 'available' : null)}>
+                <PopoverTrigger asChild>
+                  <div className="p-3 rounded-lg bg-background/80 cursor-pointer hover:bg-background/90 transition-colors">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      Total Available <Info className="h-3 w-3" />
+                    </p>
+                    <p className="text-xl font-bold">{departmentMetrics.totalAvailableHours.toLocaleString()}h</p>
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-sm">Total Available Hours</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Maximum theoretical capacity if all machines run 24/7 during the schedule period.
+                    </p>
+                    <div className="p-2 bg-muted rounded-md text-sm space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Machines:</span>
+                        <span className="font-medium">{departmentMetrics.totalMachines}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Hours per day:</span>
+                        <span className="font-medium">{HOURS_PER_DAY}h</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Days in schedule:</span>
+                        <span className="font-medium">{departmentMetrics.totalDays}</span>
+                      </div>
+                      <div className="flex justify-between pt-1 border-t font-semibold">
+                        <span>Total:</span>
+                        <span>{departmentMetrics.totalMachines} × {HOURS_PER_DAY} × {departmentMetrics.totalDays} = {departmentMetrics.totalAvailableHours.toLocaleString()}h</span>
+                      </div>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              
+              {/* Booked Hours */}
+              <Popover open={openDeptPopover === 'booked'} onOpenChange={(open) => setOpenDeptPopover(open ? 'booked' : null)}>
+                <PopoverTrigger asChild>
+                  <div className="p-3 rounded-lg bg-background/80 cursor-pointer hover:bg-background/90 transition-colors">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      Booked Hours <Info className="h-3 w-3" />
+                    </p>
+                    <p className="text-xl font-bold text-amber-600">{departmentMetrics.totalBookedHours.toFixed(0)}h</p>
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-sm">Booked Hours</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Total hours allocated to jobs across all {departmentMetrics.totalMachines} machines.
+                    </p>
+                    <div className="p-2 bg-amber-50 dark:bg-amber-950/30 rounded-md text-sm space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Total job hours:</span>
+                        <span className="font-medium text-amber-600">{departmentMetrics.totalBookedHours.toFixed(1)}h</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Avg per machine:</span>
+                        <span className="font-medium">{(departmentMetrics.totalBookedHours / departmentMetrics.totalMachines).toFixed(1)}h</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      This is the sum of all job durations scheduled on machines in this department.
+                    </p>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              
+              {/* Free Hours */}
+              <Popover open={openDeptPopover === 'free'} onOpenChange={(open) => setOpenDeptPopover(open ? 'free' : null)}>
+                <PopoverTrigger asChild>
+                  <div className="p-3 rounded-lg bg-background/80 cursor-pointer hover:bg-background/90 transition-colors">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      Free Hours <Info className="h-3 w-3" />
+                    </p>
+                    <p className="text-xl font-bold text-green-600">{departmentMetrics.totalFreeHours.toFixed(0)}h</p>
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-sm">Free Hours</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Remaining capacity available for new jobs during the schedule period.
+                    </p>
+                    <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded-md text-sm space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Available:</span>
+                        <span className="font-medium">{departmentMetrics.totalAvailableHours.toLocaleString()}h</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Booked:</span>
+                        <span className="font-medium text-amber-600">- {departmentMetrics.totalBookedHours.toFixed(0)}h</span>
+                      </div>
+                      <div className="flex justify-between pt-1 border-t font-semibold">
+                        <span>Free:</span>
+                        <span className="text-green-600">{departmentMetrics.totalFreeHours.toFixed(0)}h</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Note: Free hours may not be contiguous - use "Find Slot" on individual machines to see available windows.
+                    </p>
+                  </div>
+                </PopoverContent>
+              </Popover>
+              
+              {/* Overall Utilization */}
+              <Popover open={openDeptPopover === 'utilization'} onOpenChange={(open) => setOpenDeptPopover(open ? 'utilization' : null)}>
+                <PopoverTrigger asChild>
+                  <div className="p-3 rounded-lg bg-background/80 cursor-pointer hover:bg-background/90 transition-colors">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      Overall Utilization <Info className="h-3 w-3" />
+                    </p>
+                    <p className="text-xl font-bold">{departmentMetrics.overallUtilization.toFixed(1)}%</p>
+                    <Progress value={departmentMetrics.overallUtilization} className="mt-1 h-2" />
+                  </div>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-sm">Overall Utilization</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Percentage of total available capacity that is booked with jobs.
+                    </p>
+                    <div className="p-2 bg-primary/10 rounded-md text-sm space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Formula:</span>
+                        <span className="font-medium">Booked ÷ Available × 100</span>
+                      </div>
+                      <div className="flex justify-between pt-1 border-t">
+                        <span className="text-muted-foreground">Calculation:</span>
+                        <span className="font-medium">{departmentMetrics.totalBookedHours.toFixed(0)}h ÷ {departmentMetrics.totalAvailableHours.toLocaleString()}h</span>
+                      </div>
+                      <div className="flex justify-between font-semibold">
+                        <span>Result:</span>
+                        <span>{departmentMetrics.overallUtilization.toFixed(1)}%</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {departmentMetrics.overallUtilization < 50 
+                        ? "Low utilization indicates significant spare capacity for new work."
+                        : departmentMetrics.overallUtilization < 80
+                        ? "Moderate utilization - healthy balance of work and flexibility."
+                        : "High utilization - limited capacity for additional work."
+                      }
+                    </p>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
           </CardContent>
         </Card>
