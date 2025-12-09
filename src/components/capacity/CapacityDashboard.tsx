@@ -153,34 +153,34 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
     }
   };
 
-  // Filter machines and jobs based on date range
+  // Filter machines and jobs based on date range - ALWAYS recalculate utilization for consistency
   const filteredMachines = useMemo(() => {
-    if (!dateFrom && !dateTo) return machines;
-    
     return machines.map(machine => {
-      const filteredJobs = machine.jobs.filter(job => {
-        const jobStart = new Date(job.Start_DateTime);
-        const jobEnd = new Date(job.End_DateTime);
-        
-        // Job overlaps with date range if it starts before range ends AND ends after range starts
-        const rangeStart = dateFrom || new Date(0);
-        const rangeEnd = dateTo || new Date(8640000000000000); // max date
-        
-        return jobStart <= rangeEnd && jobEnd >= rangeStart;
-      });
+      // Apply date filter to jobs if specified
+      const filteredJobs = (!dateFrom && !dateTo) 
+        ? machine.jobs 
+        : machine.jobs.filter(job => {
+            const jobStart = new Date(job.Start_DateTime);
+            const jobEnd = new Date(job.End_DateTime);
+            const rangeStart = dateFrom || new Date(0);
+            const rangeEnd = dateTo || new Date(8640000000000000);
+            return jobStart <= rangeEnd && jobEnd >= rangeStart;
+          });
       
+      // Calculate total scheduled hours (clip to date range if filter applied)
       const totalScheduledHours = filteredJobs.reduce((sum, job) => {
         const jobStart = new Date(job.Start_DateTime);
         const jobEnd = new Date(job.End_DateTime);
         
-        // Clip job hours to date range
-        const effectiveStart = dateFrom && jobStart < dateFrom ? dateFrom : jobStart;
-        const effectiveEnd = dateTo && jobEnd > dateTo ? dateTo : jobEnd;
-        
-        return sum + Math.max(0, differenceInHours(effectiveEnd, effectiveStart));
+        if (dateFrom || dateTo) {
+          const effectiveStart = dateFrom && jobStart < dateFrom ? dateFrom : jobStart;
+          const effectiveEnd = dateTo && jobEnd > dateTo ? dateTo : jobEnd;
+          return sum + Math.max(0, differenceInHours(effectiveEnd, effectiveStart));
+        }
+        return sum + differenceInHours(jobEnd, jobStart);
       }, 0);
       
-      // Recalculate utilization based on job schedule period (consistent with getUtilizationBreakdown)
+      // ALWAYS recalculate utilization based on job schedule period (days × 24h/day)
       let schedulePeriodDays = 0;
       if (filteredJobs.length > 0) {
         const sortedJobs = [...filteredJobs].sort((a, b) => 
@@ -200,7 +200,7 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
         totalScheduledHours,
         utilization: Math.min(100, utilization),
       };
-    }).filter(machine => machine.jobs.length > 0 || !dateFrom); // Keep machines with no jobs in range only if no filter
+    }).filter(machine => machine.jobs.length > 0 || !dateFrom);
   }, [machines, dateFrom, dateTo]);
   
   // Calculate department-level capacity metrics
