@@ -170,15 +170,18 @@ function getMachineCategory(machineName: string): MachineCategory {
   
   // Check turning first (more specific prefixes like DoosanMX before Doosan)
   if (TURNING_PREFIXES.some(prefix => lowerMachine.startsWith(prefix.toLowerCase()))) {
+    console.log(`Machine "${machineName}" categorized as TURNING`);
     return 'turning';
   }
   
   // Then check milling
   if (MILLING_PREFIXES.some(prefix => lowerMachine.startsWith(prefix.toLowerCase()))) {
+    console.log(`Machine "${machineName}" categorized as MILLING`);
     return 'milling';
   }
   
   // Everything else is misc
+  console.log(`Machine "${machineName}" categorized as MISC`);
   return 'misc';
 }
 
