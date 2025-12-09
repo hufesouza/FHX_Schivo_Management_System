@@ -815,7 +815,9 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
                               setOpenPopover(openPopover === machine.machine ? null : machine.machine);
                             }}
                           >
-                            {windowCount > 0 ? (
+                            {machine.jobs.length === 0 ? (
+                              <span className="text-green-600">Completely free</span>
+                            ) : windowCount > 0 ? (
                               <span className="text-green-600">{windowCount} gap{windowCount > 1 ? 's' : ''}</span>
                             ) : (
                               <span className="text-amber-600">Fully booked</span>
