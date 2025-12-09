@@ -380,11 +380,12 @@ function buildMachineSchedules(jobs: CleanedJob[]): MachineSchedule[] {
     }, new Date());
     
     // Calculate utilization (hours scheduled vs available in the period)
+    // Use 24 hours per day to match CapacityDashboard calculations
     const firstJob = machineJobs[0];
     const lastJob = machineJobs[machineJobs.length - 1];
-    const periodHours = (lastJob.End_DateTime.getTime() - firstJob.Start_DateTime.getTime()) / (1000 * 60 * 60);
-    const workingHoursInPeriod = periodHours * (8 / 24); // Assume 8 working hours per day
-    const utilization = workingHoursInPeriod > 0 ? (totalScheduledHours / workingHoursInPeriod) * 100 : 0;
+    const periodDays = Math.max(1, Math.ceil((lastJob.End_DateTime.getTime() - firstJob.Start_DateTime.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+    const availableHours = periodDays * 24; // 24 hours per machine per day
+    const utilization = availableHours > 0 ? (totalScheduledHours / availableHours) * 100 : 0;
     
     machines.push({
       machine: machineName,
