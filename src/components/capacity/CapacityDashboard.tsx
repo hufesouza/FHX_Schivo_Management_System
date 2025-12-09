@@ -130,7 +130,7 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
   const [dateTo, setDateTo] = useState<Date | undefined>(endOfMonth(now));
   const [activePreset, setActivePreset] = useState<string | null>('month');
 
-  const handlePreset = (preset: 'today' | 'week' | 'month') => {
+  const handlePreset = (preset: 'today' | 'week' | 'month' | 'nextMonth' | 'all') => {
     const now = new Date();
     setActivePreset(preset);
     
@@ -147,7 +147,23 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
         setDateFrom(startOfMonth(now));
         setDateTo(endOfMonth(now));
         break;
+      case 'nextMonth':
+        const nextMonth = addMonths(now, 1);
+        setDateFrom(startOfMonth(nextMonth));
+        setDateTo(endOfMonth(nextMonth));
+        break;
+      case 'all':
+        setDateFrom(undefined);
+        setDateTo(undefined);
+        break;
     }
+  };
+
+  const handleSelectMonth = (year: number, month: number) => {
+    const selectedDate = new Date(year, month, 1);
+    setDateFrom(startOfMonth(selectedDate));
+    setDateTo(endOfMonth(selectedDate));
+    setActivePreset(null);
   };
 
   // Calculate the date range period (consistent for all machines)
@@ -312,7 +328,7 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
         <CardContent>
           <div className="flex flex-wrap items-center gap-3">
             {/* Quick Presets */}
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button 
                 variant={activePreset === 'today' ? 'default' : 'outline'} 
                 size="sm"
@@ -334,6 +350,65 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
               >
                 This Month
               </Button>
+              <Button 
+                variant={activePreset === 'nextMonth' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => handlePreset('nextMonth')}
+              >
+                Next Month
+              </Button>
+              <Button 
+                variant={activePreset === 'all' ? 'default' : 'outline'} 
+                size="sm"
+                onClick={() => handlePreset('all')}
+              >
+                All Data
+              </Button>
+              
+              {/* Month/Year Selector */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Select Month
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 bg-popover" align="start">
+                  <div className="space-y-3">
+                    <h4 className="font-medium text-sm">Select Month & Year</h4>
+                    <div className="grid grid-cols-3 gap-2">
+                      {Array.from({ length: 12 }, (_, i) => {
+                        const monthDate = new Date(now.getFullYear(), i, 1);
+                        return (
+                          <Button
+                            key={i}
+                            variant="ghost"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => handleSelectMonth(now.getFullYear(), i)}
+                          >
+                            {format(monthDate, 'MMM')}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                    <div className="h-px bg-border" />
+                    <div className="flex gap-2 justify-center">
+                      {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map(year => (
+                        <Button
+                          key={year}
+                          variant="outline"
+                          size="sm"
+                          className="text-xs"
+                          onClick={() => handleSelectMonth(year, dateFrom ? dateFrom.getMonth() : now.getMonth())}
+                        >
+                          {year}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
             
             <div className="h-6 w-px bg-border" />
