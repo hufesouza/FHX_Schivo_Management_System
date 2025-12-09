@@ -23,7 +23,8 @@ import {
   Wrench,
   RotateCcw,
   Search,
-  X
+  X,
+  Boxes
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -42,8 +43,9 @@ import { toast } from 'sonner';
 
 const STORAGE_KEY_MILLING = 'capacity_data_milling';
 const STORAGE_KEY_TURNING = 'capacity_data_turning';
+const STORAGE_KEY_MISC = 'capacity_data_misc';
 
-type DepartmentType = 'milling' | 'turning';
+type DepartmentType = 'milling' | 'turning' | 'misc';
 
 const CapacityPlanning = () => {
   const navigate = useNavigate();
@@ -52,6 +54,7 @@ const CapacityPlanning = () => {
 
   const [millingData, setMillingData] = useState<CapacityData | null>(null);
   const [turningData, setTurningData] = useState<CapacityData | null>(null);
+  const [miscData, setMiscData] = useState<CapacityData | null>(null);
   const [activeDepartment, setActiveDepartment] = useState<DepartmentType>('milling');
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
@@ -95,6 +98,7 @@ const CapacityPlanning = () => {
 
     setMillingData(loadStoredData(STORAGE_KEY_MILLING));
     setTurningData(loadStoredData(STORAGE_KEY_TURNING));
+    setMiscData(loadStoredData(STORAGE_KEY_MISC));
   }, []);
 
   useEffect(() => {
@@ -142,13 +146,23 @@ const CapacityPlanning = () => {
         localStorage.removeItem(STORAGE_KEY_TURNING);
       }
       
+      // Update misc data
+      if (result.misc) {
+        setMiscData(result.misc);
+        saveToStorage(STORAGE_KEY_MISC, result.misc);
+      } else {
+        setMiscData(null);
+        localStorage.removeItem(STORAGE_KEY_MISC);
+      }
+      
       setSelectedMachine(null);
       setSelectedJobId(null);
       setActiveTab('dashboard');
       
       const millingCount = result.milling?.jobs.length || 0;
       const turningCount = result.turning?.jobs.length || 0;
-      toast.success(`File loaded: ${millingCount} milling jobs, ${turningCount} turning jobs`);
+      const miscCount = result.misc?.jobs.length || 0;
+      toast.success(`File loaded: ${millingCount} milling, ${turningCount} turning, ${miscCount} misc jobs`);
       
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to parse file');
@@ -177,8 +191,10 @@ const CapacityPlanning = () => {
   const handleClearData = () => {
     setMillingData(null);
     setTurningData(null);
+    setMiscData(null);
     localStorage.removeItem(STORAGE_KEY_MILLING);
     localStorage.removeItem(STORAGE_KEY_TURNING);
+    localStorage.removeItem(STORAGE_KEY_MISC);
     setSelectedMachine(null);
     setSelectedJobId(null);
     toast.success('All data cleared');
@@ -192,9 +208,9 @@ const CapacityPlanning = () => {
     );
   }
 
-  const currentData = activeDepartment === 'milling' ? millingData : turningData;
+  const currentData = activeDepartment === 'milling' ? millingData : activeDepartment === 'turning' ? turningData : miscData;
   const selectedMachineData = currentData?.machines.find(m => m.machine === selectedMachine);
-  const hasAnyData = millingData || turningData;
+  const hasAnyData = millingData || turningData || miscData;
 
   return (
     <AppLayout>
@@ -286,7 +302,7 @@ const CapacityPlanning = () => {
                   Production Schedule
                 </CardTitle>
                 <CardDescription>
-                  Upload your Excel file. Machines are automatically categorized into Milling and Turning.
+                  Upload your Excel file. Machines are automatically categorized into Milling, Turning, and Misc.
                 </CardDescription>
               </div>
               {hasAnyData && (
@@ -322,17 +338,23 @@ const CapacityPlanning = () => {
               </label>
             </div>
             {hasAnyData && (
-              <div className="mt-4 flex gap-4 text-sm text-muted-foreground">
+              <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
                 {millingData && (
                   <span className="flex items-center gap-1">
                     <Wrench className="h-4 w-4" />
-                    {millingData.machines.length} milling machines, {millingData.jobs.length} jobs
+                    {millingData.machines.length} milling, {millingData.jobs.length} jobs
                   </span>
                 )}
                 {turningData && (
                   <span className="flex items-center gap-1">
                     <RotateCcw className="h-4 w-4" />
-                    {turningData.machines.length} turning machines, {turningData.jobs.length} jobs
+                    {turningData.machines.length} turning, {turningData.jobs.length} jobs
+                  </span>
+                )}
+                {miscData && (
+                  <span className="flex items-center gap-1">
+                    <Boxes className="h-4 w-4" />
+                    {miscData.machines.length} misc, {miscData.jobs.length} jobs
                   </span>
                 )}
               </div>
@@ -348,7 +370,7 @@ const CapacityPlanning = () => {
             setSelectedJobId(null);
             setActiveTab('dashboard');
           }} className="mb-6">
-            <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsList className="grid w-full grid-cols-3 max-w-xl">
               <TabsTrigger value="milling" className="gap-2">
                 <Wrench className="h-4 w-4" />
                 Milling
@@ -358,6 +380,11 @@ const CapacityPlanning = () => {
                 <RotateCcw className="h-4 w-4" />
                 Turning
                 {turningData && <Badge variant="secondary" className="ml-1">{turningData.machines.length}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="misc" className="gap-2">
+                <Boxes className="h-4 w-4" />
+                Misc
+                {miscData && <Badge variant="secondary" className="ml-1">{miscData.machines.length}</Badge>}
               </TabsTrigger>
             </TabsList>
 
@@ -401,6 +428,28 @@ const CapacityPlanning = () => {
                 <div className="text-center py-12 text-muted-foreground">
                   <RotateCcw className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No turning machines found in the uploaded file.</p>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="misc" className="mt-6">
+              {miscData ? (
+                <DepartmentCapacityView
+                  department="misc"
+                  data={miscData}
+                  selectedMachine={selectedMachine}
+                  selectedMachineData={activeDepartment === 'misc' ? selectedMachineData : undefined}
+                  selectedJobId={selectedJobId}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  onSelectMachine={handleSelectMachine}
+                  onJobClick={handleJobClick}
+                  setSelectedJobId={setSelectedJobId}
+                />
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Boxes className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No misc machines found in the uploaded file.</p>
                 </div>
               )}
             </TabsContent>
