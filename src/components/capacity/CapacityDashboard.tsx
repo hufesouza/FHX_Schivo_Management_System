@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { MachineSchedule, CleanedJob } from '@/types/capacity';
 import { format, differenceInHours, addHours } from 'date-fns';
-import { Clock, Calendar, AlertTriangle, TrendingUp, Info, Search, CheckCircle2, XCircle } from 'lucide-react';
+import { Clock, Calendar, AlertTriangle, TrendingUp, Info, Search, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useState } from 'react';
@@ -95,9 +95,9 @@ function calculateIdleWindows(machine: MachineSchedule): IdleWindow[] {
   return windows;
 }
 
-function findSlotForJob(machine: MachineSchedule, requiredHours: number): IdleWindow | null {
+function findAllSlotsForJob(machine: MachineSchedule, requiredHours: number): IdleWindow[] {
   const windows = calculateIdleWindows(machine);
-  return windows.find(w => w.durationHours >= requiredHours) || null;
+  return windows.filter(w => w.durationHours >= requiredHours);
 }
 
 function getNextAvailability(machine: MachineSchedule): { 
@@ -115,7 +115,8 @@ function getNextAvailability(machine: MachineSchedule): {
 export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }: CapacityDashboardProps) {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
   const [searchHours, setSearchHours] = useState<Record<string, string>>({});
-  const [searchResults, setSearchResults] = useState<Record<string, IdleWindow | null | 'searching'>>({});
+  const [searchResults, setSearchResults] = useState<Record<string, IdleWindow[]>>({});
+  const [currentSlotIndex, setCurrentSlotIndex] = useState<Record<string, number>>({});
   
   const totalHours = machines.reduce((sum, m) => sum + m.totalScheduledHours, 0);
   const avgUtilization = machines.length > 0 
@@ -130,8 +131,24 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
     const hours = parseFloat(searchHours[machine.machine] || '0');
     if (hours <= 0) return;
     
-    const slot = findSlotForJob(machine, hours);
-    setSearchResults(prev => ({ ...prev, [machine.machine]: slot }));
+    const slots = findAllSlotsForJob(machine, hours);
+    setSearchResults(prev => ({ ...prev, [machine.machine]: slots }));
+    setCurrentSlotIndex(prev => ({ ...prev, [machine.machine]: 0 }));
+  };
+
+  const handleNextSlot = (machineName: string) => {
+    const slots = searchResults[machineName] || [];
+    const currentIndex = currentSlotIndex[machineName] || 0;
+    if (currentIndex < slots.length - 1) {
+      setCurrentSlotIndex(prev => ({ ...prev, [machineName]: currentIndex + 1 }));
+    }
+  };
+
+  const handlePrevSlot = (machineName: string) => {
+    const currentIndex = currentSlotIndex[machineName] || 0;
+    if (currentIndex > 0) {
+      setCurrentSlotIndex(prev => ({ ...prev, [machineName]: currentIndex - 1 }));
+    }
   };
 
   return (
@@ -264,6 +281,7 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
                         if (!open) {
                           // Clear search when closing
                           setSearchResults(prev => ({ ...prev, [machine.machine]: undefined }));
+                          setCurrentSlotIndex(prev => ({ ...prev, [machine.machine]: 0 }));
                         }
                       }}>
                         <PopoverTrigger asChild>
@@ -314,44 +332,74 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
                               </div>
                               
                               {/* Search Result */}
-                              {searchResult !== undefined && searchResult !== 'searching' && (
-                                <div className={`p-2 rounded-md text-xs ${
-                                  searchResult 
-                                    ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800' 
-                                    : 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800'
-                                }`}>
-                                  {searchResult ? (
-                                    <div className="space-y-1">
-                                      <p className="font-semibold text-green-700 dark:text-green-400 flex items-center gap-1">
-                                        <CheckCircle2 className="h-3 w-3" />
-                                        Slot Found!
-                                      </p>
-                                      <p className="text-muted-foreground">
-                                        <span className="font-medium">Start:</span> {format(searchResult.start, 'MMM d, yyyy HH:mm')}
-                                      </p>
-                                      <p className="text-muted-foreground">
-                                        <span className="font-medium">Available:</span> {searchResult.durationHours >= 8760 
-                                          ? 'Open-ended (after last job)' 
-                                          : `${searchResult.durationHours}h window`
-                                        }
-                                      </p>
-                                      {searchResult.afterJob && (
-                                        <p className="text-muted-foreground pt-1 border-t border-green-200 dark:border-green-800">
-                                          After: {searchResult.afterJob.Item_Name || searchResult.afterJob.Process_Order}
-                                        </p>
-                                      )}
-                                      {searchResult.beforeJob && (
-                                        <p className="text-muted-foreground">
-                                          Before: {searchResult.beforeJob.Item_Name || searchResult.beforeJob.Process_Order}
-                                        </p>
-                                      )}
-                                    </div>
-                                  ) : (
-                                    <p className="text-red-700 dark:text-red-400 flex items-center gap-1">
-                                      <XCircle className="h-3 w-3" />
-                                      No slot large enough found. Job must wait until: {format(machine.nextFreeDate, 'MMM d, yyyy')}
-                                    </p>
-                                  )}
+                              {searchResult && searchResult.length > 0 && (
+                                <div className="p-2 rounded-md text-xs bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                                  {(() => {
+                                    const slotIndex = currentSlotIndex[machine.machine] || 0;
+                                    const currentSlot = searchResult[slotIndex];
+                                    const totalSlots = searchResult.length;
+                                    
+                                    return (
+                                      <div className="space-y-2">
+                                        <div className="flex items-center justify-between">
+                                          <p className="font-semibold text-green-700 dark:text-green-400 flex items-center gap-1">
+                                            <CheckCircle2 className="h-3 w-3" />
+                                            Slot {slotIndex + 1} of {totalSlots}
+                                          </p>
+                                          <div className="flex items-center gap-1">
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-6 w-6 p-0"
+                                              onClick={() => handlePrevSlot(machine.machine)}
+                                              disabled={slotIndex === 0}
+                                            >
+                                              <ChevronLeft className="h-4 w-4" />
+                                            </Button>
+                                            <Button
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-6 w-6 p-0"
+                                              onClick={() => handleNextSlot(machine.machine)}
+                                              disabled={slotIndex >= totalSlots - 1}
+                                            >
+                                              <ChevronRight className="h-4 w-4" />
+                                            </Button>
+                                          </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                          <p className="text-muted-foreground">
+                                            <span className="font-medium">Start:</span> {format(currentSlot.start, 'MMM d, yyyy HH:mm')}
+                                          </p>
+                                          <p className="text-muted-foreground">
+                                            <span className="font-medium">Available:</span> {currentSlot.durationHours >= 8760 
+                                              ? 'Open-ended (after last job)' 
+                                              : `${currentSlot.durationHours}h window`
+                                            }
+                                          </p>
+                                          {currentSlot.afterJob && (
+                                            <p className="text-muted-foreground pt-1 border-t border-green-200 dark:border-green-800">
+                                              After: {currentSlot.afterJob.Item_Name || currentSlot.afterJob.Process_Order}
+                                            </p>
+                                          )}
+                                          {currentSlot.beforeJob && (
+                                            <p className="text-muted-foreground">
+                                              Before: {currentSlot.beforeJob.Item_Name || currentSlot.beforeJob.Process_Order}
+                                            </p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              )}
+                              
+                              {searchResult && searchResult.length === 0 && (
+                                <div className="p-2 rounded-md text-xs bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+                                  <p className="text-red-700 dark:text-red-400 flex items-center gap-1">
+                                    <XCircle className="h-3 w-3" />
+                                    No slot large enough found. Job must wait until: {format(machine.nextFreeDate, 'MMM d, yyyy')}
+                                  </p>
                                 </div>
                               )}
                             </div>
