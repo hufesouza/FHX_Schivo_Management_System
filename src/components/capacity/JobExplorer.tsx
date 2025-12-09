@@ -7,16 +7,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CleanedJob } from '@/types/capacity';
 import { format } from 'date-fns';
-import { Search, X, Filter } from 'lucide-react';
+import { Search, X, Filter, ArrowRightLeft } from 'lucide-react';
 
 interface JobExplorerProps {
   jobs: CleanedJob[];
   machines: string[];
   onJobClick?: (jobId: string) => void;
   selectedJobId?: string | null;
+  onMoveJob?: (job: CleanedJob) => void;
 }
 
-export function JobExplorer({ jobs, machines, onJobClick, selectedJobId }: JobExplorerProps) {
+export function JobExplorer({ jobs, machines, onJobClick, selectedJobId, onMoveJob }: JobExplorerProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [machineFilter, setMachineFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
@@ -176,12 +177,13 @@ export function JobExplorer({ jobs, machines, onJobClick, selectedJobId }: JobEx
                 <TableHead className="text-right">Qty</TableHead>
                 <TableHead className="text-center">Priority</TableHead>
                 <TableHead>Status</TableHead>
+                {onMoveJob && <TableHead className="w-[80px]">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredJobs.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={onMoveJob ? 10 : 9} className="text-center py-8 text-muted-foreground">
                     No jobs match your filters
                   </TableCell>
                 </TableRow>
@@ -209,8 +211,23 @@ export function JobExplorer({ jobs, machines, onJobClick, selectedJobId }: JobEx
                         {job.Status || 'N/A'}
                       </Badge>
                     </TableCell>
+                    {onMoveJob && (
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onMoveJob(job);
+                          }}
+                        >
+                          <ArrowRightLeft className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))
+              )}
               )}
             </TableBody>
           </Table>

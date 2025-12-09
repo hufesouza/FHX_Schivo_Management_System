@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
-import { useCapacityData } from '@/hooks/useCapacityData';
+import { useProductionJobs } from '@/hooks/useProductionJobs';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -26,7 +26,8 @@ import {
   Search,
   X,
   Boxes,
-  CircleDot
+  CircleDot,
+  ArrowRightLeft
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -39,7 +40,8 @@ import fhxLogoFull from '@/assets/fhx-logo-full.png';
 import { CapacityDashboard } from '@/components/capacity/CapacityDashboard';
 import { MachineTimeline } from '@/components/capacity/MachineTimeline';
 import { JobExplorer } from '@/components/capacity/JobExplorer';
-import { CapacityData } from '@/types/capacity';
+import { MoveJobDialog } from '@/components/capacity/MoveJobDialog';
+import { CapacityData, CleanedJob } from '@/types/capacity';
 import { parseCapacityFile, ParsedCapacityResult } from '@/utils/capacityParser';
 import { toast } from 'sonner';
 
@@ -50,26 +52,33 @@ const CapacityPlanning = () => {
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
   const {
-    millingData,
-    turningData,
-    slidingHeadData,
-    miscData,
-    setMillingData,
-    setTurningData,
-    setSlidingHeadData,
-    setMiscData,
+    jobs,
     isLoading: dataLoading,
-    saveCapacityData,
-    clearAllData,
-  } = useCapacityData();
+    mergeJobs,
+    moveJob,
+    getCapacityData,
+    clearAllJobs,
+    getMachinesForDepartment,
+    findJob,
+  } = useProductionJobs();
 
   const [activeDepartment, setActiveDepartment] = useState<DepartmentType>('milling');
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isUploading, setIsUploading] = useState(false);
+  
+  // Move job dialog state
+  const [moveDialogOpen, setMoveDialogOpen] = useState(false);
+  const [jobToMove, setJobToMove] = useState<CleanedJob | null>(null);
 
   const isAdmin = role === 'admin';
+
+  // Get capacity data for each department from jobs
+  const millingData = getCapacityData('milling', 'Milling');
+  const turningData = getCapacityData('turning', 'Turning');
+  const slidingHeadData = getCapacityData('sliding_head', 'Sliding Heads');
+  const miscData = getCapacityData('misc', 'Misc');
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -90,35 +99,36 @@ const CapacityPlanning = () => {
     try {
       const result: ParsedCapacityResult = await parseCapacityFile(file);
       
-      // Save all departments to database
-      await Promise.all([
-        saveCapacityData('milling', result.milling, user.id),
-        saveCapacityData('turning', result.turning, user.id),
-        saveCapacityData('sliding_head', result.sliding_head, user.id),
-        saveCapacityData('misc', result.misc, user.id),
+      // Merge jobs for each department (smart merge: add new, remove completed, preserve manual)
+      const results = await Promise.all([
+        result.milling ? mergeJobs(result.milling.jobs, 'milling', user.id, file.name) : null,
+        result.turning ? mergeJobs(result.turning.jobs, 'turning', user.id, file.name) : null,
+        result.sliding_head ? mergeJobs(result.sliding_head.jobs, 'sliding_head', user.id, file.name) : null,
+        result.misc ? mergeJobs(result.misc.jobs, 'misc', user.id, file.name) : null,
       ]);
       
-      // Update local state
-      setMillingData(result.milling);
-      setTurningData(result.turning);
-      setSlidingHeadData(result.sliding_head);
-      setMiscData(result.misc);
+      // Calculate totals
+      const totals = results.reduce((acc, r) => {
+        if (r) {
+          acc.added += r.added;
+          acc.removed += r.removed;
+          acc.preserved += r.preserved;
+        }
+        return acc;
+      }, { added: 0, removed: 0, preserved: 0 });
       
       setSelectedMachine(null);
       setSelectedJobId(null);
       setActiveTab('dashboard');
       
-      const millingCount = result.milling?.jobs.length || 0;
-      const turningCount = result.turning?.jobs.length || 0;
-      const slidingHeadCount = result.sliding_head?.jobs.length || 0;
-      const miscCount = result.misc?.jobs.length || 0;
-      toast.success(`File loaded: ${millingCount} milling, ${turningCount} turning, ${slidingHeadCount} sliding head, ${miscCount} misc jobs`);
+      toast.success(
+        `Upload complete: ${totals.added} added, ${totals.removed} removed, ${totals.preserved} manual moves preserved`
+      );
       
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to parse file');
     } finally {
       setIsUploading(false);
-      // Reset input so same file can be re-uploaded
       event.target.value = '';
     }
   };
@@ -142,12 +152,44 @@ const CapacityPlanning = () => {
 
   const handleClearData = async () => {
     try {
-      await clearAllData();
+      await clearAllJobs();
       setSelectedMachine(null);
       setSelectedJobId(null);
       toast.success('All data cleared');
     } catch (error) {
       toast.error('Failed to clear data');
+    }
+  };
+
+  const handleMoveJob = (job: CleanedJob) => {
+    setJobToMove(job);
+    setMoveDialogOpen(true);
+  };
+
+  const handleConfirmMove = async (
+    toMachine: string,
+    newDuration: number,
+    newStartDate: Date,
+    newPriority: number,
+    reason: string
+  ) => {
+    if (!jobToMove || !user?.id) return;
+    
+    try {
+      await moveJob(
+        jobToMove.Process_Order,
+        activeDepartment,
+        toMachine,
+        newDuration,
+        newStartDate,
+        newPriority,
+        user.id,
+        reason
+      );
+      setMoveDialogOpen(false);
+      setJobToMove(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to move job');
     }
   };
 
@@ -255,7 +297,7 @@ const CapacityPlanning = () => {
                   Production Schedule
                 </CardTitle>
                 <CardDescription>
-                  Upload your Excel file. Machines are automatically categorized into Milling, Turning, and Misc.
+                  Upload your Excel file. New jobs are added, completed jobs are removed, manual moves are preserved.
                 </CardDescription>
               </div>
               {hasAnyData && (
@@ -365,6 +407,8 @@ const CapacityPlanning = () => {
                   onSelectMachine={handleSelectMachine}
                   onJobClick={handleJobClick}
                   setSelectedJobId={setSelectedJobId}
+                  onMoveJob={handleMoveJob}
+                  allMachines={getMachinesForDepartment('milling')}
                 />
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
@@ -387,6 +431,8 @@ const CapacityPlanning = () => {
                   onSelectMachine={handleSelectMachine}
                   onJobClick={handleJobClick}
                   setSelectedJobId={setSelectedJobId}
+                  onMoveJob={handleMoveJob}
+                  allMachines={getMachinesForDepartment('turning')}
                 />
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
@@ -409,6 +455,8 @@ const CapacityPlanning = () => {
                   onSelectMachine={handleSelectMachine}
                   onJobClick={handleJobClick}
                   setSelectedJobId={setSelectedJobId}
+                  onMoveJob={handleMoveJob}
+                  allMachines={getMachinesForDepartment('sliding_head')}
                 />
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
@@ -431,6 +479,8 @@ const CapacityPlanning = () => {
                   onSelectMachine={handleSelectMachine}
                   onJobClick={handleJobClick}
                   setSelectedJobId={setSelectedJobId}
+                  onMoveJob={handleMoveJob}
+                  allMachines={getMachinesForDepartment('misc')}
                 />
               ) : (
                 <div className="text-center py-12 text-muted-foreground">
@@ -442,6 +492,21 @@ const CapacityPlanning = () => {
           </Tabs>
         )}
       </main>
+
+      {/* Move Job Dialog */}
+      {jobToMove && (
+        <MoveJobDialog
+          open={moveDialogOpen}
+          onOpenChange={setMoveDialogOpen}
+          processOrder={jobToMove.Process_Order}
+          currentMachine={jobToMove.Machine}
+          currentDuration={jobToMove.Duration_Hours}
+          currentStartDate={jobToMove.Start_DateTime}
+          currentPriority={jobToMove.Priority}
+          availableMachines={getMachinesForDepartment(activeDepartment)}
+          onConfirm={handleConfirmMove}
+        />
+      )}
     </AppLayout>
   );
 };
@@ -457,6 +522,8 @@ interface DepartmentCapacityViewProps {
   onSelectMachine: (machine: string) => void;
   onJobClick: (jobId: string) => void;
   setSelectedJobId: (id: string | null) => void;
+  onMoveJob: (job: CleanedJob) => void;
+  allMachines: string[];
 }
 
 const DepartmentCapacityView = ({
@@ -470,6 +537,8 @@ const DepartmentCapacityView = ({
   onSelectMachine,
   onJobClick,
   setSelectedJobId,
+  onMoveJob,
+  allMachines,
 }: DepartmentCapacityViewProps) => {
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -584,6 +653,7 @@ const DepartmentCapacityView = ({
             machines={data.machines.map(m => m.machine)}
             onJobClick={onJobClick}
             selectedJobId={selectedJobId}
+            onMoveJob={onMoveJob}
           />
         </TabsContent>
       </Tabs>
