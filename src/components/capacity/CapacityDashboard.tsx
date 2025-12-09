@@ -2,9 +2,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { MachineSchedule, CleanedJob } from '@/types/capacity';
-import { format } from 'date-fns';
+import { format, differenceInHours } from 'date-fns';
 import { Clock, Calendar, AlertTriangle, TrendingUp, Info } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useState } from 'react';
 
 interface CapacityDashboardProps {
@@ -13,26 +14,81 @@ interface CapacityDashboardProps {
   selectedMachine: string | null;
 }
 
-function getNextFreeReason(machine: MachineSchedule): { reason: string; lastJob: CleanedJob | null } {
+interface IdleWindow {
+  start: Date;
+  end: Date;
+  durationHours: number;
+  afterJob: CleanedJob | null;
+  beforeJob: CleanedJob | null;
+}
+
+function calculateIdleWindows(machine: MachineSchedule): IdleWindow[] {
+  const now = new Date();
+  const windows: IdleWindow[] = [];
+  
   if (machine.jobs.length === 0) {
-    return { reason: 'No jobs scheduled - machine is available immediately.', lastJob: null };
+    return [];
   }
   
-  // Find the last job that ends before or at the nextFreeDate
+  // Sort jobs by start date
   const sortedJobs = [...machine.jobs].sort((a, b) => 
-    new Date(b.End_DateTime).getTime() - new Date(a.End_DateTime).getTime()
+    new Date(a.Start_DateTime).getTime() - new Date(b.Start_DateTime).getTime()
   );
   
-  const lastJob = sortedJobs[0];
-  
-  if (!lastJob) {
-    return { reason: 'No jobs found - machine is available.', lastJob: null };
+  // Check for gap before first job (from now)
+  const firstJob = sortedJobs[0];
+  const firstJobStart = new Date(firstJob.Start_DateTime);
+  if (firstJobStart > now) {
+    const durationHours = differenceInHours(firstJobStart, now);
+    if (durationHours >= 1) { // Only show gaps of 1+ hours
+      windows.push({
+        start: now,
+        end: firstJobStart,
+        durationHours,
+        afterJob: null,
+        beforeJob: firstJob
+      });
+    }
   }
   
-  return {
-    reason: `Machine becomes free after job "${lastJob.Item_Name || lastJob.End_Product || lastJob.Process_Order}" completes.`,
-    lastJob
-  };
+  // Find gaps between consecutive jobs
+  for (let i = 0; i < sortedJobs.length - 1; i++) {
+    const currentJob = sortedJobs[i];
+    const nextJob = sortedJobs[i + 1];
+    
+    const currentEnd = new Date(currentJob.End_DateTime);
+    const nextStart = new Date(nextJob.Start_DateTime);
+    
+    const gapHours = differenceInHours(nextStart, currentEnd);
+    
+    // Only show gaps of 8+ hours (at least one working day)
+    if (gapHours >= 8) {
+      windows.push({
+        start: currentEnd,
+        end: nextStart,
+        durationHours: gapHours,
+        afterJob: currentJob,
+        beforeJob: nextJob
+      });
+    }
+  }
+  
+  return windows;
+}
+
+function getNextAvailability(machine: MachineSchedule): { 
+  nextWindow: IdleWindow | null; 
+  totalIdleHours: number;
+  windowCount: number;
+} {
+  const windows = calculateIdleWindows(machine);
+  const totalIdleHours = windows.reduce((sum, w) => sum + w.durationHours, 0);
+  
+  // Find first window that starts from now or in the future
+  const now = new Date();
+  const nextWindow = windows.find(w => w.start >= now) || windows[0] || null;
+  
+  return { nextWindow, totalIdleHours, windowCount: windows.length };
 }
 
 export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }: CapacityDashboardProps) {
@@ -124,7 +180,8 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
             {machines.map((machine) => {
               const isBottleneck = machine.utilization > 90;
               const isSelected = selectedMachine === machine.machine;
-              const { reason, lastJob } = getNextFreeReason(machine);
+              const { nextWindow, totalIdleHours, windowCount } = getNextAvailability(machine);
+              const allWindows = calculateIdleWindows(machine);
               
               return (
                 <div
@@ -169,7 +226,7 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
                     />
                     
                     <div className="flex justify-between text-sm items-center">
-                      <span className="text-muted-foreground">Next Free</span>
+                      <span className="text-muted-foreground">Availability</span>
                       <Popover open={openPopover === machine.machine} onOpenChange={(open) => setOpenPopover(open ? machine.machine : null)}>
                         <PopoverTrigger asChild>
                           <button 
@@ -179,20 +236,70 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
                               setOpenPopover(openPopover === machine.machine ? null : machine.machine);
                             }}
                           >
-                            {format(machine.nextFreeDate, 'MMM d, HH:mm')}
+                            {windowCount > 0 ? (
+                              <span className="text-green-600">{windowCount} gap{windowCount > 1 ? 's' : ''}</span>
+                            ) : (
+                              <span className="text-amber-600">Fully booked</span>
+                            )}
                             <Info className="h-3 w-3" />
                           </button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-80" onClick={(e) => e.stopPropagation()}>
-                          <div className="space-y-2">
-                            <h4 className="font-semibold text-sm">Why is this machine free on {format(machine.nextFreeDate, 'MMM d, yyyy')} at {format(machine.nextFreeDate, 'HH:mm')}?</h4>
-                            <p className="text-sm text-muted-foreground">{reason}</p>
-                            {lastJob && (
-                              <div className="mt-3 p-2 bg-muted rounded-md text-xs space-y-1">
-                                <p><span className="font-medium">Last Job:</span> {lastJob.Item_Name || lastJob.End_Product || 'N/A'}</p>
-                                <p><span className="font-medium">Process Order:</span> {lastJob.Process_Order}</p>
-                                <p><span className="font-medium">Ends:</span> {format(new Date(lastJob.End_DateTime), 'MMM d, yyyy HH:mm')}</p>
-                                <p><span className="font-medium">Duration:</span> {lastJob.Duration_Hours.toFixed(1)}h</p>
+                        <PopoverContent className="w-96" onClick={(e) => e.stopPropagation()}>
+                          <div className="space-y-3">
+                            <div>
+                              <h4 className="font-semibold text-sm">Machine Availability Windows</h4>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {windowCount > 0 
+                                  ? `${windowCount} idle window${windowCount > 1 ? 's' : ''} totaling ${totalIdleHours.toFixed(0)}h available`
+                                  : 'No significant gaps between scheduled jobs'
+                                }
+                              </p>
+                            </div>
+                            
+                            {allWindows.length > 0 ? (
+                              <ScrollArea className="h-64">
+                                <div className="space-y-2 pr-3">
+                                  {allWindows.map((window, idx) => (
+                                    <div key={idx} className="p-2 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-md text-xs space-y-1">
+                                      <div className="flex justify-between items-center">
+                                        <span className="font-semibold text-green-700 dark:text-green-400">
+                                          Gap {idx + 1}
+                                        </span>
+                                        <Badge variant="outline" className="text-xs border-green-500 text-green-600">
+                                          {window.durationHours >= 24 
+                                            ? `${Math.floor(window.durationHours / 24)}d ${window.durationHours % 24}h`
+                                            : `${window.durationHours}h`
+                                          }
+                                        </Badge>
+                                      </div>
+                                      <p className="text-muted-foreground">
+                                        <span className="font-medium">From:</span> {format(window.start, 'MMM d, yyyy HH:mm')}
+                                      </p>
+                                      <p className="text-muted-foreground">
+                                        <span className="font-medium">Until:</span> {format(window.end, 'MMM d, yyyy HH:mm')}
+                                      </p>
+                                      {window.afterJob && (
+                                        <p className="text-muted-foreground pt-1 border-t border-green-200 dark:border-green-800">
+                                          After: {window.afterJob.Item_Name || window.afterJob.Process_Order}
+                                        </p>
+                                      )}
+                                      {window.beforeJob && (
+                                        <p className="text-muted-foreground">
+                                          Before: {window.beforeJob.Item_Name || window.beforeJob.Process_Order}
+                                        </p>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </ScrollArea>
+                            ) : (
+                              <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md">
+                                <p className="text-xs text-amber-700 dark:text-amber-400">
+                                  No gaps of 8+ hours found between jobs. Machine is continuously scheduled.
+                                </p>
+                                <p className="text-xs text-muted-foreground mt-2">
+                                  Next available after all jobs: {format(machine.nextFreeDate, 'MMM d, yyyy HH:mm')}
+                                </p>
                               </div>
                             )}
                           </div>
