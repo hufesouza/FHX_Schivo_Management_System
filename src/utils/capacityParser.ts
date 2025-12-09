@@ -26,6 +26,11 @@ const TURNING_PREFIXES = [
   'Mazak',
 ];
 
+// Sliding head machine prefixes
+const SLIDING_HEAD_PREFIXES = [
+  'SLH',
+];
+
 // Headers to ignore when detecting resource names
 const IGNORED_RESOURCE_VALUES = [
   'process order',
@@ -163,12 +168,18 @@ function buildHeaderMap(row: unknown[]): Record<string, number> {
 }
 
 // Determine machine category based on prefixes
-type MachineCategory = 'milling' | 'turning' | 'misc';
+type MachineCategory = 'milling' | 'turning' | 'sliding_head' | 'misc';
 
 function getMachineCategory(machineName: string): MachineCategory {
   const lowerMachine = machineName.toLowerCase();
   
-  // Check turning first (more specific prefixes like DoosanMX before Doosan)
+  // Check sliding head first
+  if (SLIDING_HEAD_PREFIXES.some(prefix => lowerMachine.startsWith(prefix.toLowerCase()))) {
+    console.log(`Machine "${machineName}" categorized as SLIDING_HEAD`);
+    return 'sliding_head';
+  }
+  
+  // Check turning (more specific prefixes like DoosanMX before Doosan)
   if (TURNING_PREFIXES.some(prefix => lowerMachine.startsWith(prefix.toLowerCase()))) {
     console.log(`Machine "${machineName}" categorized as TURNING`);
     return 'turning';
@@ -188,6 +199,7 @@ function getMachineCategory(machineName: string): MachineCategory {
 export interface ParsedCapacityResult {
   milling: CapacityData | null;
   turning: CapacityData | null;
+  sliding_head: CapacityData | null;
   misc: CapacityData | null;
 }
 
@@ -290,9 +302,10 @@ export function parseCapacityFile(file: File): Promise<ParsedCapacityResult> {
           return;
         }
         
-        // Split jobs into Milling, Turning, and Misc
+        // Split jobs into Milling, Turning, Sliding Head, and Misc
         const millingJobs = allJobs.filter(job => getMachineCategory(job.Machine) === 'milling');
         const turningJobs = allJobs.filter(job => getMachineCategory(job.Machine) === 'turning');
+        const slidingHeadJobs = allJobs.filter(job => getMachineCategory(job.Machine) === 'sliding_head');
         const miscJobs = allJobs.filter(job => getMachineCategory(job.Machine) === 'misc');
         
         // Build result for each category
@@ -311,6 +324,7 @@ export function parseCapacityFile(file: File): Promise<ParsedCapacityResult> {
         resolve({
           milling: buildCapacityData(millingJobs, 'Milling'),
           turning: buildCapacityData(turningJobs, 'Turning'),
+          sliding_head: buildCapacityData(slidingHeadJobs, 'Sliding Heads'),
           misc: buildCapacityData(miscJobs, 'Misc'),
         });
         

@@ -24,7 +24,8 @@ import {
   RotateCcw,
   Search,
   X,
-  Boxes
+  Boxes,
+  CircleDot
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -43,9 +44,10 @@ import { toast } from 'sonner';
 
 const STORAGE_KEY_MILLING = 'capacity_data_milling';
 const STORAGE_KEY_TURNING = 'capacity_data_turning';
+const STORAGE_KEY_SLIDING_HEAD = 'capacity_data_sliding_head';
 const STORAGE_KEY_MISC = 'capacity_data_misc';
 
-type DepartmentType = 'milling' | 'turning' | 'misc';
+type DepartmentType = 'milling' | 'turning' | 'sliding_head' | 'misc';
 
 const CapacityPlanning = () => {
   const navigate = useNavigate();
@@ -54,6 +56,7 @@ const CapacityPlanning = () => {
 
   const [millingData, setMillingData] = useState<CapacityData | null>(null);
   const [turningData, setTurningData] = useState<CapacityData | null>(null);
+  const [slidingHeadData, setSlidingHeadData] = useState<CapacityData | null>(null);
   const [miscData, setMiscData] = useState<CapacityData | null>(null);
   const [activeDepartment, setActiveDepartment] = useState<DepartmentType>('milling');
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
@@ -98,6 +101,7 @@ const CapacityPlanning = () => {
 
     setMillingData(loadStoredData(STORAGE_KEY_MILLING));
     setTurningData(loadStoredData(STORAGE_KEY_TURNING));
+    setSlidingHeadData(loadStoredData(STORAGE_KEY_SLIDING_HEAD));
     setMiscData(loadStoredData(STORAGE_KEY_MISC));
   }, []);
 
@@ -155,14 +159,24 @@ const CapacityPlanning = () => {
         localStorage.removeItem(STORAGE_KEY_MISC);
       }
       
+      // Update sliding head data
+      if (result.sliding_head) {
+        setSlidingHeadData(result.sliding_head);
+        saveToStorage(STORAGE_KEY_SLIDING_HEAD, result.sliding_head);
+      } else {
+        setSlidingHeadData(null);
+        localStorage.removeItem(STORAGE_KEY_SLIDING_HEAD);
+      }
+      
       setSelectedMachine(null);
       setSelectedJobId(null);
       setActiveTab('dashboard');
       
       const millingCount = result.milling?.jobs.length || 0;
       const turningCount = result.turning?.jobs.length || 0;
+      const slidingHeadCount = result.sliding_head?.jobs.length || 0;
       const miscCount = result.misc?.jobs.length || 0;
-      toast.success(`File loaded: ${millingCount} milling, ${turningCount} turning, ${miscCount} misc jobs`);
+      toast.success(`File loaded: ${millingCount} milling, ${turningCount} turning, ${slidingHeadCount} sliding head, ${miscCount} misc jobs`);
       
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to parse file');
@@ -180,7 +194,9 @@ const CapacityPlanning = () => {
 
   const handleJobClick = (jobId: string) => {
     setSelectedJobId(jobId);
-    const currentData = activeDepartment === 'milling' ? millingData : turningData;
+    const currentData = activeDepartment === 'milling' ? millingData : 
+                        activeDepartment === 'turning' ? turningData : 
+                        activeDepartment === 'sliding_head' ? slidingHeadData : miscData;
     const job = currentData?.jobs.find(j => j.id === jobId);
     if (job) {
       setSelectedMachine(job.Machine);
@@ -191,9 +207,11 @@ const CapacityPlanning = () => {
   const handleClearData = () => {
     setMillingData(null);
     setTurningData(null);
+    setSlidingHeadData(null);
     setMiscData(null);
     localStorage.removeItem(STORAGE_KEY_MILLING);
     localStorage.removeItem(STORAGE_KEY_TURNING);
+    localStorage.removeItem(STORAGE_KEY_SLIDING_HEAD);
     localStorage.removeItem(STORAGE_KEY_MISC);
     setSelectedMachine(null);
     setSelectedJobId(null);
@@ -208,9 +226,11 @@ const CapacityPlanning = () => {
     );
   }
 
-  const currentData = activeDepartment === 'milling' ? millingData : activeDepartment === 'turning' ? turningData : miscData;
+  const currentData = activeDepartment === 'milling' ? millingData : 
+                      activeDepartment === 'turning' ? turningData : 
+                      activeDepartment === 'sliding_head' ? slidingHeadData : miscData;
   const selectedMachineData = currentData?.machines.find(m => m.machine === selectedMachine);
-  const hasAnyData = millingData || turningData || miscData;
+  const hasAnyData = millingData || turningData || slidingHeadData || miscData;
 
   return (
     <AppLayout>
@@ -351,6 +371,12 @@ const CapacityPlanning = () => {
                     {turningData.machines.length} turning, {turningData.jobs.length} jobs
                   </span>
                 )}
+                {slidingHeadData && (
+                  <span className="flex items-center gap-1">
+                    <CircleDot className="h-4 w-4" />
+                    {slidingHeadData.machines.length} sliding heads, {slidingHeadData.jobs.length} jobs
+                  </span>
+                )}
                 {miscData && (
                   <span className="flex items-center gap-1">
                     <Boxes className="h-4 w-4" />
@@ -370,7 +396,7 @@ const CapacityPlanning = () => {
             setSelectedJobId(null);
             setActiveTab('dashboard');
           }} className="mb-6">
-            <TabsList className="grid w-full grid-cols-3 max-w-xl">
+            <TabsList className="grid w-full grid-cols-4 max-w-2xl">
               <TabsTrigger value="milling" className="gap-2">
                 <Wrench className="h-4 w-4" />
                 Milling
@@ -380,6 +406,11 @@ const CapacityPlanning = () => {
                 <RotateCcw className="h-4 w-4" />
                 Turning
                 {turningData && <Badge variant="secondary" className="ml-1">{turningData.machines.length}</Badge>}
+              </TabsTrigger>
+              <TabsTrigger value="sliding_head" className="gap-2">
+                <CircleDot className="h-4 w-4" />
+                Sliding Heads
+                {slidingHeadData && <Badge variant="secondary" className="ml-1">{slidingHeadData.machines.length}</Badge>}
               </TabsTrigger>
               <TabsTrigger value="misc" className="gap-2">
                 <Boxes className="h-4 w-4" />
@@ -428,6 +459,28 @@ const CapacityPlanning = () => {
                 <div className="text-center py-12 text-muted-foreground">
                   <RotateCcw className="h-12 w-12 mx-auto mb-4 opacity-50" />
                   <p>No turning machines found in the uploaded file.</p>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="sliding_head" className="mt-6">
+              {slidingHeadData ? (
+                <DepartmentCapacityView
+                  department="sliding_head"
+                  data={slidingHeadData}
+                  selectedMachine={selectedMachine}
+                  selectedMachineData={activeDepartment === 'sliding_head' ? selectedMachineData : undefined}
+                  selectedJobId={selectedJobId}
+                  activeTab={activeTab}
+                  setActiveTab={setActiveTab}
+                  onSelectMachine={handleSelectMachine}
+                  onJobClick={handleJobClick}
+                  setSelectedJobId={setSelectedJobId}
+                />
+              ) : (
+                <div className="text-center py-12 text-muted-foreground">
+                  <CircleDot className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>No sliding head machines found in the uploaded file.</p>
                 </div>
               )}
             </TabsContent>
