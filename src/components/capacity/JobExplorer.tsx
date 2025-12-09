@@ -228,7 +228,6 @@ export function JobExplorer({ jobs, machines, onJobClick, selectedJobId, onMoveJ
                   </TableRow>
                 ))
               )}
-              )}
             </TableBody>
           </Table>
         </div>
