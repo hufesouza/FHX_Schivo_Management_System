@@ -4,11 +4,13 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { MachineSchedule, CleanedJob } from '@/types/capacity';
-import { format, differenceInHours, addHours } from 'date-fns';
-import { Clock, Calendar, AlertTriangle, TrendingUp, Info, Search, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, differenceInHours, addHours, differenceInDays } from 'date-fns';
+import { Clock, Calendar, AlertTriangle, TrendingUp, Info, Search, CheckCircle2, XCircle, ChevronLeft, ChevronRight, PieChart } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+
+const HOURS_PER_DAY = 24; // 24 hours per machine per day
 
 interface CapacityDashboardProps {
   machines: MachineSchedule[];
@@ -114,9 +116,58 @@ function getNextAvailability(machine: MachineSchedule): {
 
 export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }: CapacityDashboardProps) {
   const [openPopover, setOpenPopover] = useState<string | null>(null);
+  const [openUtilPopover, setOpenUtilPopover] = useState<string | null>(null);
   const [searchHours, setSearchHours] = useState<Record<string, string>>({});
   const [searchResults, setSearchResults] = useState<Record<string, IdleWindow[]>>({});
   const [currentSlotIndex, setCurrentSlotIndex] = useState<Record<string, number>>({});
+  
+  // Calculate department-level capacity metrics
+  const departmentMetrics = useMemo(() => {
+    if (machines.length === 0) return null;
+    
+    // Find the date range across all jobs
+    let earliestStart: Date | null = null;
+    let latestEnd: Date | null = null;
+    
+    machines.forEach(machine => {
+      machine.jobs.forEach(job => {
+        const start = new Date(job.Start_DateTime);
+        const end = new Date(job.End_DateTime);
+        if (!earliestStart || start < earliestStart) earliestStart = start;
+        if (!latestEnd || end > latestEnd) latestEnd = end;
+      });
+    });
+    
+    if (!earliestStart || !latestEnd) {
+      return {
+        totalMachines: machines.length,
+        totalDays: 0,
+        totalAvailableHours: 0,
+        totalBookedHours: 0,
+        totalFreeHours: 0,
+        overallUtilization: 0,
+        earliestStart: null,
+        latestEnd: null,
+      };
+    }
+    
+    const totalDays = Math.max(1, differenceInDays(latestEnd, earliestStart) + 1);
+    const totalAvailableHours = machines.length * HOURS_PER_DAY * totalDays;
+    const totalBookedHours = machines.reduce((sum, m) => sum + m.totalScheduledHours, 0);
+    const totalFreeHours = Math.max(0, totalAvailableHours - totalBookedHours);
+    const overallUtilization = totalAvailableHours > 0 ? (totalBookedHours / totalAvailableHours) * 100 : 0;
+    
+    return {
+      totalMachines: machines.length,
+      totalDays,
+      totalAvailableHours,
+      totalBookedHours,
+      totalFreeHours,
+      overallUtilization,
+      earliestStart,
+      latestEnd,
+    };
+  }, [machines]);
   
   const totalHours = machines.reduce((sum, m) => sum + m.totalScheduledHours, 0);
   const avgUtilization = machines.length > 0 
@@ -150,9 +201,87 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
       setCurrentSlotIndex(prev => ({ ...prev, [machineName]: currentIndex - 1 }));
     }
   };
+  
+  // Calculate utilization breakdown for a machine
+  const getUtilizationBreakdown = (machine: MachineSchedule) => {
+    const jobs = [...machine.jobs].sort((a, b) => 
+      new Date(a.Start_DateTime).getTime() - new Date(b.Start_DateTime).getTime()
+    );
+    
+    if (jobs.length === 0) {
+      return {
+        schedulePeriodDays: 0,
+        availableHours: 0,
+        bookedHours: 0,
+        freeHours: 0,
+        utilizationPercent: 0,
+        earliestJob: null,
+        latestJob: null,
+      };
+    }
+    
+    const earliestStart = new Date(jobs[0].Start_DateTime);
+    const latestEnd = new Date(jobs[jobs.length - 1].End_DateTime);
+    const schedulePeriodDays = Math.max(1, differenceInDays(latestEnd, earliestStart) + 1);
+    const availableHours = schedulePeriodDays * HOURS_PER_DAY;
+    const bookedHours = machine.totalScheduledHours;
+    const freeHours = Math.max(0, availableHours - bookedHours);
+    const utilizationPercent = availableHours > 0 ? (bookedHours / availableHours) * 100 : 0;
+    
+    return {
+      schedulePeriodDays,
+      availableHours,
+      bookedHours,
+      freeHours,
+      utilizationPercent,
+      earliestJob: jobs[0],
+      latestJob: jobs[jobs.length - 1],
+    };
+  };
 
   return (
     <div className="space-y-6">
+      {/* Department Capacity Summary */}
+      {departmentMetrics && (
+        <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2">
+              <PieChart className="h-5 w-5" />
+              Department Capacity Overview
+            </CardTitle>
+            <CardDescription>
+              {departmentMetrics.totalMachines} machines × {HOURS_PER_DAY}h/day × {departmentMetrics.totalDays} days
+              {departmentMetrics.earliestStart && departmentMetrics.latestEnd && (
+                <span className="ml-2">
+                  ({format(departmentMetrics.earliestStart, 'MMM d')} - {format(departmentMetrics.latestEnd, 'MMM d, yyyy')})
+                </span>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-4">
+              <div className="p-3 rounded-lg bg-background/80">
+                <p className="text-xs text-muted-foreground">Total Available</p>
+                <p className="text-xl font-bold">{departmentMetrics.totalAvailableHours.toLocaleString()}h</p>
+              </div>
+              <div className="p-3 rounded-lg bg-background/80">
+                <p className="text-xs text-muted-foreground">Booked Hours</p>
+                <p className="text-xl font-bold text-amber-600">{departmentMetrics.totalBookedHours.toFixed(0)}h</p>
+              </div>
+              <div className="p-3 rounded-lg bg-background/80">
+                <p className="text-xs text-muted-foreground">Free Hours</p>
+                <p className="text-xl font-bold text-green-600">{departmentMetrics.totalFreeHours.toFixed(0)}h</p>
+              </div>
+              <div className="p-3 rounded-lg bg-background/80">
+                <p className="text-xs text-muted-foreground">Overall Utilization</p>
+                <p className="text-xl font-bold">{departmentMetrics.overallUtilization.toFixed(1)}%</p>
+                <Progress value={departmentMetrics.overallUtilization} className="mt-1 h-2" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Summary Stats */}
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
@@ -231,6 +360,7 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
               const allWindows = calculateIdleWindows(machine);
               const finiteWindows = allWindows.filter(w => w.beforeJob !== null);
               const searchResult = searchResults[machine.machine];
+              const utilBreakdown = getUtilizationBreakdown(machine);
               
               return (
                 <div
@@ -258,15 +388,92 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
                   
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Total Hours</span>
-                      <span className="font-medium">{machine.totalScheduledHours.toFixed(1)}h</span>
+                      <span className="text-muted-foreground">Booked / Available</span>
+                      <span className="font-medium">
+                        <span className="text-amber-600">{machine.totalScheduledHours.toFixed(0)}h</span>
+                        <span className="text-muted-foreground"> / </span>
+                        <span className="text-green-600">{utilBreakdown.availableHours.toFixed(0)}h</span>
+                      </span>
                     </div>
                     
-                    <div className="flex justify-between text-sm">
+                    <div className="flex justify-between text-sm items-center">
                       <span className="text-muted-foreground">Utilization</span>
-                      <span className={`font-medium ${machine.utilization > 90 ? 'text-amber-600' : machine.utilization > 70 ? 'text-green-600' : ''}`}>
-                        {machine.utilization.toFixed(1)}%
-                      </span>
+                      <Popover open={openUtilPopover === machine.machine} onOpenChange={(open) => setOpenUtilPopover(open ? machine.machine : null)}>
+                        <PopoverTrigger asChild>
+                          <button 
+                            className={`font-medium flex items-center gap-1 hover:underline ${machine.utilization > 90 ? 'text-amber-600' : machine.utilization > 70 ? 'text-green-600' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setOpenUtilPopover(openUtilPopover === machine.machine ? null : machine.machine);
+                            }}
+                          >
+                            {machine.utilization.toFixed(1)}%
+                            <Info className="h-3 w-3" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80" onClick={(e) => e.stopPropagation()}>
+                          <div className="space-y-3">
+                            <h4 className="font-semibold text-sm">Utilization Breakdown</h4>
+                            <p className="text-xs text-muted-foreground">
+                              How {machine.utilization.toFixed(1)}% utilization is calculated:
+                            </p>
+                            
+                            <div className="space-y-2 text-sm">
+                              <div className="p-2 bg-muted rounded-md space-y-1">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Schedule Period:</span>
+                                  <span className="font-medium">{utilBreakdown.schedulePeriodDays} days</span>
+                                </div>
+                                {utilBreakdown.earliestJob && utilBreakdown.latestJob && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {format(new Date(utilBreakdown.earliestJob.Start_DateTime), 'MMM d')} → {format(new Date(utilBreakdown.latestJob.End_DateTime), 'MMM d, yyyy')}
+                                  </p>
+                                )}
+                              </div>
+                              
+                              <div className="p-2 bg-muted rounded-md space-y-1">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Available Hours:</span>
+                                  <span className="font-medium">{utilBreakdown.availableHours.toFixed(0)}h</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {utilBreakdown.schedulePeriodDays} days × {HOURS_PER_DAY}h/day
+                                </p>
+                              </div>
+                              
+                              <div className="p-2 bg-amber-50 dark:bg-amber-950/30 rounded-md space-y-1">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Booked Hours:</span>
+                                  <span className="font-medium text-amber-600">{utilBreakdown.bookedHours.toFixed(1)}h</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Sum of all job durations
+                                </p>
+                              </div>
+                              
+                              <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded-md space-y-1">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Free Hours:</span>
+                                  <span className="font-medium text-green-600">{utilBreakdown.freeHours.toFixed(1)}h</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  Available - Booked
+                                </p>
+                              </div>
+                              
+                              <div className="p-2 bg-primary/10 rounded-md">
+                                <div className="flex justify-between font-semibold">
+                                  <span>Utilization:</span>
+                                  <span>{utilBreakdown.utilizationPercent.toFixed(1)}%</span>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {utilBreakdown.bookedHours.toFixed(0)}h ÷ {utilBreakdown.availableHours.toFixed(0)}h × 100
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                     
                     <Progress 
