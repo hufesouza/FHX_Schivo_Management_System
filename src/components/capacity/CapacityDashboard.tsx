@@ -180,19 +180,19 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
         return sum + Math.max(0, differenceInHours(effectiveEnd, effectiveStart));
       }, 0);
       
-      // Recalculate utilization based on date range
-      let rangeHours = 0;
-      if (dateFrom && dateTo) {
-        rangeHours = differenceInHours(dateTo, dateFrom);
-      } else if (filteredJobs.length > 0) {
-        const starts = filteredJobs.map(j => new Date(j.Start_DateTime));
-        const ends = filteredJobs.map(j => new Date(j.End_DateTime));
-        const earliest = new Date(Math.min(...starts.map(d => d.getTime())));
-        const latest = new Date(Math.max(...ends.map(d => d.getTime())));
-        rangeHours = differenceInHours(latest, earliest);
+      // Recalculate utilization based on job schedule period (consistent with getUtilizationBreakdown)
+      let schedulePeriodDays = 0;
+      if (filteredJobs.length > 0) {
+        const sortedJobs = [...filteredJobs].sort((a, b) => 
+          new Date(a.Start_DateTime).getTime() - new Date(b.Start_DateTime).getTime()
+        );
+        const earliestStart = new Date(sortedJobs[0].Start_DateTime);
+        const latestEnd = new Date(sortedJobs[sortedJobs.length - 1].End_DateTime);
+        schedulePeriodDays = Math.max(1, differenceInDays(latestEnd, earliestStart) + 1);
       }
       
-      const utilization = rangeHours > 0 ? (totalScheduledHours / rangeHours) * 100 : 0;
+      const availableHours = schedulePeriodDays * HOURS_PER_DAY;
+      const utilization = availableHours > 0 ? (totalScheduledHours / availableHours) * 100 : 0;
       
       return {
         ...machine,
