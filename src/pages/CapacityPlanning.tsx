@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useProductionJobs } from '@/hooks/useProductionJobs';
+import { useResourceConfigurations } from '@/hooks/useResourceConfigurations';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +28,8 @@ import {
   X,
   Boxes,
   CircleDot,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Settings2
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -41,6 +43,7 @@ import { CapacityDashboard } from '@/components/capacity/CapacityDashboard';
 import { MachineTimeline } from '@/components/capacity/MachineTimeline';
 import { JobExplorer } from '@/components/capacity/JobExplorer';
 import { MoveJobDialog } from '@/components/capacity/MoveJobDialog';
+import { ResourceManager } from '@/components/capacity/ResourceManager';
 import { CapacityData, CleanedJob } from '@/types/capacity';
 import { parseCapacityFile, ParsedCapacityResult } from '@/utils/capacityParser';
 import { toast } from 'sonner';
@@ -60,9 +63,11 @@ const CapacityPlanning = () => {
     clearAllJobs,
     getMachinesForDepartment,
     findJob,
+    refetch: refetchJobs,
   } = useProductionJobs();
+  const { refetch: refetchConfigs } = useResourceConfigurations();
 
-  const [activeDepartment, setActiveDepartment] = useState<DepartmentType>('milling');
+  const [activeDepartment, setActiveDepartment] = useState<DepartmentType | 'resources'>('milling');
   const [selectedMachine, setSelectedMachine] = useState<string | null>(null);
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -174,11 +179,12 @@ const CapacityPlanning = () => {
     reason: string
   ) => {
     if (!jobToMove || !user?.id) return;
+    if (activeDepartment === 'resources') return; // Can't move jobs from resources tab
     
     try {
       await moveJob(
         jobToMove.Process_Order,
-        activeDepartment,
+        activeDepartment as DepartmentType,
         toMachine,
         newDuration,
         newStartDate,
@@ -203,9 +209,28 @@ const CapacityPlanning = () => {
 
   const currentData = activeDepartment === 'milling' ? millingData : 
                       activeDepartment === 'turning' ? turningData : 
-                      activeDepartment === 'sliding_head' ? slidingHeadData : miscData;
+                      activeDepartment === 'sliding_head' ? slidingHeadData :
+                      activeDepartment === 'misc' ? miscData : null;
   const selectedMachineData = currentData?.machines.find(m => m.machine === selectedMachine);
   const hasAnyData = millingData || turningData || slidingHeadData || miscData;
+
+  // Get all machines and their detected departments for the Resource Manager
+  const allMachines = useMemo(() => {
+    const machines = new Set<string>();
+    [millingData, turningData, slidingHeadData, miscData].forEach(data => {
+      data?.machines.forEach(m => machines.add(m.machine));
+    });
+    return Array.from(machines);
+  }, [millingData, turningData, slidingHeadData, miscData]);
+
+  const jobDepartments = useMemo(() => {
+    const depts: Record<string, DepartmentType> = {};
+    millingData?.machines.forEach(m => { depts[m.machine] = 'milling'; });
+    turningData?.machines.forEach(m => { depts[m.machine] = 'turning'; });
+    slidingHeadData?.machines.forEach(m => { depts[m.machine] = 'sliding_head'; });
+    miscData?.machines.forEach(m => { depts[m.machine] = 'misc'; });
+    return depts;
+  }, [millingData, turningData, slidingHeadData, miscData]);
 
   return (
     <AppLayout>
@@ -366,12 +391,12 @@ const CapacityPlanning = () => {
         {/* Department Selection */}
         {hasAnyData && (
           <Tabs value={activeDepartment} onValueChange={(v) => {
-            setActiveDepartment(v as DepartmentType);
+            setActiveDepartment(v as DepartmentType | 'resources');
             setSelectedMachine(null);
             setSelectedJobId(null);
             setActiveTab('dashboard');
           }} className="mb-6">
-            <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+            <TabsList className="grid w-full grid-cols-5 max-w-3xl">
               <TabsTrigger value="milling" className="gap-2">
                 <Wrench className="h-4 w-4" />
                 Milling
@@ -392,7 +417,22 @@ const CapacityPlanning = () => {
                 Misc
                 {miscData && <Badge variant="secondary" className="ml-1">{miscData.machines.length}</Badge>}
               </TabsTrigger>
+              <TabsTrigger value="resources" className="gap-2">
+                <Settings2 className="h-4 w-4" />
+                Resources
+              </TabsTrigger>
             </TabsList>
+
+            <TabsContent value="resources" className="mt-6">
+              <ResourceManager 
+                allMachines={allMachines}
+                jobDepartments={jobDepartments}
+                onConfigChange={() => {
+                  refetchConfigs();
+                  refetchJobs();
+                }}
+              />
+            </TabsContent>
 
             <TabsContent value="milling" className="mt-6">
               {millingData ? (
@@ -503,7 +543,7 @@ const CapacityPlanning = () => {
           currentDuration={jobToMove.Duration_Hours}
           currentStartDate={jobToMove.Start_DateTime}
           currentPriority={jobToMove.Priority}
-          availableMachines={getMachinesForDepartment(activeDepartment)}
+          availableMachines={activeDepartment !== 'resources' ? getMachinesForDepartment(activeDepartment as DepartmentType) : []}
           onConfirm={handleConfirmMove}
         />
       )}

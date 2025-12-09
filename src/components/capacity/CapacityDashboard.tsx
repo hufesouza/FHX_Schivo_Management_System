@@ -11,8 +11,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useState, useMemo } from 'react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { useResourceConfigurations } from '@/hooks/useResourceConfigurations';
 
-const HOURS_PER_DAY = 24; // 24 hours per machine per day
+const DEFAULT_HOURS_PER_DAY = 24; // Default if not configured
 
 interface CapacityDashboardProps {
   machines: MachineSchedule[];
@@ -117,6 +118,8 @@ function getNextAvailability(machine: MachineSchedule): {
 }
 
 export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }: CapacityDashboardProps) {
+  const { configurations, getWorkingHours } = useResourceConfigurations();
+  
   const [openPopover, setOpenPopover] = useState<string | null>(null);
   const [openUtilPopover, setOpenUtilPopover] = useState<string | null>(null);
   const [openDeptPopover, setOpenDeptPopover] = useState<string | null>(null);
@@ -166,7 +169,7 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
     setActivePreset(null);
   };
 
-  // Calculate the date range period (consistent for all machines)
+  // Calculate the date range period
   const dateRangeDays = useMemo(() => {
     if (dateFrom && dateTo) {
       return Math.max(1, differenceInDays(dateTo, dateFrom) + 1);
@@ -174,9 +177,13 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
     return 0;
   }, [dateFrom, dateTo]);
   
-  const dateRangeAvailableHours = dateRangeDays * HOURS_PER_DAY;
+  // Helper to get available hours for a machine based on its configuration
+  const getMachineAvailableHours = (machineName: string): number => {
+    const hoursPerDay = getWorkingHours(machineName);
+    return dateRangeDays * hoursPerDay;
+  };
 
-  // Filter machines and jobs based on date range - use SAME available hours for all machines
+  // Filter machines and jobs based on date range - use CONFIGURED working hours for each machine
   const filteredMachines = useMemo(() => {
     if (!dateFrom || !dateTo) {
       // No filter = show all but can't calculate meaningful utilization
@@ -186,6 +193,8 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
           sum + differenceInHours(new Date(job.End_DateTime), new Date(job.Start_DateTime)), 0
         ),
         utilization: 0,
+        workingHoursPerDay: getWorkingHours(machine.machine),
+        availableHours: 0,
       }));
     }
     
@@ -206,9 +215,11 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
         return sum + Math.max(0, differenceInHours(effectiveEnd, effectiveStart));
       }, 0);
       
-      // Use the SAME available hours for all machines (based on date filter)
-      const utilization = dateRangeAvailableHours > 0 
-        ? (totalScheduledHours / dateRangeAvailableHours) * 100 
+      // Use the CONFIGURED working hours for this machine
+      const workingHoursPerDay = getWorkingHours(machine.machine);
+      const availableHours = dateRangeDays * workingHoursPerDay;
+      const utilization = availableHours > 0 
+        ? (totalScheduledHours / availableHours) * 100 
         : 0;
       
       return {
@@ -216,11 +227,13 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
         jobs: filteredJobs,
         totalScheduledHours,
         utilization: Math.min(100, utilization),
+        workingHoursPerDay,
+        availableHours,
       };
     });
-  }, [machines, dateFrom, dateTo, dateRangeAvailableHours]);
+  }, [machines, dateFrom, dateTo, dateRangeDays, getWorkingHours, configurations]);
   
-  // Calculate department-level capacity metrics using the date filter range
+  // Calculate department-level capacity metrics using configured working hours per machine
   const departmentMetrics = useMemo(() => {
     if (!dateFrom || !dateTo) {
       return {
@@ -232,14 +245,19 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
         overallUtilization: 0,
         earliestStart: null,
         latestEnd: null,
+        avgWorkingHours: DEFAULT_HOURS_PER_DAY,
       };
     }
     
     const totalDays = dateRangeDays;
-    const totalAvailableHours = machines.length * dateRangeAvailableHours;
+    // Sum of available hours for each machine based on their configured working hours
+    const totalAvailableHours = filteredMachines.reduce((sum, m) => sum + (m.availableHours || 0), 0);
     const totalBookedHours = filteredMachines.reduce((sum, m) => sum + m.totalScheduledHours, 0);
     const totalFreeHours = Math.max(0, totalAvailableHours - totalBookedHours);
     const overallUtilization = totalAvailableHours > 0 ? (totalBookedHours / totalAvailableHours) * 100 : 0;
+    const avgWorkingHours = machines.length > 0 
+      ? filteredMachines.reduce((sum, m) => sum + (m.workingHoursPerDay || DEFAULT_HOURS_PER_DAY), 0) / machines.length
+      : DEFAULT_HOURS_PER_DAY;
     
     return {
       totalMachines: machines.length,
@@ -250,8 +268,9 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
       overallUtilization,
       earliestStart: dateFrom,
       latestEnd: dateTo,
+      avgWorkingHours,
     };
-  }, [machines.length, dateFrom, dateTo, dateRangeDays, dateRangeAvailableHours, filteredMachines]);
+  }, [machines.length, dateFrom, dateTo, dateRangeDays, filteredMachines]);
   
   const totalHours = filteredMachines.reduce((sum, m) => sum + m.totalScheduledHours, 0);
   const avgUtilization = filteredMachines.length > 0 
@@ -285,8 +304,8 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
     }
   };
   
-  // Calculate utilization breakdown for a machine using the date range
-  const getUtilizationBreakdown = (machine: MachineSchedule) => {
+  // Calculate utilization breakdown for a machine using configured working hours
+  const getUtilizationBreakdown = (machine: MachineSchedule & { workingHoursPerDay?: number; availableHours?: number }) => {
     if (!dateFrom || !dateTo) {
       return {
         schedulePeriodDays: 0,
@@ -296,10 +315,12 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
         utilizationPercent: 0,
         dateFrom: null,
         dateTo: null,
+        workingHoursPerDay: DEFAULT_HOURS_PER_DAY,
       };
     }
     
-    const availableHours = dateRangeAvailableHours;
+    const workingHoursPerDay = machine.workingHoursPerDay || getWorkingHours(machine.machine);
+    const availableHours = machine.availableHours || (dateRangeDays * workingHoursPerDay);
     const bookedHours = machine.totalScheduledHours;
     const freeHours = Math.max(0, availableHours - bookedHours);
     const utilizationPercent = availableHours > 0 ? (bookedHours / availableHours) * 100 : 0;
@@ -312,6 +333,7 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
       utilizationPercent,
       dateFrom,
       dateTo,
+      workingHoursPerDay,
     };
   };
 
@@ -507,7 +529,7 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
               Department Capacity Overview
             </CardTitle>
             <CardDescription>
-              {departmentMetrics.totalMachines} machines × {HOURS_PER_DAY}h/day × {departmentMetrics.totalDays} days
+              {departmentMetrics.totalMachines} machines × {departmentMetrics.avgWorkingHours.toFixed(0)}h avg/day × {departmentMetrics.totalDays} days
               {departmentMetrics.earliestStart && departmentMetrics.latestEnd && (
                 <span className="ml-2">
                   ({format(departmentMetrics.earliestStart, 'MMM d')} - {format(departmentMetrics.latestEnd, 'MMM d, yyyy')})
@@ -539,8 +561,8 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
                         <span className="font-medium">{departmentMetrics.totalMachines}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Hours per day:</span>
-                        <span className="font-medium">{HOURS_PER_DAY}h</span>
+                        <span className="text-muted-foreground">Avg hours per day:</span>
+                        <span className="font-medium">{departmentMetrics.avgWorkingHours.toFixed(1)}h</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Days in schedule:</span>
@@ -548,7 +570,7 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
                       </div>
                       <div className="flex justify-between pt-1 border-t font-semibold">
                         <span>Total:</span>
-                        <span>{departmentMetrics.totalMachines} × {HOURS_PER_DAY} × {departmentMetrics.totalDays} = {departmentMetrics.totalAvailableHours.toLocaleString()}h</span>
+                        <span>{departmentMetrics.totalAvailableHours.toLocaleString()}h (sum of each machine's configured hours)</span>
                       </div>
                     </div>
                   </div>
@@ -826,9 +848,9 @@ export function CapacityDashboard({ machines, onSelectMachine, selectedMachine }
                                   <span className="text-muted-foreground">Available Hours:</span>
                                   <span className="font-medium">{utilBreakdown.availableHours.toFixed(0)}h</span>
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                  {utilBreakdown.schedulePeriodDays} days × {HOURS_PER_DAY}h/day
-                                </p>
+                              <p className="text-xs text-muted-foreground">
+                                {utilBreakdown.schedulePeriodDays} days × {utilBreakdown.workingHoursPerDay}h/day
+                              </p>
                               </div>
                               
                               <div className="p-2 bg-amber-50 dark:bg-amber-950/30 rounded-md space-y-1">
