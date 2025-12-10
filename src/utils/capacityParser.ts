@@ -70,6 +70,12 @@ const EXPECTED_HEADER_COLUMNS = [
   'Comments',
 ];
 
+// Month name to number mapping
+const MONTH_MAP: Record<string, number> = {
+  'jan': 0, 'feb': 1, 'mar': 2, 'apr': 3, 'may': 4, 'jun': 5,
+  'jul': 6, 'aug': 7, 'sep': 8, 'oct': 9, 'nov': 10, 'dec': 11
+};
+
 function parseExcelDate(value: unknown): Date | null {
   if (!value) return null;
   
@@ -83,13 +89,30 @@ function parseExcelDate(value: unknown): Date | null {
   
   // Handle string dates
   if (typeof value === 'string') {
-    const parsed = new Date(value);
+    const trimmed = value.trim();
+    
+    // Try DD-MMM-YY format (e.g., "24-Aug-20", "6-Oct-20")
+    const dmmyMatch = trimmed.match(/^(\d{1,2})-([A-Za-z]{3})-(\d{2})$/);
+    if (dmmyMatch) {
+      const day = parseInt(dmmyMatch[1], 10);
+      const monthStr = dmmyMatch[2].toLowerCase();
+      const yearShort = parseInt(dmmyMatch[3], 10);
+      const month = MONTH_MAP[monthStr];
+      if (month !== undefined) {
+        // Convert 2-digit year: 00-30 -> 2000s, 31-99 -> 1900s
+        const year = yearShort <= 30 ? 2000 + yearShort : 1900 + yearShort;
+        return new Date(year, month, day);
+      }
+    }
+    
+    // Try standard Date parsing
+    const parsed = new Date(trimmed);
     if (!isNaN(parsed.getTime())) {
       return parsed;
     }
     
     // Try DD/MM/YYYY format
-    const parts = value.split(/[\/\-]/);
+    const parts = trimmed.split(/[\/\-]/);
     if (parts.length === 3) {
       const day = parseInt(parts[0], 10);
       const month = parseInt(parts[1], 10) - 1;
