@@ -250,6 +250,12 @@ export function parseCapacityFile(file: File): Promise<ParsedCapacityResult> {
         let foundAnyHeader = false;
         
         const allJobs: CleanedJob[] = [];
+        const resourcesFound: string[] = [];
+        let skippedNoDate = 0;
+        let skippedNoResource = 0;
+        let skippedNoHeader = 0;
+        
+        console.log(`Parsing Excel file with ${rawData.length} rows`);
         
         for (let i = 0; i < rawData.length; i++) {
           const row = rawData[i] as unknown[];
@@ -263,18 +269,33 @@ export function parseCapacityFile(file: File): Promise<ParsedCapacityResult> {
           if (isHeaderRow(row)) {
             currentHeaderMap = buildHeaderMap(row);
             foundAnyHeader = true;
+            if (currentResource && !resourcesFound.includes(currentResource)) {
+              resourcesFound.push(currentResource);
+            }
             continue;
           }
           
           // Case C: Job row (first cell is numeric and we have header + resource)
-          if (currentHeaderMap && currentResource && isNumericValue(firstCell)) {
+          if (isNumericValue(firstCell)) {
+            if (!currentHeaderMap) {
+              skippedNoHeader++;
+              continue;
+            }
+            if (!currentResource) {
+              skippedNoResource++;
+              continue;
+            }
+            
             const getValue = (header: string): unknown => {
               const index = currentHeaderMap![header];
               return index !== undefined ? row[index] : undefined;
             };
             
             const startDate = parseExcelDate(getValue('Start Date'));
-            if (!startDate) continue; // Skip rows without valid start date
+            if (!startDate) {
+              skippedNoDate++;
+              continue;
+            }
             
             const durationHours = parseNumber(getValue('Time'));
             const endDateTime = addHours(startDate, durationHours);
@@ -307,6 +328,16 @@ export function parseCapacityFile(file: File): Promise<ParsedCapacityResult> {
             continue;
           }
         }
+        
+        console.log(`Parser stats:`, {
+          totalRows: rawData.length,
+          jobsFound: allJobs.length,
+          resourcesFound: resourcesFound.length,
+          skippedNoDate,
+          skippedNoResource,
+          skippedNoHeader,
+          resources: resourcesFound
+        });
         
         // Validate that we found at least one header
         if (!foundAnyHeader) {
