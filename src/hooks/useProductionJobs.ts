@@ -226,57 +226,78 @@ export function useProductionJobs() {
     // 4. Find jobs already in DB (skip)
     const skipped = uniqueNewJobs.filter(job => existingMap.has(job.Process_Order));
 
-    // Execute removals
-    if (toRemove.length > 0) {
-      const removeIds = toRemove.map(j => j.id);
-      const { error: deleteError } = await supabase
-        .from('production_jobs')
-        .delete()
-        .in('id', removeIds);
+    console.log(`Merge stats for ${department}:`, {
+      newJobs: uniqueNewJobs.length,
+      existingJobs: existingJobs?.length || 0,
+      toRemove: toRemove.length,
+      toAdd: toAdd.length,
+      manuallyMoved: manuallyMoved.length,
+      skipped: skipped.length - manuallyMoved.length
+    });
 
-      if (deleteError) {
-        console.error('Error removing completed jobs:', deleteError);
-      } else {
-        result.removed = toRemove.length;
+    // Execute removals in batches
+    if (toRemove.length > 0) {
+      const BATCH_SIZE = 500;
+      for (let i = 0; i < toRemove.length; i += BATCH_SIZE) {
+        const batch = toRemove.slice(i, i + BATCH_SIZE);
+        const removeIds = batch.map(j => j.id);
+        const { error: deleteError } = await supabase
+          .from('production_jobs')
+          .delete()
+          .in('id', removeIds);
+
+        if (deleteError) {
+          console.error('Error removing jobs batch:', deleteError);
+        }
       }
+      result.removed = toRemove.length;
     }
 
-    // Execute additions
+    // Execute additions in batches to handle large datasets
     if (toAdd.length > 0) {
-      const insertData = toAdd.map(job => ({
-        process_order: job.Process_Order,
-        production_order: job.Production_Order || null,
-        machine: job.Machine,
-        original_machine: job.Machine,
-        department,
-        end_product: job.End_Product || null,
-        item_name: job.Item_Name || null,
-        customer: job.Customer || null,
-        start_datetime: job.Start_DateTime.toISOString(),
-        duration_hours: job.Duration_Hours,
-        original_duration_hours: job.Duration_Hours,
-        qty: Math.round(job.Qty || 0),
-        days_from_today: Math.round(job.Days_From_Today || 0),
-        priority: Math.round(job.Priority || 0),
-        status: job.Status || 'scheduled',
-        comments: job.Comments || null,
-        is_manually_moved: false,
-        uploaded_by: userId,
-      }));
+      const BATCH_SIZE = 500;
+      let totalInserted = 0;
+      
+      for (let i = 0; i < toAdd.length; i += BATCH_SIZE) {
+        const batch = toAdd.slice(i, i + BATCH_SIZE);
+        const insertData = batch.map(job => ({
+          process_order: job.Process_Order,
+          production_order: job.Production_Order || null,
+          machine: job.Machine,
+          original_machine: job.Machine,
+          department,
+          end_product: job.End_Product || null,
+          item_name: job.Item_Name || null,
+          customer: job.Customer || null,
+          start_datetime: job.Start_DateTime.toISOString(),
+          duration_hours: job.Duration_Hours,
+          original_duration_hours: job.Duration_Hours,
+          qty: Math.round(job.Qty || 0),
+          days_from_today: Math.round(job.Days_From_Today || 0),
+          priority: Math.round(job.Priority || 0),
+          status: job.Status || 'scheduled',
+          comments: job.Comments || null,
+          is_manually_moved: false,
+          uploaded_by: userId,
+        }));
 
-      const { error: insertError } = await supabase
-        .from('production_jobs')
-        .upsert(insertData, { 
-          onConflict: 'process_order,department',
-          ignoreDuplicates: true 
-        });
+        const { error: insertError } = await supabase
+          .from('production_jobs')
+          .upsert(insertData, { 
+            onConflict: 'process_order,department',
+            ignoreDuplicates: true 
+          });
 
-      if (insertError) {
-        console.error('Error inserting new jobs:', insertError);
-        throw new Error(`Failed to insert new jobs: ${insertError.message}`);
-      } else {
-        result.added = toAdd.length;
+        if (insertError) {
+          console.error(`Error inserting batch ${i / BATCH_SIZE + 1}:`, insertError);
+          throw new Error(`Failed to insert jobs: ${insertError.message}`);
+        }
+        
+        totalInserted += batch.length;
+        console.log(`Inserted batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(toAdd.length / BATCH_SIZE)} (${totalInserted}/${toAdd.length} jobs)`);
       }
+      
+      result.added = totalInserted;
     }
 
     result.preserved = manuallyMoved.length;
