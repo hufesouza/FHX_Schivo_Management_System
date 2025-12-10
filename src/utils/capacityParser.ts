@@ -235,14 +235,19 @@ export function parseCapacityFile(file: File): Promise<ParsedCapacityResult> {
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         
-        // Always read Sheet1, fallback to first sheet
-        let sheetName = 'Sheet1';
-        if (!workbook.SheetNames.includes(sheetName)) {
-          sheetName = workbook.SheetNames[0];
+        console.log(`Excel file has ${workbook.SheetNames.length} sheets:`, workbook.SheetNames);
+        
+        // Combine all sheets into one dataset
+        let allRawData: unknown[][] = [];
+        
+        for (const sheetName of workbook.SheetNames) {
+          const sheet = workbook.Sheets[sheetName];
+          const sheetData: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+          console.log(`Sheet "${sheetName}" has ${sheetData.length} rows`);
+          allRawData = allRawData.concat(sheetData);
         }
         
-        const sheet = workbook.Sheets[sheetName];
-        const rawData: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+        const rawData = allRawData;
         
         // State variables for hierarchical parsing
         let currentResource: string | null = null;
@@ -255,7 +260,7 @@ export function parseCapacityFile(file: File): Promise<ParsedCapacityResult> {
         let skippedNoResource = 0;
         let skippedNoHeader = 0;
         
-        console.log(`Parsing Excel file with ${rawData.length} rows`);
+        console.log(`Total rows to parse: ${rawData.length}`);
         
         for (let i = 0; i < rawData.length; i++) {
           const row = rawData[i] as unknown[];
