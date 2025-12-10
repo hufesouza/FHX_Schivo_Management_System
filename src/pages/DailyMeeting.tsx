@@ -805,11 +805,10 @@ const DailyMeeting = () => {
                     <tr className="border-b">
                       <th className="text-left p-2 font-medium min-w-[150px]">Topics</th>
                       {customers.map(customer => (
-                        <th key={customer.id} className="text-center p-2 font-medium min-w-[100px]">
+                        <th key={customer.id} className="text-center p-2 font-medium min-w-[180px]">
                           {customer.name}
                         </th>
                       ))}
-                      <th className="text-left p-2 font-medium min-w-[200px]">Comments</th>
                       {!isPastDate && <th className="text-center p-2 font-medium w-12"></th>}
                     </tr>
                   </thead>
@@ -821,31 +820,22 @@ const DailyMeeting = () => {
                           const key = `${topic.id}|${customer.id}`;
                           const flag = flags[key];
                           return (
-                            <td key={customer.id} className="text-center p-2">
-                              <button
-                                onClick={() => handleFlagClick(topic.id, customer.id)}
-                                className={`w-6 h-6 rounded-full ${getFlagColor(flag?.status || 'none')} hover:ring-2 ring-offset-2 ring-primary transition-all`}
-                              />
+                            <td key={customer.id} className="p-2">
+                              <div className="flex flex-col items-center gap-1">
+                                <button
+                                  onClick={() => handleFlagClick(topic.id, customer.id)}
+                                  className={`w-6 h-6 rounded-full ${getFlagColor(flag?.status || 'none')} hover:ring-2 ring-offset-2 ring-primary transition-all`}
+                                />
+                                <Input
+                                  placeholder="Comment..."
+                                  className="h-7 text-xs w-full"
+                                  value={flag?.comment || ''}
+                                  onChange={(e) => handleCommentChange(topic.id, customer.id, e.target.value)}
+                                />
+                              </div>
                             </td>
                           );
                         })}
-                        <td className="p-2">
-                          <Input
-                            placeholder="Add comment..."
-                            className="h-8 text-sm"
-                            value={Object.entries(flags)
-                              .filter(([k]) => k.startsWith(topic.id))
-                              .map(([_, v]) => v.comment)
-                              .filter(Boolean)
-                              .join('; ') || ''}
-                            onChange={(e) => {
-                              const firstCustomer = customers[0];
-                              if (firstCustomer) {
-                                handleCommentChange(topic.id, firstCustomer.id, e.target.value);
-                              }
-                            }}
-                          />
-                        </td>
                         {!isPastDate && (
                           <td className="p-2 text-center">
                             <Button
