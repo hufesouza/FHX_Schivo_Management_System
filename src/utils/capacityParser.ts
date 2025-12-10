@@ -309,6 +309,7 @@ export function parseCapacityFile(file: File): Promise<ParsedCapacityResult> {
               id: generateId(),
               Machine: currentResource,
               Process_Order: String(getValue('Process Order') || '').trim(),
+              Operation_No: String(getValue('Op No.') || '').trim(),
               Production_Order: String(getValue('Production Order') || '').trim(),
               End_Product: String(getValue('EndProduct') || '').trim(),
               Item_Name: String(getValue('ItemName') || '').trim(),
