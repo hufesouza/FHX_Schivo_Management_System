@@ -9,6 +9,7 @@ type DepartmentType = 'milling' | 'turning' | 'sliding_head' | 'misc';
 interface ProductionJob {
   id: string;
   process_order: string;
+  operation_no: string;
   production_order: string | null;
   machine: string;
   original_machine: string;
@@ -31,6 +32,11 @@ interface ProductionJob {
   uploaded_at: string;
 }
 
+// Create composite key for job uniqueness (process_order + operation_no)
+function getJobKey(processOrder: string, operationNo: string): string {
+  return `${processOrder}::${operationNo}`;
+}
+
 interface MergeResult {
   added: number;
   removed: number;
@@ -47,6 +53,7 @@ function dbToCleanedJob(row: ProductionJob): CleanedJob {
     id: row.id,
     Machine: row.machine,
     Process_Order: row.process_order,
+    Operation_No: row.operation_no || '',
     Production_Order: row.production_order || '',
     End_Product: row.end_product || '',
     Item_Name: row.item_name || '',
@@ -196,35 +203,36 @@ export function useProductionJobs() {
       throw new Error(`Failed to fetch existing jobs: ${fetchError.message}`);
     }
 
+    // Use composite key (process_order + operation_no) for uniqueness
     const existingMap = new Map<string, ProductionJob>();
     (existingJobs || []).forEach(job => {
-      existingMap.set(job.process_order, job);
+      existingMap.set(getJobKey(job.process_order, job.operation_no || ''), job);
     });
 
-    const newProcessOrders = new Set(newJobs.map(j => j.Process_Order));
+    const newJobKeys = new Set(newJobs.map(j => getJobKey(j.Process_Order, j.Operation_No)));
 
-    // Dedupe new jobs by process_order (keep last occurrence)
+    // Dedupe new jobs by composite key (keep last occurrence)
     const deduped = new Map<string, CleanedJob>();
     newJobs.forEach(job => {
-      deduped.set(job.Process_Order, job);
+      deduped.set(getJobKey(job.Process_Order, job.Operation_No), job);
     });
     const uniqueNewJobs = Array.from(deduped.values());
 
     // 1. Find jobs to remove (in DB but not in new upload, and not manually moved)
     const toRemove = (existingJobs || []).filter(job => 
-      !newProcessOrders.has(job.process_order) && !job.is_manually_moved
+      !newJobKeys.has(getJobKey(job.process_order, job.operation_no || '')) && !job.is_manually_moved
     );
 
     // 2. Find jobs to add (in new upload but not in DB)
-    const toAdd = uniqueNewJobs.filter(job => !existingMap.has(job.Process_Order));
+    const toAdd = uniqueNewJobs.filter(job => !existingMap.has(getJobKey(job.Process_Order, job.Operation_No)));
 
     // 3. Find manually moved jobs to preserve
     const manuallyMoved = (existingJobs || []).filter(job => 
-      job.is_manually_moved && newProcessOrders.has(job.process_order)
+      job.is_manually_moved && newJobKeys.has(getJobKey(job.process_order, job.operation_no || ''))
     );
 
     // 4. Find jobs already in DB (skip)
-    const skipped = uniqueNewJobs.filter(job => existingMap.has(job.Process_Order));
+    const skipped = uniqueNewJobs.filter(job => existingMap.has(getJobKey(job.Process_Order, job.Operation_No)));
 
     console.log(`Merge stats for ${department}:`, {
       newJobs: uniqueNewJobs.length,
@@ -262,6 +270,7 @@ export function useProductionJobs() {
         const batch = toAdd.slice(i, i + BATCH_SIZE);
         const insertData = batch.map(job => ({
           process_order: job.Process_Order,
+          operation_no: job.Operation_No || '',
           production_order: job.Production_Order || null,
           machine: job.Machine,
           original_machine: job.Machine,
@@ -284,7 +293,7 @@ export function useProductionJobs() {
         const { error: insertError } = await supabase
           .from('production_jobs')
           .upsert(insertData, { 
-            onConflict: 'process_order,department',
+            onConflict: 'process_order,operation_no,department',
             ignoreDuplicates: true 
           });
 

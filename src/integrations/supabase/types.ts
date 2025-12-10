@@ -676,6 +676,7 @@ export type Database = {
           machine: string
           moved_at: string | null
           moved_by: string | null
+          operation_no: string | null
           original_duration_hours: number
           original_machine: string
           priority: number | null
@@ -702,6 +703,7 @@ export type Database = {
           machine: string
           moved_at?: string | null
           moved_by?: string | null
+          operation_no?: string | null
           original_duration_hours?: number
           original_machine: string
           priority?: number | null
@@ -728,6 +730,7 @@ export type Database = {
           machine?: string
           moved_at?: string | null
           moved_by?: string | null
+          operation_no?: string | null
           original_duration_hours?: number
           original_machine?: string
           priority?: number | null
