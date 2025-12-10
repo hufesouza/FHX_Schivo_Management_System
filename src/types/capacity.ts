@@ -20,6 +20,7 @@ export interface CleanedJob {
   id: string;
   Machine: string;
   Process_Order: string;
+  Operation_No: string;
   Production_Order: string;
   End_Product: string;
   Item_Name: string;
