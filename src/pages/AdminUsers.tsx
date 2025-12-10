@@ -207,18 +207,26 @@ export default function AdminUsers() {
         },
       });
 
-      if (error) throw error;
+      // Check for error in response body (edge function returns error in data)
+      if (error) {
+        throw new Error(error.message || 'Failed to create user');
+      }
+      
+      if (data?.error) {
+        throw new Error(data.error);
+      }
 
       // If multiple roles, add the rest
-      if (newUserRoles.length > 1) {
-        const { error: rolesError } = await supabase.functions.invoke('admin-users', {
+      if (newUserRoles.length > 1 && data?.userId) {
+        const { data: rolesData, error: rolesError } = await supabase.functions.invoke('admin-users', {
           body: { 
             action: 'updateRoles',
             userId: data.userId,
             roles: newUserRoles
           },
         });
-        if (rolesError) throw rolesError;
+        if (rolesError) throw new Error(rolesError.message || 'Failed to update roles');
+        if (rolesData?.error) throw new Error(rolesData.error);
       }
 
       toast.success('User created successfully!');
