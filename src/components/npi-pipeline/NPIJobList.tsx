@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { NPIJobWithRelations, getPrereqStatusColor } from '@/types/npi';
-import { 
+import {
   Table, 
   TableBody, 
   TableCell, 
@@ -28,17 +28,40 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 
+export interface NPIJobListFilters {
+  status?: string;
+  customer?: string;
+  mcCell?: string;
+  ready?: 'all' | 'ready' | 'not_ready' | 'released' | 'overdue';
+}
+
 interface NPIJobListProps {
   jobs: NPIJobWithRelations[];
   onSelectJob: (job: NPIJobWithRelations) => void;
+  initialFilters?: NPIJobListFilters;
 }
 
-export function NPIJobList({ jobs, onSelectJob }: NPIJobListProps) {
+export function NPIJobList({ jobs, onSelectJob, initialFilters }: NPIJobListProps) {
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [customerFilter, setCustomerFilter] = useState<string>('all');
-  const [mcCellFilter, setMcCellFilter] = useState<string>('all');
-  const [readyFilter, setReadyFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>(initialFilters?.status || 'all');
+  const [customerFilter, setCustomerFilter] = useState<string>(initialFilters?.customer || 'all');
+  const [mcCellFilter, setMcCellFilter] = useState<string>(initialFilters?.mcCell || 'all');
+  const [readyFilter, setReadyFilter] = useState<string>(initialFilters?.ready || 'all');
+
+  // Update filters when initialFilters change
+  useEffect(() => {
+    if (initialFilters?.status) setStatusFilter(initialFilters.status);
+    else if (!initialFilters?.status && statusFilter !== 'all') setStatusFilter('all');
+    
+    if (initialFilters?.customer) setCustomerFilter(initialFilters.customer);
+    else if (!initialFilters?.customer && customerFilter !== 'all') setCustomerFilter('all');
+    
+    if (initialFilters?.mcCell) setMcCellFilter(initialFilters.mcCell);
+    else if (!initialFilters?.mcCell && mcCellFilter !== 'all') setMcCellFilter('all');
+    
+    if (initialFilters?.ready) setReadyFilter(initialFilters.ready);
+    else if (!initialFilters?.ready && readyFilter !== 'all') setReadyFilter('all');
+  }, [initialFilters]);
 
   // Extract unique values for filters
   const uniqueStatuses = useMemo(() => 
@@ -84,6 +107,10 @@ export function NPIJobList({ jobs, onSelectJob }: NPIJobListProps) {
       if (readyFilter === 'ready' && !job.ready_for_mc) return false;
       if (readyFilter === 'not_ready' && job.ready_for_mc) return false;
       if (readyFilter === 'released' && !job.fully_released) return false;
+      if (readyFilter === 'overdue') {
+        if (!job.gate_commit_date) return false;
+        if (new Date(job.gate_commit_date) >= new Date()) return false;
+      }
 
       return true;
     });
@@ -158,6 +185,7 @@ export function NPIJobList({ jobs, onSelectJob }: NPIJobListProps) {
             <SelectItem value="ready">Ready for MC</SelectItem>
             <SelectItem value="not_ready">Not Ready</SelectItem>
             <SelectItem value="released">Fully Released</SelectItem>
+            <SelectItem value="overdue">Overdue</SelectItem>
           </SelectContent>
         </Select>
       </div>

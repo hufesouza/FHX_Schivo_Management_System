@@ -6,8 +6,8 @@ import { useNPIJobs } from '@/hooks/useNPIJobs';
 import { NPIJobWithRelations } from '@/types/npi';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { NPIFileUpload } from '@/components/npi-pipeline/NPIFileUpload';
-import { NPIDashboard } from '@/components/npi-pipeline/NPIDashboard';
-import { NPIJobList } from '@/components/npi-pipeline/NPIJobList';
+import { NPIDashboard, QuickFilterType } from '@/components/npi-pipeline/NPIDashboard';
+import { NPIJobList, NPIJobListFilters } from '@/components/npi-pipeline/NPIJobList';
 import { NPIJobDetail } from '@/components/npi-pipeline/NPIJobDetail';
 import { NPIMatrix } from '@/components/npi-pipeline/NPIMatrix';
 import { Button } from '@/components/ui/button';
@@ -58,6 +58,7 @@ const NPIPipeline = () => {
   const [selectedJob, setSelectedJob] = useState<NPIJobWithRelations | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [jobListFilters, setJobListFilters] = useState<NPIJobListFilters | undefined>(undefined);
 
   const isAdmin = role === 'admin';
 
@@ -75,6 +76,37 @@ const NPIPipeline = () => {
   const handleSelectJob = (job: NPIJobWithRelations) => {
     setSelectedJob(job);
     setDetailOpen(true);
+  };
+
+  const handleQuickFilter = (filter: QuickFilterType) => {
+    let newFilters: NPIJobListFilters = {};
+    
+    switch (filter.type) {
+      case 'all':
+        newFilters = {};
+        break;
+      case 'ready':
+        newFilters = { ready: 'ready' };
+        break;
+      case 'released':
+        newFilters = { ready: 'released' };
+        break;
+      case 'overdue':
+        newFilters = { ready: 'overdue' };
+        break;
+      case 'status':
+        newFilters = { status: filter.value };
+        break;
+      case 'mcCell':
+        newFilters = { mcCell: filter.value };
+        break;
+      case 'customer':
+        newFilters = { customer: filter.value };
+        break;
+    }
+    
+    setJobListFilters(newFilters);
+    setActiveTab('jobs');
   };
 
   if (authLoading || roleLoading) {
@@ -243,7 +275,7 @@ const NPIPipeline = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <NPIDashboard jobs={jobs} stats={stats} />
+                  <NPIDashboard jobs={jobs} stats={stats} onQuickFilter={handleQuickFilter} />
                 )}
               </TabsContent>
 
@@ -257,7 +289,7 @@ const NPIPipeline = () => {
                     </CardContent>
                   </Card>
                 ) : (
-                  <NPIJobList jobs={jobs} onSelectJob={handleSelectJob} />
+                  <NPIJobList jobs={jobs} onSelectJob={handleSelectJob} initialFilters={jobListFilters} />
                 )}
               </TabsContent>
 
