@@ -580,6 +580,175 @@ export type Database = {
         }
         Relationships: []
       }
+      npi_jobs: {
+        Row: {
+          created_at: string
+          customer: string | null
+          days: number | null
+          description: string | null
+          dp1: string | null
+          dp2: string | null
+          end_date: string | null
+          gate_commit_date: string | null
+          id: string
+          mc: string | null
+          mc_cell: string | null
+          npi_pm: string | null
+          part: string | null
+          percent_complete: number | null
+          row_index: number | null
+          start_date: string | null
+          status: string | null
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          customer?: string | null
+          days?: number | null
+          description?: string | null
+          dp1?: string | null
+          dp2?: string | null
+          end_date?: string | null
+          gate_commit_date?: string | null
+          id?: string
+          mc?: string | null
+          mc_cell?: string | null
+          npi_pm?: string | null
+          part?: string | null
+          percent_complete?: number | null
+          row_index?: number | null
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          customer?: string | null
+          days?: number | null
+          description?: string | null
+          dp1?: string | null
+          dp2?: string | null
+          end_date?: string | null
+          gate_commit_date?: string | null
+          id?: string
+          mc?: string | null
+          mc_cell?: string | null
+          npi_pm?: string | null
+          part?: string | null
+          percent_complete?: number | null
+          row_index?: number | null
+          start_date?: string | null
+          status?: string | null
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
+      npi_post_mc: {
+        Row: {
+          aging_days: number | null
+          created_at: string
+          fair: string | null
+          id: string
+          job_id: string
+          production_ims: string | null
+          qc_ims: string | null
+          re_rev_closure: string | null
+          work_instructions: string | null
+        }
+        Insert: {
+          aging_days?: number | null
+          created_at?: string
+          fair?: string | null
+          id?: string
+          job_id: string
+          production_ims?: string | null
+          qc_ims?: string | null
+          re_rev_closure?: string | null
+          work_instructions?: string | null
+        }
+        Update: {
+          aging_days?: number | null
+          created_at?: string
+          fair?: string | null
+          id?: string
+          job_id?: string
+          production_ims?: string | null
+          qc_ims?: string | null
+          re_rev_closure?: string | null
+          work_instructions?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_post_mc_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "npi_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      npi_prereq: {
+        Row: {
+          additional_reqs: string | null
+          created_at: string
+          doc_control: string | null
+          gauges: string | null
+          id: string
+          job_id: string
+          material: string | null
+          mc_prep: string | null
+          metr_fix: string | null
+          metr_prg: string | null
+          packaging: string | null
+          po_printed: string | null
+          tooling: string | null
+        }
+        Insert: {
+          additional_reqs?: string | null
+          created_at?: string
+          doc_control?: string | null
+          gauges?: string | null
+          id?: string
+          job_id: string
+          material?: string | null
+          mc_prep?: string | null
+          metr_fix?: string | null
+          metr_prg?: string | null
+          packaging?: string | null
+          po_printed?: string | null
+          tooling?: string | null
+        }
+        Update: {
+          additional_reqs?: string | null
+          created_at?: string
+          doc_control?: string | null
+          gauges?: string | null
+          id?: string
+          job_id?: string
+          material?: string | null
+          mc_prep?: string | null
+          metr_fix?: string | null
+          metr_prg?: string | null
+          packaging?: string | null
+          po_printed?: string | null
+          tooling?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_prereq_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "npi_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       personal_actions: {
         Row: {
           action: string
