@@ -109,6 +109,7 @@ export function NPIJobList({ jobs, onSelectJob, initialFilters }: NPIJobListProp
       if (readyFilter === 'released' && !job.fully_released) return false;
       if (readyFilter === 'overdue') {
         if (!job.gate_commit_date) return false;
+        if (job.status?.toLowerCase() === 'complete') return false;
         if (new Date(job.gate_commit_date) >= new Date()) return false;
       }
 

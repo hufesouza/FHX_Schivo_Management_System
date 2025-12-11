@@ -83,6 +83,7 @@ export function NPIDashboard({ jobs, stats, onQuickFilter }: NPIDashboardProps) 
 
   const overdueJobs = jobs.filter(j => {
     if (!j.gate_commit_date) return false;
+    if (j.status?.toLowerCase() === 'complete') return false;
     return new Date(j.gate_commit_date) < new Date();
   }).length;
 
