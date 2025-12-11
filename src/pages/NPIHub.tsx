@@ -42,6 +42,15 @@ const subModules = [
     available: true,
   },
   {
+    id: 'npi-pipeline',
+    title: 'NPI Pipeline',
+    description: 'Track NPI projects with prerequisites, post-MC activities and readiness status',
+    icon: ClipboardList,
+    href: '/npi/pipeline',
+    color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+    available: true,
+  },
+  {
     id: 'daily-meeting',
     title: 'Daily Meeting',
     description: 'Track daily status with RAG flags per customer and topic, generate meeting minutes',
