@@ -20,6 +20,15 @@ import {
   Package
 } from 'lucide-react';
 
+export type QuickFilterType = 
+  | { type: 'all' }
+  | { type: 'ready' }
+  | { type: 'released' }
+  | { type: 'overdue' }
+  | { type: 'status'; value: string }
+  | { type: 'mcCell'; value: string }
+  | { type: 'customer'; value: string };
+
 interface NPIDashboardProps {
   jobs: NPIJobWithRelations[];
   stats: {
@@ -30,6 +39,7 @@ interface NPIDashboardProps {
     readyForMC: number;
     fullyReleased: number;
   };
+  onQuickFilter?: (filter: QuickFilterType) => void;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -51,7 +61,7 @@ const MC_CELL_COLORS: Record<string, string> = {
   'Unknown': 'hsl(var(--muted-foreground))'
 };
 
-export function NPIDashboard({ jobs, stats }: NPIDashboardProps) {
+export function NPIDashboard({ jobs, stats, onQuickFilter }: NPIDashboardProps) {
   // Prepare chart data
   const statusData = Object.entries(stats.byStatus)
     .map(([name, value]) => ({ name, value }))
@@ -76,11 +86,18 @@ export function NPIDashboard({ jobs, stats }: NPIDashboardProps) {
     return new Date(j.gate_commit_date) < new Date();
   }).length;
 
+  const handleCardClick = (filter: QuickFilterType) => {
+    onQuickFilter?.(filter);
+  };
+
   return (
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
+        <Card 
+          className="cursor-pointer transition-all hover:shadow-md hover:border-primary/50"
+          onClick={() => handleCardClick({ type: 'all' })}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Total NPI Jobs
@@ -90,12 +107,15 @@ export function NPIDashboard({ jobs, stats }: NPIDashboardProps) {
           <CardContent>
             <div className="text-2xl font-bold">{stats.totalJobs}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              {activeJobs} active
+              {activeJobs} active • Click to view all
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer transition-all hover:shadow-md hover:border-green-500/50"
+          onClick={() => handleCardClick({ type: 'ready' })}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Ready for Machining
@@ -105,12 +125,15 @@ export function NPIDashboard({ jobs, stats }: NPIDashboardProps) {
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{stats.readyForMC}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              All prerequisites complete
+              All prerequisites complete • Click to filter
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer transition-all hover:shadow-md hover:border-primary/50"
+          onClick={() => handleCardClick({ type: 'released' })}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Fully Released
@@ -120,12 +143,15 @@ export function NPIDashboard({ jobs, stats }: NPIDashboardProps) {
           <CardContent>
             <div className="text-2xl font-bold text-primary">{stats.fullyReleased}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Post-MC activities complete
+              Post-MC activities complete • Click to filter
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card 
+          className="cursor-pointer transition-all hover:shadow-md hover:border-destructive/50"
+          onClick={() => handleCardClick({ type: 'overdue' })}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
               Overdue Jobs
@@ -135,7 +161,7 @@ export function NPIDashboard({ jobs, stats }: NPIDashboardProps) {
           <CardContent>
             <div className="text-2xl font-bold text-destructive">{overdueJobs}</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Past gate commit date
+              Past gate commit date • Click to filter
             </p>
           </CardContent>
         </Card>
@@ -157,10 +183,20 @@ export function NPIDashboard({ jobs, stats }: NPIDashboardProps) {
                     type="category" 
                     dataKey="name" 
                     width={80}
-                    tick={{ fontSize: 12 }}
+                    tick={{ fontSize: 12, cursor: 'pointer' }}
+                    onClick={(e: any) => {
+                      if (e?.value) handleCardClick({ type: 'status', value: e.value });
+                    }}
                   />
                   <Tooltip />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                  <Bar 
+                    dataKey="value" 
+                    radius={[0, 4, 4, 0]}
+                    cursor="pointer"
+                    onClick={(data: any) => {
+                      if (data?.name) handleCardClick({ type: 'status', value: data.name });
+                    }}
+                  >
                     {statusData.map((entry, index) => (
                       <Cell 
                         key={`cell-${index}`} 
@@ -188,10 +224,20 @@ export function NPIDashboard({ jobs, stats }: NPIDashboardProps) {
                     type="category" 
                     dataKey="name" 
                     width={60}
-                    tick={{ fontSize: 12 }}
+                    tick={{ fontSize: 12, cursor: 'pointer' }}
+                    onClick={(e: any) => {
+                      if (e?.value) handleCardClick({ type: 'mcCell', value: e.value });
+                    }}
                   />
                   <Tooltip />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                  <Bar 
+                    dataKey="value" 
+                    radius={[0, 4, 4, 0]}
+                    cursor="pointer"
+                    onClick={(data: any) => {
+                      if (data?.name) handleCardClick({ type: 'mcCell', value: data.name });
+                    }}
+                  >
                     {mcCellData.map((entry, index) => (
                       <Cell 
                         key={`cell-${index}`} 
@@ -219,10 +265,21 @@ export function NPIDashboard({ jobs, stats }: NPIDashboardProps) {
                     type="category" 
                     dataKey="name" 
                     width={80}
-                    tick={{ fontSize: 10 }}
+                    tick={{ fontSize: 10, cursor: 'pointer' }}
+                    onClick={(e: any) => {
+                      if (e?.value) handleCardClick({ type: 'customer', value: e.value });
+                    }}
                   />
                   <Tooltip />
-                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  <Bar 
+                    dataKey="value" 
+                    fill="hsl(var(--primary))" 
+                    radius={[0, 4, 4, 0]}
+                    cursor="pointer"
+                    onClick={(data: any) => {
+                      if (data?.name) handleCardClick({ type: 'customer', value: data.name });
+                    }}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -233,7 +290,7 @@ export function NPIDashboard({ jobs, stats }: NPIDashboardProps) {
       {/* Status badges summary */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Status Overview</CardTitle>
+          <CardTitle className="text-base">Status Overview (click to filter)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
@@ -241,11 +298,12 @@ export function NPIDashboard({ jobs, stats }: NPIDashboardProps) {
               <Badge 
                 key={name}
                 variant="outline"
-                className="text-sm py-1 px-3"
+                className="text-sm py-1 px-3 cursor-pointer hover:opacity-80 transition-opacity"
                 style={{ 
                   borderColor: STATUS_COLORS[name] || STATUS_COLORS['Unknown'],
                   color: STATUS_COLORS[name] || STATUS_COLORS['Unknown']
                 }}
+                onClick={() => handleCardClick({ type: 'status', value: name })}
               >
                 {name}: {value}
               </Badge>
