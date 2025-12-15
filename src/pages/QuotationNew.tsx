@@ -409,38 +409,7 @@ const QuotationNew = () => {
   const suitabilityWarnings = getSuitabilityWarnings();
 
   return (
-    <AppLayout>
-      <header className="border-b border-border bg-primary text-primary-foreground">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => navigate('/npi/quotation')}
-              className="text-primary-foreground hover:bg-primary-foreground/10"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <img src={fhxLogoFull} alt="FHX Engineering" className="h-10" />
-            <div>
-              <h1 className="font-heading font-semibold text-lg">New Quote</h1>
-              <p className="text-sm text-primary-foreground/80">IlluminAI Quoter</p>
-            </div>
-          </div>
-          
-          {/* Compliance Badge */}
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="bg-green-500/20 text-green-100 border-green-400">
-              <Lock className="h-3 w-3 mr-1" />
-              OpenAI API Mode
-            </Badge>
-            <Badge variant="outline" className="bg-blue-500/20 text-blue-100 border-blue-400">
-              <Shield className="h-3 w-3 mr-1" />
-              FDA-Ready
-            </Badge>
-          </div>
-        </div>
-      </header>
+    <AppLayout title="New Quote" subtitle="IlluminAI Quoter" showBackButton backTo="/npi/quotation">
 
       <main className="container mx-auto px-4 py-8">
         {/* Compliance & Security Banner */}
