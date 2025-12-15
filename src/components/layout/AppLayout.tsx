@@ -79,51 +79,51 @@ export function AppLayout({ children, showFooter = true }: AppLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Gold accent bar with profile avatar */}
-      <div className="h-12 bg-gradient-to-r from-primary via-primary/90 to-primary flex items-center justify-between px-4">
+      {/* Compact header bar */}
+      <header className="h-10 bg-primary/95 backdrop-blur-sm flex items-center justify-between px-3 shadow-sm">
         <button 
           onClick={() => navigate('/')}
-          className="text-primary-foreground hover:text-primary-foreground/80 transition-colors"
+          className="text-primary-foreground/90 hover:text-primary-foreground transition-colors p-1"
         >
-          <Home className="h-5 w-5" />
+          <Home className="h-4 w-4" />
         </button>
         
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="focus:outline-none relative">
-                <Avatar className="h-8 w-8 border-2 border-primary-foreground/30 hover:border-primary-foreground/60 transition-colors cursor-pointer">
+                <Avatar className="h-6 w-6 border border-primary-foreground/40 hover:border-primary-foreground/70 transition-colors cursor-pointer">
                   <AvatarImage src="" alt={user.email || ''} />
-                  <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground text-xs font-medium">
+                  <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground text-[10px] font-medium">
                     {getInitials(user.email || 'U')}
                   </AvatarFallback>
                 </Avatar>
                 {notificationCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold border-2 border-primary">
+                  <span className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold">
                     {notificationCount > 9 ? '9+' : notificationCount}
                   </span>
                 )}
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
-                <User className="mr-2 h-4 w-4" />
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer text-sm">
+                <User className="mr-2 h-3.5 w-3.5" />
                 My Profile
                 {notificationCount > 0 && (
-                  <span className="ml-auto text-xs bg-red-500 text-white px-1.5 py-0.5 rounded-full">
+                  <span className="ml-auto text-[10px] bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-full">
                     {notificationCount}
                   </span>
                 )}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
-                <LogOut className="mr-2 h-4 w-4" />
+              <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-sm text-destructive">
+                <LogOut className="mr-2 h-3.5 w-3.5" />
                 Sign Out
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-      </div>
+      </header>
       
       {/* Main content */}
       <div className="flex-1">
