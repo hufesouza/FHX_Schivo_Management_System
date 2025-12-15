@@ -323,7 +323,10 @@ export default function Profile() {
       <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
         {/* KPI Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+          <Card 
+            className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => document.getElementById('tasks-section')?.scrollIntoView({ behavior: 'smooth' })}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -335,7 +338,10 @@ export default function Profile() {
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/20">
+          <Card 
+            className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/20 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => document.getElementById('actions-section')?.scrollIntoView({ behavior: 'smooth' })}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -347,7 +353,10 @@ export default function Profile() {
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/20">
+          <Card 
+            className="bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/20 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => document.getElementById('actions-section')?.scrollIntoView({ behavior: 'smooth' })}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -359,7 +368,10 @@ export default function Profile() {
             </CardContent>
           </Card>
           
-          <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
+          <Card 
+            className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20 cursor-pointer hover:shadow-md transition-shadow"
+            onClick={() => document.getElementById('recognitions-section')?.scrollIntoView({ behavior: 'smooth' })}
+          >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -374,7 +386,7 @@ export default function Profile() {
 
         {/* Recognitions Section */}
         {recognitions.length > 0 && (
-          <Card className="border-green-500/30 bg-gradient-to-br from-green-500/5 to-transparent">
+          <Card id="recognitions-section" className="border-green-500/30 bg-gradient-to-br from-green-500/5 to-transparent">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Award className="h-5 w-5 text-green-600" />
@@ -507,7 +519,7 @@ export default function Profile() {
         </Card>
 
         {/* Work Order Tasks */}
-        <Card>
+        <Card id="tasks-section">
           <CardHeader>
             <div className="flex items-center gap-2">
               <FileText className="h-5 w-5 text-muted-foreground" />
@@ -562,7 +574,7 @@ export default function Profile() {
         </Card>
 
         {/* Meeting Actions */}
-        <Card>
+        <Card id="actions-section">
           <CardHeader>
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-muted-foreground" />
