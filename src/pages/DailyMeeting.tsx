@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -23,7 +23,9 @@ import {
   Edit2,
   Check,
   X,
-  Award
+  Award,
+  CloudOff,
+  Cloud
 } from 'lucide-react';
 import { format, addDays, subDays } from 'date-fns';
 
@@ -109,11 +111,16 @@ const DailyMeeting = () => {
   const [meetingId, setMeetingId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'saved' | 'saving' | 'error' | null>(null);
   const [newTopic, setNewTopic] = useState('');
   const [newCustomer, setNewCustomer] = useState('');
   const [showAddTopic, setShowAddTopic] = useState(false);
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [showAddParticipant, setShowAddParticipant] = useState(false);
+  
+  // Track if initial load is complete to avoid auto-saving on mount
+  const isInitialLoadComplete = useRef(false);
+  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Action items state
   const [actions, setActions] = useState<ActionItem[]>([]);
@@ -205,6 +212,7 @@ const DailyMeeting = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
+      isInitialLoadComplete.current = false; // Reset before loading new date
       loadMeetingData();
     }
   }, [isAuthenticated, currentDate]);
@@ -318,7 +326,152 @@ const DailyMeeting = () => {
       toast({ title: 'Error loading meeting data', variant: 'destructive' });
     }
     setLoading(false);
+    // Mark initial load as complete after a short delay to avoid immediate auto-save
+    setTimeout(() => {
+      isInitialLoadComplete.current = true;
+    }, 500);
   };
+
+  // Auto-save function
+  const performAutoSave = useCallback(async () => {
+    if (!user || loading) return;
+    
+    setAutoSaveStatus('saving');
+    try {
+      let mId = meetingId;
+      
+      // Create meeting if needed
+      if (!mId) {
+        const dateStr = format(currentDate, 'yyyy-MM-dd');
+        const { data, error } = await supabase
+          .from('daily_meetings')
+          .insert({ meeting_date: dateStr, created_by: user?.id })
+          .select()
+          .single();
+        if (error) throw error;
+        mId = data.id;
+        setMeetingId(data.id);
+      }
+
+      // Upsert all flags
+      const flagRecords = Object.entries(flags).map(([key, value]) => {
+        const [topic_id, customer_id] = key.split('|');
+        return {
+          meeting_id: mId,
+          topic_id,
+          customer_id,
+          status: value.status,
+          comment: value.comment,
+          updated_by: user?.id
+        };
+      });
+
+      if (flagRecords.length > 0) {
+        const { error } = await supabase
+          .from('meeting_flags')
+          .upsert(flagRecords, { onConflict: 'meeting_id,topic_id,customer_id' });
+        if (error) throw error;
+      }
+
+      // Upsert participants
+      const participantRecords = participants.map(p => ({
+        meeting_id: mId,
+        user_id: p.user_id,
+        attended: p.attended
+      }));
+
+      if (participantRecords.length > 0) {
+        await supabase.from('meeting_participants').delete().eq('meeting_id', mId);
+        const { error } = await supabase.from('meeting_participants').insert(participantRecords);
+        if (error) throw error;
+      }
+
+      // Save actions
+      for (const action of actions) {
+        if (action.id.startsWith('temp-')) {
+          const { data, error } = await supabase
+            .from('meeting_actions')
+            .insert({
+              meeting_id: mId,
+              action: action.action,
+              owner_id: action.owner_id,
+              owner_name: action.owner_name,
+              priority: action.priority,
+              due_date: action.due_date,
+              status: action.status,
+              comments: action.comments,
+              created_by: user?.id
+            })
+            .select()
+            .single();
+          if (error) throw error;
+          setActions(prev => prev.map(a => a.id === action.id ? { ...a, id: data.id } : a));
+        } else {
+          const { error } = await supabase
+            .from('meeting_actions')
+            .update({
+              action: action.action,
+              owner_id: action.owner_id,
+              owner_name: action.owner_name,
+              priority: action.priority,
+              due_date: action.due_date,
+              status: action.status,
+              comments: action.comments
+            })
+            .eq('id', action.id);
+          if (error) throw error;
+        }
+      }
+
+      // Save recognitions
+      for (const recognition of recognitions) {
+        if (recognition.id.startsWith('temp-')) {
+          const { data, error } = await supabase
+            .from('meeting_recognitions')
+            .insert({
+              meeting_id: mId,
+              recognized_user_id: recognition.recognized_user_id,
+              recognized_user_name: recognition.recognized_user_name,
+              recognized_by_id: recognition.recognized_by_id,
+              recognized_by_name: recognition.recognized_by_name,
+              reason: recognition.reason
+            })
+            .select()
+            .single();
+          if (error) throw error;
+          setRecognitions(prev => prev.map(r => r.id === recognition.id ? { ...r, id: data.id } : r));
+        }
+      }
+
+      setAutoSaveStatus('saved');
+      // Clear status after 2 seconds
+      setTimeout(() => setAutoSaveStatus(null), 2000);
+    } catch (error) {
+      console.error('Auto-save error:', error);
+      setAutoSaveStatus('error');
+    }
+  }, [user, loading, meetingId, currentDate, flags, participants, actions, recognitions]);
+
+  // Auto-save effect - debounced
+  useEffect(() => {
+    if (!isInitialLoadComplete.current || loading) return;
+    
+    // Clear existing timeout
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
+    }
+    
+    // Set new timeout for auto-save (1.5 second debounce)
+    autoSaveTimeoutRef.current = setTimeout(() => {
+      performAutoSave();
+    }, 1500);
+    
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+    };
+  }, [flags, participants, actions, recognitions]);
 
   const ensureMeetingExists = async (): Promise<string> => {
     if (meetingId) return meetingId;
@@ -754,7 +907,34 @@ const DailyMeeting = () => {
             </Button>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {/* Auto-save status indicator */}
+            {autoSaveStatus && (
+              <div className={`flex items-center gap-1.5 text-sm ${
+                autoSaveStatus === 'saving' ? 'text-muted-foreground' : 
+                autoSaveStatus === 'saved' ? 'text-green-600' : 
+                'text-destructive'
+              }`}>
+                {autoSaveStatus === 'saving' && (
+                  <>
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>Saving...</span>
+                  </>
+                )}
+                {autoSaveStatus === 'saved' && (
+                  <>
+                    <Cloud className="h-3.5 w-3.5" />
+                    <span>Saved</span>
+                  </>
+                )}
+                {autoSaveStatus === 'error' && (
+                  <>
+                    <CloudOff className="h-3.5 w-3.5" />
+                    <span>Save failed</span>
+                  </>
+                )}
+              </div>
+            )}
             <Button variant="outline" onClick={handleSave} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
               Save
