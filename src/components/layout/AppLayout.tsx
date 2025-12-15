@@ -84,38 +84,41 @@ export function AppLayout({ children, showFooter = true }: AppLayoutProps) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Compact header bar */}
-      <header className="h-12 bg-primary flex items-center justify-between px-4 shadow-sm">
+      {/* Header bar */}
+      <header className="h-14 bg-primary flex items-center justify-between px-4 shadow-sm">
         <button 
           onClick={() => navigate('/')}
-          className="hover:opacity-80 transition-opacity"
+          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
         >
-          <img src={fhxLogoFull} alt="FHX Engineering" className="h-8" />
+          <img src={fhxLogoFull} alt="FHX Engineering" className="h-10" />
+          <h1 className="font-heading font-semibold text-lg text-primary-foreground hidden sm:block">
+            Schivo Management System
+          </h1>
         </button>
         
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="focus:outline-none relative">
-                <Avatar className="h-7 w-7 border border-primary-foreground/40 hover:border-primary-foreground/70 transition-colors cursor-pointer">
+                <Avatar className="h-8 w-8 border-2 border-primary-foreground/30 hover:border-primary-foreground/60 transition-colors cursor-pointer">
                   <AvatarImage src="" alt={user.email || ''} />
-                  <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground text-[10px] font-medium">
+                  <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground text-xs font-medium">
                     {getInitials(user.email || 'U')}
                   </AvatarFallback>
                 </Avatar>
                 {notificationCount > 0 && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold">
+                  <span className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-xs font-bold border-2 border-primary">
                     {notificationCount > 9 ? '9+' : notificationCount}
                   </span>
                 )}
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer text-sm">
-                <User className="mr-2 h-3.5 w-3.5" />
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
                 My Profile
                 {notificationCount > 0 && (
-                  <span className="ml-auto text-[10px] bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-full">
+                  <span className="ml-auto text-xs bg-destructive text-destructive-foreground px-1.5 py-0.5 rounded-full">
                     {notificationCount}
                   </span>
                 )}
@@ -123,19 +126,19 @@ export function AppLayout({ children, showFooter = true }: AppLayoutProps) {
               {isAdmin && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/admin/users')} className="cursor-pointer text-sm">
-                    <Users className="mr-2 h-3.5 w-3.5" />
+                  <DropdownMenuItem onClick={() => navigate('/admin/users')} className="cursor-pointer">
+                    <Users className="mr-2 h-4 w-4" />
                     User Management
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/admin/form-fields')} className="cursor-pointer text-sm">
-                    <Settings className="mr-2 h-3.5 w-3.5" />
+                  <DropdownMenuItem onClick={() => navigate('/admin/form-fields')} className="cursor-pointer">
+                    <Settings className="mr-2 h-4 w-4" />
                     Form Fields
                   </DropdownMenuItem>
                 </>
               )}
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-sm text-destructive">
-                <LogOut className="mr-2 h-3.5 w-3.5" />
+              <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-destructive">
+                <LogOut className="mr-2 h-4 w-4" />
                 Sign Out
               </DropdownMenuItem>
             </DropdownMenuContent>
