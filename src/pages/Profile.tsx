@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
+import { useTasks } from '@/hooks/useTasks';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 import { 
   Loader2, 
   ArrowLeft, 
@@ -20,9 +22,26 @@ import {
   Mail,
   Plus,
   Trash2,
-  ClipboardList
+  ClipboardList,
+  CheckCircle2,
+  AlertCircle,
+  Calendar,
+  FileText
 } from 'lucide-react';
 import { z } from 'zod';
+
+interface MeetingAction {
+  id: string;
+  action: string;
+  priority: string;
+  status: string;
+  due_date: string | null;
+  comments: string | null;
+  meeting_id: string;
+  meeting?: {
+    meeting_date: string;
+  };
+}
 
 const passwordSchema = z.object({
   newPassword: z.string().min(6, 'Password must be at least 6 characters'),
@@ -52,11 +71,16 @@ export default function Profile() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
+  const { getMyTasks, loading: tasksLoading, tasks: allTasks } = useTasks();
   
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [updating, setUpdating] = useState(false);
   const [errors, setErrors] = useState<{ newPassword?: string; confirmPassword?: string }>({});
+
+  // Meeting Actions state
+  const [meetingActions, setMeetingActions] = useState<MeetingAction[]>([]);
+  const [loadingMeetingActions, setLoadingMeetingActions] = useState(false);
 
   // Action Manager state
   const [actions, setActions] = useState<PersonalAction[]>([]);
@@ -74,6 +98,39 @@ export default function Profile() {
   });
 
   const isManager = user?.email === MANAGER_EMAIL;
+  const myTasks = getMyTasks();
+
+  // Load meeting actions assigned to user
+  useEffect(() => {
+    if (user) {
+      loadMeetingActions();
+    }
+  }, [user]);
+
+  const loadMeetingActions = async () => {
+    if (!user) return;
+    setLoadingMeetingActions(true);
+    
+    const { data, error } = await supabase
+      .from('meeting_actions')
+      .select(`
+        id, action, priority, status, due_date, comments, meeting_id,
+        meeting:daily_meetings(meeting_date)
+      `)
+      .eq('owner_id', user.id)
+      .neq('status', 'completed')
+      .neq('status', 'cancelled')
+      .order('due_date', { ascending: true, nullsFirst: false });
+    
+    if (!error && data) {
+      const transformed = data.map(a => ({
+        ...a,
+        meeting: a.meeting as { meeting_date: string } | undefined
+      }));
+      setMeetingActions(transformed);
+    }
+    setLoadingMeetingActions(false);
+  };
 
   useEffect(() => {
     if (isManager && user) {
@@ -323,6 +380,141 @@ export default function Profile() {
                 </>
               )}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Work Order Tasks */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="text-lg">My Work Order Tasks</CardTitle>
+            </div>
+            <CardDescription>Blue Review tasks assigned to you</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {tasksLoading ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : myTasks.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                <p>No pending work order tasks</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {myTasks.map(task => (
+                  <div 
+                    key={task.id} 
+                    className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                    onClick={() => navigate(`/npi/blue-review/${task.work_order_id}`)}
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Badge variant="outline" className="capitalize">
+                            {task.department.replace('_', ' ')}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {format(new Date(task.created_at), 'MMM d, yyyy')}
+                          </span>
+                        </div>
+                        <p className="font-medium truncate">
+                          {task.work_order?.work_order_number || 'Work Order'}
+                        </p>
+                        <p className="text-sm text-muted-foreground truncate">
+                          {task.work_order?.customer} - {task.work_order?.part_and_rev}
+                        </p>
+                      </div>
+                      <Badge className="shrink-0 bg-amber-500/20 text-amber-600 hover:bg-amber-500/30">
+                        Pending Review
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Meeting Actions */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="text-lg">My Daily Meeting Actions</CardTitle>
+            </div>
+            <CardDescription>Action items assigned to you from daily meetings</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loadingMeetingActions ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : meetingActions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <CheckCircle2 className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                <p>No pending action items</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {meetingActions.map(action => {
+                  const isOverdue = action.due_date && new Date(action.due_date) < new Date();
+                  return (
+                    <div 
+                      key={action.id} 
+                      className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => navigate('/npi/daily-meeting')}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge 
+                              variant="outline" 
+                              className={
+                                action.priority === 'critical' ? 'border-red-500 text-red-500' :
+                                action.priority === 'high' ? 'border-orange-500 text-orange-500' :
+                                action.priority === 'medium' ? 'border-yellow-500 text-yellow-500' :
+                                'border-muted-foreground'
+                              }
+                            >
+                              {action.priority}
+                            </Badge>
+                            {action.meeting?.meeting_date && (
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {format(new Date(action.meeting.meeting_date), 'MMM d, yyyy')}
+                              </span>
+                            )}
+                          </div>
+                          <p className="font-medium">{action.action}</p>
+                          {action.comments && (
+                            <p className="text-sm text-muted-foreground mt-1">{action.comments}</p>
+                          )}
+                        </div>
+                        <div className="shrink-0 text-right">
+                          {action.due_date && (
+                            <Badge 
+                              variant={isOverdue ? 'destructive' : 'secondary'}
+                              className="mb-1"
+                            >
+                              Due: {format(new Date(action.due_date), 'MMM d')}
+                            </Badge>
+                          )}
+                          <Badge 
+                            variant="outline" 
+                            className="block capitalize"
+                          >
+                            {action.status.replace('_', ' ')}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
 
