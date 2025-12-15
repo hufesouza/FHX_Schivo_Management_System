@@ -80,7 +80,7 @@ export default function Auth() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/profile');
+      navigate('/');
     }
   }, [isAuthenticated, navigate]);
 
@@ -116,7 +116,7 @@ export default function Auth() {
           }
         } else {
           toast.success('Welcome back!');
-          navigate('/profile');
+          navigate('/');
         }
       } else {
         // Signup with invitation
@@ -138,7 +138,7 @@ export default function Auth() {
         } else {
           // Role is assigned automatically via database trigger
           toast.success('Account created successfully!');
-          navigate('/profile');
+          navigate('/');
         }
       }
     } finally {
