@@ -15,7 +15,6 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { 
   Loader2, 
-  ArrowLeft, 
   User,
   Shield,
   KeyRound,
@@ -28,7 +27,6 @@ import {
   Calendar,
   FileText,
   Award,
-  TrendingUp,
   Clock,
   ListTodo
 } from 'lucide-react';
@@ -321,20 +319,7 @@ export default function Profile() {
   const overdueActions = meetingActions.filter(a => a.due_date && new Date(a.due_date) < new Date()).length;
 
   return (
-    <AppLayout>
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-serif font-medium">My Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Your tasks, actions, and recognition</p>
-          </div>
-        </div>
-      </header>
-
+    <AppLayout title="My Dashboard" subtitle="Your tasks, actions, and recognition" showBackButton backTo="/">
       <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
         {/* KPI Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

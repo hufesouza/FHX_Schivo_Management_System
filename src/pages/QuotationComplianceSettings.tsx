@@ -110,30 +110,7 @@ const QuotationComplianceSettings = () => {
   }
 
   return (
-    <AppLayout>
-      <header className="border-b border-border bg-primary text-primary-foreground">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => navigate('/npi/quotation')}
-              className="text-primary-foreground hover:bg-primary-foreground/10"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <img src={fhxLogoFull} alt="FHX Engineering" className="h-10" />
-            <div>
-              <h1 className="font-heading font-semibold text-lg">Compliance & Data Handling</h1>
-              <p className="text-sm text-primary-foreground/80">21 CFR Part 11-Ready Settings</p>
-            </div>
-          </div>
-          <Badge variant="outline" className="bg-green-500/20 text-green-100 border-green-400">
-            <Shield className="h-3 w-3 mr-1" />
-            Admin Only
-          </Badge>
-        </div>
-      </header>
+    <AppLayout title="Compliance & Data Handling" subtitle="21 CFR Part 11-Ready Settings" showBackButton backTo="/npi/quotation">
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         {/* Security Overview Banner */}

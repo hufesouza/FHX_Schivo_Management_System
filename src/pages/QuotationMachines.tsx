@@ -184,31 +184,7 @@ const QuotationMachines = () => {
   }
 
   return (
-    <AppLayout>
-      <header className="border-b border-border bg-primary text-primary-foreground">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => navigate('/npi/quotation')}
-              className="text-primary-foreground hover:bg-primary-foreground/10"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <img src={fhxLogoFull} alt="FHX Engineering" className="h-10" />
-            <div>
-              <h1 className="font-heading font-semibold text-lg">Machine Resources</h1>
-              <p className="text-sm text-primary-foreground/80">CNC Smart Quoter</p>
-            </div>
-          </div>
-          {isAdmin && (
-            <Button onClick={handleAdd} className="bg-accent text-accent-foreground hover:bg-accent/90">
-              <Plus className="h-4 w-4 mr-2" /> Add Machine
-            </Button>
-          )}
-        </div>
-      </header>
+    <AppLayout title="Machine Resources" subtitle="CNC Smart Quoter" showBackButton backTo="/npi/quotation">
 
       <main className="container mx-auto px-4 py-8">
         <Card>

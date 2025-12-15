@@ -11,16 +11,20 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, LogOut, Settings, Users } from 'lucide-react';
+import { User, LogOut, Settings, Users, ArrowLeft } from 'lucide-react';
 import { useUserRole } from '@/hooks/useUserRole';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
 interface AppLayoutProps {
   children: ReactNode;
   showFooter?: boolean;
+  title?: string;
+  subtitle?: string;
+  showBackButton?: boolean;
+  backTo?: string;
 }
 
-export function AppLayout({ children, showFooter = true }: AppLayoutProps) {
+export function AppLayout({ children, showFooter = true, title, subtitle, showBackButton = false, backTo = '/' }: AppLayoutProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { role } = useUserRole();
@@ -86,15 +90,36 @@ export function AppLayout({ children, showFooter = true }: AppLayoutProps) {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header bar */}
       <header className="h-14 bg-primary flex items-center justify-between px-4 shadow-sm">
-        <button 
-          onClick={() => navigate('/')}
-          className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-        >
-          <img src={fhxLogoFull} alt="FHX Engineering" className="h-10" />
-          <h1 className="font-heading font-semibold text-lg text-primary-foreground hidden sm:block">
-            Schivo Management System
-          </h1>
-        </button>
+        <div className="flex items-center gap-3">
+          {showBackButton && (
+            <button 
+              onClick={() => navigate(backTo)}
+              className="text-primary-foreground/80 hover:text-primary-foreground transition-colors mr-1"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          )}
+          <button 
+            onClick={() => navigate('/')}
+            className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+          >
+            <img src={fhxLogoFull} alt="FHX Engineering" className="h-10" />
+            {title ? (
+              <div className="hidden sm:block">
+                <h1 className="font-heading font-semibold text-lg text-primary-foreground leading-tight">
+                  {title}
+                </h1>
+                {subtitle && (
+                  <p className="text-xs text-primary-foreground/70">{subtitle}</p>
+                )}
+              </div>
+            ) : (
+              <h1 className="font-heading font-semibold text-lg text-primary-foreground hidden sm:block">
+                Schivo Management System
+              </h1>
+            )}
+          </button>
+        </div>
         
         {user && (
           <DropdownMenu>
