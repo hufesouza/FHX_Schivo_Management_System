@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { supabase } from '@/integrations/supabase/client';
@@ -85,11 +85,24 @@ interface Recognition {
 
 const DailyMeeting = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { loading: roleLoading } = useUserRole();
   const { toast } = useToast();
 
-  const [currentDate, setCurrentDate] = useState(new Date());
+  // Initialize date from URL params or default to today
+  const getInitialDate = () => {
+    const dateParam = searchParams.get('date');
+    if (dateParam) {
+      const parsed = new Date(dateParam);
+      if (!isNaN(parsed.getTime())) {
+        return parsed;
+      }
+    }
+    return new Date();
+  };
+
+  const [currentDate, setCurrentDate] = useState(getInitialDate);
   const [allTopics, setAllTopics] = useState<Topic[]>([]);
   const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
   const [flags, setFlags] = useState<FlagData>({});

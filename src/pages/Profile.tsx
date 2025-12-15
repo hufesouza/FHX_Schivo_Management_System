@@ -603,7 +603,10 @@ export default function Profile() {
                     <div 
                       key={action.id} 
                       className="p-4 border rounded-lg hover:bg-muted/50 cursor-pointer transition-colors"
-                      onClick={() => navigate('/npi/daily-meeting')}
+                      onClick={() => {
+                        const meetingDate = action.meeting?.meeting_date || format(new Date(), 'yyyy-MM-dd');
+                        navigate(`/npi/daily-meeting?date=${meetingDate}`);
+                      }}
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
