@@ -1,32 +1,18 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useUserRole } from '@/hooks/useUserRole';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { 
   Loader2, 
-  LogOut, 
-  Settings, 
-  Users, 
-  Shield, 
-  User,
   Cog,
   FileCheck,
   Factory,
   Gauge,
   ChevronRight
 } from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
 const modules = [
   {
@@ -69,10 +55,7 @@ const modules = [
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
-  const { role, loading: roleLoading } = useUserRole();
-
-  const isAdmin = role === 'admin';
+  const { isAuthenticated, loading: authLoading } = useAuth();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -80,12 +63,7 @@ const HomePage = () => {
     }
   }, [isAuthenticated, authLoading, navigate]);
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/auth');
-  };
-
-  if (authLoading || roleLoading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -95,72 +73,6 @@ const HomePage = () => {
 
   return (
     <AppLayout>
-      {/* Header */}
-      <header className="border-b border-border bg-primary text-primary-foreground">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src={fhxLogoFull} alt="FHX Engineering" className="h-10" />
-            <div>
-              <h1 className="font-heading font-semibold text-lg">Schivo Management System</h1>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-            {role && (
-              <Badge variant={isAdmin ? 'default' : 'secondary'} className="hidden sm:flex bg-accent text-accent-foreground">
-                {isAdmin && <Shield className="h-3 w-3 mr-1" />}
-                {role}
-              </Badge>
-            )}
-            <span className="text-sm text-primary-foreground/90 hidden sm:block">
-              {user?.email}
-            </span>
-            
-            {isAdmin ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="border-primary-foreground/50 text-primary-foreground bg-transparent hover:bg-accent hover:text-accent-foreground hover:border-accent">
-                    <Settings className="h-4 w-4 mr-2" /> Admin
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => navigate('/profile')}>
-                    <User className="h-4 w-4 mr-2" /> My Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/admin/users')}>
-                    <Users className="h-4 w-4 mr-2" /> User Management
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/admin/form-fields')}>
-                    <Settings className="h-4 w-4 mr-2" /> Form Fields
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    <LogOut className="h-4 w-4 mr-2" /> Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="border-primary-foreground/50 text-primary-foreground bg-transparent hover:bg-accent hover:text-accent-foreground hover:border-accent">
-                    <User className="h-4 w-4 mr-2" /> Account
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => navigate('/profile')}>
-                    <User className="h-4 w-4 mr-2" /> My Profile
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut}>
-                    <LogOut className="h-4 w-4 mr-2" /> Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-        </div>
-      </header>
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-12">

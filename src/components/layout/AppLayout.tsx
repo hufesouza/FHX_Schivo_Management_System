@@ -11,7 +11,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { User, LogOut, Home } from 'lucide-react';
+import { User, LogOut, Settings, Users } from 'lucide-react';
+import { useUserRole } from '@/hooks/useUserRole';
+import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -21,8 +23,11 @@ interface AppLayoutProps {
 export function AppLayout({ children, showFooter = true }: AppLayoutProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
+  const { role } = useUserRole();
   const { getMyTasks } = useTasks();
   const [notificationCount, setNotificationCount] = useState(0);
+  
+  const isAdmin = role === 'admin';
 
   useEffect(() => {
     if (user) {
@@ -80,19 +85,19 @@ export function AppLayout({ children, showFooter = true }: AppLayoutProps) {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Compact header bar */}
-      <header className="h-10 bg-primary/95 backdrop-blur-sm flex items-center justify-between px-3 shadow-sm">
+      <header className="h-12 bg-primary flex items-center justify-between px-4 shadow-sm">
         <button 
           onClick={() => navigate('/')}
-          className="text-primary-foreground/90 hover:text-primary-foreground transition-colors p-1"
+          className="hover:opacity-80 transition-opacity"
         >
-          <Home className="h-4 w-4" />
+          <img src={fhxLogoFull} alt="FHX Engineering" className="h-8" />
         </button>
         
         {user && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button className="focus:outline-none relative">
-                <Avatar className="h-6 w-6 border border-primary-foreground/40 hover:border-primary-foreground/70 transition-colors cursor-pointer">
+                <Avatar className="h-7 w-7 border border-primary-foreground/40 hover:border-primary-foreground/70 transition-colors cursor-pointer">
                   <AvatarImage src="" alt={user.email || ''} />
                   <AvatarFallback className="bg-primary-foreground/20 text-primary-foreground text-[10px] font-medium">
                     {getInitials(user.email || 'U')}
@@ -115,6 +120,19 @@ export function AppLayout({ children, showFooter = true }: AppLayoutProps) {
                   </span>
                 )}
               </DropdownMenuItem>
+              {isAdmin && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/admin/users')} className="cursor-pointer text-sm">
+                    <Users className="mr-2 h-3.5 w-3.5" />
+                    User Management
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/admin/form-fields')} className="cursor-pointer text-sm">
+                    <Settings className="mr-2 h-3.5 w-3.5" />
+                    Form Fields
+                  </DropdownMenuItem>
+                </>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer text-sm text-destructive">
                 <LogOut className="mr-2 h-3.5 w-3.5" />
