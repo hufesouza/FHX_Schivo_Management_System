@@ -26,9 +26,23 @@ import {
   CheckCircle2,
   AlertCircle,
   Calendar,
-  FileText
+  FileText,
+  Award,
+  TrendingUp,
+  Clock,
+  ListTodo
 } from 'lucide-react';
 import { z } from 'zod';
+
+interface MeetingRecognition {
+  id: string;
+  reason: string;
+  recognized_by_name: string;
+  created_at: string;
+  meeting?: {
+    meeting_date: string;
+  };
+}
 
 interface MeetingAction {
   id: string;
@@ -82,6 +96,10 @@ export default function Profile() {
   const [meetingActions, setMeetingActions] = useState<MeetingAction[]>([]);
   const [loadingMeetingActions, setLoadingMeetingActions] = useState(false);
 
+  // Recognition state
+  const [recognitions, setRecognitions] = useState<MeetingRecognition[]>([]);
+  const [loadingRecognitions, setLoadingRecognitions] = useState(false);
+
   // Action Manager state
   const [actions, setActions] = useState<PersonalAction[]>([]);
   const [allUsers, setAllUsers] = useState<{ user_id: string; full_name: string; email: string }[]>([]);
@@ -100,12 +118,37 @@ export default function Profile() {
   const isManager = user?.email === MANAGER_EMAIL;
   const myTasks = getMyTasks();
 
-  // Load meeting actions assigned to user
+  // Load meeting actions and recognitions assigned to user
   useEffect(() => {
     if (user) {
       loadMeetingActions();
+      loadRecognitions();
     }
   }, [user]);
+
+  const loadRecognitions = async () => {
+    if (!user) return;
+    setLoadingRecognitions(true);
+    
+    const { data, error } = await supabase
+      .from('meeting_recognitions')
+      .select(`
+        id, reason, recognized_by_name, created_at,
+        meeting:daily_meetings(meeting_date)
+      `)
+      .eq('recognized_user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    
+    if (!error && data) {
+      const transformed = data.map(r => ({
+        ...r,
+        meeting: r.meeting as { meeting_date: string } | undefined
+      }));
+      setRecognitions(transformed);
+    }
+    setLoadingRecognitions(false);
+  };
 
   const loadMeetingActions = async () => {
     if (!user) return;
@@ -274,6 +317,9 @@ export default function Profile() {
     return null;
   }
 
+  // Calculate KPIs
+  const overdueActions = meetingActions.filter(a => a.due_date && new Date(a.due_date) < new Date()).length;
+
   return (
     <AppLayout>
       {/* Header */}
@@ -283,13 +329,105 @@ export default function Profile() {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
-            <h1 className="text-xl font-serif font-medium">My Profile</h1>
-            <p className="text-sm text-muted-foreground">Manage your account settings</p>
+            <h1 className="text-xl font-serif font-medium">My Dashboard</h1>
+            <p className="text-sm text-muted-foreground">Your tasks, actions, and recognition</p>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-8 max-w-4xl space-y-6">
+        {/* KPI Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Pending Tasks</p>
+                  <p className="text-3xl font-bold text-blue-600">{myTasks.length}</p>
+                </div>
+                <FileText className="h-8 w-8 text-blue-500/50" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/20">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Open Actions</p>
+                  <p className="text-3xl font-bold text-amber-600">{meetingActions.length}</p>
+                </div>
+                <ListTodo className="h-8 w-8 text-amber-500/50" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-red-500/10 to-red-600/5 border-red-500/20">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Overdue</p>
+                  <p className="text-3xl font-bold text-red-600">{overdueActions}</p>
+                </div>
+                <Clock className="h-8 w-8 text-red-500/50" />
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card className="bg-gradient-to-br from-green-500/10 to-green-600/5 border-green-500/20">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Recognitions</p>
+                  <p className="text-3xl font-bold text-green-600">{recognitions.length}</p>
+                </div>
+                <Award className="h-8 w-8 text-green-500/50" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Recognitions Section */}
+        {recognitions.length > 0 && (
+          <Card className="border-green-500/30 bg-gradient-to-br from-green-500/5 to-transparent">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <Award className="h-5 w-5 text-green-600" />
+                <CardTitle className="text-lg text-green-700">Recognition Received</CardTitle>
+              </div>
+              <CardDescription>Kudos from your team members</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {recognitions.map(recognition => (
+                  <div 
+                    key={recognition.id} 
+                    className="p-4 border border-green-500/20 rounded-lg bg-green-50/50 dark:bg-green-950/20"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="shrink-0 h-10 w-10 rounded-full bg-green-500/20 flex items-center justify-center">
+                        <Award className="h-5 w-5 text-green-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-green-700">{recognition.reason}</p>
+                        <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                          <span>From: {recognition.recognized_by_name}</span>
+                          {recognition.meeting?.meeting_date && (
+                            <>
+                              <span>•</span>
+                              <span>{format(new Date(recognition.meeting.meeting_date), 'MMM d, yyyy')}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Profile Info */}
         <Card>
           <CardHeader>
