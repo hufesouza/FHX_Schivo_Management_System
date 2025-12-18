@@ -1549,8 +1549,10 @@ export type Database = {
         Row: {
           acceptable_to_change_details: string | null
           acceptable_to_change_white: boolean | null
+          actions_completed_details: string | null
           additional_requirements: boolean | null
           additional_requirements_details: string | null
+          all_actions_completed: boolean | null
           all_sections_details: string | null
           all_sections_filled: boolean | null
           approval_status_details: string | null
@@ -1561,10 +1563,14 @@ export type Database = {
           cmm_lead_time: string | null
           cmm_program_details: string | null
           cmm_program_required: boolean | null
+          costings_need_reevaluation: boolean | null
+          costings_reevaluation_details: string | null
           created_at: string
           current_stage: string
           customer: string | null
           deburr_time: number | null
+          departments_agreed_details: string | null
+          departments_agreed_to_change: boolean | null
           drawings_available: boolean | null
           drawings_details: string | null
           engineering_approved_by: string | null
@@ -1580,6 +1586,19 @@ export type Database = {
           fixtures_required: boolean | null
           gauges_calibrated: boolean | null
           gauges_details: string | null
+          handover_comments: string | null
+          handover_engineering_accept: boolean | null
+          handover_engineering_date: string | null
+          handover_engineering_details: string | null
+          handover_engineering_signature: string | null
+          handover_operations_accept: boolean | null
+          handover_operations_date: string | null
+          handover_operations_details: string | null
+          handover_operations_signature: string | null
+          handover_quality_accept: boolean | null
+          handover_quality_date: string | null
+          handover_quality_details: string | null
+          handover_quality_signature: string | null
           icn_number: string | null
           id: string
           ims_updated: boolean | null
@@ -1589,6 +1608,8 @@ export type Database = {
           inspection_sheet_available: boolean | null
           inspection_sheet_details: string | null
           inspection_time: number | null
+          machining_times_as_planned: boolean | null
+          machining_times_details: string | null
           material_leadtime: string | null
           material_size_allowance: string | null
           material_size_correct: boolean | null
@@ -1598,15 +1619,22 @@ export type Database = {
           npi_final_comments: string | null
           npi_final_signature: string | null
           npi_final_signature_date: string | null
+          open_actions_details: string | null
+          open_actions_identified: boolean | null
           operations_comments: string | null
           operations_work_centres: Json | null
           part_and_rev: string | null
+          post_process_work_centres: Json | null
+          programming_signature: string | null
+          programming_signature_date: string | null
           quality_additional_details: string | null
           quality_additional_requirements: boolean | null
           quality_gauges_calibrated: boolean | null
           quality_gauges_details: string | null
           quality_signature: string | null
           quality_signature_date: string | null
+          reasons_in_remarks: boolean | null
+          reasons_in_remarks_details: string | null
           routing_operations_details: string | null
           routing_operations_removed: boolean | null
           sap_changes_completed: boolean | null
@@ -1614,6 +1642,8 @@ export type Database = {
           status: string
           supply_chain_signature: string | null
           supply_chain_signature_date: string | null
+          times_can_be_improved: boolean | null
+          times_improvement_details: string | null
           tooling_details: string | null
           tooling_in_matrix: boolean | null
           tooling_lead_time: string | null
@@ -1625,8 +1655,10 @@ export type Database = {
         Insert: {
           acceptable_to_change_details?: string | null
           acceptable_to_change_white?: boolean | null
+          actions_completed_details?: string | null
           additional_requirements?: boolean | null
           additional_requirements_details?: string | null
+          all_actions_completed?: boolean | null
           all_sections_details?: string | null
           all_sections_filled?: boolean | null
           approval_status_details?: string | null
@@ -1637,10 +1669,14 @@ export type Database = {
           cmm_lead_time?: string | null
           cmm_program_details?: string | null
           cmm_program_required?: boolean | null
+          costings_need_reevaluation?: boolean | null
+          costings_reevaluation_details?: string | null
           created_at?: string
           current_stage?: string
           customer?: string | null
           deburr_time?: number | null
+          departments_agreed_details?: string | null
+          departments_agreed_to_change?: boolean | null
           drawings_available?: boolean | null
           drawings_details?: string | null
           engineering_approved_by?: string | null
@@ -1656,6 +1692,19 @@ export type Database = {
           fixtures_required?: boolean | null
           gauges_calibrated?: boolean | null
           gauges_details?: string | null
+          handover_comments?: string | null
+          handover_engineering_accept?: boolean | null
+          handover_engineering_date?: string | null
+          handover_engineering_details?: string | null
+          handover_engineering_signature?: string | null
+          handover_operations_accept?: boolean | null
+          handover_operations_date?: string | null
+          handover_operations_details?: string | null
+          handover_operations_signature?: string | null
+          handover_quality_accept?: boolean | null
+          handover_quality_date?: string | null
+          handover_quality_details?: string | null
+          handover_quality_signature?: string | null
           icn_number?: string | null
           id?: string
           ims_updated?: boolean | null
@@ -1665,6 +1714,8 @@ export type Database = {
           inspection_sheet_available?: boolean | null
           inspection_sheet_details?: string | null
           inspection_time?: number | null
+          machining_times_as_planned?: boolean | null
+          machining_times_details?: string | null
           material_leadtime?: string | null
           material_size_allowance?: string | null
           material_size_correct?: boolean | null
@@ -1674,15 +1725,22 @@ export type Database = {
           npi_final_comments?: string | null
           npi_final_signature?: string | null
           npi_final_signature_date?: string | null
+          open_actions_details?: string | null
+          open_actions_identified?: boolean | null
           operations_comments?: string | null
           operations_work_centres?: Json | null
           part_and_rev?: string | null
+          post_process_work_centres?: Json | null
+          programming_signature?: string | null
+          programming_signature_date?: string | null
           quality_additional_details?: string | null
           quality_additional_requirements?: boolean | null
           quality_gauges_calibrated?: boolean | null
           quality_gauges_details?: string | null
           quality_signature?: string | null
           quality_signature_date?: string | null
+          reasons_in_remarks?: boolean | null
+          reasons_in_remarks_details?: string | null
           routing_operations_details?: string | null
           routing_operations_removed?: boolean | null
           sap_changes_completed?: boolean | null
@@ -1690,6 +1748,8 @@ export type Database = {
           status?: string
           supply_chain_signature?: string | null
           supply_chain_signature_date?: string | null
+          times_can_be_improved?: boolean | null
+          times_improvement_details?: string | null
           tooling_details?: string | null
           tooling_in_matrix?: boolean | null
           tooling_lead_time?: string | null
@@ -1701,8 +1761,10 @@ export type Database = {
         Update: {
           acceptable_to_change_details?: string | null
           acceptable_to_change_white?: boolean | null
+          actions_completed_details?: string | null
           additional_requirements?: boolean | null
           additional_requirements_details?: string | null
+          all_actions_completed?: boolean | null
           all_sections_details?: string | null
           all_sections_filled?: boolean | null
           approval_status_details?: string | null
@@ -1713,10 +1775,14 @@ export type Database = {
           cmm_lead_time?: string | null
           cmm_program_details?: string | null
           cmm_program_required?: boolean | null
+          costings_need_reevaluation?: boolean | null
+          costings_reevaluation_details?: string | null
           created_at?: string
           current_stage?: string
           customer?: string | null
           deburr_time?: number | null
+          departments_agreed_details?: string | null
+          departments_agreed_to_change?: boolean | null
           drawings_available?: boolean | null
           drawings_details?: string | null
           engineering_approved_by?: string | null
@@ -1732,6 +1798,19 @@ export type Database = {
           fixtures_required?: boolean | null
           gauges_calibrated?: boolean | null
           gauges_details?: string | null
+          handover_comments?: string | null
+          handover_engineering_accept?: boolean | null
+          handover_engineering_date?: string | null
+          handover_engineering_details?: string | null
+          handover_engineering_signature?: string | null
+          handover_operations_accept?: boolean | null
+          handover_operations_date?: string | null
+          handover_operations_details?: string | null
+          handover_operations_signature?: string | null
+          handover_quality_accept?: boolean | null
+          handover_quality_date?: string | null
+          handover_quality_details?: string | null
+          handover_quality_signature?: string | null
           icn_number?: string | null
           id?: string
           ims_updated?: boolean | null
@@ -1741,6 +1820,8 @@ export type Database = {
           inspection_sheet_available?: boolean | null
           inspection_sheet_details?: string | null
           inspection_time?: number | null
+          machining_times_as_planned?: boolean | null
+          machining_times_details?: string | null
           material_leadtime?: string | null
           material_size_allowance?: string | null
           material_size_correct?: boolean | null
@@ -1750,15 +1831,22 @@ export type Database = {
           npi_final_comments?: string | null
           npi_final_signature?: string | null
           npi_final_signature_date?: string | null
+          open_actions_details?: string | null
+          open_actions_identified?: boolean | null
           operations_comments?: string | null
           operations_work_centres?: Json | null
           part_and_rev?: string | null
+          post_process_work_centres?: Json | null
+          programming_signature?: string | null
+          programming_signature_date?: string | null
           quality_additional_details?: string | null
           quality_additional_requirements?: boolean | null
           quality_gauges_calibrated?: boolean | null
           quality_gauges_details?: string | null
           quality_signature?: string | null
           quality_signature_date?: string | null
+          reasons_in_remarks?: boolean | null
+          reasons_in_remarks_details?: string | null
           routing_operations_details?: string | null
           routing_operations_removed?: boolean | null
           sap_changes_completed?: boolean | null
@@ -1766,6 +1854,8 @@ export type Database = {
           status?: string
           supply_chain_signature?: string | null
           supply_chain_signature_date?: string | null
+          times_can_be_improved?: boolean | null
+          times_improvement_details?: string | null
           tooling_details?: string | null
           tooling_in_matrix?: boolean | null
           tooling_lead_time?: string | null

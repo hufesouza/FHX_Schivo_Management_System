@@ -60,6 +60,16 @@ export function SupplyChainReview({ data, onChange, disabled = false }: SupplyCh
         disabled={disabled}
       />
 
+      <YesNoField
+        label="5. If job is staying on Blue have reasons been included in remarks sections?"
+        value={data.reasons_in_remarks ?? null}
+        onChange={(v) => onChange({ reasons_in_remarks: v })}
+        details={data.reasons_in_remarks_details}
+        onDetailsChange={(v) => onChange({ reasons_in_remarks_details: v })}
+        detailsLabel="Details (If No)"
+        disabled={disabled}
+      />
+
       {/* Signature */}
       <section className="space-y-4 border-t border-border pt-6">
         <h3 className="font-medium text-primary">Signature</h3>

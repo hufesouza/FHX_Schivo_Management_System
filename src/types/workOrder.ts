@@ -4,7 +4,8 @@ export interface WorkCentre {
   workInstInPlace: boolean | null;
   gaugesInPlace: boolean | null;
   imsOkSubmitted: boolean | null;
-  timesCorrect: boolean | null;
+  timesCorrectPlan: string;
+  timesCorrectActual: string;
   initialDate: string;
 }
 
@@ -75,9 +76,12 @@ export interface WorkOrder {
   npi_approval_by: string | null;
   npi_approval_date: string | null;
   
-  // Operations
+  // Operations - Machining Operations
   operations_work_centres: WorkCentre[];
   operations_comments: string | null;
+  
+  // Operations - Post Process Operations
+  post_process_work_centres: WorkCentre[];
   
   // Quality
   fair_complete: boolean | null;
@@ -91,9 +95,44 @@ export interface WorkOrder {
   quality_signature: string | null;
   quality_signature_date: string | null;
   
+  // Programming Review
+  machining_times_as_planned: boolean | null;
+  machining_times_details: string | null;
+  times_can_be_improved: boolean | null;
+  times_improvement_details: string | null;
+  open_actions_identified: boolean | null;
+  open_actions_details: string | null;
+  all_actions_completed: boolean | null;
+  actions_completed_details: string | null;
+  programming_signature: string | null;
+  programming_signature_date: string | null;
+  
+  // Handover - Engineering
+  handover_engineering_accept: boolean | null;
+  handover_engineering_details: string | null;
+  handover_engineering_signature: string | null;
+  handover_engineering_date: string | null;
+  
+  // Handover - Operations
+  handover_operations_accept: boolean | null;
+  handover_operations_details: string | null;
+  handover_operations_signature: string | null;
+  handover_operations_date: string | null;
+  
+  // Handover - Quality
+  handover_quality_accept: boolean | null;
+  handover_quality_details: string | null;
+  handover_quality_signature: string | null;
+  handover_quality_date: string | null;
+  handover_comments: string | null;
+  
   // Final Review NPI
   all_sections_filled: boolean | null;
   all_sections_details: string | null;
+  costings_need_reevaluation: boolean | null;
+  costings_reevaluation_details: string | null;
+  departments_agreed_to_change: boolean | null;
+  departments_agreed_details: string | null;
   acceptable_to_change_white: boolean | null;
   acceptable_to_change_details: string | null;
   npi_final_comments: string | null;
@@ -109,6 +148,8 @@ export interface WorkOrder {
   approval_status_details: string | null;
   routing_operations_removed: boolean | null;
   routing_operations_details: string | null;
+  reasons_in_remarks: boolean | null;
+  reasons_in_remarks_details: string | null;
   supply_chain_signature: string | null;
   supply_chain_signature_date: string | null;
 }
@@ -118,5 +159,7 @@ export type FormSection =
   | 'engineering'
   | 'operations'
   | 'quality'
+  | 'programming'
+  | 'handover'
   | 'npi-final'
   | 'supply-chain';

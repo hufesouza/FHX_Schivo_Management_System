@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 import { FormSection } from '@/types/workOrder';
-import { Check, FileText, Settings, ClipboardCheck, CheckCircle, Truck } from 'lucide-react';
+import { Check, FileText, Settings, ClipboardCheck, CheckCircle, Truck, Code, GitMerge } from 'lucide-react';
 
 interface FormNavigationProps {
   currentSection: FormSection;
@@ -13,6 +13,8 @@ const sections: { id: FormSection; label: string; icon: React.ComponentType<{ cl
   { id: 'engineering', label: 'Engineering', icon: Settings },
   { id: 'operations', label: 'Operations', icon: ClipboardCheck },
   { id: 'quality', label: 'Quality', icon: CheckCircle },
+  { id: 'programming', label: 'Programming', icon: Code },
+  { id: 'handover', label: 'Handover', icon: GitMerge },
   { id: 'npi-final', label: 'NPI Final', icon: Check },
   { id: 'supply-chain', label: 'Supply Chain', icon: Truck },
 ];
