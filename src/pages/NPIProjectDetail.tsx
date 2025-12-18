@@ -16,8 +16,9 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { 
   Loader2, FileText, Users, Target, Calendar, CheckCircle2, 
-  Circle, Clock, AlertCircle, Save, Plus, Trash2, ChevronRight, Link2
+  Circle, Clock, AlertCircle, Save, Plus, Trash2, ChevronRight, Link2, UserPlus
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { PROJECT_PHASES, DESIGN_TRANSFER_CATEGORIES, type NPIDesignTransferItem, type NPIProjectMilestone } from '@/types/npiProject';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
@@ -31,10 +32,14 @@ const NPIProjectDetail = () => {
   const { 
     project, charter, designTransferItems, team, milestones, loading,
     updateCharter, updateDesignTransferItem, updateMilestone, fetchProject,
-    linkNPIJob, unlinkNPIJob, linkBlueReview, unlinkBlueReview
+    linkNPIJob, unlinkNPIJob, linkBlueReview, unlinkBlueReview,
+    addTeamMember, removeTeamMember
   } = useNPIProjectDetail(id);
 
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const [newMemberUserId, setNewMemberUserId] = useState('');
+  const [newMemberRole, setNewMemberRole] = useState('');
 
   const [charterForm, setCharterForm] = useState({
     scope: '',
@@ -82,6 +87,16 @@ const NPIProjectDetail = () => {
     setCharterSaving(true);
     await updateCharter(charterForm);
     setCharterSaving(false);
+  };
+
+  const handleAddMember = async () => {
+    if (!newMemberUserId || !newMemberRole) return;
+    const success = await addTeamMember(newMemberUserId, newMemberRole);
+    if (success) {
+      setAddMemberOpen(false);
+      setNewMemberUserId('');
+      setNewMemberRole('');
+    }
   };
 
   const handleItemStatusChange = async (item: NPIDesignTransferItem, newStatus: string) => {
@@ -507,9 +522,54 @@ const NPIProjectDetail = () => {
           {/* Team Tab */}
           <TabsContent value="team">
             <Card>
-              <CardHeader>
-                <CardTitle>Project Team</CardTitle>
-                <CardDescription>Team members assigned to this project</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Project Team</CardTitle>
+                  <CardDescription>Team members assigned to this project</CardDescription>
+                </div>
+                <Dialog open={addMemberOpen} onOpenChange={setAddMemberOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Add Member
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Add Team Member</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-4">
+                      <div className="space-y-2">
+                        <Label>Select User</Label>
+                        <Select value={newMemberUserId} onValueChange={setNewMemberUserId}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a user" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {profiles
+                              .filter(p => !team.some(t => t.user_id === p.user_id))
+                              .map(profile => (
+                                <SelectItem key={profile.user_id} value={profile.user_id}>
+                                  {profile.full_name || profile.email}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Role</Label>
+                        <Input 
+                          placeholder="e.g. Project Manager, Engineer, QA Lead"
+                          value={newMemberRole}
+                          onChange={(e) => setNewMemberRole(e.target.value)}
+                        />
+                      </div>
+                      <Button onClick={handleAddMember} className="w-full" disabled={!newMemberUserId || !newMemberRole}>
+                        Add Member
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -530,6 +590,13 @@ const NPIProjectDetail = () => {
                             {member.responsibilities}
                           </p>
                         )}
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => removeTeamMember(member.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
                       </div>
                     ))
                   )}
