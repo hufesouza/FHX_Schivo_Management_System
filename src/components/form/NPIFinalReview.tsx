@@ -32,11 +32,22 @@ export function NPIFinalReview({ data, onChange, disabled = false }: NPIFinalRev
       />
 
       <YesNoField
-        label="2. Is it acceptable to change to White?"
-        value={data.acceptable_to_change_white ?? null}
-        onChange={(v) => onChange({ acceptable_to_change_white: v })}
-        details={data.acceptable_to_change_details}
-        onDetailsChange={(v) => onChange({ acceptable_to_change_details: v })}
+        label="2. Do costings need to be re-evaluated based on unplanned cycle times / additional costs?"
+        value={data.costings_need_reevaluation ?? null}
+        onChange={(v) => onChange({ costings_need_reevaluation: v })}
+        details={data.costings_reevaluation_details}
+        onDetailsChange={(v) => onChange({ costings_reevaluation_details: v })}
+        detailsLabel="Details (If Yes)"
+        showDetailsWhen="yes"
+        disabled={disabled}
+      />
+
+      <YesNoField
+        label="3. Have all departments agreed to change to White?"
+        value={data.departments_agreed_to_change ?? null}
+        onChange={(v) => onChange({ departments_agreed_to_change: v })}
+        details={data.departments_agreed_details}
+        onDetailsChange={(v) => onChange({ departments_agreed_details: v })}
         detailsLabel="Details (If No)"
         disabled={disabled}
       />

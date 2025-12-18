@@ -62,7 +62,7 @@ export function useUserRole() {
   }, [user, authLoading]);
 
   // Check if user can edit a specific section
-  const canEditSection = (section: 'header' | 'engineering' | 'operations' | 'quality' | 'npi-final' | 'supply-chain'): boolean => {
+  const canEditSection = (section: 'header' | 'engineering' | 'operations' | 'quality' | 'programming' | 'handover' | 'npi-final' | 'supply-chain'): boolean => {
     if (!role) return false;
     if (role === 'admin') return true;
     
@@ -76,6 +76,12 @@ export function useUserRole() {
         return role === 'operations';
       case 'quality':
         return role === 'quality';
+      case 'programming':
+        // Programming review can be done by engineering
+        return role === 'engineering';
+      case 'handover':
+        // Handover can be edited by engineering, operations, and quality (each signs their section)
+        return role === 'engineering' || role === 'operations' || role === 'quality';
       case 'npi-final':
         return role === 'npi';
       case 'supply-chain':

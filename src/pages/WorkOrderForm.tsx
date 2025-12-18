@@ -9,6 +9,8 @@ import { FormHeader } from '@/components/form/FormHeader';
 import { EngineeringReview } from '@/components/form/EngineeringReview';
 import { OperationsReview } from '@/components/form/OperationsReview';
 import { QualityReview } from '@/components/form/QualityReview';
+import { ProgrammingReview } from '@/components/form/ProgrammingReview';
+import { HandoverReview } from '@/components/form/HandoverReview';
 import { NPIFinalReview } from '@/components/form/NPIFinalReview';
 import { SupplyChainReview } from '@/components/form/SupplyChainReview';
 import { AssignNextReviewer } from '@/components/form/AssignNextReviewer';
@@ -17,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Save, Loader2, ChevronLeft, ChevronRight, Send } from 'lucide-react';
 import { toast } from 'sonner';
 
-const sectionOrder: FormSection[] = ['header', 'engineering', 'operations', 'quality', 'npi-final', 'supply-chain'];
+const sectionOrder: FormSection[] = ['header', 'engineering', 'operations', 'quality', 'programming', 'handover', 'npi-final', 'supply-chain'];
 
 // Map form sections to workflow stages
 const SECTION_TO_STAGE: Record<FormSection, string> = {
@@ -25,6 +27,8 @@ const SECTION_TO_STAGE: Record<FormSection, string> = {
   'engineering': 'engineering',
   'operations': 'operations',
   'quality': 'quality',
+  'programming': 'programming',
+  'handover': 'handover',
   'npi-final': 'npi',
   'supply-chain': 'supply_chain',
 };
@@ -35,6 +39,8 @@ const SIGNATURE_FIELDS: Record<FormSection, { signature: string; date: string } 
   'engineering': { signature: 'engineering_approved_by', date: 'engineering_approved_date' },
   'operations': null, // Operations doesn't have a signature, uses comments
   'quality': { signature: 'quality_signature', date: 'quality_signature_date' },
+  'programming': { signature: 'programming_signature', date: 'programming_signature_date' },
+  'handover': null, // Handover has 3 signatures but we check differently
   'npi-final': { signature: 'npi_final_signature', date: 'npi_final_signature_date' },
   'supply-chain': { signature: 'supply_chain_signature', date: 'supply_chain_signature_date' },
 };
@@ -97,12 +103,19 @@ export default function WorkOrderForm() {
   const isSectionSigned = useCallback((section: FormSection) => {
     const signatureField = SIGNATURE_FIELDS[section];
     if (!signatureField) {
-      // For sections without signature (header, operations), check if we should move on
+      // For sections without signature (header, operations, handover), check if we should move on
       if (section === 'header') {
         return !!(formData.work_order_number && formData.customer);
       }
       if (section === 'operations') {
         return !!formData.operations_comments || (formData.operations_work_centres?.length ?? 0) > 0;
+      }
+      if (section === 'handover') {
+        // Handover is complete when all 3 departments have signed
+        const engSigned = !!(formData.handover_engineering_signature && formData.handover_engineering_date);
+        const opsSigned = !!(formData.handover_operations_signature && formData.handover_operations_date);
+        const qualitySigned = !!(formData.handover_quality_signature && formData.handover_quality_date);
+        return engSigned && opsSigned && qualitySigned;
       }
       return false;
     }
@@ -126,6 +139,13 @@ export default function WorkOrderForm() {
           return 'Add work centres or comments';
         }
         return null;
+      }
+      if (section === 'handover') {
+        const missing: string[] = [];
+        if (!formData.handover_engineering_signature || !formData.handover_engineering_date) missing.push('Engineering');
+        if (!formData.handover_operations_signature || !formData.handover_operations_date) missing.push('Operations');
+        if (!formData.handover_quality_signature || !formData.handover_quality_date) missing.push('Quality');
+        return missing.length > 0 ? `Missing signatures: ${missing.join(', ')}` : null;
       }
       return null;
     }
@@ -292,6 +312,12 @@ export default function WorkOrderForm() {
         )}
         {currentSection === 'quality' && (
           <QualityReview data={formData} onChange={handleChange} disabled={!canEditSection('quality')} />
+        )}
+        {currentSection === 'programming' && (
+          <ProgrammingReview data={formData} onChange={handleChange} disabled={!canEditSection('programming')} />
+        )}
+        {currentSection === 'handover' && (
+          <HandoverReview data={formData} onChange={handleChange} disabled={!canEditSection('handover')} />
         )}
         {currentSection === 'npi-final' && (
           <NPIFinalReview data={formData} onChange={handleChange} disabled={!canEditSection('npi-final')} />
