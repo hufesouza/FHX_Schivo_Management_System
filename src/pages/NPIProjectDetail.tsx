@@ -17,7 +17,7 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { 
   Loader2, FileText, Users, Target, Calendar, CheckCircle2, 
-  Circle, Clock, AlertCircle, Save, Plus, Trash2, ChevronRight, Link2, UserPlus
+  Circle, Clock, AlertCircle, Save, Plus, Trash2, ChevronRight, Link2, UserPlus, GanttChart
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { PROJECT_PHASES, DESIGN_TRANSFER_CATEGORIES, type NPIDesignTransferItem, type NPIProjectMilestone } from '@/types/npiProject';
@@ -26,6 +26,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { LinkItemsDialog } from '@/components/npi-pipeline/LinkItemsDialog';
 import { ExportNPIProjectPDF } from '@/components/npi-projects/ExportNPIProjectPDF';
+import { ProjectGanttChart } from '@/components/npi-projects/ProjectGanttChart';
 import { DesignTransferItemRow } from '@/components/npi-projects/DesignTransferItemRow';
 
 const NPIProjectDetail = () => {
@@ -214,14 +215,66 @@ const NPIProjectDetail = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 max-w-2xl">
+        <Tabs defaultValue="timeline" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-6 max-w-3xl">
+            <TabsTrigger value="timeline" className="flex items-center gap-1">
+              <GanttChart className="h-3.5 w-3.5" />
+              Timeline
+            </TabsTrigger>
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="charter">Charter</TabsTrigger>
             <TabsTrigger value="checklist">Design Transfer</TabsTrigger>
             <TabsTrigger value="milestones">Milestones</TabsTrigger>
             <TabsTrigger value="team">Team</TabsTrigger>
           </TabsList>
+          {/* Timeline Tab - Gantt Chart */}
+          <TabsContent value="timeline" className="space-y-6">
+            <ProjectGanttChart
+              project={project}
+              designTransferItems={designTransferItems}
+              milestones={milestones}
+            />
+            
+            {/* Quick Stats for Timeline */}
+            <div className="grid gap-4 md:grid-cols-4">
+              <Card className="p-4">
+                <div className="text-sm text-muted-foreground">Project Start</div>
+                <div className="text-lg font-semibold">
+                  {project.start_date ? format(new Date(project.start_date), 'MMM d, yyyy') : 'Not set'}
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-sm text-muted-foreground">Target Delivery</div>
+                <div className="text-lg font-semibold text-green-600">
+                  {project.target_completion_date ? format(new Date(project.target_completion_date), 'MMM d, yyyy') : 'Not set'}
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-sm text-muted-foreground">Tasks Complete</div>
+                <div className="text-lg font-semibold">
+                  {completedItems} / {totalItems}
+                </div>
+              </Card>
+              <Card className="p-4">
+                <div className="text-sm text-muted-foreground">Overdue Items</div>
+                <div className={`text-lg font-semibold ${
+                  designTransferItems.filter(i => 
+                    i.due_date && 
+                    i.status !== 'completed' && 
+                    i.status !== 'not_applicable' &&
+                    new Date(i.due_date) < new Date()
+                  ).length > 0 ? 'text-red-500' : 'text-green-500'
+                }`}>
+                  {designTransferItems.filter(i => 
+                    i.due_date && 
+                    i.status !== 'completed' && 
+                    i.status !== 'not_applicable' &&
+                    new Date(i.due_date) < new Date()
+                  ).length}
+                </div>
+              </Card>
+            </div>
+          </TabsContent>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
