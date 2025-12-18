@@ -316,16 +316,43 @@ export function useNPIProjectDetail(projectId: string | undefined) {
 
       if (error) throw error;
 
-      setDesignTransferItems(prev => 
-        prev.map(item => item.id === itemId ? { ...item, ...updates } : item)
+      // Update local state
+      const newItems = designTransferItems.map(item => 
+        item.id === itemId ? { ...item, ...updates } : item
       );
+      setDesignTransferItems(newItems);
+
+      // Check if we should auto-advance the phase
+      if (project && updates.status) {
+        const phaseOrder = ['planning', 'execution', 'process_qualification'];
+        const currentPhaseIndex = phaseOrder.indexOf(project.current_phase);
+        
+        if (currentPhaseIndex < phaseOrder.length - 1) {
+          const currentPhaseItems = newItems.filter(i => i.phase === project.current_phase);
+          const allComplete = currentPhaseItems.every(
+            i => i.status === 'completed' || i.status === 'not_applicable'
+          );
+          
+          if (allComplete && currentPhaseItems.length > 0) {
+            const nextPhase = phaseOrder[currentPhaseIndex + 1] as NPIProject['current_phase'];
+            await supabase
+              .from('npi_projects')
+              .update({ current_phase: nextPhase })
+              .eq('id', project.id);
+            
+            setProject(prev => prev ? { ...prev, current_phase: nextPhase } : null);
+            toast.success(`Phase advanced to ${nextPhase.replace('_', ' ')}`);
+          }
+        }
+      }
+      
       return true;
     } catch (error: any) {
       console.error('Error updating item:', error);
       toast.error('Failed to update item');
       return false;
     }
-  }, []);
+  }, [designTransferItems, project]);
 
   const updateMilestone = useCallback(async (
     milestoneId: string,
