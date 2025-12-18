@@ -193,6 +193,11 @@ const NPIProjects = () => {
                       <SelectItem value="complex">Complex (Major NPI)</SelectItem>
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {newProject.project_type === 'simple' 
+                      ? 'Simple NPI: Minor changes, single part, shorter timeline. Fewer milestones and checkpoints required.'
+                      : 'Complex NPI: Multiple parts, significant tooling, extended timeline. Full design transfer checklist and milestone tracking.'}
+                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
