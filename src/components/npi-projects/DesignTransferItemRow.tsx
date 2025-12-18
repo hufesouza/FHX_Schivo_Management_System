@@ -18,6 +18,7 @@ interface DesignTransferItemRowProps {
   onNotesChange: (item: NPIDesignTransferItem, notes: string) => void;
   onOwnerChange?: (item: NPIDesignTransferItem, ownerName: string) => void;
   onDueDateChange?: (item: NPIDesignTransferItem, dueDate: string) => void;
+  onDurationChange?: (item: NPIDesignTransferItem, duration: number | null) => void;
 }
 
 interface ItemNotes {
@@ -51,6 +52,7 @@ export function DesignTransferItemRow({
   onNotesChange,
   onOwnerChange,
   onDueDateChange,
+  onDurationChange,
 }: DesignTransferItemRowProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [parsedNotes, setParsedNotes] = useState<ItemNotes>({});
@@ -158,8 +160,8 @@ export function DesignTransferItemRow({
 
         <CollapsibleContent>
           <div className="border-t p-4 space-y-4 bg-muted/20">
-            {/* Owner and Due Date */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Owner, Duration, and Due Date */}
+            <div className="grid grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor={`owner-${item.id}`} className="text-xs">Owner</Label>
                 <Input
@@ -167,6 +169,22 @@ export function DesignTransferItemRow({
                   value={item.owner_name || ''}
                   onChange={(e) => onOwnerChange?.(item, e.target.value)}
                   placeholder="Assign owner..."
+                  className="h-8 text-sm"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor={`duration-${item.id}`} className="text-xs">Duration (days)</Label>
+                <Input
+                  id={`duration-${item.id}`}
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={item.estimated_duration_days ?? ''}
+                  onChange={(e) => {
+                    const val = e.target.value ? parseInt(e.target.value) : null;
+                    onDurationChange?.(item, val);
+                  }}
+                  placeholder="Days..."
                   className="h-8 text-sm"
                 />
               </div>
