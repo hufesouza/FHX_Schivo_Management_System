@@ -236,7 +236,11 @@ const NPIProjectDetail = () => {
                     </div>
                     <div>
                       <p className="text-muted-foreground">Project Manager</p>
-                      <p className="font-medium">{project.project_manager?.full_name || '-'}</p>
+                      <p className="font-medium">
+                        {team.find(m => m.role.toLowerCase().includes('project manager') || m.role.toLowerCase() === 'pm')?.full_name 
+                          || team.find(m => m.role.toLowerCase().includes('project manager') || m.role.toLowerCase() === 'pm')?.email 
+                          || '-'}
+                      </p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Type</p>
