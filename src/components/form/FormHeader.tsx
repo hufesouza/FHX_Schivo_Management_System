@@ -21,6 +21,16 @@ export function FormHeader({ data, onChange, disabled = false }: FormHeaderProps
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
+          <Label htmlFor="blue_review_number">Blue Review #</Label>
+          <Input
+            id="blue_review_number"
+            value={data.blue_review_number ? `BR-${String(data.blue_review_number).padStart(5, '0')}` : 'Auto-assigned on save'}
+            disabled
+            className="bg-muted font-mono"
+          />
+        </div>
+        
+        <div className="space-y-2">
           <Label htmlFor="customer">Customer</Label>
           <Input
             id="customer"
@@ -49,17 +59,6 @@ export function FormHeader({ data, onChange, disabled = false }: FormHeaderProps
             value={data.work_order_number || ''}
             onChange={(e) => onChange({ work_order_number: e.target.value })}
             placeholder="Work order number"
-            disabled={disabled}
-          />
-        </div>
-        
-        <div className="space-y-2">
-          <Label htmlFor="icn_number">ICN No.</Label>
-          <Input
-            id="icn_number"
-            value={data.icn_number || ''}
-            onChange={(e) => onChange({ icn_number: e.target.value })}
-            placeholder="ICN number"
             disabled={disabled}
           />
         </div>

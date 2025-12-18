@@ -1557,6 +1557,7 @@ export type Database = {
           all_sections_filled: boolean | null
           approval_status_details: string | null
           approval_status_updated: boolean | null
+          blue_review_number: number
           bom_hardware_available: boolean | null
           bom_hardware_details: string | null
           bom_lead_time: string | null
@@ -1599,7 +1600,6 @@ export type Database = {
           handover_quality_date: string | null
           handover_quality_details: string | null
           handover_quality_signature: string | null
-          icn_number: string | null
           id: string
           ims_updated: boolean | null
           ims_updated_details: string | null
@@ -1663,6 +1663,7 @@ export type Database = {
           all_sections_filled?: boolean | null
           approval_status_details?: string | null
           approval_status_updated?: boolean | null
+          blue_review_number?: number
           bom_hardware_available?: boolean | null
           bom_hardware_details?: string | null
           bom_lead_time?: string | null
@@ -1705,7 +1706,6 @@ export type Database = {
           handover_quality_date?: string | null
           handover_quality_details?: string | null
           handover_quality_signature?: string | null
-          icn_number?: string | null
           id?: string
           ims_updated?: boolean | null
           ims_updated_details?: string | null
@@ -1769,6 +1769,7 @@ export type Database = {
           all_sections_filled?: boolean | null
           approval_status_details?: string | null
           approval_status_updated?: boolean | null
+          blue_review_number?: number
           bom_hardware_available?: boolean | null
           bom_hardware_details?: string | null
           bom_lead_time?: string | null
@@ -1811,7 +1812,6 @@ export type Database = {
           handover_quality_date?: string | null
           handover_quality_details?: string | null
           handover_quality_signature?: string | null
-          icn_number?: string | null
           id?: string
           ims_updated?: boolean | null
           ims_updated_details?: string | null
