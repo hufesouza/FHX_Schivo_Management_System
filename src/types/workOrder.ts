@@ -139,6 +139,13 @@ export interface WorkOrder {
   npi_final_signature: string | null;
   npi_final_signature_date: string | null;
   
+  // BR Revision Workflow
+  br_needs_redo: boolean | null;
+  br_redo_new_wo_number: string | null;
+  br_on_hold: boolean | null;
+  parent_br_id: string | null;
+  revision_round: number | null;
+  
   // Supply Chain
   sap_changes_completed: boolean | null;
   sap_changes_details: string | null;
