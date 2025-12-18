@@ -446,12 +446,12 @@ function generatePDFContent(workOrder: Partial<WorkOrder>): string {
       <div class="header-content">
         <div class="logo-section">
           <h1>Schivo</h1>
-          <div class="tagline">We make possible happen.</div>
+          <div class="tagline">Unconventional Thinking</div>
         </div>
         <div class="doc-info">
           <div class="doc-number">WD-FRM-0017</div>
           <div>Blue Work Order Review</div>
-          <div>Rev. 1.0</div>
+          <div>ISO 13485 & FDA Registered</div>
         </div>
       </div>
     </div>
@@ -686,8 +686,8 @@ function generatePDFContent(workOrder: Partial<WorkOrder>): string {
       <div class="footer-content">
         <div class="footer-left">
           <div class="company">Schivo Medical</div>
-          <div>We make possible happen.</div>
-          <div>www.schivomedical.com</div>
+          <div>Medical Device & Life Sciences Contract Manufacturing</div>
+          <div style="font-size: 8px; margin-top: 2px;">ISO 13485 & FDA Registered | 7 Global Locations | 630+ Employees | 50+ Active Patents</div>
         </div>
         <div class="footer-right">
           <div class="fhx-credit">Developed by FHX Engineering</div>
