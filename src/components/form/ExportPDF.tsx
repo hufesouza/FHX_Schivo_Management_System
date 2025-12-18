@@ -473,8 +473,8 @@ function generatePDFContent(workOrder: Partial<WorkOrder>): string {
           <span class="value">${workOrder.part_and_rev || 'N/A'}</span>
         </div>
         <div class="wo-detail-item">
-          <span class="label">ICN Number</span>
-          <span class="value">${workOrder.icn_number || 'N/A'}</span>
+          <span class="label">Blue Review #</span>
+          <span class="value">${workOrder.blue_review_number ? `BR-${String(workOrder.blue_review_number).padStart(5, '0')}` : 'N/A'}</span>
         </div>
         <div class="wo-detail-item">
           <span class="label">Status</span>

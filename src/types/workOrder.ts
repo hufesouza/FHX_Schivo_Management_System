@@ -18,10 +18,10 @@ export interface WorkOrder {
   current_stage: string;
   
   // Header
+  blue_review_number: number | null;
   customer: string | null;
   part_and_rev: string | null;
   work_order_number: string | null;
-  icn_number: string | null;
   
   // Engineering - Process Parameters
   est_development_time: number | null;
