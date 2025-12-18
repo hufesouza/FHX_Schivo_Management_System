@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useNPIProjectDetail } from '@/hooks/useNPIProjects';
+import { useResourceConfigurations } from '@/hooks/useResourceConfigurations';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +26,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { LinkItemsDialog } from '@/components/npi-pipeline/LinkItemsDialog';
 import { ExportNPIProjectPDF } from '@/components/npi-projects/ExportNPIProjectPDF';
+import { DesignTransferItemRow } from '@/components/npi-projects/DesignTransferItemRow';
 
 const NPIProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -36,7 +38,7 @@ const NPIProjectDetail = () => {
     linkNPIJob, unlinkNPIJob, linkBlueReview, unlinkBlueReview,
     addTeamMember, removeTeamMember
   } = useNPIProjectDetail(id);
-
+  const { configurations: resources } = useResourceConfigurations();
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
   const [addMemberOpen, setAddMemberOpen] = useState(false);
   const [newMemberUserId, setNewMemberUserId] = useState('');
@@ -105,6 +107,18 @@ const NPIProjectDetail = () => {
       status: newStatus as NPIDesignTransferItem['status'],
       completed_date: newStatus === 'completed' ? new Date().toISOString().split('T')[0] : null
     });
+  };
+
+  const handleItemNotesChange = async (item: NPIDesignTransferItem, notes: string) => {
+    await updateDesignTransferItem(item.id, { notes });
+  };
+
+  const handleItemOwnerChange = async (item: NPIDesignTransferItem, ownerName: string) => {
+    await updateDesignTransferItem(item.id, { owner_name: ownerName });
+  };
+
+  const handleItemDueDateChange = async (item: NPIDesignTransferItem, dueDate: string) => {
+    await updateDesignTransferItem(item.id, { due_date: dueDate || null });
   };
 
   const handleMilestoneStatusChange = async (milestone: NPIProjectMilestone, newStatus: string) => {
@@ -446,27 +460,15 @@ const NPIProjectDetail = () => {
                       </div>
                       <div className="space-y-2">
                         {items.map(item => (
-                          <div key={item.id} className="flex items-center gap-4 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors">
-                            {getStatusIcon(item.status)}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm">{item.item_name}</p>
-                              <p className="text-xs text-muted-foreground">{item.category} • {item.description}</p>
-                            </div>
-                            <Select
-                              value={item.status}
-                              onValueChange={(value) => handleItemStatusChange(item, value)}
-                            >
-                              <SelectTrigger className="w-[140px]">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="not_started">Not Started</SelectItem>
-                                <SelectItem value="in_progress">In Progress</SelectItem>
-                                <SelectItem value="completed">Completed</SelectItem>
-                                <SelectItem value="not_applicable">N/A</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </div>
+                          <DesignTransferItemRow
+                            key={item.id}
+                            item={item}
+                            resources={resources}
+                            onStatusChange={handleItemStatusChange}
+                            onNotesChange={handleItemNotesChange}
+                            onOwnerChange={handleItemOwnerChange}
+                            onDueDateChange={handleItemDueDateChange}
+                          />
                         ))}
                       </div>
                     </div>
