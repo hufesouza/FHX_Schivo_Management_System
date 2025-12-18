@@ -20,7 +20,8 @@ import {
   ArrowLeft,
   ClipboardList,
   Bell,
-  CalendarDays
+  CalendarDays,
+  FolderKanban
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -32,6 +33,15 @@ import {
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
 const subModules = [
+  {
+    id: 'npi-projects',
+    title: 'NPI Projects',
+    description: 'Full NPI project management with charter, design transfer checklist and gate reviews',
+    icon: FolderKanban,
+    href: '/npi/projects',
+    color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
+    available: true,
+  },
   {
     id: 'blue-review',
     title: 'Blue Review',
