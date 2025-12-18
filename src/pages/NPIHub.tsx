@@ -88,6 +88,15 @@ const NPIHub = () => {
 
   const isAdmin = role === 'admin';
   const myTasks = getMyTasks();
+  
+  // Filter modules based on user access
+  const visibleModules = subModules.filter(module => {
+    // NPI Projects only available to hferreira@schivomedical.com
+    if (module.id === 'npi-projects') {
+      return user?.email === 'hferreira@schivomedical.com';
+    }
+    return true;
+  });
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -137,7 +146,7 @@ const NPIHub = () => {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 max-w-3xl mx-auto">
-          {subModules.map((module, index) => (
+          {visibleModules.map((module, index) => (
             <Card 
               key={module.id}
               className={`relative overflow-hidden transition-all duration-300 animate-fade-in ${

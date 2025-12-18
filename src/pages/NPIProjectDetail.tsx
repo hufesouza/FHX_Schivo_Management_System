@@ -61,7 +61,11 @@ const NPIProjectDetail = () => {
     if (!authLoading && !isAuthenticated) {
       navigate('/auth');
     }
-  }, [isAuthenticated, authLoading, navigate]);
+    // NPI Projects only available to specific user
+    if (!authLoading && user && user.email !== 'hferreira@schivomedical.com') {
+      navigate('/npi');
+    }
+  }, [isAuthenticated, authLoading, user, navigate]);
 
   useEffect(() => {
     if (charter) {
