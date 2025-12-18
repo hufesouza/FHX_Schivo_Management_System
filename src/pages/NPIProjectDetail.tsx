@@ -16,12 +16,13 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { 
   Loader2, FileText, Users, Target, Calendar, CheckCircle2, 
-  Circle, Clock, AlertCircle, Save, Plus, Trash2, ChevronRight
+  Circle, Clock, AlertCircle, Save, Plus, Trash2, ChevronRight, Link2
 } from 'lucide-react';
 import { PROJECT_PHASES, DESIGN_TRANSFER_CATEGORIES, type NPIDesignTransferItem, type NPIProjectMilestone } from '@/types/npiProject';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { LinkItemsDialog } from '@/components/npi-pipeline/LinkItemsDialog';
 
 const NPIProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -29,8 +30,11 @@ const NPIProjectDetail = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { 
     project, charter, designTransferItems, team, milestones, loading,
-    updateCharter, updateDesignTransferItem, updateMilestone, fetchProject
+    updateCharter, updateDesignTransferItem, updateMilestone, fetchProject,
+    linkNPIJob, unlinkNPIJob, linkBlueReview, unlinkBlueReview
   } = useNPIProjectDetail(id);
+
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
 
   const [charterForm, setCharterForm] = useState({
     scope: '',
@@ -257,28 +261,34 @@ const NPIProjectDetail = () => {
 
             {/* Linked Items */}
             <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Linked Items</CardTitle>
-                <CardDescription>Blue Reviews and NPI Pipeline jobs connected to this project</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-lg">Linked Items</CardTitle>
+                  <CardDescription>Blue Reviews and NPI Pipeline jobs connected to this project</CardDescription>
+                </div>
+                <Button onClick={() => setLinkDialogOpen(true)} size="sm">
+                  <Link2 className="h-4 w-4 mr-2" />
+                  Link Items
+                </Button>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 md:grid-cols-2">
-                  <Button variant="outline" className="justify-start h-auto py-4" onClick={() => navigate('/npi/blue-review')}>
-                    <FileText className="h-5 w-5 mr-3" />
-                    <div className="text-left">
+                  <div className="p-4 rounded-lg border">
+                    <div className="flex items-center gap-3 mb-2">
+                      <FileText className="h-5 w-5 text-blue-500" />
                       <p className="font-medium">Blue Reviews</p>
-                      <p className="text-sm text-muted-foreground">{project.linked_blue_reviews_count || 0} linked reviews</p>
                     </div>
-                    <ChevronRight className="h-4 w-4 ml-auto" />
-                  </Button>
-                  <Button variant="outline" className="justify-start h-auto py-4" onClick={() => navigate('/npi/pipeline')}>
-                    <Target className="h-5 w-5 mr-3" />
-                    <div className="text-left">
+                    <p className="text-2xl font-bold">{project.linked_blue_reviews_count || 0}</p>
+                    <p className="text-sm text-muted-foreground">linked reviews</p>
+                  </div>
+                  <div className="p-4 rounded-lg border">
+                    <div className="flex items-center gap-3 mb-2">
+                      <Target className="h-5 w-5 text-green-500" />
                       <p className="font-medium">NPI Pipeline</p>
-                      <p className="text-sm text-muted-foreground">{project.linked_pipeline_jobs_count || 0} linked jobs</p>
                     </div>
-                    <ChevronRight className="h-4 w-4 ml-auto" />
-                  </Button>
+                    <p className="text-2xl font-bold">{project.linked_pipeline_jobs_count || 0}</p>
+                    <p className="text-sm text-muted-foreground">linked jobs</p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -528,6 +538,16 @@ const NPIProjectDetail = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <LinkItemsDialog
+          open={linkDialogOpen}
+          onOpenChange={setLinkDialogOpen}
+          projectId={id!}
+          onLinkNPIJob={linkNPIJob}
+          onUnlinkNPIJob={unlinkNPIJob}
+          onLinkBlueReview={linkBlueReview}
+          onUnlinkBlueReview={unlinkBlueReview}
+        />
       </main>
     </AppLayout>
   );
