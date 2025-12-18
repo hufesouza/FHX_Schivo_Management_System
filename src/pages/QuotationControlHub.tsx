@@ -8,12 +8,14 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { EnquiryLogUpload } from '@/components/quotation-control/EnquiryLogUpload';
 import { EnquiryDashboard } from '@/components/quotation-control/EnquiryDashboard';
 import { EnquiryList, EnquiryListFilters } from '@/components/quotation-control/EnquiryList';
+import { EnquiryWorkflow } from '@/components/quotation-control/EnquiryWorkflow';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,15 +38,26 @@ import {
   Building,
   User,
   Euro,
-  FileText
+  FileText,
+  Kanban
 } from 'lucide-react';
 import { format } from 'date-fns';
+
+const WORKFLOW_STATUSES = [
+  'OPEN',
+  'IN REVIEW',
+  'QUOTED',
+  'WON',
+  'LOST',
+  'ON HOLD',
+  'CANCELLED'
+];
 
 const QuotationControlHub = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
-  const { enquiries, loading, uploading, stats, uploadData, clearAllData, fetchEnquiries } = useEnquiryLog();
+  const { enquiries, loading, uploading, stats, uploadData, clearAllData, fetchEnquiries, updateEnquiry } = useEnquiryLog();
   
   const [activeTab, setActiveTab] = useState('dashboard');
   const [listFilters, setListFilters] = useState<EnquiryListFilters | undefined>(undefined);
@@ -110,6 +123,10 @@ const QuotationControlHub = () => {
               <TabsTrigger value="dashboard" className="flex items-center gap-2">
                 <LayoutDashboard className="h-4 w-4" />
                 Dashboard
+              </TabsTrigger>
+              <TabsTrigger value="workflow" className="flex items-center gap-2">
+                <Kanban className="h-4 w-4" />
+                Workflow
               </TabsTrigger>
               <TabsTrigger value="list" className="flex items-center gap-2">
                 <List className="h-4 w-4" />
@@ -189,6 +206,24 @@ const QuotationControlHub = () => {
                 )}
               </TabsContent>
 
+              <TabsContent value="workflow" className="mt-0">
+                {enquiries.length === 0 ? (
+                  <Card className="text-center py-12">
+                    <CardContent>
+                      <p className="text-muted-foreground">
+                        No enquiries available. Upload an Excel file to track workflow.
+                      </p>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <EnquiryWorkflow
+                    enquiries={enquiries}
+                    onSelectEnquiry={handleSelectEnquiry}
+                    onUpdateStatus={(id, status) => updateEnquiry(id, { status })}
+                  />
+                )}
+              </TabsContent>
+
               <TabsContent value="list" className="mt-0">
                 {enquiries.length === 0 ? (
                   <Card className="text-center py-12">
@@ -248,11 +283,27 @@ const QuotationControlHub = () => {
             
             {selectedEnquiry && (
               <div className="space-y-6">
-                {/* Header Info */}
+                {/* Status Update */}
                 <div className="flex items-center gap-4">
-                  <Badge variant={selectedEnquiry.status === 'WON' ? 'default' : 'secondary'}>
-                    {selectedEnquiry.status || 'OPEN'}
-                  </Badge>
+                  <div className="flex-1">
+                    <label className="text-xs text-muted-foreground mb-1 block">Status</label>
+                    <Select
+                      value={selectedEnquiry.status || 'OPEN'}
+                      onValueChange={(value) => {
+                        updateEnquiry(selectedEnquiry.id, { status: value });
+                        setSelectedEnquiry({ ...selectedEnquiry, status: value });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WORKFLOW_STATUSES.map(s => (
+                          <SelectItem key={s} value={s}>{s}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   {selectedEnquiry.priority && (
                     <Badge variant="outline">Priority: {selectedEnquiry.priority}</Badge>
                   )}
