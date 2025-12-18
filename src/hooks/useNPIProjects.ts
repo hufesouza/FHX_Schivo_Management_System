@@ -250,7 +250,23 @@ export function useNPIProjectDetail(projectId: string | undefined) {
         projectManager = pmData;
       }
 
-      setProject({ ...projectData, project_manager: projectManager } as NPIProjectWithRelations);
+      // Get counts for linked items
+      const { count: brCount } = await supabase
+        .from('work_orders')
+        .select('*', { count: 'exact', head: true })
+        .eq('npi_project_id', projectId);
+
+      const { count: jobsCount } = await supabase
+        .from('npi_jobs')
+        .select('*', { count: 'exact', head: true })
+        .eq('npi_project_id', projectId);
+
+      setProject({ 
+        ...projectData, 
+        project_manager: projectManager,
+        linked_blue_reviews_count: brCount || 0,
+        linked_pipeline_jobs_count: jobsCount || 0,
+      } as NPIProjectWithRelations);
       setCharter(charterData);
       setDesignTransferItems(typedItems);
       setTeam(teamWithProfiles);
@@ -387,6 +403,76 @@ export function useNPIProjectDetail(projectId: string | undefined) {
     }
   }, []);
 
+  const linkNPIJob = useCallback(async (jobId: string) => {
+    if (!projectId) return false;
+    try {
+      const { error } = await supabase
+        .from('npi_jobs')
+        .update({ npi_project_id: projectId })
+        .eq('id', jobId);
+      if (error) throw error;
+      toast.success('NPI job linked');
+      fetchProject();
+      return true;
+    } catch (error: any) {
+      console.error('Error linking job:', error);
+      toast.error('Failed to link job');
+      return false;
+    }
+  }, [projectId, fetchProject]);
+
+  const unlinkNPIJob = useCallback(async (jobId: string) => {
+    try {
+      const { error } = await supabase
+        .from('npi_jobs')
+        .update({ npi_project_id: null })
+        .eq('id', jobId);
+      if (error) throw error;
+      toast.success('NPI job unlinked');
+      fetchProject();
+      return true;
+    } catch (error: any) {
+      console.error('Error unlinking job:', error);
+      toast.error('Failed to unlink job');
+      return false;
+    }
+  }, [fetchProject]);
+
+  const linkBlueReview = useCallback(async (workOrderId: string) => {
+    if (!projectId) return false;
+    try {
+      const { error } = await supabase
+        .from('work_orders')
+        .update({ npi_project_id: projectId })
+        .eq('id', workOrderId);
+      if (error) throw error;
+      toast.success('Blue Review linked');
+      fetchProject();
+      return true;
+    } catch (error: any) {
+      console.error('Error linking Blue Review:', error);
+      toast.error('Failed to link Blue Review');
+      return false;
+    }
+  }, [projectId, fetchProject]);
+
+  const unlinkBlueReview = useCallback(async (workOrderId: string) => {
+    try {
+      const { error } = await supabase
+        .from('work_orders')
+        .update({ npi_project_id: null })
+        .eq('id', workOrderId);
+      if (error) throw error;
+      toast.success('Blue Review unlinked');
+      fetchProject();
+      return true;
+    } catch (error: any) {
+      console.error('Error unlinking Blue Review:', error);
+      toast.error('Failed to unlink Blue Review');
+      return false;
+    }
+  }, [fetchProject]);
+
   return {
     project,
     charter,
@@ -400,5 +486,9 @@ export function useNPIProjectDetail(projectId: string | undefined) {
     updateMilestone,
     addTeamMember,
     removeTeamMember,
+    linkNPIJob,
+    unlinkNPIJob,
+    linkBlueReview,
+    unlinkBlueReview,
   };
 }
