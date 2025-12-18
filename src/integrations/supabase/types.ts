@@ -580,6 +580,68 @@ export type Database = {
         }
         Relationships: []
       }
+      npi_design_transfer_items: {
+        Row: {
+          category: string
+          completed_date: string | null
+          created_at: string
+          description: string | null
+          display_order: number
+          due_date: string | null
+          id: string
+          item_name: string
+          notes: string | null
+          owner_id: string | null
+          owner_name: string | null
+          phase: string
+          project_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          completed_date?: string | null
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          due_date?: string | null
+          id?: string
+          item_name: string
+          notes?: string | null
+          owner_id?: string | null
+          owner_name?: string | null
+          phase?: string
+          project_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          completed_date?: string | null
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          due_date?: string | null
+          id?: string
+          item_name?: string
+          notes?: string | null
+          owner_id?: string | null
+          owner_name?: string | null
+          phase?: string
+          project_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_design_transfer_items_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "npi_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       npi_jobs: {
         Row: {
           created_at: string
@@ -594,6 +656,7 @@ export type Database = {
           mc: string | null
           mc_cell: string | null
           npi_pm: string | null
+          npi_project_id: string | null
           part: string | null
           percent_complete: number | null
           row_index: number | null
@@ -616,6 +679,7 @@ export type Database = {
           mc?: string | null
           mc_cell?: string | null
           npi_pm?: string | null
+          npi_project_id?: string | null
           part?: string | null
           percent_complete?: number | null
           row_index?: number | null
@@ -638,6 +702,7 @@ export type Database = {
           mc?: string | null
           mc_cell?: string | null
           npi_pm?: string | null
+          npi_project_id?: string | null
           part?: string | null
           percent_complete?: number | null
           row_index?: number | null
@@ -647,7 +712,15 @@ export type Database = {
           uploaded_at?: string
           uploaded_by?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "npi_jobs_npi_project_id_fkey"
+            columns: ["npi_project_id"]
+            isOneToOne: false
+            referencedRelation: "npi_projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       npi_post_mc: {
         Row: {
@@ -748,6 +821,210 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      npi_project_charter: {
+        Row: {
+          approved_by: string | null
+          approved_date: string | null
+          assumptions: string | null
+          budget_notes: string | null
+          constraints: string | null
+          created_at: string
+          deliverables: string | null
+          id: string
+          objectives: string | null
+          project_id: string
+          revision: number
+          risks: string | null
+          scope: string | null
+          success_criteria: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_by?: string | null
+          approved_date?: string | null
+          assumptions?: string | null
+          budget_notes?: string | null
+          constraints?: string | null
+          created_at?: string
+          deliverables?: string | null
+          id?: string
+          objectives?: string | null
+          project_id: string
+          revision?: number
+          risks?: string | null
+          scope?: string | null
+          success_criteria?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_by?: string | null
+          approved_date?: string | null
+          assumptions?: string | null
+          budget_notes?: string | null
+          constraints?: string | null
+          created_at?: string
+          deliverables?: string | null
+          id?: string
+          objectives?: string | null
+          project_id?: string
+          revision?: number
+          risks?: string | null
+          scope?: string | null
+          success_criteria?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_project_charter_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: true
+            referencedRelation: "npi_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      npi_project_milestones: {
+        Row: {
+          actual_date: string | null
+          approved_by: string | null
+          created_at: string
+          display_order: number
+          id: string
+          milestone_name: string
+          notes: string | null
+          phase: string
+          project_id: string
+          status: string
+          target_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_date?: string | null
+          approved_by?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          milestone_name: string
+          notes?: string | null
+          phase: string
+          project_id: string
+          status?: string
+          target_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_date?: string | null
+          approved_by?: string | null
+          created_at?: string
+          display_order?: number
+          id?: string
+          milestone_name?: string
+          notes?: string | null
+          phase?: string
+          project_id?: string
+          status?: string
+          target_date?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_project_milestones_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "npi_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      npi_project_team: {
+        Row: {
+          created_at: string
+          id: string
+          project_id: string
+          responsibilities: string | null
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          project_id: string
+          responsibilities?: string | null
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          project_id?: string
+          responsibilities?: string | null
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_project_team_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "npi_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      npi_projects: {
+        Row: {
+          actual_completion_date: string | null
+          created_at: string
+          created_by: string
+          current_phase: string
+          customer: string | null
+          description: string | null
+          id: string
+          project_manager_id: string | null
+          project_name: string
+          project_number: string
+          project_type: string
+          start_date: string | null
+          status: string
+          target_completion_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          actual_completion_date?: string | null
+          created_at?: string
+          created_by: string
+          current_phase?: string
+          customer?: string | null
+          description?: string | null
+          id?: string
+          project_manager_id?: string | null
+          project_name: string
+          project_number: string
+          project_type?: string
+          start_date?: string | null
+          status?: string
+          target_completion_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          actual_completion_date?: string | null
+          created_at?: string
+          created_by?: string
+          current_phase?: string
+          customer?: string | null
+          description?: string | null
+          id?: string
+          project_manager_id?: string | null
+          project_name?: string
+          project_number?: string
+          project_type?: string
+          start_date?: string | null
+          status?: string
+          target_completion_date?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       personal_actions: {
         Row: {
@@ -1622,6 +1899,7 @@ export type Database = {
           npi_final_comments: string | null
           npi_final_signature: string | null
           npi_final_signature_date: string | null
+          npi_project_id: string | null
           open_actions_details: string | null
           open_actions_identified: boolean | null
           operations_comments: string | null
@@ -1733,6 +2011,7 @@ export type Database = {
           npi_final_comments?: string | null
           npi_final_signature?: string | null
           npi_final_signature_date?: string | null
+          npi_project_id?: string | null
           open_actions_details?: string | null
           open_actions_identified?: boolean | null
           operations_comments?: string | null
@@ -1844,6 +2123,7 @@ export type Database = {
           npi_final_comments?: string | null
           npi_final_signature?: string | null
           npi_final_signature_date?: string | null
+          npi_project_id?: string | null
           open_actions_details?: string | null
           open_actions_identified?: boolean | null
           operations_comments?: string | null
@@ -1880,6 +2160,13 @@ export type Database = {
           work_order_number?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "work_orders_npi_project_id_fkey"
+            columns: ["npi_project_id"]
+            isOneToOne: false
+            referencedRelation: "npi_projects"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "work_orders_parent_br_id_fkey"
             columns: ["parent_br_id"]
