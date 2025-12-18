@@ -126,6 +126,10 @@ const NPIProjectDetail = () => {
     await updateDesignTransferItem(item.id, { due_date: dueDate || null });
   };
 
+  const handleItemDurationChange = async (item: NPIDesignTransferItem, duration: number | null) => {
+    await updateDesignTransferItem(item.id, { estimated_duration_days: duration });
+  };
+
   const handleMilestoneStatusChange = async (milestone: NPIProjectMilestone, newStatus: string) => {
     await updateMilestone(milestone.id, { 
       status: newStatus as NPIProjectMilestone['status'],
@@ -525,6 +529,7 @@ const NPIProjectDetail = () => {
                             onNotesChange={handleItemNotesChange}
                             onOwnerChange={handleItemOwnerChange}
                             onDueDateChange={handleItemDueDateChange}
+                            onDurationChange={handleItemDurationChange}
                           />
                         ))}
                       </div>

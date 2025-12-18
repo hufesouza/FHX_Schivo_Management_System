@@ -588,6 +588,7 @@ export type Database = {
           description: string | null
           display_order: number
           due_date: string | null
+          estimated_duration_days: number | null
           id: string
           item_name: string
           notes: string | null
@@ -605,6 +606,7 @@ export type Database = {
           description?: string | null
           display_order?: number
           due_date?: string | null
+          estimated_duration_days?: number | null
           id?: string
           item_name: string
           notes?: string | null
@@ -622,6 +624,7 @@ export type Database = {
           description?: string | null
           display_order?: number
           due_date?: string | null
+          estimated_duration_days?: number | null
           id?: string
           item_name?: string
           notes?: string | null

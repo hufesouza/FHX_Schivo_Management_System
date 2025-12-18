@@ -154,19 +154,26 @@ export function ProjectGanttChart({
   const getBarPosition = (item: NPIDesignTransferItem) => {
     const dueDate = item.due_date ? parseISO(item.due_date) : null;
     const completedDate = item.completed_date ? parseISO(item.completed_date) : null;
+    const duration = item.estimated_duration_days || 5; // Default 5 days if not set
     
     if (!dueDate || !isValid(dueDate)) return null;
     
-    const startDay = differenceInDays(dueDate, startDate);
-    const endDay = completedDate && isValid(completedDate)
-      ? differenceInDays(completedDate, startDate)
-      : startDay;
+    // Calculate start date from due date and duration
+    const startDateCalc = addDays(dueDate, -(duration - 1));
     
-    // Bar width is at least 1 day
-    const width = Math.max(1, Math.abs(endDay - startDay) + 1);
-    const left = Math.min(startDay, endDay);
+    // Use completed date if item is done, otherwise use due date as end
+    const endDateDisplay = (item.status === 'completed' && completedDate && isValid(completedDate)) 
+      ? completedDate 
+      : dueDate;
     
-    return { left, width, dueDate, completedDate };
+    const startDay = differenceInDays(startDateCalc, startDate);
+    const endDay = differenceInDays(endDateDisplay, startDate);
+    
+    // Bar width spans from start to end
+    const width = Math.max(1, endDay - startDay + 1);
+    const left = startDay;
+    
+    return { left, width, dueDate, completedDate, startDateCalc, duration };
   };
 
   // Calculate milestone position
@@ -362,7 +369,7 @@ export function ProjectGanttChart({
                                       {item.item_name}
                                     </div>
                                     <div className="text-[10px] text-muted-foreground truncate">
-                                      {item.owner_name || 'Unassigned'} • {item.due_date ? format(parseISO(item.due_date), 'MMM d') : 'No date'}
+                                      {item.owner_name || 'Unassigned'} • {item.estimated_duration_days || 5}d • {item.due_date ? format(parseISO(item.due_date), 'MMM d') : 'No date'}
                                     </div>
                                   </div>
                                 </TooltipTrigger>
@@ -371,6 +378,7 @@ export function ProjectGanttChart({
                                   <p className="text-xs text-muted-foreground mt-1">{item.description || 'No description'}</p>
                                   <div className="text-xs mt-2 space-y-1">
                                     <p>Owner: {item.owner_name || 'Unassigned'}</p>
+                                    <p>Duration: {item.estimated_duration_days || 5} days</p>
                                     <p>Due: {item.due_date ? format(parseISO(item.due_date), 'MMM d, yyyy') : 'Not set'}</p>
                                     <p>Status: {item.status.replace('_', ' ')}</p>
                                   </div>
@@ -416,16 +424,18 @@ export function ProjectGanttChart({
                                         width: Math.max(barPos.width * colWidth - 4, 8),
                                       }}
                                     >
-                                      {barPos.width > 3 && (
+                                      {barPos.width > 2 && (
                                         <span className="absolute inset-0 flex items-center justify-center text-[9px] text-white font-medium truncate px-1">
-                                          {item.item_name.substring(0, 15)}
+                                          {barPos.duration}d
                                         </span>
                                       )}
                                     </div>
                                   </TooltipTrigger>
                                   <TooltipContent>
                                     <p className="font-medium">{item.item_name}</p>
+                                    <p className="text-xs">Start: {format(barPos.startDateCalc, 'MMM d, yyyy')}</p>
                                     <p className="text-xs">Due: {format(barPos.dueDate, 'MMM d, yyyy')}</p>
+                                    <p className="text-xs text-muted-foreground">Duration: {barPos.duration} days</p>
                                     {barPos.completedDate && (
                                       <p className="text-xs text-green-500">
                                         Completed: {format(barPos.completedDate, 'MMM d, yyyy')}
