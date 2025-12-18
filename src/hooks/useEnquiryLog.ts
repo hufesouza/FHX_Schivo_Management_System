@@ -64,6 +64,15 @@ export function useEnquiryLog() {
     try {
       setUploading(true);
 
+      // Deduplicate by enquiry_no (keep last occurrence)
+      const uniqueMap = new Map<string, ParsedEnquiryLog>();
+      parsedData.forEach(item => {
+        if (item.enquiry_no) {
+          uniqueMap.set(item.enquiry_no, item);
+        }
+      });
+      const uniqueData = Array.from(uniqueMap.values());
+
       // Delete existing data
       const { error: deleteError } = await supabase
         .from('enquiry_log')
@@ -74,8 +83,8 @@ export function useEnquiryLog() {
 
       // Insert new data in batches
       const batchSize = 500;
-      for (let i = 0; i < parsedData.length; i += batchSize) {
-        const batch = parsedData.slice(i, i + batchSize).map(item => ({
+      for (let i = 0; i < uniqueData.length; i += batchSize) {
+        const batch = uniqueData.slice(i, i + batchSize).map(item => ({
           ...item,
           uploaded_by: user.id,
         }));
