@@ -24,6 +24,7 @@ import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { LinkItemsDialog } from '@/components/npi-pipeline/LinkItemsDialog';
+import { ExportNPIProjectPDF } from '@/components/npi-projects/ExportNPIProjectPDF';
 
 const NPIProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -179,10 +180,19 @@ const NPIProjectDetail = () => {
           <Badge variant={project.status === 'active' ? 'outline' : 'secondary'}>
             {project.status}
           </Badge>
-          <div className="ml-auto flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Progress:</span>
-            <Progress value={progressPercent} className="w-32 h-2" />
-            <span className="text-sm font-medium">{progressPercent}%</span>
+          <div className="ml-auto flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Progress:</span>
+              <Progress value={progressPercent} className="w-32 h-2" />
+              <span className="text-sm font-medium">{progressPercent}%</span>
+            </div>
+            <ExportNPIProjectPDF project={{
+              ...project,
+              charter,
+              team,
+              milestones,
+              design_transfer_items: designTransferItems
+            }} />
           </div>
         </div>
 
