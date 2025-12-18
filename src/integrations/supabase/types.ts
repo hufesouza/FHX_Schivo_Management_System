@@ -101,6 +101,96 @@ export type Database = {
         }
         Relationships: []
       }
+      enquiry_log: {
+        Row: {
+          aging: number | null
+          business_type: string | null
+          comments: string | null
+          commercial_owner: string | null
+          created_at: string
+          customer: string | null
+          customer_type: string | null
+          date_po_received: string | null
+          date_quote_submitted: string | null
+          date_received: string | null
+          details: string | null
+          ecd_quote_submission: string | null
+          enquiry_no: string
+          id: string
+          is_quoted: boolean | null
+          npi_owner: string | null
+          po_received: boolean | null
+          po_value_euro: number | null
+          priority: string | null
+          quantity_parts_quoted: number | null
+          quoted_gap: number | null
+          quoted_price_euro: number | null
+          status: string | null
+          turnaround_days: number | null
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          aging?: number | null
+          business_type?: string | null
+          comments?: string | null
+          commercial_owner?: string | null
+          created_at?: string
+          customer?: string | null
+          customer_type?: string | null
+          date_po_received?: string | null
+          date_quote_submitted?: string | null
+          date_received?: string | null
+          details?: string | null
+          ecd_quote_submission?: string | null
+          enquiry_no: string
+          id?: string
+          is_quoted?: boolean | null
+          npi_owner?: string | null
+          po_received?: boolean | null
+          po_value_euro?: number | null
+          priority?: string | null
+          quantity_parts_quoted?: number | null
+          quoted_gap?: number | null
+          quoted_price_euro?: number | null
+          status?: string | null
+          turnaround_days?: number | null
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          aging?: number | null
+          business_type?: string | null
+          comments?: string | null
+          commercial_owner?: string | null
+          created_at?: string
+          customer?: string | null
+          customer_type?: string | null
+          date_po_received?: string | null
+          date_quote_submitted?: string | null
+          date_received?: string | null
+          details?: string | null
+          ecd_quote_submission?: string | null
+          enquiry_no?: string
+          id?: string
+          is_quoted?: boolean | null
+          npi_owner?: string | null
+          po_received?: boolean | null
+          po_value_euro?: number | null
+          priority?: string | null
+          quantity_parts_quoted?: number | null
+          quoted_gap?: number | null
+          quoted_price_euro?: number | null
+          status?: string | null
+          turnaround_days?: number | null
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
       form_fields: {
         Row: {
           created_at: string

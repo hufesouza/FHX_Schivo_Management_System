@@ -13,6 +13,7 @@ import QuotationMachines from "./pages/QuotationMachines";
 import QuotationComplianceSettings from "./pages/QuotationComplianceSettings";
 import PertEstimator from "./pages/PertEstimator";
 import NPIPipeline from "./pages/NPIPipeline";
+import QuotationControlHub from "./pages/QuotationControlHub";
 import NPIProjects from "./pages/NPIProjects";
 import NPIProjectDetail from "./pages/NPIProjectDetail";
 import ChangeControlHub from "./pages/ChangeControlHub";
@@ -50,6 +51,7 @@ const App = () => (
           <Route path="/npi/quotation/estimator" element={<PertEstimator />} />
           <Route path="/npi/quotation/compliance" element={<QuotationComplianceSettings />} />
           <Route path="/npi/pipeline" element={<NPIPipeline />} />
+          <Route path="/npi/quotation-control" element={<QuotationControlHub />} />
           <Route path="/npi/projects" element={<NPIProjects />} />
           <Route path="/npi/projects/:id" element={<NPIProjectDetail />} />
           

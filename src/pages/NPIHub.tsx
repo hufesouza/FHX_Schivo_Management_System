@@ -32,6 +32,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
+import { ReceiptText } from 'lucide-react';
+
 const subModules = [
   {
     id: 'npi-projects',
@@ -58,6 +60,15 @@ const subModules = [
     icon: ClipboardList,
     href: '/npi/pipeline',
     color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+    available: true,
+  },
+  {
+    id: 'quotation-control',
+    title: 'Quotation Control',
+    description: 'Track enquiries, quotations and POs with full workflow visibility (WD-PRO-0020)',
+    icon: ReceiptText,
+    href: '/npi/quotation-control',
+    color: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
     available: true,
   },
   {
