@@ -1561,6 +1561,9 @@ export type Database = {
           bom_hardware_available: boolean | null
           bom_hardware_details: string | null
           bom_lead_time: string | null
+          br_needs_redo: boolean | null
+          br_on_hold: boolean | null
+          br_redo_new_wo_number: string | null
           cmm_lead_time: string | null
           cmm_program_details: string | null
           cmm_program_required: boolean | null
@@ -1623,6 +1626,7 @@ export type Database = {
           open_actions_identified: boolean | null
           operations_comments: string | null
           operations_work_centres: Json | null
+          parent_br_id: string | null
           part_and_rev: string | null
           post_process_work_centres: Json | null
           programming_signature: string | null
@@ -1635,6 +1639,7 @@ export type Database = {
           quality_signature_date: string | null
           reasons_in_remarks: boolean | null
           reasons_in_remarks_details: string | null
+          revision_round: number | null
           routing_operations_details: string | null
           routing_operations_removed: boolean | null
           sap_changes_completed: boolean | null
@@ -1667,6 +1672,9 @@ export type Database = {
           bom_hardware_available?: boolean | null
           bom_hardware_details?: string | null
           bom_lead_time?: string | null
+          br_needs_redo?: boolean | null
+          br_on_hold?: boolean | null
+          br_redo_new_wo_number?: string | null
           cmm_lead_time?: string | null
           cmm_program_details?: string | null
           cmm_program_required?: boolean | null
@@ -1729,6 +1737,7 @@ export type Database = {
           open_actions_identified?: boolean | null
           operations_comments?: string | null
           operations_work_centres?: Json | null
+          parent_br_id?: string | null
           part_and_rev?: string | null
           post_process_work_centres?: Json | null
           programming_signature?: string | null
@@ -1741,6 +1750,7 @@ export type Database = {
           quality_signature_date?: string | null
           reasons_in_remarks?: boolean | null
           reasons_in_remarks_details?: string | null
+          revision_round?: number | null
           routing_operations_details?: string | null
           routing_operations_removed?: boolean | null
           sap_changes_completed?: boolean | null
@@ -1773,6 +1783,9 @@ export type Database = {
           bom_hardware_available?: boolean | null
           bom_hardware_details?: string | null
           bom_lead_time?: string | null
+          br_needs_redo?: boolean | null
+          br_on_hold?: boolean | null
+          br_redo_new_wo_number?: string | null
           cmm_lead_time?: string | null
           cmm_program_details?: string | null
           cmm_program_required?: boolean | null
@@ -1835,6 +1848,7 @@ export type Database = {
           open_actions_identified?: boolean | null
           operations_comments?: string | null
           operations_work_centres?: Json | null
+          parent_br_id?: string | null
           part_and_rev?: string | null
           post_process_work_centres?: Json | null
           programming_signature?: string | null
@@ -1847,6 +1861,7 @@ export type Database = {
           quality_signature_date?: string | null
           reasons_in_remarks?: boolean | null
           reasons_in_remarks_details?: string | null
+          revision_round?: number | null
           routing_operations_details?: string | null
           routing_operations_removed?: boolean | null
           sap_changes_completed?: boolean | null
@@ -1864,7 +1879,15 @@ export type Database = {
           wash_time?: number | null
           work_order_number?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "work_orders_parent_br_id_fkey"
+            columns: ["parent_br_id"]
+            isOneToOne: false
+            referencedRelation: "work_orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

@@ -1,7 +1,9 @@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { WorkOrder } from '@/types/workOrder';
 import { cn } from '@/lib/utils';
+import { RotateCcw, PauseCircle } from 'lucide-react';
 
 interface FormHeaderProps {
   data: Partial<WorkOrder>;
@@ -10,10 +12,27 @@ interface FormHeaderProps {
 }
 
 export function FormHeader({ data, onChange, disabled = false }: FormHeaderProps) {
+  const isRevision = (data.revision_round || 1) > 1;
+  const isOnHold = data.br_on_hold === true;
+
   return (
     <div className={cn("space-y-6 animate-fade-in", disabled && "opacity-60")}>
       <div>
-        <h2 className="text-xl font-serif font-medium mb-1">Blue Review Details</h2>
+        <div className="flex items-center gap-3 mb-1">
+          <h2 className="text-xl font-serif font-medium">Blue Review Details</h2>
+          {isRevision && (
+            <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 flex items-center gap-1">
+              <RotateCcw className="h-3 w-3" />
+              Round {data.revision_round}
+            </Badge>
+          )}
+          {isOnHold && (
+            <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300 flex items-center gap-1">
+              <PauseCircle className="h-3 w-3" />
+              On Hold
+            </Badge>
+          )}
+        </div>
         <p className="text-sm text-muted-foreground">
           {disabled ? 'View only - you do not have permission to edit this section' : 'Enter the basic review information'}
         </p>

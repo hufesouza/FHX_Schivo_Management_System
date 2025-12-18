@@ -14,6 +14,7 @@ import { HandoverReview } from '@/components/form/HandoverReview';
 import { NPIFinalReview } from '@/components/form/NPIFinalReview';
 import { SupplyChainReview } from '@/components/form/SupplyChainReview';
 import { AssignNextReviewer } from '@/components/form/AssignNextReviewer';
+import { BRHistory } from '@/components/form/BRHistory';
 import { ExportPDF } from '@/components/form/ExportPDF';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Save, Loader2, ChevronLeft, ChevronRight, Send } from 'lucide-react';
@@ -49,7 +50,7 @@ export default function WorkOrderForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading } = useAuth();
-  const { workOrder, loading, updateWorkOrder } = useWorkOrder(id);
+  const { workOrder, loading, updateWorkOrder, createRevisionRound } = useWorkOrder(id);
   const { role, loading: roleLoading, canEditSection, hasRole } = useUserRole();
   
   const [currentSection, setCurrentSection] = useState<FormSection>('header');
@@ -183,6 +184,22 @@ export default function WorkOrderForm() {
     navigate('/');
   };
 
+  const handleStartNewRound = async (newWoNumber: string) => {
+    // First save current state
+    if (hasChanges) {
+      setIsSaving(true);
+      await updateWorkOrder(formData);
+      setIsSaving(false);
+    }
+    
+    // Create new revision round
+    const newBr = await createRevisionRound(newWoNumber);
+    if (newBr) {
+      // Navigate to the new BR
+      navigate(`/work-order/${newBr.id}`);
+    }
+  };
+
   if (authLoading || loading || roleLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -302,7 +319,16 @@ export default function WorkOrderForm() {
       {/* Form Content */}
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         {currentSection === 'header' && (
-          <FormHeader data={formData} onChange={handleChange} disabled={!canEditSection('header')} />
+          <>
+            <FormHeader data={formData} onChange={handleChange} disabled={!canEditSection('header')} />
+            {id && (
+              <BRHistory 
+                currentBrId={id} 
+                parentBrId={formData.parent_br_id || null} 
+                revisionRound={formData.revision_round || 1} 
+              />
+            )}
+          </>
         )}
         {currentSection === 'engineering' && (
           <EngineeringReview data={formData} onChange={handleChange} disabled={!canEditSection('engineering')} />
@@ -320,7 +346,12 @@ export default function WorkOrderForm() {
           <HandoverReview data={formData} onChange={handleChange} disabled={!canEditSection('handover')} />
         )}
         {currentSection === 'npi-final' && (
-          <NPIFinalReview data={formData} onChange={handleChange} disabled={!canEditSection('npi-final')} />
+          <NPIFinalReview 
+            data={formData} 
+            onChange={handleChange} 
+            disabled={!canEditSection('npi-final')}
+            onStartNewRound={handleStartNewRound}
+          />
         )}
         {currentSection === 'supply-chain' && (
           <SupplyChainReview data={formData} onChange={handleChange} disabled={!canEditSection('supply-chain')} />

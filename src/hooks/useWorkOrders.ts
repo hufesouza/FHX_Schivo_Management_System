@@ -79,6 +79,42 @@ export function useWorkOrders() {
     return newOrder;
   }, [user]);
 
+  // Create a new revision round from an existing BR
+  const createRevisionRound = useCallback(async (parentBr: WorkOrder, newWoNumber: string) => {
+    if (!user) return null;
+    
+    const newRevisionRound = (parentBr.revision_round || 1) + 1;
+    
+    const { data, error } = await supabase
+      .from('work_orders')
+      .insert({
+        user_id: user.id,
+        // Copy core identifiers
+        customer: parentBr.customer,
+        part_and_rev: parentBr.part_and_rev,
+        work_order_number: newWoNumber,
+        // Link to parent and set revision
+        parent_br_id: parentBr.id,
+        revision_round: newRevisionRound,
+        // Start fresh from engineering
+        current_stage: 'engineering',
+        status: 'in_review',
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      toast.error('Failed to create new revision round');
+      console.error(error);
+      return null;
+    }
+    
+    const newOrder = transformDbToWorkOrder(data as unknown as DbWorkOrder);
+    setWorkOrders(prev => [newOrder, ...prev]);
+    toast.success(`Blue Review Round ${newRevisionRound} created`);
+    return newOrder;
+  }, [user]);
+
   const updateWorkOrder = useCallback(async (id: string, updates: Partial<WorkOrder>) => {
     const dbUpdates = transformToDbUpdates(updates);
     
@@ -120,6 +156,7 @@ export function useWorkOrders() {
     workOrders,
     loading,
     createWorkOrder,
+    createRevisionRound,
     updateWorkOrder,
     deleteWorkOrder,
     refetch: fetchWorkOrders,
@@ -129,6 +166,7 @@ export function useWorkOrders() {
 export function useWorkOrder(id: string | undefined) {
   const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   useEffect(() => {
     if (!id) {
@@ -175,5 +213,39 @@ export function useWorkOrder(id: string | undefined) {
     return true;
   }, [id]);
 
-  return { workOrder, loading, updateWorkOrder };
+  // Create a new revision round from the current BR
+  const createRevisionRound = useCallback(async (newWoNumber: string) => {
+    if (!user || !workOrder) return null;
+    
+    const newRevisionRound = (workOrder.revision_round || 1) + 1;
+    
+    const { data, error } = await supabase
+      .from('work_orders')
+      .insert({
+        user_id: user.id,
+        // Copy core identifiers
+        customer: workOrder.customer,
+        part_and_rev: workOrder.part_and_rev,
+        work_order_number: newWoNumber,
+        // Link to parent and set revision
+        parent_br_id: workOrder.id,
+        revision_round: newRevisionRound,
+        // Start fresh from engineering
+        current_stage: 'engineering',
+        status: 'in_review',
+      })
+      .select()
+      .single();
+    
+    if (error) {
+      toast.error('Failed to create new revision round');
+      console.error(error);
+      return null;
+    }
+    
+    toast.success(`Blue Review Round ${newRevisionRound} created`);
+    return transformDbToWorkOrder(data as unknown as DbWorkOrder);
+  }, [user, workOrder]);
+
+  return { workOrder, loading, updateWorkOrder, createRevisionRound };
 }
