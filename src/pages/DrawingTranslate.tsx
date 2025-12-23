@@ -363,7 +363,8 @@ const DrawingTranslate = () => {
           const translation = pageData.translations[i];
           const ocr = pageData.ocrResults[i];
 
-          if (!ocr || translation.wasSkipped) continue;
+          // Skip if no OCR data, was skipped, or translation is same as original
+          if (!ocr || translation.wasSkipped || translation.translated === translation.original) continue;
 
           const x = ocr.boundingBox.x * scale;
           const y = height - (ocr.boundingBox.y + ocr.boundingBox.height) * scale;
