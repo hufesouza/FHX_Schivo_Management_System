@@ -19,6 +19,8 @@ interface TranslationResult {
   wasSkipped: boolean;
 }
 
+const BATCH_SIZE = 50; // Translate in batches of 50 texts
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -50,7 +52,7 @@ serve(async (req) => {
     ];
 
     // Filter texts that should be translated
-    const textsToTranslate: string[] = [];
+    const textsToTranslate: { text: string; index: number }[] = [];
     const skipIndices: Set<number> = new Set();
 
     texts.forEach((text, index) => {
@@ -75,34 +77,31 @@ serve(async (req) => {
         return;
       }
 
-      textsToTranslate.push(trimmed);
+      textsToTranslate.push({ text: trimmed, index });
     });
 
     console.log(`${textsToTranslate.length} texts need translation, ${skipIndices.size} will be skipped`);
 
-    let translations: string[] = [];
+    const languageMap: Record<string, string> = {
+      'auto': 'auto-detect',
+      'pt-br': 'Brazilian Portuguese',
+      'pt-pt': 'European Portuguese', 
+      'fr': 'French',
+      'de': 'German',
+      'es': 'Spanish',
+      'it': 'Italian',
+      'en': 'English',
+    };
 
-    if (textsToTranslate.length > 0) {
-      // Build glossary context for AI
-      const glossaryContext = Object.entries(glossary)
-        .map(([term, translation]) => `"${term}" → "${translation}"`)
-        .join(', ');
+    const sourceLangName = languageMap[sourceLanguage.toLowerCase()] || sourceLanguage;
+    const targetLangName = languageMap[targetLanguage.toLowerCase()] || targetLanguage;
 
-      const languageMap: Record<string, string> = {
-        'auto': 'auto-detect',
-        'pt-br': 'Brazilian Portuguese',
-        'pt-pt': 'European Portuguese', 
-        'fr': 'French',
-        'de': 'German',
-        'es': 'Spanish',
-        'it': 'Italian',
-        'en': 'English',
-      };
+    // Build glossary context for AI
+    const glossaryContext = Object.entries(glossary)
+      .map(([term, translation]) => `"${term}" → "${translation}"`)
+      .join(', ');
 
-      const sourceLangName = languageMap[sourceLanguage.toLowerCase()] || sourceLanguage;
-      const targetLangName = languageMap[targetLanguage.toLowerCase()] || targetLanguage;
-
-      const systemPrompt = `You are a technical translator specializing in engineering and manufacturing drawings. 
+    const systemPrompt = `You are a technical translator specializing in engineering and manufacturing drawings. 
 Translate the following technical terms from ${sourceLangName} to ${targetLangName}.
 ${glossaryContext ? `Use this glossary for specific terms: ${glossaryContext}` : ''}
 
@@ -115,67 +114,86 @@ Important rules:
 
 Translate each line separately. Return translations in the same order, one per line.`;
 
-      const userPrompt = textsToTranslate.join('\n');
+    // Translation map: index -> translated text
+    const translationMap: Map<number, string> = new Map();
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userPrompt },
-          ],
-        }),
-      });
-
-      if (!response.ok) {
-        if (response.status === 429) {
-          throw new Error('Rate limit exceeded. Please try again later.');
-        }
-        if (response.status === 402) {
-          throw new Error('Payment required. Please add credits to continue.');
-        }
-        const errorText = await response.text();
-        console.error('Translation API error:', errorText);
-        throw new Error(`Translation API error: ${response.status}`);
+    // Process in batches
+    if (textsToTranslate.length > 0) {
+      const batches: { text: string; index: number }[][] = [];
+      for (let i = 0; i < textsToTranslate.length; i += BATCH_SIZE) {
+        batches.push(textsToTranslate.slice(i, i + BATCH_SIZE));
       }
 
-      const data = await response.json();
-      const translatedText = data.choices?.[0]?.message?.content || '';
-      translations = translatedText.split('\n').map((t: string) => t.trim());
+      console.log(`Processing ${batches.length} batches of up to ${BATCH_SIZE} texts each`);
 
-      // Pad translations if needed
-      while (translations.length < textsToTranslate.length) {
-        translations.push(textsToTranslate[translations.length]);
+      for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+        const batch = batches[batchIdx];
+        const userPrompt = batch.map(item => item.text).join('\n');
+
+        console.log(`Translating batch ${batchIdx + 1}/${batches.length} (${batch.length} texts)`);
+
+        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userPrompt },
+            ],
+          }),
+        });
+
+        if (!response.ok) {
+          if (response.status === 429) {
+            throw new Error('Rate limit exceeded. Please try again later.');
+          }
+          if (response.status === 402) {
+            throw new Error('Payment required. Please add credits to continue.');
+          }
+          const errorText = await response.text();
+          console.error('Translation API error:', errorText);
+          throw new Error(`Translation API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const translatedText = data.choices?.[0]?.message?.content || '';
+        const translations = translatedText.split('\n').map((t: string) => t.trim());
+
+        console.log(`Batch ${batchIdx + 1} returned ${translations.length} translations`);
+
+        // Map translations back to original indices
+        batch.forEach((item, i) => {
+          const translation = translations[i] || item.text;
+          translationMap.set(item.index, translation);
+        });
       }
     }
 
-    // Build final results array
-    const results: TranslationResult[] = [];
-    let translationIndex = 0;
+    console.log(`Translation complete. ${translationMap.size} texts translated.`);
 
-    texts.forEach((text, index) => {
+    // Build final results array
+    const results: TranslationResult[] = texts.map((text, index) => {
       const trimmed = text.trim();
       
       if (skipIndices.has(index)) {
         // Check if it's a glossary term
         const glossaryTranslation = glossary[trimmed.toLowerCase()];
-        results.push({
+        return {
           original: text,
           translated: glossaryTranslation || text,
           wasSkipped: !glossaryTranslation,
-        });
+        };
       } else {
-        results.push({
+        const translated = translationMap.get(index) || text;
+        return {
           original: text,
-          translated: translations[translationIndex] || text,
+          translated,
           wasSkipped: false,
-        });
-        translationIndex++;
+        };
       }
     });
 
@@ -183,7 +201,7 @@ Translate each line separately. Return translations in the same order, one per l
       JSON.stringify({
         success: true,
         results,
-        totalTranslated: texts.length - skipIndices.size,
+        totalTranslated: translationMap.size,
         totalSkipped: skipIndices.size,
       }),
       {
