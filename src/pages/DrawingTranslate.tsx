@@ -28,8 +28,8 @@ import {
   Eye
 } from 'lucide-react';
 
-// Set PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Set PDF.js worker using unpkg which supports ES modules properly
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 interface OCRResult {
   text: string;
