@@ -16,6 +16,7 @@ import NPIPipeline from "./pages/NPIPipeline";
 import QuotationControlHub from "./pages/QuotationControlHub";
 import NPIProjects from "./pages/NPIProjects";
 import NPIProjectDetail from "./pages/NPIProjectDetail";
+import DrawingTranslate from "./pages/DrawingTranslate";
 import ChangeControlHub from "./pages/ChangeControlHub";
 import ManufacturingHub from "./pages/ManufacturingHub";
 import ProductionHub from "./pages/ProductionHub";
@@ -54,6 +55,7 @@ const App = () => (
           <Route path="/npi/quotation-control" element={<QuotationControlHub />} />
           <Route path="/npi/projects" element={<NPIProjects />} />
           <Route path="/npi/projects/:id" element={<NPIProjectDetail />} />
+          <Route path="/npi/drawing-translate" element={<DrawingTranslate />} />
           
           {/* Change Control Module */}
           <Route path="/change-control" element={<ChangeControlHub />} />

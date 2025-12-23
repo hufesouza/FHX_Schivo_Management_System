@@ -17,3 +17,9 @@ verify_jwt = false
 
 [functions.admin-users]
 verify_jwt = false
+
+[functions.drawing-ocr]
+verify_jwt = false
+
+[functions.drawing-translate]
+verify_jwt = false

@@ -21,7 +21,8 @@ import {
   ClipboardList,
   Bell,
   CalendarDays,
-  FolderKanban
+  FolderKanban,
+  FileType2
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -87,6 +88,15 @@ const subModules = [
     icon: Calculator,
     href: '/npi/quotation',
     color: 'bg-violet-500/10 text-violet-600 border-violet-500/20',
+    available: true,
+  },
+  {
+    id: 'drawing-translate',
+    title: 'DrawingTranslate',
+    description: 'Translate technical drawing PDFs with text overlay replacement',
+    icon: FileType2,
+    href: '/npi/drawing-translate',
+    color: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
     available: true,
   },
 ];
