@@ -366,10 +366,12 @@ const DrawingTranslate = () => {
           // Skip if no OCR data, was skipped, or translation is same as original
           if (!ocr || translation.wasSkipped || translation.translated === translation.original) continue;
 
-          const x = ocr.boundingBox.x * scale;
-          const y = height - (ocr.boundingBox.y + ocr.boundingBox.height) * scale;
-          const boxWidth = ocr.boundingBox.width * scale;
-          const boxHeight = ocr.boundingBox.height * scale;
+          // Add padding to cover text more completely
+          const padding = 2; // PDF points
+          const x = (ocr.boundingBox.x * scale) - padding;
+          const y = height - (ocr.boundingBox.y + ocr.boundingBox.height) * scale - padding;
+          const boxWidth = (ocr.boundingBox.width * scale) + (padding * 2);
+          const boxHeight = (ocr.boundingBox.height * scale) + (padding * 2);
 
           // Draw white rectangle to cover original text
           page.drawRectangle({
@@ -380,18 +382,20 @@ const DrawingTranslate = () => {
             color: rgb(1, 1, 1),
           });
 
-          // Calculate font size to fit
-          let fontSize = boxHeight * 0.8;
+          // Calculate font size to fit - start smaller for multi-word text
+          const targetHeight = boxHeight - (padding * 2);
+          let fontSize = Math.min(targetHeight * 0.75, 10); // Max 10pt for readability
           let textWidth = helvetica.widthOfTextAtSize(translation.translated, fontSize);
           
-          while (textWidth > boxWidth && fontSize > 4) {
-            fontSize -= 0.5;
+          // Scale down if text is too wide
+          while (textWidth > boxWidth - (padding * 2) && fontSize > 3) {
+            fontSize -= 0.25;
             textWidth = helvetica.widthOfTextAtSize(translation.translated, fontSize);
           }
 
-          // Draw translated text
+          // Draw translated text (left-aligned for better readability)
           page.drawText(translation.translated, {
-            x: x + (boxWidth - textWidth) / 2,
+            x: x + padding,
             y: y + (boxHeight - fontSize) / 2,
             size: fontSize,
             font: helvetica,

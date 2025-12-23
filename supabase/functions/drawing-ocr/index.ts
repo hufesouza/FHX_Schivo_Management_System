@@ -12,6 +12,15 @@ interface TextAnnotation {
   };
 }
 
+interface WordInfo {
+  text: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  centerY: number;
+}
+
 interface OCRResult {
   text: string;
   boundingBox: {
@@ -22,6 +31,65 @@ interface OCRResult {
   };
   confidence: number;
   rotation?: number;
+}
+
+// Group words that are on the same line (similar Y position and close X proximity)
+function groupWordsIntoLines(words: WordInfo[]): OCRResult[] {
+  if (words.length === 0) return [];
+
+  // Sort by Y first, then X
+  const sorted = [...words].sort((a, b) => {
+    if (Math.abs(a.centerY - b.centerY) < a.height * 0.5) {
+      return a.x - b.x;
+    }
+    return a.centerY - b.centerY;
+  });
+
+  const lines: WordInfo[][] = [];
+  let currentLine: WordInfo[] = [sorted[0]];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const word = sorted[i];
+    const lastWord = currentLine[currentLine.length - 1];
+    
+    // Check if word is on the same line (similar Y and reasonable X gap)
+    const sameLineY = Math.abs(word.centerY - lastWord.centerY) < Math.max(word.height, lastWord.height) * 0.6;
+    const horizontalGap = word.x - (lastWord.x + lastWord.width);
+    const reasonableGap = horizontalGap < Math.max(word.width, lastWord.width) * 2;
+
+    if (sameLineY && reasonableGap) {
+      currentLine.push(word);
+    } else {
+      lines.push(currentLine);
+      currentLine = [word];
+    }
+  }
+  
+  if (currentLine.length > 0) {
+    lines.push(currentLine);
+  }
+
+  // Convert grouped lines to OCR results
+  return lines.map(lineWords => {
+    const minX = Math.min(...lineWords.map(w => w.x));
+    const minY = Math.min(...lineWords.map(w => w.y));
+    const maxX = Math.max(...lineWords.map(w => w.x + w.width));
+    const maxY = Math.max(...lineWords.map(w => w.y + w.height));
+    
+    const text = lineWords.map(w => w.text).join(' ');
+
+    return {
+      text,
+      boundingBox: {
+        x: minX,
+        y: minY,
+        width: maxX - minX,
+        height: maxY - minY,
+      },
+      confidence: 0.9,
+      rotation: 0,
+    };
+  });
 }
 
 serve(async (req) => {
@@ -83,15 +151,14 @@ serve(async (req) => {
 
     console.log(`Found ${annotations.length} text annotations`);
 
-    // Skip the first annotation (it's the full text), process individual words/blocks
-    const results: OCRResult[] = [];
+    // Extract individual words with positions
+    const words: WordInfo[] = [];
     
     for (let i = 1; i < annotations.length; i++) {
       const annotation = annotations[i] as TextAnnotation;
       const vertices = annotation.boundingPoly?.vertices || [];
       
       if (vertices.length >= 4) {
-        // Calculate bounding box from vertices
         const xs = vertices.map(v => v.x || 0);
         const ys = vertices.map(v => v.y || 0);
         
@@ -100,24 +167,23 @@ serve(async (req) => {
         const minY = Math.min(...ys);
         const maxY = Math.max(...ys);
         
-        // Calculate rotation from vertices (if text is rotated)
-        const dx = (vertices[1]?.x || 0) - (vertices[0]?.x || 0);
-        const dy = (vertices[1]?.y || 0) - (vertices[0]?.y || 0);
-        const rotation = Math.atan2(dy, dx) * (180 / Math.PI);
-
-        results.push({
+        words.push({
           text: annotation.description,
-          boundingBox: {
-            x: minX,
-            y: minY,
-            width: maxX - minX,
-            height: maxY - minY,
-          },
-          confidence: 0.9, // Vision API doesn't always return confidence for TEXT_DETECTION
-          rotation: Math.abs(rotation) > 5 ? rotation : 0,
+          x: minX,
+          y: minY,
+          width: maxX - minX,
+          height: maxY - minY,
+          centerY: (minY + maxY) / 2,
         });
       }
     }
+
+    console.log(`Extracted ${words.length} words, grouping into lines...`);
+
+    // Group words into lines
+    const results = groupWordsIntoLines(words);
+
+    console.log(`Grouped into ${results.length} text lines/blocks`);
 
     // Get full text for context
     const fullText = annotations[0]?.description || '';
