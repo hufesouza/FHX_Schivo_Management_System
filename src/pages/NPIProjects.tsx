@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Loader2, Plus, Search, FolderOpen, FileText, Users, Target, Calendar, ChevronRight } from 'lucide-react';
-import { PROJECT_PHASES, PROJECT_STATUSES } from '@/types/npiProject';
+import { NPI_PHASES, PROJECT_STATUSES, NPIPhase } from '@/types/npiProject';
 import { format } from 'date-fns';
 
 const NPIProjects = () => {
@@ -50,11 +50,10 @@ const NPIProjects = () => {
 
     const result = await createProject({
       ...newProject,
-      current_phase: 'planning',
+      current_phase: 'A_rfq_quotation' as NPIPhase,
       status: 'active',
       project_manager_id: user?.id || null,
       actual_completion_date: null,
-      start_date: newProject.start_date || null,
       target_completion_date: newProject.target_completion_date || null,
       customer: newProject.customer || null,
       description: newProject.description || null,
@@ -85,12 +84,12 @@ const NPIProjects = () => {
   });
 
   // Group projects by phase for pipeline view
-  const projectsByPhase = PROJECT_PHASES.reduce((acc, phase) => {
+  const projectsByPhase = NPI_PHASES.reduce((acc, phase) => {
     acc[phase.value] = filteredProjects.filter(p => p.current_phase === phase.value);
     return acc;
   }, {} as Record<string, typeof filteredProjects>);
 
-  const getPhaseInfo = (phase: string) => PROJECT_PHASES.find(p => p.value === phase);
+  const getPhaseInfo = (phase: string) => NPI_PHASES.find(p => p.value === phase);
   const getStatusInfo = (status: string) => PROJECT_STATUSES.find(s => s.value === status);
 
   if (authLoading || loading) {
@@ -106,10 +105,10 @@ const NPIProjects = () => {
       <main className="container mx-auto px-4 py-6">
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          {PROJECT_PHASES.map(phase => (
+          {NPI_PHASES.slice(0, 9).map(phase => (
             <Card key={phase.value} className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setFilterPhase(phase.value)}>
               <CardHeader className="pb-2">
-                <CardDescription className="text-xs">{phase.label}</CardDescription>
+                <CardDescription className="text-xs">{phase.shortLabel}</CardDescription>
                 <CardTitle className="text-2xl">{projectsByPhase[phase.value]?.length || 0}</CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
@@ -136,7 +135,7 @@ const NPIProjects = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Phases</SelectItem>
-              {PROJECT_PHASES.map(phase => (
+              {NPI_PHASES.map(phase => (
                 <SelectItem key={phase.value} value={phase.value}>{phase.label}</SelectItem>
               ))}
             </SelectContent>
@@ -253,7 +252,7 @@ const NPIProjects = () => {
 
           <TabsContent value="pipeline">
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {PROJECT_PHASES.map(phase => (
+              {NPI_PHASES.slice(0, 9).map(phase => (
                 <div key={phase.value} className="space-y-3">
                   <div className="flex items-center gap-2 pb-2 border-b">
                     <div className={`w-3 h-3 rounded-full ${phase.color}`} />
@@ -284,16 +283,9 @@ const NPIProjects = () => {
                             <p className="text-xs text-muted-foreground mb-2">{project.customer}</p>
                           )}
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            {project.linked_blue_reviews_count ? (
-                              <Badge variant="outline" className="text-xs px-1">
-                                {project.linked_blue_reviews_count} BR
-                              </Badge>
-                            ) : null}
-                            {project.linked_pipeline_jobs_count ? (
-                              <Badge variant="outline" className="text-xs px-1">
-                                {project.linked_pipeline_jobs_count} Jobs
-                              </Badge>
-                            ) : null}
+                            <Badge variant="outline" className="text-xs px-1">
+                              {project.project_type}
+                            </Badge>
                           </div>
                         </CardContent>
                       </Card>
@@ -358,20 +350,9 @@ const NPIProjects = () => {
                             </div>
                           </div>
                           <div className="flex items-center gap-4">
-                            <div className="text-right">
-                              {project.linked_blue_reviews_count ? (
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <FileText className="h-3 w-3" />
-                                  {project.linked_blue_reviews_count} BR
-                                </div>
-                              ) : null}
-                              {project.linked_pipeline_jobs_count ? (
-                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                                  <Users className="h-3 w-3" />
-                                  {project.linked_pipeline_jobs_count} Jobs
-                                </div>
-                              ) : null}
-                            </div>
+                            <Badge variant={statusInfo?.value === 'active' ? 'default' : 'secondary'}>
+                              {statusInfo?.label}
+                            </Badge>
                             <ChevronRight className="h-5 w-5 text-muted-foreground" />
                           </div>
                         </div>
