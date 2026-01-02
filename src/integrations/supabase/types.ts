@@ -670,64 +670,55 @@ export type Database = {
         }
         Relationships: []
       }
-      npi_design_transfer_items: {
+      npi_audit_log: {
         Row: {
-          category: string
-          completed_date: string | null
-          created_at: string
-          description: string | null
-          display_order: number
-          due_date: string | null
-          estimated_duration_days: number | null
+          action_description: string
+          action_type: string
+          entity_id: string | null
+          entity_type: string | null
           id: string
-          item_name: string
-          notes: string | null
-          owner_id: string | null
-          owner_name: string | null
-          phase: string
+          ip_address: string | null
+          new_value: Json | null
+          old_value: Json | null
+          performed_at: string
+          performed_by: string
+          performed_by_name: string | null
           project_id: string
-          status: string
-          updated_at: string
+          user_agent: string | null
         }
         Insert: {
-          category: string
-          completed_date?: string | null
-          created_at?: string
-          description?: string | null
-          display_order?: number
-          due_date?: string | null
-          estimated_duration_days?: number | null
+          action_description: string
+          action_type: string
+          entity_id?: string | null
+          entity_type?: string | null
           id?: string
-          item_name: string
-          notes?: string | null
-          owner_id?: string | null
-          owner_name?: string | null
-          phase?: string
+          ip_address?: string | null
+          new_value?: Json | null
+          old_value?: Json | null
+          performed_at?: string
+          performed_by: string
+          performed_by_name?: string | null
           project_id: string
-          status?: string
-          updated_at?: string
+          user_agent?: string | null
         }
         Update: {
-          category?: string
-          completed_date?: string | null
-          created_at?: string
-          description?: string | null
-          display_order?: number
-          due_date?: string | null
-          estimated_duration_days?: number | null
+          action_description?: string
+          action_type?: string
+          entity_id?: string | null
+          entity_type?: string | null
           id?: string
-          item_name?: string
-          notes?: string | null
-          owner_id?: string | null
-          owner_name?: string | null
-          phase?: string
+          ip_address?: string | null
+          new_value?: Json | null
+          old_value?: Json | null
+          performed_at?: string
+          performed_by?: string
+          performed_by_name?: string | null
           project_id?: string
-          status?: string
-          updated_at?: string
+          user_agent?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "npi_design_transfer_items_project_id_fkey"
+            foreignKeyName: "npi_audit_log_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "npi_projects"
@@ -735,236 +726,462 @@ export type Database = {
           },
         ]
       }
-      npi_jobs: {
+      npi_blue_reviews: {
         Row: {
+          all_stages_complete: boolean | null
           created_at: string
-          customer: string | null
-          days: number | null
-          description: string | null
-          dp1: string | null
-          dp2: string | null
-          end_date: string | null
-          gate_commit_date: string | null
           id: string
-          mc: string | null
-          mc_cell: string | null
-          npi_pm: string | null
-          npi_project_id: string | null
-          part: string | null
-          percent_complete: number | null
-          row_index: number | null
-          start_date: string | null
-          status: string | null
+          notes: string | null
+          project_id: string
+          stage_1_approved_by: string | null
+          stage_1_approved_date: string | null
+          stage_1_complete: boolean | null
+          stage_2_approved_by: string | null
+          stage_2_approved_date: string | null
+          stage_2_complete: boolean | null
+          stage_3_approved_by: string | null
+          stage_3_approved_date: string | null
+          stage_3_complete: boolean | null
+          stage_4_approved_by: string | null
+          stage_4_approved_date: string | null
+          stage_4_complete: boolean | null
+          stage_5_approved_by: string | null
+          stage_5_approved_date: string | null
+          stage_5_complete: boolean | null
           updated_at: string
-          uploaded_at: string
-          uploaded_by: string
+          work_order_id: string | null
         }
         Insert: {
+          all_stages_complete?: boolean | null
           created_at?: string
-          customer?: string | null
-          days?: number | null
-          description?: string | null
-          dp1?: string | null
-          dp2?: string | null
-          end_date?: string | null
-          gate_commit_date?: string | null
           id?: string
-          mc?: string | null
-          mc_cell?: string | null
-          npi_pm?: string | null
-          npi_project_id?: string | null
-          part?: string | null
-          percent_complete?: number | null
-          row_index?: number | null
-          start_date?: string | null
-          status?: string | null
+          notes?: string | null
+          project_id: string
+          stage_1_approved_by?: string | null
+          stage_1_approved_date?: string | null
+          stage_1_complete?: boolean | null
+          stage_2_approved_by?: string | null
+          stage_2_approved_date?: string | null
+          stage_2_complete?: boolean | null
+          stage_3_approved_by?: string | null
+          stage_3_approved_date?: string | null
+          stage_3_complete?: boolean | null
+          stage_4_approved_by?: string | null
+          stage_4_approved_date?: string | null
+          stage_4_complete?: boolean | null
+          stage_5_approved_by?: string | null
+          stage_5_approved_date?: string | null
+          stage_5_complete?: boolean | null
           updated_at?: string
-          uploaded_at?: string
-          uploaded_by: string
+          work_order_id?: string | null
         }
         Update: {
+          all_stages_complete?: boolean | null
           created_at?: string
-          customer?: string | null
-          days?: number | null
-          description?: string | null
-          dp1?: string | null
-          dp2?: string | null
-          end_date?: string | null
-          gate_commit_date?: string | null
           id?: string
-          mc?: string | null
-          mc_cell?: string | null
-          npi_pm?: string | null
-          npi_project_id?: string | null
-          part?: string | null
-          percent_complete?: number | null
-          row_index?: number | null
-          start_date?: string | null
-          status?: string | null
+          notes?: string | null
+          project_id?: string
+          stage_1_approved_by?: string | null
+          stage_1_approved_date?: string | null
+          stage_1_complete?: boolean | null
+          stage_2_approved_by?: string | null
+          stage_2_approved_date?: string | null
+          stage_2_complete?: boolean | null
+          stage_3_approved_by?: string | null
+          stage_3_approved_date?: string | null
+          stage_3_complete?: boolean | null
+          stage_4_approved_by?: string | null
+          stage_4_approved_date?: string | null
+          stage_4_complete?: boolean | null
+          stage_5_approved_by?: string | null
+          stage_5_approved_date?: string | null
+          stage_5_complete?: boolean | null
           updated_at?: string
-          uploaded_at?: string
-          uploaded_by?: string
+          work_order_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "npi_jobs_npi_project_id_fkey"
-            columns: ["npi_project_id"]
+            foreignKeyName: "npi_blue_reviews_project_id_fkey"
+            columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "npi_projects"
             referencedColumns: ["id"]
           },
         ]
       }
-      npi_post_mc: {
+      npi_evidence: {
         Row: {
-          aging_days: number | null
-          created_at: string
-          fair: string | null
+          description: string | null
+          file_name: string
+          file_size: number | null
+          file_type: string | null
+          file_url: string
           id: string
-          job_id: string
-          production_ims: string | null
-          qc_ims: string | null
-          re_rev_closure: string | null
-          work_instructions: string | null
+          task_id: string
+          uploaded_at: string
+          uploaded_by: string
+          uploaded_by_name: string | null
         }
         Insert: {
-          aging_days?: number | null
-          created_at?: string
-          fair?: string | null
+          description?: string | null
+          file_name: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url: string
           id?: string
-          job_id: string
-          production_ims?: string | null
-          qc_ims?: string | null
-          re_rev_closure?: string | null
-          work_instructions?: string | null
+          task_id: string
+          uploaded_at?: string
+          uploaded_by: string
+          uploaded_by_name?: string | null
         }
         Update: {
-          aging_days?: number | null
-          created_at?: string
-          fair?: string | null
+          description?: string | null
+          file_name?: string
+          file_size?: number | null
+          file_type?: string | null
+          file_url?: string
           id?: string
-          job_id?: string
-          production_ims?: string | null
-          qc_ims?: string | null
-          re_rev_closure?: string | null
-          work_instructions?: string | null
+          task_id?: string
+          uploaded_at?: string
+          uploaded_by?: string
+          uploaded_by_name?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "npi_post_mc_job_id_fkey"
-            columns: ["job_id"]
+            foreignKeyName: "npi_evidence_task_id_fkey"
+            columns: ["task_id"]
             isOneToOne: false
-            referencedRelation: "npi_jobs"
+            referencedRelation: "npi_phase_tasks"
             referencedColumns: ["id"]
           },
         ]
       }
-      npi_prereq: {
+      npi_handshakes: {
         Row: {
-          additional_reqs: string | null
           created_at: string
-          doc_control: string | null
-          gauges: string | null
+          from_confirmed: boolean | null
+          from_confirmed_date: string | null
+          from_notes: string | null
+          from_party_id: string | null
+          from_party_name: string | null
+          from_party_role: string
+          handshake_type: string
           id: string
-          job_id: string
-          material: string | null
-          mc_prep: string | null
-          metr_fix: string | null
-          metr_prg: string | null
-          packaging: string | null
-          po_printed: string | null
-          tooling: string | null
+          is_complete: boolean | null
+          project_id: string
+          to_confirmed: boolean | null
+          to_confirmed_date: string | null
+          to_notes: string | null
+          to_party_id: string | null
+          to_party_name: string | null
+          to_party_role: string
+          updated_at: string
         }
         Insert: {
-          additional_reqs?: string | null
           created_at?: string
-          doc_control?: string | null
-          gauges?: string | null
+          from_confirmed?: boolean | null
+          from_confirmed_date?: string | null
+          from_notes?: string | null
+          from_party_id?: string | null
+          from_party_name?: string | null
+          from_party_role: string
+          handshake_type: string
           id?: string
-          job_id: string
-          material?: string | null
-          mc_prep?: string | null
-          metr_fix?: string | null
-          metr_prg?: string | null
-          packaging?: string | null
-          po_printed?: string | null
-          tooling?: string | null
+          is_complete?: boolean | null
+          project_id: string
+          to_confirmed?: boolean | null
+          to_confirmed_date?: string | null
+          to_notes?: string | null
+          to_party_id?: string | null
+          to_party_name?: string | null
+          to_party_role: string
+          updated_at?: string
         }
         Update: {
-          additional_reqs?: string | null
           created_at?: string
-          doc_control?: string | null
-          gauges?: string | null
+          from_confirmed?: boolean | null
+          from_confirmed_date?: string | null
+          from_notes?: string | null
+          from_party_id?: string | null
+          from_party_name?: string | null
+          from_party_role?: string
+          handshake_type?: string
           id?: string
-          job_id?: string
-          material?: string | null
-          mc_prep?: string | null
-          metr_fix?: string | null
-          metr_prg?: string | null
-          packaging?: string | null
-          po_printed?: string | null
-          tooling?: string | null
+          is_complete?: boolean | null
+          project_id?: string
+          to_confirmed?: boolean | null
+          to_confirmed_date?: string | null
+          to_notes?: string | null
+          to_party_id?: string | null
+          to_party_name?: string | null
+          to_party_role?: string
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "npi_prereq_job_id_fkey"
-            columns: ["job_id"]
+            foreignKeyName: "npi_handshakes_project_id_fkey"
+            columns: ["project_id"]
             isOneToOne: false
-            referencedRelation: "npi_jobs"
+            referencedRelation: "npi_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      npi_phase_gates: {
+        Row: {
+          all_tasks_complete: boolean | null
+          created_at: string
+          evidence_verified: boolean | null
+          from_phase: string
+          gate_name: string
+          id: string
+          is_overridden: boolean | null
+          is_passed: boolean | null
+          ops_approved_by: string | null
+          ops_approved_date: string | null
+          overridden_by: string | null
+          overridden_date: string | null
+          override_reason: string | null
+          passed_by: string | null
+          passed_date: string | null
+          pm_approved_by: string | null
+          pm_approved_date: string | null
+          project_id: string
+          qa_approved_by: string | null
+          qa_approved_date: string | null
+          requires_ops_approval: boolean | null
+          requires_pm_approval: boolean | null
+          requires_qa_approval: boolean | null
+          requires_sc_approval: boolean | null
+          sc_approved_by: string | null
+          sc_approved_date: string | null
+          to_phase: string
+          updated_at: string
+        }
+        Insert: {
+          all_tasks_complete?: boolean | null
+          created_at?: string
+          evidence_verified?: boolean | null
+          from_phase: string
+          gate_name: string
+          id?: string
+          is_overridden?: boolean | null
+          is_passed?: boolean | null
+          ops_approved_by?: string | null
+          ops_approved_date?: string | null
+          overridden_by?: string | null
+          overridden_date?: string | null
+          override_reason?: string | null
+          passed_by?: string | null
+          passed_date?: string | null
+          pm_approved_by?: string | null
+          pm_approved_date?: string | null
+          project_id: string
+          qa_approved_by?: string | null
+          qa_approved_date?: string | null
+          requires_ops_approval?: boolean | null
+          requires_pm_approval?: boolean | null
+          requires_qa_approval?: boolean | null
+          requires_sc_approval?: boolean | null
+          sc_approved_by?: string | null
+          sc_approved_date?: string | null
+          to_phase: string
+          updated_at?: string
+        }
+        Update: {
+          all_tasks_complete?: boolean | null
+          created_at?: string
+          evidence_verified?: boolean | null
+          from_phase?: string
+          gate_name?: string
+          id?: string
+          is_overridden?: boolean | null
+          is_passed?: boolean | null
+          ops_approved_by?: string | null
+          ops_approved_date?: string | null
+          overridden_by?: string | null
+          overridden_date?: string | null
+          override_reason?: string | null
+          passed_by?: string | null
+          passed_date?: string | null
+          pm_approved_by?: string | null
+          pm_approved_date?: string | null
+          project_id?: string
+          qa_approved_by?: string | null
+          qa_approved_date?: string | null
+          requires_ops_approval?: boolean | null
+          requires_pm_approval?: boolean | null
+          requires_qa_approval?: boolean | null
+          requires_sc_approval?: boolean | null
+          sc_approved_by?: string | null
+          sc_approved_date?: string | null
+          to_phase?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_phase_gates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "npi_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      npi_phase_tasks: {
+        Row: {
+          blocked_by_task_id: string | null
+          blocker_reason: string | null
+          completed_by: string | null
+          completed_by_name: string | null
+          completed_date: string | null
+          created_at: string
+          description: string | null
+          display_order: number | null
+          due_date: string | null
+          evidence_file_url: string | null
+          evidence_notes: string | null
+          evidence_reference: string | null
+          evidence_required: boolean | null
+          evidence_type: string | null
+          id: string
+          is_blocking: boolean | null
+          is_mandatory: boolean | null
+          owner_department: string
+          owner_id: string | null
+          owner_name: string | null
+          phase: string
+          project_id: string
+          reference_document: string | null
+          started_date: string | null
+          status: string
+          task_code: string
+          task_name: string
+          updated_at: string
+        }
+        Insert: {
+          blocked_by_task_id?: string | null
+          blocker_reason?: string | null
+          completed_by?: string | null
+          completed_by_name?: string | null
+          completed_date?: string | null
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          due_date?: string | null
+          evidence_file_url?: string | null
+          evidence_notes?: string | null
+          evidence_reference?: string | null
+          evidence_required?: boolean | null
+          evidence_type?: string | null
+          id?: string
+          is_blocking?: boolean | null
+          is_mandatory?: boolean | null
+          owner_department: string
+          owner_id?: string | null
+          owner_name?: string | null
+          phase: string
+          project_id: string
+          reference_document?: string | null
+          started_date?: string | null
+          status?: string
+          task_code: string
+          task_name: string
+          updated_at?: string
+        }
+        Update: {
+          blocked_by_task_id?: string | null
+          blocker_reason?: string | null
+          completed_by?: string | null
+          completed_by_name?: string | null
+          completed_date?: string | null
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          due_date?: string | null
+          evidence_file_url?: string | null
+          evidence_notes?: string | null
+          evidence_reference?: string | null
+          evidence_required?: boolean | null
+          evidence_type?: string | null
+          id?: string
+          is_blocking?: boolean | null
+          is_mandatory?: boolean | null
+          owner_department?: string
+          owner_id?: string | null
+          owner_name?: string | null
+          phase?: string
+          project_id?: string
+          reference_document?: string | null
+          started_date?: string | null
+          status?: string
+          task_code?: string
+          task_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_phase_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "npi_projects"
             referencedColumns: ["id"]
           },
         ]
       }
       npi_project_charter: {
         Row: {
-          approved_by: string | null
+          approved_by_name: string | null
+          approved_by_position: string | null
           approved_date: string | null
-          assumptions: string | null
-          budget_notes: string | null
-          constraints: string | null
+          approved_signature: string | null
           created_at: string
-          deliverables: string | null
+          expected_outcome: string | null
           id: string
-          objectives: string | null
+          is_approved: boolean | null
+          project_description: string | null
           project_id: string
-          revision: number
-          risks: string | null
-          scope: string | null
-          success_criteria: string | null
+          project_owner: string | null
+          project_reference: string | null
+          purpose: string | null
+          revision: number | null
+          timelines_milestones: string | null
           updated_at: string
         }
         Insert: {
-          approved_by?: string | null
+          approved_by_name?: string | null
+          approved_by_position?: string | null
           approved_date?: string | null
-          assumptions?: string | null
-          budget_notes?: string | null
-          constraints?: string | null
+          approved_signature?: string | null
           created_at?: string
-          deliverables?: string | null
+          expected_outcome?: string | null
           id?: string
-          objectives?: string | null
+          is_approved?: boolean | null
+          project_description?: string | null
           project_id: string
-          revision?: number
-          risks?: string | null
-          scope?: string | null
-          success_criteria?: string | null
+          project_owner?: string | null
+          project_reference?: string | null
+          purpose?: string | null
+          revision?: number | null
+          timelines_milestones?: string | null
           updated_at?: string
         }
         Update: {
-          approved_by?: string | null
+          approved_by_name?: string | null
+          approved_by_position?: string | null
           approved_date?: string | null
-          assumptions?: string | null
-          budget_notes?: string | null
-          constraints?: string | null
+          approved_signature?: string | null
           created_at?: string
-          deliverables?: string | null
+          expected_outcome?: string | null
           id?: string
-          objectives?: string | null
+          is_approved?: boolean | null
+          project_description?: string | null
           project_id?: string
-          revision?: number
-          risks?: string | null
-          scope?: string | null
-          success_criteria?: string | null
+          project_owner?: string | null
+          project_reference?: string | null
+          purpose?: string | null
+          revision?: number | null
+          timelines_milestones?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -982,7 +1199,7 @@ export type Database = {
           actual_date: string | null
           approved_by: string | null
           created_at: string
-          display_order: number
+          display_order: number | null
           id: string
           milestone_name: string
           notes: string | null
@@ -996,7 +1213,7 @@ export type Database = {
           actual_date?: string | null
           approved_by?: string | null
           created_at?: string
-          display_order?: number
+          display_order?: number | null
           id?: string
           milestone_name: string
           notes?: string | null
@@ -1010,7 +1227,7 @@ export type Database = {
           actual_date?: string | null
           approved_by?: string | null
           created_at?: string
-          display_order?: number
+          display_order?: number | null
           id?: string
           milestone_name?: string
           notes?: string | null
@@ -1033,7 +1250,9 @@ export type Database = {
       npi_project_team: {
         Row: {
           created_at: string
+          department: string | null
           id: string
+          is_active: boolean | null
           project_id: string
           responsibilities: string | null
           role: string
@@ -1041,7 +1260,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          department?: string | null
           id?: string
+          is_active?: boolean | null
           project_id: string
           responsibilities?: string | null
           role: string
@@ -1049,7 +1270,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          department?: string | null
           id?: string
+          is_active?: boolean | null
           project_id?: string
           responsibilities?: string | null
           role?: string
@@ -1074,14 +1297,22 @@ export type Database = {
           customer: string | null
           description: string | null
           id: string
+          npi_lead_id: string | null
+          po_number: string | null
+          po_received_date: string | null
           project_manager_id: string | null
           project_name: string
           project_number: string
           project_type: string
-          start_date: string | null
+          quotation_reference: string | null
+          quote_submitted_date: string | null
+          rfq_received_date: string | null
+          sales_owner_id: string | null
+          sap_part_number: string | null
           status: string
           target_completion_date: string | null
           updated_at: string
+          work_order_number: string | null
         }
         Insert: {
           actual_completion_date?: string | null
@@ -1091,14 +1322,22 @@ export type Database = {
           customer?: string | null
           description?: string | null
           id?: string
+          npi_lead_id?: string | null
+          po_number?: string | null
+          po_received_date?: string | null
           project_manager_id?: string | null
           project_name: string
           project_number: string
           project_type?: string
-          start_date?: string | null
+          quotation_reference?: string | null
+          quote_submitted_date?: string | null
+          rfq_received_date?: string | null
+          sales_owner_id?: string | null
+          sap_part_number?: string | null
           status?: string
           target_completion_date?: string | null
           updated_at?: string
+          work_order_number?: string | null
         }
         Update: {
           actual_completion_date?: string | null
@@ -1108,14 +1347,22 @@ export type Database = {
           customer?: string | null
           description?: string | null
           id?: string
+          npi_lead_id?: string | null
+          po_number?: string | null
+          po_received_date?: string | null
           project_manager_id?: string | null
           project_name?: string
           project_number?: string
           project_type?: string
-          start_date?: string | null
+          quotation_reference?: string | null
+          quote_submitted_date?: string | null
+          rfq_received_date?: string | null
+          sales_owner_id?: string | null
+          sap_part_number?: string | null
           status?: string
           target_completion_date?: string | null
           updated_at?: string
+          work_order_number?: string | null
         }
         Relationships: []
       }
@@ -2253,13 +2500,6 @@ export type Database = {
           work_order_number?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "work_orders_npi_project_id_fkey"
-            columns: ["npi_project_id"]
-            isOneToOne: false
-            referencedRelation: "npi_projects"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "work_orders_parent_br_id_fkey"
             columns: ["parent_br_id"]
