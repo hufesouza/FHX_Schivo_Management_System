@@ -146,9 +146,11 @@ export function useNPIProjectDetail(projectId: string | undefined) {
   const [project, setProject] = useState<NPIProjectWithRelations | null>(null);
   const [charter, setCharter] = useState<NPIProjectCharter | null>(null);
   const [tasks, setTasks] = useState<NPIPhaseTask[]>([]);
+  const [gates, setGates] = useState<any[]>([]);
   const [team, setTeam] = useState<NPIProjectTeamMember[]>([]);
   const [milestones, setMilestones] = useState<NPIProjectMilestone[]>([]);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
   const fetchProject = useCallback(async () => {
     if (!projectId) return;
@@ -174,6 +176,11 @@ export function useNPIProjectDetail(projectId: string | undefined) {
         .eq('project_id', projectId)
         .order('display_order');
 
+      const { data: gatesData } = await supabase
+        .from('npi_phase_gates')
+        .select('*')
+        .eq('project_id', projectId);
+
       const { data: teamData } = await supabase
         .from('npi_project_team')
         .select('*')
@@ -188,6 +195,7 @@ export function useNPIProjectDetail(projectId: string | undefined) {
       setProject(projectData as NPIProjectWithRelations);
       setCharter(charterData as NPIProjectCharter | null);
       setTasks((tasksData || []) as NPIPhaseTask[]);
+      setGates(gatesData || []);
       setTeam((teamData || []) as NPIProjectTeamMember[]);
       setMilestones((milestonesData || []) as NPIProjectMilestone[]);
     } catch (error: any) {
@@ -202,5 +210,74 @@ export function useNPIProjectDetail(projectId: string | undefined) {
     fetchProject();
   }, [fetchProject]);
 
-  return { project, charter, tasks, team, milestones, loading, fetchProject };
+  const updateTask = useCallback(async (taskId: string, updates: Partial<NPIPhaseTask>) => {
+    if (!user) return false;
+    try {
+      const finalUpdates: any = { ...updates };
+      
+      // If completing, add completion metadata
+      if (updates.status === 'completed') {
+        finalUpdates.completed_date = new Date().toISOString();
+        finalUpdates.completed_by = user.id;
+      } else if (updates.status === 'not_started') {
+        finalUpdates.completed_date = null;
+        finalUpdates.completed_by = null;
+        finalUpdates.started_date = null;
+      } else if (updates.status === 'in_progress' && !updates.started_date) {
+        finalUpdates.started_date = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from('npi_phase_tasks')
+        .update(finalUpdates)
+        .eq('id', taskId);
+
+      if (error) throw error;
+      
+      toast.success('Task updated');
+      await fetchProject();
+      return true;
+    } catch (error: any) {
+      console.error('Error updating task:', error);
+      toast.error('Failed to update task');
+      return false;
+    }
+  }, [user, fetchProject]);
+
+  const updateProject = useCallback(async (updates: Partial<NPIProject>) => {
+    if (!projectId) return false;
+    try {
+      const { error } = await supabase
+        .from('npi_projects')
+        .update(updates)
+        .eq('id', projectId);
+
+      if (error) throw error;
+      toast.success('Project updated');
+      await fetchProject();
+      return true;
+    } catch (error: any) {
+      console.error('Error updating project:', error);
+      toast.error('Failed to update project');
+      return false;
+    }
+  }, [projectId, fetchProject]);
+
+  const advancePhase = useCallback(async (nextPhase: string) => {
+    return updateProject({ current_phase: nextPhase as any });
+  }, [updateProject]);
+
+  return { 
+    project, 
+    charter, 
+    tasks,
+    gates, 
+    team, 
+    milestones, 
+    loading, 
+    fetchProject,
+    updateTask,
+    updateProject,
+    advancePhase
+  };
 }
