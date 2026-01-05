@@ -3,6 +3,9 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useNPIProjectDetail } from '@/hooks/useNPIProjects';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ProjectGanttChart } from '@/components/npi-projects/ProjectGanttChart';
+import { TaskDetailSheet } from '@/components/npi-projects/TaskDetailSheet';
+import { CharterEditor } from '@/components/npi-projects/CharterEditor';
+import { MilestoneEditor } from '@/components/npi-projects/MilestoneEditor';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   ArrowLeft, Loader2, CheckCircle, Circle, AlertCircle, Clock, ChevronRight, 
-  ChevronDown, ExternalLink, FileText, BarChart3, Receipt, ClipboardCheck
+  ChevronDown, ExternalLink, FileText, Receipt, ClipboardCheck, Eye
 } from 'lucide-react';
 import { 
   NPI_PHASES, getPhaseInfo, getDepartmentInfo, getTaskStatusInfo, 
@@ -25,11 +28,13 @@ export default function NPIProjectDetail() {
   const navigate = useNavigate();
   const { 
     project, charter, tasks, gates, milestones, loading, 
-    updateTask, updateProject, advancePhase 
+    updateTask, updateProject, advancePhase, fetchProject
   } = useNPIProjectDetail(id);
   
   const [selectedPhase, setSelectedPhase] = useState<string | null>(null);
   const [expandedPhases, setExpandedPhases] = useState<string[]>([]);
+  const [selectedTask, setSelectedTask] = useState<NPIPhaseTask | null>(null);
+  const [taskSheetOpen, setTaskSheetOpen] = useState(false);
 
   if (loading) {
     return (
@@ -286,19 +291,25 @@ export default function NPIProjectDetail() {
                             return (
                               <div 
                                 key={task.id} 
-                                className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                                className={`flex items-center gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
                                   task.status === 'completed' ? 'bg-green-50 dark:bg-green-950/20 border-green-200' :
                                   task.status === 'blocked' ? 'bg-red-50 dark:bg-red-950/20 border-red-200' :
                                   task.status === 'in_progress' ? 'bg-blue-50 dark:bg-blue-950/20 border-blue-200' :
                                   'hover:bg-muted/50'
                                 }`}
+                                onClick={() => {
+                                  setSelectedTask(task);
+                                  setTaskSheetOpen(true);
+                                }}
                               >
                                 {/* Quick complete checkbox */}
-                                <Checkbox 
-                                  checked={task.status === 'completed'}
-                                  onCheckedChange={() => handleQuickComplete(task)}
-                                  disabled={task.status === 'blocked'}
-                                />
+                                <div onClick={(e) => e.stopPropagation()}>
+                                  <Checkbox 
+                                    checked={task.status === 'completed'}
+                                    onCheckedChange={() => handleQuickComplete(task)}
+                                    disabled={task.status === 'blocked'}
+                                  />
+                                </div>
                                 
                                 {/* Task code */}
                                 <span className="font-mono text-xs text-muted-foreground w-10">
@@ -314,6 +325,20 @@ export default function NPIProjectDetail() {
                                     </div>
                                   )}
                                 </div>
+
+                                {/* Open action button */}
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedTask(task);
+                                    setTaskSheetOpen(true);
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4 mr-1" />
+                                  Open
+                                </Button>
                                 
                                 {/* Indicators */}
                                 <div className="flex items-center gap-2 flex-shrink-0">
@@ -368,87 +393,31 @@ export default function NPIProjectDetail() {
           </TabsContent>
 
           <TabsContent value="charter">
-            <Card>
-              <CardHeader>
-                <CardTitle>Project Charter (WD-FRM-0012)</CardTitle>
-                <CardDescription>Revision {charter?.revision || 1}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {charter ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <div className="text-sm font-medium text-muted-foreground">Purpose</div>
-                        <div>{charter.purpose || 'Not defined'}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-muted-foreground">Project Owner</div>
-                        <div>{charter.project_owner || 'Not assigned'}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-muted-foreground">Expected Outcome</div>
-                        <div>{charter.expected_outcome || 'Not defined'}</div>
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium text-muted-foreground">Approval Status</div>
-                        <div>
-                          {charter.is_approved ? (
-                            <Badge className="bg-green-500">Approved by {charter.approved_by_name}</Badge>
-                          ) : (
-                            <Badge variant="outline">Pending Approval</Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    {charter.timelines_milestones && (
-                      <div>
-                        <div className="text-sm font-medium text-muted-foreground">Timelines & Milestones</div>
-                        <div className="whitespace-pre-wrap">{charter.timelines_milestones}</div>
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">Charter not created yet</p>
-                )}
-              </CardContent>
-            </Card>
+            <CharterEditor 
+              charter={charter}
+              projectId={id!}
+              projectName={project.project_name}
+              onUpdate={fetchProject}
+            />
           </TabsContent>
 
           <TabsContent value="milestones">
-            <Card>
-              <CardHeader>
-                <CardTitle>Project Milestones</CardTitle>
-                <CardDescription>Key deliverables and target dates</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {milestones.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-4">No milestones defined</p>
-                  ) : (
-                    milestones.map(m => {
-                      const mPhaseInfo = getPhaseInfo(m.phase);
-                      return (
-                        <div key={m.id} className="flex items-center gap-3 p-3 border rounded-lg">
-                          {getStatusIcon(m.status)}
-                          <span className="flex-1 font-medium">{m.milestone_name}</span>
-                          <Badge variant="outline" className={mPhaseInfo.color + ' text-white'}>
-                            {mPhaseInfo.shortLabel}
-                          </Badge>
-                          <span className="text-sm text-muted-foreground">
-                            {m.target_date ? new Date(m.target_date).toLocaleDateString() : 'No date'}
-                          </span>
-                          <Badge variant={m.status === 'completed' ? 'default' : 'secondary'}>
-                            {m.status}
-                          </Badge>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <MilestoneEditor 
+              milestones={milestones}
+              projectId={id!}
+              onUpdate={fetchProject}
+            />
           </TabsContent>
         </Tabs>
+
+        {/* Task Detail Sheet */}
+        <TaskDetailSheet
+          task={selectedTask}
+          open={taskSheetOpen}
+          onOpenChange={setTaskSheetOpen}
+          onUpdate={updateTask}
+          projectId={id!}
+        />
       </div>
     </AppLayout>
   );
