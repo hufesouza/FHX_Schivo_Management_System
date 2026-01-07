@@ -1337,15 +1337,12 @@ const DailyMeeting = () => {
                   {actions.map(action => (
                     <tr key={action.id} className="border-b hover:bg-muted/30">
                       <td className="p-2">
-                        {editingActionId === action.id ? (
-                          <Input
-                            value={action.action}
-                            onChange={(e) => updateAction(action.id, { action: e.target.value })}
-                            className="h-8 text-sm"
-                          />
-                        ) : (
-                          <span>{action.action}</span>
-                        )}
+                        <Input
+                          value={action.action}
+                          onChange={(e) => updateAction(action.id, { action: e.target.value })}
+                          className="h-8 text-sm"
+                          placeholder="Enter action..."
+                        />
                       </td>
                       <td className="p-2">
                         <Select
