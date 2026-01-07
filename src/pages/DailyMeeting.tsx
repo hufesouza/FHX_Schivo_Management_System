@@ -1129,7 +1129,7 @@ const DailyMeeting = () => {
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left p-2 font-medium min-w-[150px]">Topics</th>
+                      <th className="text-left p-2 font-medium min-w-[150px] sticky left-0 bg-card z-10">Topics</th>
                       {customers.map(customer => (
                         <th key={customer.id} className="text-center p-2 font-medium min-w-[180px]">
                           <div className="flex flex-col items-center gap-1">
@@ -1153,7 +1153,7 @@ const DailyMeeting = () => {
                   <tbody>
                     {topics.map(topic => (
                       <tr key={topic.id} className="border-b">
-                        <td className="p-2 font-medium">{topic.name}</td>
+                        <td className="p-2 font-medium sticky left-0 bg-card z-10">{topic.name}</td>
                         {customers.map(customer => {
                           const key = `${topic.id}|${customer.id}`;
                           const flag = flags[key];
