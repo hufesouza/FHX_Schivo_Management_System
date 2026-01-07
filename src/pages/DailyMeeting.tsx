@@ -127,6 +127,7 @@ const DailyMeeting = () => {
   
   // Action items state
   const [actions, setActions] = useState<ActionItem[]>([]);
+  const [deletedActionIds, setDeletedActionIds] = useState<string[]>([]);
   const [showAddAction, setShowAddAction] = useState(false);
   const [editingActionId, setEditingActionId] = useState<string | null>(null);
   const [newAction, setNewAction] = useState<Partial<ActionItem>>({
@@ -391,6 +392,21 @@ const DailyMeeting = () => {
         if (error) throw error;
       }
 
+      // Delete removed actions from database
+      if (deletedActionIds.length > 0) {
+        for (const actionId of deletedActionIds) {
+          const { error } = await supabase
+            .from('meeting_actions')
+            .delete()
+            .eq('id', actionId);
+          if (error) {
+            console.error('Error deleting action:', error);
+          }
+        }
+        // Clear deleted IDs after successful deletion
+        setDeletedActionIds([]);
+      }
+
       // Save actions
       for (const action of actions) {
         if (action.id.startsWith('temp-')) {
@@ -455,7 +471,7 @@ const DailyMeeting = () => {
       console.error('Auto-save error:', error);
       setAutoSaveStatus('error');
     }
-  }, [user, loading, meetingId, currentDate, flags, participants, actions, recognitions]);
+  }, [user, loading, meetingId, currentDate, flags, participants, actions, recognitions, deletedActionIds]);
 
   // Auto-save effect - debounced
   useEffect(() => {
@@ -476,7 +492,7 @@ const DailyMeeting = () => {
         clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [flags, participants, actions, recognitions]);
+  }, [flags, participants, actions, recognitions, deletedActionIds]);
 
   const ensureMeetingExists = async (): Promise<string> => {
     if (meetingId) return meetingId;
@@ -815,6 +831,10 @@ const DailyMeeting = () => {
   };
 
   const deleteAction = (id: string) => {
+    // Track deleted action IDs for database deletion (only for persisted actions)
+    if (!id.startsWith('temp-')) {
+      setDeletedActionIds(prev => [...prev, id]);
+    }
     setActions(prev => prev.filter(a => a.id !== id));
   };
 
