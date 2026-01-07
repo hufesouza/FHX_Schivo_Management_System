@@ -153,7 +153,6 @@ const DailyMeeting = () => {
   // AI action generation state
   const [aiProcessing, setAiProcessing] = useState<string | null>(null);
   const aiTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const DM_CUSTOMER_ID = '71f1050a-da76-48f3-9362-c432834c6ed1'; // Distal Motion
   // For today/future: show active items only
   // For past: show items that were active on that date (created before/on and not deactivated yet or deactivated after)
   const { topics, customers, isPastDate } = useMemo(() => {
@@ -512,8 +511,8 @@ const DailyMeeting = () => {
       [key]: { ...prev[key], status: prev[key]?.status || 'none', comment }
     }));
 
-    // Trigger AI action generation for Distal Motion (DM) customer
-    if (customerId === DM_CUSTOMER_ID && comment.trim().length > 3) {
+    // Trigger AI action generation for all customers
+    if (comment.trim().length > 3) {
       // Clear existing timeout
       if (aiTimeoutRef.current) {
         clearTimeout(aiTimeoutRef.current);
@@ -1156,16 +1155,15 @@ const DailyMeeting = () => {
                                       <div className="relative w-full">
                                         <Input
                                           placeholder="Comment..."
-                                          className={`h-7 text-xs w-full ${customer.id === DM_CUSTOMER_ID ? 'pr-6' : ''}`}
+                                          className="h-7 text-xs w-full pr-6"
                                           value={flag?.comment || ''}
                                           onChange={(e) => handleCommentChange(topic.id, customer.id, e.target.value)}
                                         />
-                                        {customer.id === DM_CUSTOMER_ID && aiProcessing === key && (
+                                        {aiProcessing === key ? (
                                           <div className="absolute right-1 top-1/2 -translate-y-1/2">
                                             <Sparkles className="h-4 w-4 text-yellow-500 animate-pulse" />
                                           </div>
-                                        )}
-                                        {customer.id === DM_CUSTOMER_ID && !aiProcessing && (
+                                        ) : (
                                           <div className="absolute right-1 top-1/2 -translate-y-1/2">
                                             <Sparkles className="h-3 w-3 text-muted-foreground/40" />
                                           </div>
