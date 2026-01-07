@@ -225,6 +225,7 @@ const DailyMeeting = () => {
 
   const loadMeetingData = async () => {
     setLoading(true);
+    setDeletedActionIds([]);
     try {
       // Load ALL topics and customers (including inactive for historical view)
       const [topicsRes, customersRes, usersRes] = await Promise.all([
@@ -394,16 +395,12 @@ const DailyMeeting = () => {
 
       // Delete removed actions from database
       if (deletedActionIds.length > 0) {
-        for (const actionId of deletedActionIds) {
-          const { error } = await supabase
-            .from('meeting_actions')
-            .delete()
-            .eq('id', actionId);
-          if (error) {
-            console.error('Error deleting action:', error);
-          }
-        }
-        // Clear deleted IDs after successful deletion
+        const { error } = await supabase
+          .from('meeting_actions')
+          .delete()
+          .eq('meeting_id', mId)
+          .in('id', deletedActionIds);
+        if (error) throw error;
         setDeletedActionIds([]);
       }
 
@@ -641,18 +638,16 @@ const DailyMeeting = () => {
         if (error) throw error;
       }
 
-      // Save actions - delete removed ones, upsert existing/new
-      const existingActionIds = actions.filter(a => a.id && !a.id.startsWith('temp-')).map(a => a.id);
-      
-      // Delete actions not in current list
-      if (meetingId) {
-        await supabase
+      // Delete removed actions from database
+      if (deletedActionIds.length > 0) {
+        const { error } = await supabase
           .from('meeting_actions')
           .delete()
           .eq('meeting_id', mId)
-          .not('id', 'in', `(${existingActionIds.join(',') || 'null'})`);
+          .in('id', deletedActionIds);
+        if (error) throw error;
+        setDeletedActionIds([]);
       }
-
       // Upsert actions
       for (const action of actions) {
         if (action.id.startsWith('temp-')) {
@@ -833,7 +828,7 @@ const DailyMeeting = () => {
   const deleteAction = (id: string) => {
     // Track deleted action IDs for database deletion (only for persisted actions)
     if (!id.startsWith('temp-')) {
-      setDeletedActionIds(prev => [...prev, id]);
+      setDeletedActionIds(prev => (prev.includes(id) ? prev : [...prev, id]));
     }
     setActions(prev => prev.filter(a => a.id !== id));
   };
