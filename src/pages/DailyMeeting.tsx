@@ -90,7 +90,7 @@ const DailyMeeting = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
-  const { loading: roleLoading } = useUserRole();
+  const { loading: roleLoading, role } = useUserRole();
   const { toast } = useToast();
 
   // Initialize date from URL params or default to today
@@ -1416,14 +1416,18 @@ const DailyMeeting = () => {
                         />
                       </td>
                       <td className="p-2 text-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                          onClick={() => deleteAction(action.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {role === 'admin' ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0 text-destructive hover:text-destructive"
+                            onClick={() => deleteAction(action.id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}
