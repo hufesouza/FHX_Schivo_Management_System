@@ -25,7 +25,8 @@ import {
   X,
   Award,
   CloudOff,
-  Cloud
+  Cloud,
+  ArrowRightToLine
 } from 'lucide-react';
 import { format, addDays, subDays } from 'date-fns';
 
@@ -869,6 +870,67 @@ const DailyMeeting = () => {
     setParticipants(prev => prev.filter(p => p.user_id !== userId));
   };
 
+  const copyFlagsToNextDay = async (customerId: string) => {
+    try {
+      const nextDate = addDays(currentDate, 1);
+      const nextDateStr = format(nextDate, 'yyyy-MM-dd');
+      
+      // Check if next day meeting exists, create if not
+      let { data: nextMeeting } = await supabase
+        .from('daily_meetings')
+        .select('id')
+        .eq('meeting_date', nextDateStr)
+        .maybeSingle();
+      
+      if (!nextMeeting) {
+        const { data, error } = await supabase
+          .from('daily_meetings')
+          .insert({ meeting_date: nextDateStr, created_by: user?.id })
+          .select()
+          .single();
+        if (error) throw error;
+        nextMeeting = data;
+      }
+      
+      // Get all flags for this customer from current meeting
+      const flagsToTransfer = Object.entries(flags)
+        .filter(([key]) => key.endsWith(`|${customerId}`))
+        .filter(([, value]) => value.status !== 'none')
+        .map(([key, value]) => {
+          const [topic_id] = key.split('|');
+          return {
+            meeting_id: nextMeeting!.id,
+            topic_id,
+            customer_id: customerId,
+            status: value.status,
+            comment: '', // Don't copy comments
+            updated_by: user?.id
+          };
+        });
+      
+      if (flagsToTransfer.length === 0) {
+        toast({ title: 'No flags to transfer', description: 'There are no flags set for this customer.' });
+        return;
+      }
+      
+      // Upsert flags to next day
+      const { error } = await supabase
+        .from('meeting_flags')
+        .upsert(flagsToTransfer, { onConflict: 'meeting_id,topic_id,customer_id' });
+      
+      if (error) throw error;
+      
+      const customerName = customers.find(c => c.id === customerId)?.name || 'Customer';
+      toast({ 
+        title: 'Flags transferred', 
+        description: `${flagsToTransfer.length} flag(s) for ${customerName} copied to ${format(nextDate, 'MMM d')}.` 
+      });
+    } catch (error) {
+      console.error('Error copying flags:', error);
+      toast({ title: 'Error copying flags', variant: 'destructive' });
+    }
+  };
+
   const getFlagColor = (status: FlagStatus) => {
     switch (status) {
       case 'green': return 'bg-green-500';
@@ -976,7 +1038,19 @@ const DailyMeeting = () => {
                       <th className="text-left p-2 font-medium min-w-[150px]">Topics</th>
                       {customers.map(customer => (
                         <th key={customer.id} className="text-center p-2 font-medium min-w-[180px]">
-                          {customer.name}
+                          <div className="flex flex-col items-center gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 px-2 text-xs text-muted-foreground hover:text-primary"
+                              onClick={() => copyFlagsToNextDay(customer.id)}
+                              title={`Copy ${customer.name} flags to next day`}
+                            >
+                              <ArrowRightToLine className="h-3 w-3 mr-1" />
+                              Next Day
+                            </Button>
+                            <span>{customer.name}</span>
+                          </div>
                         </th>
                       ))}
                       {!isPastDate && <th className="text-center p-2 font-medium w-12"></th>}
