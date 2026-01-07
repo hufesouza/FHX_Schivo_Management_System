@@ -281,7 +281,7 @@ export function MeetingSummary({
             ) : (
               <>
                 <Sparkles className="h-4 w-4 mr-1 text-yellow-500" />
-                Generate AI Summary
+                Generate Summary
               </>
             )}
           </Button>
