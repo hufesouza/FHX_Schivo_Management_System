@@ -27,9 +27,10 @@ import {
   Award,
   CloudOff,
   Cloud,
-  ArrowRightToLine
+  ArrowRightToLine,
+  Sparkles
 } from 'lucide-react';
-import { format, addDays, subDays } from 'date-fns';
+import { format, addDays, subDays, addBusinessDays } from 'date-fns';
 
 type FlagStatus = 'none' | 'green' | 'amber' | 'red';
 type ActionPriority = 'low' | 'medium' | 'high' | 'critical';
@@ -149,7 +150,10 @@ const DailyMeeting = () => {
     reason: ''
   });
 
-  // Filter topics and customers based on current date
+  // AI action generation state
+  const [aiProcessing, setAiProcessing] = useState<string | null>(null);
+  const aiTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const DM_CUSTOMER_ID = '71f1050a-da76-48f3-9362-c432834c6ed1'; // Distal Motion
   // For today/future: show active items only
   // For past: show items that were active on that date (created before/on and not deactivated yet or deactivated after)
   const { topics, customers, isPastDate } = useMemo(() => {
@@ -507,6 +511,81 @@ const DailyMeeting = () => {
       ...prev,
       [key]: { ...prev[key], status: prev[key]?.status || 'none', comment }
     }));
+
+    // Trigger AI action generation for Distal Motion (DM) customer
+    if (customerId === DM_CUSTOMER_ID && comment.trim().length > 3) {
+      // Clear existing timeout
+      if (aiTimeoutRef.current) {
+        clearTimeout(aiTimeoutRef.current);
+      }
+      
+      // Debounce AI call (2 seconds after user stops typing)
+      aiTimeoutRef.current = setTimeout(() => {
+        const topic = topics.find(t => t.id === topicId);
+        const customer = customers.find(c => c.id === customerId);
+        if (topic && customer) {
+          generateAIAction(topicId, customerId, comment, topic.name, customer.name);
+        }
+      }, 2000);
+    }
+  };
+
+  const generateAIAction = async (topicId: string, customerId: string, comment: string, topicName: string, customerName: string) => {
+    const key = `${topicId}|${customerId}`;
+    setAiProcessing(key);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('interpret-comment', {
+        body: { comment, topic: topicName, customer: customerName }
+      });
+
+      if (error) {
+        console.error('AI interpretation error:', error);
+        toast({
+          title: "AI Processing Failed",
+          description: "Could not generate action from comment.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      if (data?.action) {
+        // Get current user info for owner
+        const userProfile = allUsers.find(u => u.user_id === user?.id);
+        const ownerName = userProfile?.full_name || user?.email || 'Unknown';
+        
+        // Calculate due date (5 business days from now)
+        const dueDate = addBusinessDays(new Date(), 5);
+        
+        // Create new action
+        const newActionItem: ActionItem = {
+          id: `temp-${Date.now()}`,
+          action: data.action,
+          owner_id: user?.id || null,
+          owner_name: ownerName,
+          priority: 'medium',
+          due_date: format(dueDate, 'yyyy-MM-dd'),
+          status: 'open',
+          comments: `Auto-generated from ${customerName} - ${topicName}: "${comment}"`
+        };
+        
+        setActions(prev => [...prev, newActionItem]);
+        
+        toast({
+          title: "Action Created",
+          description: (
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-yellow-500" />
+              <span>{data.action}</span>
+            </div>
+          ),
+        });
+      }
+    } catch (err) {
+      console.error('Error calling AI:', err);
+    } finally {
+      setAiProcessing(null);
+    }
   };
 
   const handleSave = async () => {
@@ -1074,12 +1153,24 @@ const DailyMeeting = () => {
                                 <TooltipProvider delayDuration={300}>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <Input
-                                        placeholder="Comment..."
-                                        className="h-7 text-xs w-full"
-                                        value={flag?.comment || ''}
-                                        onChange={(e) => handleCommentChange(topic.id, customer.id, e.target.value)}
-                                      />
+                                      <div className="relative w-full">
+                                        <Input
+                                          placeholder="Comment..."
+                                          className={`h-7 text-xs w-full ${customer.id === DM_CUSTOMER_ID ? 'pr-6' : ''}`}
+                                          value={flag?.comment || ''}
+                                          onChange={(e) => handleCommentChange(topic.id, customer.id, e.target.value)}
+                                        />
+                                        {customer.id === DM_CUSTOMER_ID && aiProcessing === key && (
+                                          <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                                            <Sparkles className="h-4 w-4 text-yellow-500 animate-pulse" />
+                                          </div>
+                                        )}
+                                        {customer.id === DM_CUSTOMER_ID && !aiProcessing && (
+                                          <div className="absolute right-1 top-1/2 -translate-y-1/2">
+                                            <Sparkles className="h-3 w-3 text-muted-foreground/40" />
+                                          </div>
+                                        )}
+                                      </div>
                                     </TooltipTrigger>
                                     {flag?.comment && flag.comment.length > 0 && (
                                       <TooltipContent 
