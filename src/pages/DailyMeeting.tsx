@@ -11,6 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Loader2, 
   ChevronLeft,
@@ -1070,12 +1071,26 @@ const DailyMeeting = () => {
                                   onClick={() => handleFlagClick(topic.id, customer.id)}
                                   className={`w-6 h-6 rounded-full ${getFlagColor(flag?.status || 'none')} hover:ring-2 ring-offset-2 ring-primary transition-all`}
                                 />
-                                <Input
-                                  placeholder="Comment..."
-                                  className="h-7 text-xs w-full"
-                                  value={flag?.comment || ''}
-                                  onChange={(e) => handleCommentChange(topic.id, customer.id, e.target.value)}
-                                />
+                                <TooltipProvider delayDuration={300}>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Input
+                                        placeholder="Comment..."
+                                        className="h-7 text-xs w-full"
+                                        value={flag?.comment || ''}
+                                        onChange={(e) => handleCommentChange(topic.id, customer.id, e.target.value)}
+                                      />
+                                    </TooltipTrigger>
+                                    {flag?.comment && flag.comment.length > 0 && (
+                                      <TooltipContent 
+                                        side="bottom" 
+                                        className="max-w-[300px] whitespace-pre-wrap bg-popover text-popover-foreground border shadow-lg z-50"
+                                      >
+                                        <p className="text-sm">{flag.comment}</p>
+                                      </TooltipContent>
+                                    )}
+                                  </Tooltip>
+                                </TooltipProvider>
                               </div>
                             </td>
                           );
