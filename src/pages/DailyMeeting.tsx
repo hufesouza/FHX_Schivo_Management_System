@@ -12,6 +12,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { useToast } from '@/hooks/use-toast';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { MeetingSummary } from '@/components/daily-meeting/MeetingSummary';
 import { 
   Loader2, 
   ChevronLeft,
@@ -1730,6 +1731,21 @@ const DailyMeeting = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Meeting Summary & KPIs */}
+        <MeetingSummary
+          currentDate={currentDate}
+          flags={flags}
+          actions={actions}
+          recognitions={recognitions.map(r => ({
+            recognized_user_name: r.recognized_user_name,
+            reason: r.reason,
+            recognized_by_name: r.recognized_by_name
+          }))}
+          topics={topics}
+          customers={customers}
+          meetingId={meetingId}
+        />
       </main>
     </AppLayout>
   );

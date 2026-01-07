@@ -23,3 +23,9 @@ verify_jwt = false
 
 [functions.drawing-translate]
 verify_jwt = false
+
+[functions.interpret-comment]
+verify_jwt = false
+
+[functions.meeting-summary]
+verify_jwt = false
