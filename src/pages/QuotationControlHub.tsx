@@ -199,7 +199,7 @@ const QuotationControlHub = () => {
                   </Card>
                 ) : (
                   <EnquiryDashboard 
-                    stats={stats} 
+                    enquiries={enquiries}
                     onFilterByStatus={handleFilterByStatus}
                     onFilterByOwner={handleFilterByOwner}
                   />
