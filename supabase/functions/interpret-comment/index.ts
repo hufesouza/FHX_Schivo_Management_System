@@ -14,7 +14,10 @@ serve(async (req) => {
   try {
     const { comment, topic, customer } = await req.json();
     
+    console.log('interpret-comment called:', { comment, topic, customer });
+    
     if (!comment || comment.trim().length === 0) {
+      console.log('Empty comment, skipping');
       return new Response(
         JSON.stringify({ action: null, reason: 'Empty comment' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -83,8 +86,11 @@ Examples:
     const data = await response.json();
     const generatedText = data.choices?.[0]?.message?.content?.trim();
     
+    console.log('AI response:', { generatedText });
+    
     // Check if the AI returned null or a variation of it
     if (!generatedText || generatedText.toLowerCase() === 'null' || generatedText === '""' || generatedText === "''") {
+      console.log('No action needed for comment');
       return new Response(
         JSON.stringify({ action: null, reason: 'No action needed for this comment' }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -99,6 +105,7 @@ Examples:
       action = action.substring(0, 147) + '...';
     }
 
+    console.log('Generated action:', action);
     return new Response(
       JSON.stringify({ action, topic, customer }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
