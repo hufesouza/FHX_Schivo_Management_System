@@ -24,28 +24,51 @@ serve(async (req) => {
       );
     }
 
+    const normalized = comment.trim().toLowerCase();
+    const noActionPhrases = new Set([
+      'ok',
+      'okay',
+      'done',
+      'completed',
+      'complete',
+      'all good',
+      'no issues',
+      'no issue',
+      'n/a',
+      'na',
+    ]);
+
+    // Only skip action creation for very short "no-op" updates
+    if (noActionPhrases.has(normalized)) {
+      console.log('No-op comment, skipping');
+      return new Response(
+        JSON.stringify({ action: null, reason: 'No action needed for this comment' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const systemPrompt = `You are an assistant that helps manufacturing engineers by interpreting their meeting comments and creating actionable tasks.
+    const systemPrompt = `You turn daily manufacturing meeting comments into ONE actionable follow-up task.
 
-Given a comment from a daily meeting about a specific topic and customer, generate a clear, actionable task description.
+Goal: Even if the comment is a status update (shipment, rework, waiting, due dates), convert it into a next-step action (confirm, chase, update, schedule, verify).
 
-Rules:
-1. The action should be concise (max 100 characters)
-2. Start with a verb (e.g., "Get", "Order", "Follow up", "Check", "Confirm", "Schedule")
-3. Be specific about what needs to be done
-4. If the comment doesn't warrant an action (e.g., just a status update like "OK" or "Done"), respond with null
-5. Focus on the next step the engineer needs to take
+Output rules:
+- Return ONLY the action text (no quotes, no labels)
+- Start with a verb (Confirm / Follow up / Check / Update / Schedule / Escalate)
+- Be specific (include item/order/batch when present)
+- Keep it short (max 120 characters)
+
+Only return the literal word null if the comment is clearly a no-op like "OK"/"Done" with no follow-up needed.
 
 Examples:
-- Comment: "waiting for tube material" → Action: "Get tube material from supplier"
-- Comment: "need to check drawing revision" → Action: "Check and confirm drawing revision with customer"
-- Comment: "OK" → null (no action needed)
-- Comment: "price pending" → Action: "Follow up on pricing with commercial team"
-- Comment: "tooling delayed" → Action: "Follow up on tooling delivery status"`;
+- "waiting for tube material" -> Follow up with supplier for tube material ETA
+- "shipment between today and tomorrow" -> Confirm shipment timing and update the tracker
+- "rework completed" -> Update status to rework completed and confirm next shipment date
+- "OK" -> null`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
