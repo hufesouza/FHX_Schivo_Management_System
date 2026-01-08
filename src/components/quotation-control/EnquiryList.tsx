@@ -31,6 +31,8 @@ export interface EnquiryListFilters {
   customer?: string;
   owner?: string;
   priority?: string;
+  year?: string;
+  quarter?: string;
 }
 
 const PAGE_SIZE = 25;
@@ -50,12 +52,24 @@ export function EnquiryList({ enquiries, initialFilters, onSelectEnquiry }: Enqu
   const [showFilters, setShowFilters] = useState(false);
 
   // Extract unique values for filters
-  const filterOptions = useMemo(() => ({
-    statuses: [...new Set(enquiries.map(e => e.status).filter(Boolean))].sort() as string[],
-    customers: [...new Set(enquiries.map(e => e.customer).filter(Boolean))].sort() as string[],
-    owners: [...new Set(enquiries.map(e => e.npi_owner).filter(Boolean))].sort() as string[],
-    priorities: [...new Set(enquiries.map(e => e.priority).filter(Boolean))].sort() as string[],
-  }), [enquiries]);
+  const filterOptions = useMemo(() => {
+    const years = [...new Set(enquiries.map(e => {
+      if (!e.date_received) return null;
+      try {
+        return new Date(e.date_received).getFullYear().toString();
+      } catch {
+        return null;
+      }
+    }).filter(Boolean))].sort().reverse() as string[];
+
+    return {
+      statuses: [...new Set(enquiries.map(e => e.status).filter(Boolean))].sort() as string[],
+      customers: [...new Set(enquiries.map(e => e.customer).filter(Boolean))].sort() as string[],
+      owners: [...new Set(enquiries.map(e => e.npi_owner).filter(Boolean))].sort() as string[],
+      priorities: [...new Set(enquiries.map(e => e.priority).filter(Boolean))].sort() as string[],
+      years,
+    };
+  }, [enquiries]);
 
   // Filter enquiries
   const filteredEnquiries = useMemo(() => {
@@ -75,6 +89,32 @@ export function EnquiryList({ enquiries, initialFilters, onSelectEnquiry }: Enqu
       if (filters.customer && e.customer !== filters.customer) return false;
       if (filters.owner && e.npi_owner !== filters.owner) return false;
       if (filters.priority && e.priority !== filters.priority) return false;
+      
+      // Year filter
+      if (filters.year && e.date_received) {
+        try {
+          const year = new Date(e.date_received).getFullYear().toString();
+          if (year !== filters.year) return false;
+        } catch {
+          return false;
+        }
+      } else if (filters.year && !e.date_received) {
+        return false;
+      }
+      
+      // Quarter filter
+      if (filters.quarter && e.date_received) {
+        try {
+          const month = new Date(e.date_received).getMonth();
+          const quarter = Math.floor(month / 3) + 1;
+          if (quarter.toString() !== filters.quarter) return false;
+        } catch {
+          return false;
+        }
+      } else if (filters.quarter && !e.date_received) {
+        return false;
+      }
+      
       return true;
     });
   }, [enquiries, filters]);
@@ -144,24 +184,46 @@ export function EnquiryList({ enquiries, initialFilters, onSelectEnquiry }: Enqu
 
         {/* Filter Panel */}
         {showFilters && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 p-4 bg-muted/30 rounded-lg">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mt-4 p-4 bg-muted/30 rounded-lg">
             <div>
-              <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Year</label>
               <Select
-                value={filters.status || 'all'}
+                value={filters.year || 'all'}
                 onValueChange={(v) => {
-                  setFilters(prev => ({ ...prev, status: v === 'all' ? undefined : v }));
+                  setFilters(prev => ({ ...prev, year: v === 'all' ? undefined : v }));
                   setPage(1);
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="All statuses" />
+                  <SelectValue placeholder="All years" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  {filterOptions.statuses.map(s => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  <SelectItem value="all">All years</SelectItem>
+                  {filterOptions.years.map(y => (
+                    <SelectItem key={y} value={y}>{y}</SelectItem>
                   ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Quarter</label>
+              <Select
+                value={filters.quarter || 'all'}
+                onValueChange={(v) => {
+                  setFilters(prev => ({ ...prev, quarter: v === 'all' ? undefined : v }));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All quarters" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All quarters</SelectItem>
+                  <SelectItem value="1">Q1 (Jan-Mar)</SelectItem>
+                  <SelectItem value="2">Q2 (Apr-Jun)</SelectItem>
+                  <SelectItem value="3">Q3 (Jul-Sep)</SelectItem>
+                  <SelectItem value="4">Q4 (Oct-Dec)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -182,6 +244,27 @@ export function EnquiryList({ enquiries, initialFilters, onSelectEnquiry }: Enqu
                   <SelectItem value="all">All customers</SelectItem>
                   {filterOptions.customers.map(c => (
                     <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Status</label>
+              <Select
+                value={filters.status || 'all'}
+                onValueChange={(v) => {
+                  setFilters(prev => ({ ...prev, status: v === 'all' ? undefined : v }));
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  {filterOptions.statuses.map(s => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
