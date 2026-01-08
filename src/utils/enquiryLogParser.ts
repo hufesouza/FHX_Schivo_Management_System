@@ -120,45 +120,45 @@ export function parseEnquiryLogExcel(file: File): Promise<ParsedEnquiryLog[]> {
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         
-        // Look for the main data sheet (skip pivot tables)
-        let sheetName = workbook.SheetNames.find(name => 
-          !name.toUpperCase().includes('PIVOT') && 
-          (name.toUpperCase().includes('ENQUIRY') || name.toUpperCase().includes('LOG') || name.toUpperCase().includes('DATA'))
-        );
+        const allEnquiries: ParsedEnquiryLog[] = [];
         
-        // If not found, try to find a sheet with enquiry data
-        if (!sheetName) {
-          // Check each sheet for enquiry data
-          for (const name of workbook.SheetNames) {
-            const sheet = workbook.Sheets[name];
-            const testData: unknown[][] = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: false });
-            const headerIdx = findHeaderRow(testData, ['ENQUIRY', 'CUSTOMER', 'DATE']);
-            if (headerIdx !== -1) {
-              sheetName = name;
-              break;
+        // Process ALL sheets that contain enquiry data (skip pivot tables)
+        for (const sheetName of workbook.SheetNames) {
+          // Skip pivot table sheets
+          if (sheetName.toUpperCase().includes('PIVOT')) {
+            continue;
+          }
+          
+          const sheet = workbook.Sheets[sheetName];
+          const rawData: unknown[][] = XLSX.utils.sheet_to_json(sheet, { 
+            header: 1, 
+            raw: false,
+            dateNF: 'yyyy-mm-dd'
+          });
+          
+          // Check if this sheet has enquiry data
+          const headerIdx = findHeaderRow(rawData, ['ENQUIRY', 'CUSTOMER', 'STATUS']);
+          if (headerIdx === -1) {
+            // Also try without STATUS for sheets that might have different headers
+            const altHeaderIdx = findHeaderRow(rawData, ['ENQUIRY', 'CUSTOMER', 'DATE']);
+            if (altHeaderIdx === -1) {
+              console.log(`Skipping sheet "${sheetName}" - no enquiry header found`);
+              continue;
             }
           }
+          
+          const sheetEnquiries = parseEnquiryData(rawData);
+          console.log(`Sheet "${sheetName}": found ${sheetEnquiries.length} enquiries`);
+          allEnquiries.push(...sheetEnquiries);
         }
         
-        if (!sheetName) {
-          sheetName = workbook.SheetNames[0];
-        }
-        
-        const sheet = workbook.Sheets[sheetName];
-        const rawData: unknown[][] = XLSX.utils.sheet_to_json(sheet, { 
-          header: 1, 
-          raw: false,
-          dateNF: 'yyyy-mm-dd'
-        });
-        
-        const enquiries = parseEnquiryData(rawData);
-        
-        if (enquiries.length === 0) {
-          reject(new Error('No enquiry data found. Make sure the sheet contains columns like Enquiry No., Customer, Date Enquiry Received.'));
+        if (allEnquiries.length === 0) {
+          reject(new Error('No enquiry data found. Make sure sheets contain columns like Enquiry No., Customer, Date Enquiry Received.'));
           return;
         }
         
-        resolve(enquiries);
+        console.log(`Total enquiries from all sheets: ${allEnquiries.length}`);
+        resolve(allEnquiries);
       } catch (error) {
         reject(error);
       }
