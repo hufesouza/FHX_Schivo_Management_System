@@ -154,7 +154,7 @@ const DailyMeeting = () => {
 
   // AI action generation state
   const [aiProcessing, setAiProcessing] = useState<string | null>(null);
-  const aiTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const aiTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   // For today/future: show active items only
   // For past: show items that were active on that date (created before/on and not deactivated yet or deactivated after)
   const { topics, customers, isPastDate } = useMemo(() => {
@@ -525,21 +525,25 @@ const DailyMeeting = () => {
       [key]: { ...prev[key], status: prev[key]?.status || 'none', comment }
     }));
 
-    // Trigger AI action generation for all customers
-    if (comment.trim().length > 3) {
-      // Clear existing timeout
-      if (aiTimeoutRef.current) {
-        clearTimeout(aiTimeoutRef.current);
+    // Get topic and customer names immediately (not in timeout to avoid stale closures)
+    const topic = topics.find(t => t.id === topicId);
+    const customer = customers.find(c => c.id === customerId);
+    
+    // Trigger AI action generation for comments with meaningful content
+    if (comment.trim().length > 3 && topic && customer) {
+      // Clear existing timeout for this specific cell
+      const existingTimeout = aiTimeoutsRef.current.get(key);
+      if (existingTimeout) {
+        clearTimeout(existingTimeout);
       }
       
-      // Debounce AI call (2 seconds after user stops typing)
-      aiTimeoutRef.current = setTimeout(() => {
-        const topic = topics.find(t => t.id === topicId);
-        const customer = customers.find(c => c.id === customerId);
-        if (topic && customer) {
-          generateAIAction(topicId, customerId, comment, topic.name, customer.name);
-        }
+      // Debounce AI call (2 seconds after user stops typing) - per cell
+      const timeoutId = setTimeout(() => {
+        generateAIAction(topicId, customerId, comment, topic.name, customer.name);
+        aiTimeoutsRef.current.delete(key);
       }, 2000);
+      
+      aiTimeoutsRef.current.set(key, timeoutId);
     }
   };
 
