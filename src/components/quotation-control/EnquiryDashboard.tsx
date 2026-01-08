@@ -1,6 +1,9 @@
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { EnquiryStats } from '@/hooks/useEnquiryLog';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { EnquiryLog } from '@/types/enquiryLog';
 import { 
   FileText, 
   CheckCircle, 
@@ -10,12 +13,20 @@ import {
   Euro,
   Clock,
   Users,
-  Building
+  Building,
+  Filter,
+  X
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
+export interface DashboardFilters {
+  year?: string;
+  quarter?: string;
+  customer?: string;
+}
+
 interface EnquiryDashboardProps {
-  stats: EnquiryStats;
+  enquiries: EnquiryLog[];
   onFilterByStatus?: (status: string) => void;
   onFilterByCustomer?: (customer: string) => void;
   onFilterByOwner?: (owner: string) => void;
@@ -30,7 +41,112 @@ const STATUS_COLORS: Record<string, string> = {
   'CANCELLED': 'hsl(0, 0%, 50%)',
 };
 
-export function EnquiryDashboard({ stats, onFilterByStatus, onFilterByCustomer, onFilterByOwner }: EnquiryDashboardProps) {
+export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustomer, onFilterByOwner }: EnquiryDashboardProps) {
+  const [filters, setFilters] = useState<DashboardFilters>({});
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Extract unique filter options
+  const filterOptions = useMemo(() => {
+    const years = [...new Set(enquiries.map(e => {
+      if (!e.date_received) return null;
+      try {
+        return new Date(e.date_received).getFullYear().toString();
+      } catch {
+        return null;
+      }
+    }).filter(Boolean))].sort().reverse() as string[];
+
+    const customers = [...new Set(enquiries.map(e => e.customer).filter(Boolean))].sort() as string[];
+
+    return { years, customers };
+  }, [enquiries]);
+
+  // Apply filters to enquiries
+  const filteredEnquiries = useMemo(() => {
+    return enquiries.filter(e => {
+      // Year filter
+      if (filters.year && e.date_received) {
+        try {
+          const year = new Date(e.date_received).getFullYear().toString();
+          if (year !== filters.year) return false;
+        } catch {
+          return false;
+        }
+      } else if (filters.year && !e.date_received) {
+        return false;
+      }
+
+      // Quarter filter
+      if (filters.quarter && e.date_received) {
+        try {
+          const month = new Date(e.date_received).getMonth();
+          const quarter = Math.floor(month / 3) + 1;
+          if (quarter.toString() !== filters.quarter) return false;
+        } catch {
+          return false;
+        }
+      } else if (filters.quarter && !e.date_received) {
+        return false;
+      }
+
+      // Customer filter
+      if (filters.customer && e.customer !== filters.customer) return false;
+
+      return true;
+    });
+  }, [enquiries, filters]);
+
+  // Calculate stats from filtered enquiries
+  const stats = useMemo(() => {
+    const data = filteredEnquiries;
+    return {
+      total: data.length,
+      open: data.filter(e => e.status?.toUpperCase() === 'OPEN' || !e.status).length,
+      quoted: data.filter(e => e.is_quoted).length,
+      won: data.filter(e => e.po_received || e.status?.toUpperCase() === 'WON').length,
+      lost: data.filter(e => e.status?.toUpperCase() === 'LOST').length,
+      onHold: data.filter(e => e.status?.toUpperCase() === 'ON HOLD' || e.priority?.toLowerCase() === 'hold').length,
+      totalQuotedValue: data.reduce((sum, e) => sum + (e.quoted_price_euro || 0), 0),
+      totalPOValue: data.reduce((sum, e) => sum + (e.po_value_euro || 0), 0),
+      avgTurnaround: data.filter(e => e.turnaround_days).length > 0
+        ? data.filter(e => e.turnaround_days).reduce((sum, e) => sum + (e.turnaround_days || 0), 0) / 
+          data.filter(e => e.turnaround_days).length
+        : 0,
+      byCustomer: Object.entries(
+        data.reduce((acc, e) => {
+          const customer = e.customer || 'Unknown';
+          acc[customer] = (acc[customer] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      )
+        .map(([customer, count]) => ({ customer, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10),
+      byOwner: Object.entries(
+        data.reduce((acc, e) => {
+          const owner = e.npi_owner || 'Unassigned';
+          acc[owner] = (acc[owner] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      )
+        .map(([owner, count]) => ({ owner, count }))
+        .sort((a, b) => b.count - a.count),
+      byStatus: Object.entries(
+        data.reduce((acc, e) => {
+          const status = e.status || 'OPEN';
+          acc[status] = (acc[status] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      )
+        .map(([status, count]) => ({ status, count }))
+        .sort((a, b) => b.count - a.count),
+    };
+  }, [filteredEnquiries]);
+
+  const hasActiveFilters = Object.values(filters).some(v => v);
+
+  const clearFilters = () => setFilters({});
+
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-IE', {
       style: 'currency',
@@ -127,6 +243,98 @@ export function EnquiryDashboard({ stats, onFilterByStatus, onFilterByCustomer, 
 
   return (
     <div className="space-y-6">
+      {/* Filter Bar */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowFilters(!showFilters)}
+              className={showFilters ? 'bg-primary/10' : ''}
+            >
+              <Filter className="h-4 w-4 mr-2" />
+              Filters
+              {hasActiveFilters && (
+                <Badge variant="secondary" className="ml-2">Active</Badge>
+              )}
+            </Button>
+
+            {hasActiveFilters && (
+              <Button variant="ghost" size="sm" onClick={clearFilters}>
+                <X className="h-4 w-4 mr-2" />
+                Clear
+              </Button>
+            )}
+
+            {hasActiveFilters && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                Showing {filteredEnquiries.length} of {enquiries.length} enquiries
+              </div>
+            )}
+          </div>
+
+          {showFilters && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4 pt-4 border-t">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Year</label>
+                <Select
+                  value={filters.year || 'all'}
+                  onValueChange={(v) => setFilters(prev => ({ ...prev, year: v === 'all' ? undefined : v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All years" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All years</SelectItem>
+                    {filterOptions.years.map(y => (
+                      <SelectItem key={y} value={y}>{y}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Quarter</label>
+                <Select
+                  value={filters.quarter || 'all'}
+                  onValueChange={(v) => setFilters(prev => ({ ...prev, quarter: v === 'all' ? undefined : v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All quarters" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All quarters</SelectItem>
+                    <SelectItem value="1">Q1 (Jan-Mar)</SelectItem>
+                    <SelectItem value="2">Q2 (Apr-Jun)</SelectItem>
+                    <SelectItem value="3">Q3 (Jul-Sep)</SelectItem>
+                    <SelectItem value="4">Q4 (Oct-Dec)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Customer</label>
+                <Select
+                  value={filters.customer || 'all'}
+                  onValueChange={(v) => setFilters(prev => ({ ...prev, customer: v === 'all' ? undefined : v }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="All customers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All customers</SelectItem>
+                    {filterOptions.customers.map(c => (
+                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {kpiCards.map((card) => (
