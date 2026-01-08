@@ -284,15 +284,41 @@ const DailyMeeting = () => {
           setParticipants(participantList);
         }
 
-        // Load actions for this meeting
-        const { data: actionsData } = await supabase
+        // Load actions for this meeting + carry forward incomplete actions from previous meetings
+        const dateStr = format(currentDate, 'yyyy-MM-dd');
+        
+        // Get actions for this specific meeting
+        const { data: thisActionsData } = await supabase
           .from('meeting_actions')
-          .select('*')
+          .select('*, daily_meetings!inner(meeting_date)')
           .eq('meeting_id', existingMeeting.id)
           .order('created_at');
 
-        if (actionsData) {
-          setActions(actionsData.map(a => ({
+        // Get incomplete actions from previous meetings (carried forward)
+        const { data: carriedActionsData } = await supabase
+          .from('meeting_actions')
+          .select('*, daily_meetings!inner(meeting_date)')
+          .neq('meeting_id', existingMeeting.id)
+          .lt('daily_meetings.meeting_date', dateStr)
+          .in('status', ['open', 'in_progress'])
+          .order('created_at');
+
+        // Combine actions, avoiding duplicates
+        const allActionsData = [
+          ...(thisActionsData || []),
+          ...(carriedActionsData || [])
+        ];
+
+        // Deduplicate by id (in case action was already saved to this meeting)
+        const uniqueActions = allActionsData.reduce((acc, a) => {
+          if (!acc.find(existing => existing.id === a.id)) {
+            acc.push(a);
+          }
+          return acc;
+        }, [] as typeof allActionsData);
+
+        if (uniqueActions.length > 0) {
+          setActions(uniqueActions.map(a => ({
             id: a.id,
             action: a.action,
             owner_id: a.owner_id,
@@ -302,6 +328,8 @@ const DailyMeeting = () => {
             status: a.status as ActionStatus,
             comments: a.comments
           })));
+        } else {
+          setActions([]);
         }
 
         // Load recognitions for this meeting
@@ -323,10 +351,29 @@ const DailyMeeting = () => {
           })));
         }
       } else {
+        // No meeting yet for this date, but still load carried forward actions
+        const dateStr = format(currentDate, 'yyyy-MM-dd');
+        
+        const { data: carriedActionsData } = await supabase
+          .from('meeting_actions')
+          .select('*, daily_meetings!inner(meeting_date)')
+          .lt('daily_meetings.meeting_date', dateStr)
+          .in('status', ['open', 'in_progress'])
+          .order('created_at');
+
         setMeetingId(null);
         setFlags({});
         setParticipants([]);
-        setActions([]);
+        setActions(carriedActionsData?.map(a => ({
+          id: a.id,
+          action: a.action,
+          owner_id: a.owner_id,
+          owner_name: a.owner_name,
+          priority: a.priority as ActionPriority,
+          due_date: a.due_date,
+          status: a.status as ActionStatus,
+          comments: a.comments
+        })) || []);
         setRecognitions([]);
       }
     } catch (error) {
