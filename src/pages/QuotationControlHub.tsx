@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useEnquiryLog } from '@/hooks/useEnquiryLog';
-import { useEnquiryQuotations } from '@/hooks/useEnquiryQuotations';
+import { useEnquiryQuotations, EnquiryQuotation, EnquiryQuotationPart } from '@/hooks/useEnquiryQuotations';
 import { EnquiryLog } from '@/types/enquiryLog';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { EnquiryLogUpload } from '@/components/quotation-control/EnquiryLogUpload';
@@ -11,6 +11,7 @@ import { EnquiryDashboard } from '@/components/quotation-control/EnquiryDashboar
 import { EnquiryList, EnquiryListFilters } from '@/components/quotation-control/EnquiryList';
 import { EnquiryWorkflow } from '@/components/quotation-control/EnquiryWorkflow';
 import { CreateQuotationDialog } from '@/components/quotation-control/CreateQuotationDialog';
+import { ExportQuotationPDF } from '@/components/quotation-control/ExportQuotationPDF';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -65,13 +66,30 @@ const QuotationControlHub = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
   const { enquiries, loading, uploading, stats, uploadData, clearAllData, fetchEnquiries, updateEnquiry } = useEnquiryLog();
-  const { quotations, loading: quotationsLoading, fetchQuotations } = useEnquiryQuotations();
+  const { quotations, loading: quotationsLoading, fetchQuotations, getQuotationParts } = useEnquiryQuotations();
   
   const [activeTab, setActiveTab] = useState('dashboard');
   const [listFilters, setListFilters] = useState<EnquiryListFilters | undefined>(undefined);
   const [selectedEnquiry, setSelectedEnquiry] = useState<EnquiryLog | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [createQuotationOpen, setCreateQuotationOpen] = useState(false);
+  const [quotationPartsMap, setQuotationPartsMap] = useState<Record<string, EnquiryQuotationPart[]>>({});
+
+  // Fetch parts for all quotations when they load
+  useEffect(() => {
+    const fetchAllParts = async () => {
+      const partsMap: Record<string, EnquiryQuotationPart[]> = {};
+      for (const q of quotations) {
+        const parts = await getQuotationParts(q.id);
+        partsMap[q.id] = parts;
+      }
+      setQuotationPartsMap(partsMap);
+    };
+    
+    if (quotations.length > 0) {
+      fetchAllParts();
+    }
+  }, [quotations, getQuotationParts]);
 
   const isAdmin = role === 'admin';
 
@@ -309,6 +327,7 @@ const QuotationControlHub = () => {
                               <TableHead className="text-right">Avg Margin</TableHead>
                               <TableHead>Created</TableHead>
                               <TableHead>Source File</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -336,6 +355,12 @@ const QuotationControlHub = () => {
                                 </TableCell>
                                 <TableCell className="text-muted-foreground text-sm max-w-[150px] truncate">
                                   {q.source_file_name || '-'}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <ExportQuotationPDF 
+                                    quotation={q} 
+                                    parts={quotationPartsMap[q.id] || []} 
+                                  />
                                 </TableCell>
                               </TableRow>
                             ))}
