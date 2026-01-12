@@ -191,6 +191,176 @@ export type Database = {
         }
         Relationships: []
       }
+      enquiry_quotation_parts: {
+        Row: {
+          created_at: string
+          days_dev_time: number | null
+          description: string | null
+          dev_time_cost: number | null
+          development_time: number | null
+          id: string
+          labour_per_hr: number | null
+          labour_processing_cost: number | null
+          line_number: number
+          machine_cost_per_min: number | null
+          machine_manning: string | null
+          machine_run_time: number | null
+          machine_setup: number | null
+          margin: number | null
+          material_markup: number | null
+          material_name: string | null
+          material_qty_per_unit: number | null
+          material_std_cost_est: number | null
+          nre: number | null
+          overheads_per_hr: number | null
+          part_deburr: number | null
+          part_number: string | null
+          quantity: number | null
+          quotation_id: string
+          resource: string | null
+          secondary_ops_cost_per_min: number | null
+          shift: number | null
+          subcon_cost: number | null
+          subcon_cost_per_part: number | null
+          subcon_markup: number | null
+          tooling: number | null
+          total_cost_per_part: number | null
+          total_material: number | null
+          unit_price: number | null
+          volume: number | null
+          wash: number | null
+        }
+        Insert: {
+          created_at?: string
+          days_dev_time?: number | null
+          description?: string | null
+          dev_time_cost?: number | null
+          development_time?: number | null
+          id?: string
+          labour_per_hr?: number | null
+          labour_processing_cost?: number | null
+          line_number: number
+          machine_cost_per_min?: number | null
+          machine_manning?: string | null
+          machine_run_time?: number | null
+          machine_setup?: number | null
+          margin?: number | null
+          material_markup?: number | null
+          material_name?: string | null
+          material_qty_per_unit?: number | null
+          material_std_cost_est?: number | null
+          nre?: number | null
+          overheads_per_hr?: number | null
+          part_deburr?: number | null
+          part_number?: string | null
+          quantity?: number | null
+          quotation_id: string
+          resource?: string | null
+          secondary_ops_cost_per_min?: number | null
+          shift?: number | null
+          subcon_cost?: number | null
+          subcon_cost_per_part?: number | null
+          subcon_markup?: number | null
+          tooling?: number | null
+          total_cost_per_part?: number | null
+          total_material?: number | null
+          unit_price?: number | null
+          volume?: number | null
+          wash?: number | null
+        }
+        Update: {
+          created_at?: string
+          days_dev_time?: number | null
+          description?: string | null
+          dev_time_cost?: number | null
+          development_time?: number | null
+          id?: string
+          labour_per_hr?: number | null
+          labour_processing_cost?: number | null
+          line_number?: number
+          machine_cost_per_min?: number | null
+          machine_manning?: string | null
+          machine_run_time?: number | null
+          machine_setup?: number | null
+          margin?: number | null
+          material_markup?: number | null
+          material_name?: string | null
+          material_qty_per_unit?: number | null
+          material_std_cost_est?: number | null
+          nre?: number | null
+          overheads_per_hr?: number | null
+          part_deburr?: number | null
+          part_number?: string | null
+          quantity?: number | null
+          quotation_id?: string
+          resource?: string | null
+          secondary_ops_cost_per_min?: number | null
+          shift?: number | null
+          subcon_cost?: number | null
+          subcon_cost_per_part?: number | null
+          subcon_markup?: number | null
+          tooling?: number | null
+          total_cost_per_part?: number | null
+          total_material?: number | null
+          unit_price?: number | null
+          volume?: number | null
+          wash?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enquiry_quotation_parts_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "enquiry_quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enquiry_quotations: {
+        Row: {
+          average_margin: number | null
+          created_at: string
+          created_by: string
+          customer: string
+          enquiry_no: string
+          id: string
+          notes: string | null
+          source_file_name: string | null
+          status: string
+          total_cost: number | null
+          total_quoted_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          average_margin?: number | null
+          created_at?: string
+          created_by: string
+          customer: string
+          enquiry_no: string
+          id?: string
+          notes?: string | null
+          source_file_name?: string | null
+          status?: string
+          total_cost?: number | null
+          total_quoted_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          average_margin?: number | null
+          created_at?: string
+          created_by?: string
+          customer?: string
+          enquiry_no?: string
+          id?: string
+          notes?: string | null
+          source_file_name?: string | null
+          status?: string
+          total_cost?: number | null
+          total_quoted_price?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       form_fields: {
         Row: {
           created_at: string
