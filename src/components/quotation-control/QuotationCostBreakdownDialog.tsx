@@ -38,6 +38,7 @@ interface AssemblyGroup {
     totalCost: number;
     totalQuotedPrice: number;
     totalMargin: number;
+    totalNRE: number;
     partCount: number;
   };
 }
@@ -97,6 +98,7 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
           totalCost: subPartsTotalCost,
           totalQuotedPrice: topLevelPrice,
           totalMargin: topLevel.margin || 0,
+          totalNRE: topLevel.nre || 0,
           partCount: assemblySubParts.length,
         },
       };
@@ -117,6 +119,11 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
   const visibleTotalCost = groupedParts
     .filter(g => !hiddenGroups.has(g.topLevel.id))
     .reduce((sum, g) => sum + g.totals.totalCost, 0);
+
+  // Calculate total NRE excluding hidden groups
+  const totalNRE = groupedParts
+    .filter(g => !hiddenGroups.has(g.topLevel.id))
+    .reduce((sum, g) => sum + g.totals.totalNRE, 0);
 
   // Expand all groups by default when dialog opens
   useEffect(() => {
@@ -203,7 +210,9 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
       page.drawText(`Total Assemblies: ${groupedParts.length}`, { x: margin, y, size: 9, font: helvetica, color: black });
       page.drawText(`Visible: ${groupedParts.length - hiddenGroups.size}`, { x: margin + 120, y, size: 9, font: helvetica, color: black });
       y -= 12;
-      page.drawText(`Grand Total (visible): ${formatCurrency(grandTotal)}`, { x: margin, y, size: 10, font: helveticaBold, color: green });
+      const blue = rgb(0.15, 0.35, 0.70);
+      page.drawText(`Total NRE: ${formatCurrency(totalNRE)}`, { x: margin, y, size: 10, font: helveticaBold, color: blue });
+      page.drawText(`Grand Total (visible): ${formatCurrency(grandTotal)}`, { x: margin + 150, y, size: 10, font: helveticaBold, color: green });
       y -= 25;
       
       // Iterate through each assembly
@@ -231,10 +240,12 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
         y -= 30;
         
         // Assembly totals
+        const blue = rgb(0.15, 0.35, 0.70);
         page.drawText(`Qty: ${group.topLevel.quantity || 0}`, { x: margin + 10, y, size: 8, font: helvetica, color: black });
-        page.drawText(`Unit Price: ${formatCurrency(group.topLevel.unit_price)}`, { x: margin + 80, y, size: 8, font: helvetica, color: isHidden ? black : green });
-        page.drawText(`Total: ${formatCurrency(group.totals.totalQuotedPrice)}`, { x: margin + 200, y, size: 8, font: helveticaBold, color: isHidden ? black : green });
-        page.drawText(`Margin: ${formatPercent(group.totals.totalMargin)}`, { x: margin + 320, y, size: 8, font: helvetica, color: black });
+        page.drawText(`NRE: ${formatCurrency(group.totals.totalNRE)}`, { x: margin + 60, y, size: 8, font: helvetica, color: isHidden ? black : blue });
+        page.drawText(`Unit Price: ${formatCurrency(group.topLevel.unit_price)}`, { x: margin + 160, y, size: 8, font: helvetica, color: isHidden ? black : green });
+        page.drawText(`Total: ${formatCurrency(group.totals.totalQuotedPrice)}`, { x: margin + 280, y, size: 8, font: helveticaBold, color: isHidden ? black : green });
+        page.drawText(`Margin: ${formatPercent(group.totals.totalMargin)}`, { x: margin + 400, y, size: 8, font: helvetica, color: black });
         y -= 18;
         
         // Sub-parts table header
@@ -328,7 +339,7 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
           </DialogTitle>
         </DialogHeader>
         {/* Summary Cards */}
-        <div className="grid grid-cols-4 gap-4 mb-4">
+        <div className="grid grid-cols-5 gap-3 mb-4">
           <div className="bg-muted/50 rounded-lg p-3 text-center">
             <p className="text-xs text-muted-foreground">Assemblies</p>
             <p className="text-xl font-bold">{groupedParts.length}</p>
@@ -336,6 +347,10 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
           <div className="bg-muted/50 rounded-lg p-3 text-center">
             <p className="text-xs text-muted-foreground">Total Cost</p>
             <p className="text-xl font-bold text-orange-600">{formatCurrency(quotation.total_cost)}</p>
+          </div>
+          <div className="bg-muted/50 rounded-lg p-3 text-center">
+            <p className="text-xs text-muted-foreground">Total NRE</p>
+            <p className="text-xl font-bold text-blue-600">{formatCurrency(totalNRE)}</p>
           </div>
           <div className="bg-muted/50 rounded-lg p-3 text-center">
             <p className="text-xs text-muted-foreground">Total Price</p>
@@ -404,6 +419,12 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
                       <div className="text-right">
                         <div className="text-xs text-muted-foreground">Qty</div>
                         <div className="font-semibold">{group.topLevel?.quantity || 0}</div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-muted-foreground">NRE</div>
+                        <div className={`font-bold ${isHidden ? 'text-muted-foreground' : 'text-blue-600'}`}>
+                          {formatCurrency(group.totals.totalNRE)}
+                        </div>
                       </div>
                       <div className="text-right">
                         <div className="text-xs text-muted-foreground">Unit Price</div>

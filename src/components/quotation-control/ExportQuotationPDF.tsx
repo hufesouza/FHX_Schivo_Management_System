@@ -151,7 +151,7 @@ export function ExportQuotationPDF({ quotation, parts }: ExportQuotationPDFProps
       // Table
       y -= 30;
       const tableWidth = width - 2 * margin;
-      const colWidths = [35, 100, 150, 60, 80, 90]; // Item, Part No, Description, Qty, Unit Price, Total Price
+      const colWidths = [30, 80, 120, 45, 70, 70, 70]; // Item, Part No, Description, Qty, NRE Price, Unit Price, Total Price
       
       // Table Header with orange background
       const headerHeight = 22;
@@ -164,7 +164,7 @@ export function ExportQuotationPDF({ quotation, parts }: ExportQuotationPDFProps
       });
       
       let xPos = margin + 5;
-      const headers = ['Item', 'Part No.', 'Description', 'Qty', 'Unit Price', 'Total Price'];
+      const headers = ['Item', 'Part No.', 'Description', 'Qty', 'NRE (€)', 'Unit Price', 'Total Price'];
       headers.forEach((header, i) => {
         page.drawText(header, { 
           x: xPos, 
@@ -181,6 +181,10 @@ export function ExportQuotationPDF({ quotation, parts }: ExportQuotationPDFProps
       // Table Rows - Only show top-level parts (those with unit_price set)
       const topLevelParts = parts.filter(part => part.unit_price !== null && part.unit_price > 0);
       const rowHeight = 16;
+      
+      // Calculate total NRE
+      let totalNRE = 0;
+      
       topLevelParts.forEach((part, index) => {
         if (y < 180) return; // Leave space for notes section
         
@@ -211,7 +215,7 @@ export function ExportQuotationPDF({ quotation, parts }: ExportQuotationPDFProps
         
         // Part Number
         const partNum = part.part_number || '-';
-        page.drawText(partNum.length > 15 ? partNum.substring(0, 15) + '...' : partNum, { 
+        page.drawText(partNum.length > 12 ? partNum.substring(0, 12) + '...' : partNum, { 
           x: xPos, 
           y: y + 4, 
           size: 8, 
@@ -222,7 +226,7 @@ export function ExportQuotationPDF({ quotation, parts }: ExportQuotationPDFProps
         
         // Description
         const desc = part.description || '-';
-        page.drawText(desc.length > 25 ? desc.substring(0, 25) + '...' : desc, { 
+        page.drawText(desc.length > 20 ? desc.substring(0, 20) + '...' : desc, { 
           x: xPos, 
           y: y + 4, 
           size: 8, 
@@ -241,6 +245,18 @@ export function ExportQuotationPDF({ quotation, parts }: ExportQuotationPDFProps
         });
         xPos += colWidths[3];
         
+        // NRE Price
+        const nre = part.nre || 0;
+        totalNRE += nre;
+        page.drawText(formatCurrency(nre), { 
+          x: xPos, 
+          y: y + 4, 
+          size: 8, 
+          font: helvetica, 
+          color: black 
+        });
+        xPos += colWidths[4];
+        
         // Unit Price
         page.drawText(formatCurrency(part.unit_price), { 
           x: xPos, 
@@ -249,7 +265,7 @@ export function ExportQuotationPDF({ quotation, parts }: ExportQuotationPDFProps
           font: helvetica, 
           color: black 
         });
-        xPos += colWidths[4];
+        xPos += colWidths[5];
         
         // Total Price
         const total = (part.unit_price || 0) * (part.quantity || 0);
@@ -261,6 +277,33 @@ export function ExportQuotationPDF({ quotation, parts }: ExportQuotationPDFProps
           color: black 
         });
       });
+      
+      // Add Total NRE row
+      if (totalNRE > 0) {
+        y -= rowHeight;
+        page.drawRectangle({
+          x: margin,
+          y: y,
+          width: tableWidth,
+          height: rowHeight,
+          color: schivoOrange,
+        });
+        
+        page.drawText('Total NRE:', { 
+          x: margin + 5 + colWidths[0] + colWidths[1] + colWidths[2], 
+          y: y + 4, 
+          size: 8, 
+          font: helveticaBold, 
+          color: rgb(1, 1, 1)
+        });
+        page.drawText(formatCurrency(totalNRE), { 
+          x: margin + 5 + colWidths[0] + colWidths[1] + colWidths[2] + colWidths[3], 
+          y: y + 4, 
+          size: 8, 
+          font: helveticaBold, 
+          color: rgb(1, 1, 1)
+        });
+      }
       
       // Get notes and conditions
       const { notes, conditions } = parseNotesAndConditions();
