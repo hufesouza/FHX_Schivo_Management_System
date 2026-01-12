@@ -359,13 +359,16 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
         {kpiCards.map((card) => (
-          <Card 
-            key={card.title} 
-            className={`border-l-4 ${card.onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
-            style={{ borderLeftColor: card.borderColor }}
+          <div 
+            key={card.title}
+            className={`rounded-lg bg-card text-card-foreground shadow-sm overflow-hidden ${card.onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
             onClick={card.onClick}
           >
-            <CardContent className="p-4">
+            <div 
+              className="h-1 w-full" 
+              style={{ backgroundColor: card.borderColor }}
+            />
+            <div className="p-4">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${card.bgColor}`}>
                   <card.icon className={`h-5 w-5 ${card.color}`} />
@@ -375,20 +378,23 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
                   <p className="text-xs text-muted-foreground">{card.title}</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
       </div>
 
       {/* Value Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {valueCards.map((card) => (
-          <Card 
-            key={card.title} 
-            className="border-l-4"
-            style={{ borderLeftColor: card.borderColor }}
+          <div 
+            key={card.title}
+            className="rounded-lg bg-card text-card-foreground shadow-sm overflow-hidden"
           >
-            <CardContent className="p-4">
+            <div 
+              className="h-1 w-full" 
+              style={{ backgroundColor: card.borderColor }}
+            />
+            <div className="p-4">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${card.bgColor}`}>
                   <card.icon className={`h-5 w-5 ${card.color}`} />
@@ -398,8 +404,8 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
                   <p className="text-xs text-muted-foreground">{card.title}</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         ))}
       </div>
 
