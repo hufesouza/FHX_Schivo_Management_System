@@ -20,8 +20,8 @@ import {
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export interface DashboardFilters {
-  year?: string;
-  month?: string;
+  years?: string[];
+  months?: string[];
   customer?: string;
 }
 
@@ -79,27 +79,27 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
   // Apply filters to enquiries
   const filteredEnquiries = useMemo(() => {
     return enquiries.filter(e => {
-      // Year filter
-      if (filters.year && e.date_received) {
+      // Years filter (multi-select)
+      if (filters.years && filters.years.length > 0 && e.date_received) {
         try {
           const year = new Date(e.date_received).getFullYear().toString();
-          if (year !== filters.year) return false;
+          if (!filters.years.includes(year)) return false;
         } catch {
           return false;
         }
-      } else if (filters.year && !e.date_received) {
+      } else if (filters.years && filters.years.length > 0 && !e.date_received) {
         return false;
       }
 
-      // Month filter
-      if (filters.month && e.date_received) {
+      // Months filter (multi-select)
+      if (filters.months && filters.months.length > 0 && e.date_received) {
         try {
           const month = new Date(e.date_received).getMonth().toString();
-          if (month !== filters.month) return false;
+          if (!filters.months.includes(month)) return false;
         } catch {
           return false;
         }
-      } else if (filters.month && !e.date_received) {
+      } else if (filters.months && filters.months.length > 0 && !e.date_received) {
         return false;
       }
 
@@ -157,9 +157,31 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
     };
   }, [filteredEnquiries]);
 
-  const hasActiveFilters = Object.values(filters).some(v => v);
+  const hasActiveFilters = Object.values(filters).some(v => 
+    Array.isArray(v) ? v.length > 0 : Boolean(v)
+  );
 
   const clearFilters = () => setFilters({});
+
+  const toggleYear = (year: string) => {
+    setFilters(prev => {
+      const currentYears = prev.years || [];
+      if (currentYears.includes(year)) {
+        return { ...prev, years: currentYears.filter(y => y !== year) };
+      }
+      return { ...prev, years: [...currentYears, year] };
+    });
+  };
+
+  const toggleMonth = (month: string) => {
+    setFilters(prev => {
+      const currentMonths = prev.months || [];
+      if (currentMonths.includes(month)) {
+        return { ...prev, months: currentMonths.filter(m => m !== month) };
+      }
+      return { ...prev, months: [...currentMonths, month] };
+    });
+  };
 
 
   const formatCurrency = (value: number) => {
@@ -290,44 +312,40 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
           </div>
 
           {showFilters && (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4 pt-4 border-t">
+            <div className="space-y-4 mt-4 pt-4 border-t">
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Year</label>
-                <Select
-                  value={filters.year || 'all'}
-                  onValueChange={(v) => setFilters(prev => ({ ...prev, year: v === 'all' ? undefined : v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="All years" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All years</SelectItem>
-                    {filterOptions.years.map(y => (
-                      <SelectItem key={y} value={y}>{y}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">Years</label>
+                <div className="flex flex-wrap gap-2">
+                  {filterOptions.years.map(y => (
+                    <Badge
+                      key={y}
+                      variant={(filters.years || []).includes(y) ? "default" : "outline"}
+                      className="cursor-pointer hover:bg-primary/80 transition-colors"
+                      onClick={() => toggleYear(y)}
+                    >
+                      {y}
+                    </Badge>
+                  ))}
+                </div>
               </div>
 
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-1 block">Month</label>
-                <Select
-                  value={filters.month || 'all'}
-                  onValueChange={(v) => setFilters(prev => ({ ...prev, month: v === 'all' ? undefined : v }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="All months" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All months</SelectItem>
-                    {MONTHS.map(m => (
-                      <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">Months</label>
+                <div className="flex flex-wrap gap-2">
+                  {MONTHS.map(m => (
+                    <Badge
+                      key={m.value}
+                      variant={(filters.months || []).includes(m.value) ? "default" : "outline"}
+                      className="cursor-pointer hover:bg-primary/80 transition-colors"
+                      onClick={() => toggleMonth(m.value)}
+                    >
+                      {m.label.slice(0, 3)}
+                    </Badge>
+                  ))}
+                </div>
               </div>
 
-              <div>
+              <div className="max-w-xs">
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Customer</label>
                 <Select
                   value={filters.customer || 'all'}
