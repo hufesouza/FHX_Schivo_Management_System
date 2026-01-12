@@ -173,9 +173,10 @@ export function ExportQuotationPDF({ quotation, parts }: ExportQuotationPDFProps
       
       y -= headerHeight;
       
-      // Table Rows
+      // Table Rows - Only show top-level parts (those with unit_price set)
+      const topLevelParts = parts.filter(part => part.unit_price !== null && part.unit_price > 0);
       const rowHeight = 16;
-      parts.forEach((part, index) => {
+      topLevelParts.forEach((part, index) => {
         if (y < 180) return; // Leave space for notes section
         
         y -= rowHeight;
@@ -194,7 +195,7 @@ export function ExportQuotationPDF({ quotation, parts }: ExportQuotationPDFProps
         xPos = margin + 5;
         
         // Item number
-        page.drawText(part.line_number.toString(), { 
+        page.drawText((index + 1).toString(), { 
           x: xPos, 
           y: y + 4, 
           size: 8, 
