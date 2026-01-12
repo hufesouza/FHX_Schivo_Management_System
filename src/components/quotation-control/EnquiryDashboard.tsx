@@ -20,8 +20,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export interface DashboardFilters {
-  years?: string[];
-  months?: string[];
+  yearMonths?: string[]; // Format: "YYYY-MM" e.g. "2025-11" for Dec 2025
   customer?: string;
 }
 
@@ -41,36 +40,31 @@ const STATUS_COLORS: Record<string, string> = {
   'CANCELLED': 'hsl(0, 0%, 50%)',
 };
 
-const MONTHS = [
-  { value: '0', label: 'January' },
-  { value: '1', label: 'February' },
-  { value: '2', label: 'March' },
-  { value: '3', label: 'April' },
-  { value: '4', label: 'May' },
-  { value: '5', label: 'June' },
-  { value: '6', label: 'July' },
-  { value: '7', label: 'August' },
-  { value: '8', label: 'September' },
-  { value: '9', label: 'October' },
-  { value: '10', label: 'November' },
-  { value: '11', label: 'December' },
-];
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustomer, onFilterByOwner }: EnquiryDashboardProps) {
   const [filters, setFilters] = useState<DashboardFilters>({});
   const [showFilters, setShowFilters] = useState(false);
 
-  // Extract unique filter options
+  // Extract unique filter options - year-month combinations
   const filterOptions = useMemo(() => {
-    const years = [...new Set(enquiries.map(e => {
-      if (!e.date_received) return null;
+    const yearMonthSet = new Set<string>();
+    const yearsSet = new Set<string>();
+    
+    enquiries.forEach(e => {
+      if (!e.date_received) return;
       try {
-        return new Date(e.date_received).getFullYear().toString();
+        const date = new Date(e.date_received);
+        const year = date.getFullYear().toString();
+        const month = date.getMonth();
+        yearsSet.add(year);
+        yearMonthSet.add(`${year}-${month}`);
       } catch {
-        return null;
+        // ignore
       }
-    }).filter(Boolean))].sort().reverse() as string[];
+    });
 
+    const years = [...yearsSet].sort().reverse();
     const customers = [...new Set(enquiries.map(e => e.customer).filter(Boolean))].sort() as string[];
 
     return { years, customers };
@@ -79,28 +73,16 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
   // Apply filters to enquiries
   const filteredEnquiries = useMemo(() => {
     return enquiries.filter(e => {
-      // Years filter (multi-select)
-      if (filters.years && filters.years.length > 0 && e.date_received) {
+      // Year-Month filter (multi-select)
+      if (filters.yearMonths && filters.yearMonths.length > 0) {
+        if (!e.date_received) return false;
         try {
-          const year = new Date(e.date_received).getFullYear().toString();
-          if (!filters.years.includes(year)) return false;
+          const date = new Date(e.date_received);
+          const yearMonth = `${date.getFullYear()}-${date.getMonth()}`;
+          if (!filters.yearMonths.includes(yearMonth)) return false;
         } catch {
           return false;
         }
-      } else if (filters.years && filters.years.length > 0 && !e.date_received) {
-        return false;
-      }
-
-      // Months filter (multi-select)
-      if (filters.months && filters.months.length > 0 && e.date_received) {
-        try {
-          const month = new Date(e.date_received).getMonth().toString();
-          if (!filters.months.includes(month)) return false;
-        } catch {
-          return false;
-        }
-      } else if (filters.months && filters.months.length > 0 && !e.date_received) {
-        return false;
       }
 
       // Customer filter
@@ -163,24 +145,19 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
 
   const clearFilters = () => setFilters({});
 
-  const toggleYear = (year: string) => {
+  const toggleYearMonth = (year: string, month: number) => {
+    const key = `${year}-${month}`;
     setFilters(prev => {
-      const currentYears = prev.years || [];
-      if (currentYears.includes(year)) {
-        return { ...prev, years: currentYears.filter(y => y !== year) };
+      const current = prev.yearMonths || [];
+      if (current.includes(key)) {
+        return { ...prev, yearMonths: current.filter(ym => ym !== key) };
       }
-      return { ...prev, years: [...currentYears, year] };
+      return { ...prev, yearMonths: [...current, key] };
     });
   };
 
-  const toggleMonth = (month: string) => {
-    setFilters(prev => {
-      const currentMonths = prev.months || [];
-      if (currentMonths.includes(month)) {
-        return { ...prev, months: currentMonths.filter(m => m !== month) };
-      }
-      return { ...prev, months: [...currentMonths, month] };
-    });
+  const isYearMonthSelected = (year: string, month: number) => {
+    return (filters.yearMonths || []).includes(`${year}-${month}`);
   };
 
 
@@ -314,33 +291,26 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
           {showFilters && (
             <div className="space-y-4 mt-4 pt-4 border-t">
               <div>
-                <label className="text-xs font-medium text-muted-foreground mb-2 block">Years</label>
-                <div className="flex flex-wrap gap-2">
-                  {filterOptions.years.map(y => (
-                    <Badge
-                      key={y}
-                      variant={(filters.years || []).includes(y) ? "default" : "outline"}
-                      className="cursor-pointer hover:bg-primary/80 transition-colors"
-                      onClick={() => toggleYear(y)}
-                    >
-                      {y}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-medium text-muted-foreground mb-2 block">Months</label>
-                <div className="flex flex-wrap gap-2">
-                  {MONTHS.map(m => (
-                    <Badge
-                      key={m.value}
-                      variant={(filters.months || []).includes(m.value) ? "default" : "outline"}
-                      className="cursor-pointer hover:bg-primary/80 transition-colors"
-                      onClick={() => toggleMonth(m.value)}
-                    >
-                      {m.label.slice(0, 3)}
-                    </Badge>
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                  Período (clique para selecionar meses específicos)
+                </label>
+                <div className="space-y-3">
+                  {filterOptions.years.map(year => (
+                    <div key={year} className="space-y-1">
+                      <div className="text-sm font-medium">{year}</div>
+                      <div className="flex flex-wrap gap-1">
+                        {MONTH_LABELS.map((label, monthIndex) => (
+                          <Badge
+                            key={`${year}-${monthIndex}`}
+                            variant={isYearMonthSelected(year, monthIndex) ? "default" : "outline"}
+                            className="cursor-pointer hover:bg-primary/80 transition-colors text-xs px-2 py-0.5"
+                            onClick={() => toggleYearMonth(year, monthIndex)}
+                          >
+                            {label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
