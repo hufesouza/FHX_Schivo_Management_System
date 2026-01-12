@@ -24,10 +24,10 @@ interface QuotationCostBreakdownDialogProps {
   parts: EnquiryQuotationPart[];
 }
 
-interface GroupedParts {
+interface AssemblyGroup {
   resource: string;
-  parts: EnquiryQuotationPart[];
-  topLevel: EnquiryQuotationPart | null;
+  topLevel: EnquiryQuotationPart;
+  subParts: EnquiryQuotationPart[];
   totals: {
     totalCost: number;
     totalQuotedPrice: number;
@@ -40,59 +40,64 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
   const [open, setOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
-  // Group parts by resource (pricing option like "Outsourced Brazing", "Insourced Brazing")
-  // Within each group, identify top-level assemblies vs sub-parts
-  const groupedParts: GroupedParts[] = (() => {
-    const groupMap = new Map<string, { topLevel: EnquiryQuotationPart | null; subParts: EnquiryQuotationPart[] }>();
+  // Group parts by resource + assembly
+  // Each top-level assembly gets its own group with its subparts
+  const groupedParts: AssemblyGroup[] = (() => {
+    // First, identify all top-level assemblies (those with unit_price set)
+    const topLevelParts = parts.filter(p => p.unit_price !== null && p.unit_price > 0);
+    const subParts = parts.filter(p => p.unit_price === null || p.unit_price === 0);
     
-    parts.forEach(part => {
-      const resource = part.resource || 'Unassigned';
-      
-      if (!groupMap.has(resource)) {
-        groupMap.set(resource, { topLevel: null, subParts: [] });
-      }
-      
-      const group = groupMap.get(resource)!;
-      // Top-level parts have unit_price set, sub-parts don't
-      if (part.unit_price !== null && part.unit_price > 0) {
-        group.topLevel = part;
-      } else {
-        group.subParts.push(part);
-      }
+    // For each top-level, find its subparts based on resource and line_number range
+    // Sort by resource then line_number to group correctly
+    const sortedTopLevel = [...topLevelParts].sort((a, b) => {
+      const resourceCompare = (a.resource || '').localeCompare(b.resource || '');
+      if (resourceCompare !== 0) return resourceCompare;
+      return a.line_number - b.line_number;
     });
 
-    return Array.from(groupMap.entries()).map(([resource, { topLevel, subParts }]) => {
-      // Calculate totals from sub-parts only (costs)
-      const subPartsTotals = subParts.reduce(
-        (acc, part) => {
-          const qty = part.quantity || 0;
-          const cost = (part.total_cost_per_part || 0) * qty;
-          return {
-            totalCost: acc.totalCost + cost,
-            partCount: acc.partCount + 1,
-          };
-        },
-        { totalCost: 0, partCount: 0 }
+    return sortedTopLevel.map((topLevel, idx) => {
+      const resource = topLevel.resource || 'Unassigned';
+      const currentLineNum = topLevel.line_number;
+      
+      // Find next top-level in same resource to determine line number range
+      const nextTopLevelInResource = sortedTopLevel.find(
+        t => t.resource === resource && t.line_number > currentLineNum
+      );
+      const maxLineNum = nextTopLevelInResource?.line_number ?? Infinity;
+      
+      // Get subparts for this assembly (same resource, line_number between current and next)
+      const assemblySubParts = subParts.filter(
+        p => p.resource === resource && 
+             p.line_number > currentLineNum && 
+             p.line_number < maxLineNum
       );
 
-      // Use top-level part for price/margin, sub-parts for cost breakdown
-      const topLevelQty = topLevel?.quantity || 0;
-      const topLevelPrice = (topLevel?.unit_price || 0) * topLevelQty;
-      const topLevelMargin = topLevel?.margin || 0;
+      // Calculate totals
+      const subPartsTotalCost = assemblySubParts.reduce(
+        (sum, p) => sum + ((p.total_cost_per_part || 0) * (p.quantity || 0)),
+        0
+      );
+
+      const topLevelQty = topLevel.quantity || 0;
+      const topLevelPrice = (topLevel.unit_price || 0) * topLevelQty;
 
       return {
         resource,
-        parts: subParts, // Only sub-parts for breakdown
-        topLevel, // Keep reference to top-level
+        topLevel,
+        subParts: assemblySubParts,
         totals: {
-          totalCost: subPartsTotals.totalCost,
+          totalCost: subPartsTotalCost,
           totalQuotedPrice: topLevelPrice,
-          totalMargin: topLevelMargin,
-          partCount: subParts.length,
+          totalMargin: topLevel.margin || 0,
+          partCount: assemblySubParts.length,
         },
       };
-    }).filter(g => g.topLevel !== null) // Only show groups that have a top-level assembly
-      .sort((a, b) => a.resource.localeCompare(b.resource));
+    }).sort((a, b) => {
+      // Sort by resource first, then by part number
+      const resourceCompare = a.resource.localeCompare(b.resource);
+      if (resourceCompare !== 0) return resourceCompare;
+      return (a.topLevel.part_number || '').localeCompare(b.topLevel.part_number || '');
+    });
   })();
 
   // Calculate grand total
@@ -101,16 +106,16 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
   // Expand all groups by default when dialog opens
   useEffect(() => {
     if (open) {
-      setExpandedGroups(new Set(groupedParts.map(g => g.resource)));
+      setExpandedGroups(new Set(groupedParts.map(g => g.topLevel.id)));
     }
   }, [open, groupedParts.length]);
 
-  const toggleGroup = (resource: string) => {
+  const toggleGroup = (groupId: string) => {
     const newExpanded = new Set(expandedGroups);
-    if (newExpanded.has(resource)) {
-      newExpanded.delete(resource);
+    if (newExpanded.has(groupId)) {
+      newExpanded.delete(groupId);
     } else {
-      newExpanded.add(resource);
+      newExpanded.add(groupId);
     }
     setExpandedGroups(newExpanded);
   };
@@ -166,16 +171,18 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
 
         <ScrollArea className="max-h-[55vh]">
           <div className="space-y-3 pr-4">
-            {groupedParts.map((group) => (
+            {groupedParts.map((group) => {
+              const groupId = group.topLevel.id;
+              return (
               <Collapsible
-                key={group.resource}
-                open={expandedGroups.has(group.resource)}
-                onOpenChange={() => toggleGroup(group.resource)}
+                key={groupId}
+                open={expandedGroups.has(groupId)}
+                onOpenChange={() => toggleGroup(groupId)}
               >
                 <CollapsibleTrigger asChild>
                   <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors border">
                     <div className="flex items-center gap-3">
-                      {expandedGroups.has(group.resource) ? (
+                      {expandedGroups.has(groupId) ? (
                         <ChevronDown className="h-5 w-5" />
                       ) : (
                         <ChevronRight className="h-5 w-5" />
@@ -183,7 +190,7 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
                       <Package className="h-5 w-5 text-primary" />
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-lg">{group.topLevel?.part_number || group.resource}</span>
+                          <span className="font-bold text-lg">{group.topLevel.part_number || group.resource}</span>
                           <Badge 
                             variant={group.resource.includes('Insourced') ? 'default' : 'secondary'}
                             className="text-xs"
@@ -231,7 +238,7 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
                         </tr>
                       </thead>
                       <tbody>
-                        {group.parts.map((part, idx) => (
+                        {group.subParts.map((part, idx) => (
                           <tr 
                             key={part.id} 
                             className={idx % 2 === 0 ? 'bg-background' : 'bg-muted/20'}
@@ -253,7 +260,7 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
                           <td colSpan={3} className="p-3 font-semibold">Total Components Cost</td>
                           <td></td>
                           <td className="p-3 text-right font-bold text-orange-600">
-                            {formatCurrency(group.parts.reduce((sum, p) => sum + ((p.total_cost_per_part || 0) * (p.quantity || 0)), 0))}
+                            {formatCurrency(group.subParts.reduce((sum, p) => sum + ((p.total_cost_per_part || 0) * (p.quantity || 0)), 0))}
                           </td>
                         </tr>
                       </tfoot>
@@ -261,7 +268,8 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
                   </div>
                 </CollapsibleContent>
               </Collapsible>
-            ))}
+              );
+            })}
           </div>
         </ScrollArea>
 
