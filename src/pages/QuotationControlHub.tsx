@@ -68,7 +68,7 @@ const QuotationControlHub = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
   const { enquiries, loading, uploading, stats, uploadData, clearAllData, fetchEnquiries, updateEnquiry } = useEnquiryLog();
-  const { quotations, loading: quotationsLoading, fetchQuotations, getQuotationParts, updateQuotation } = useEnquiryQuotations();
+  const { quotations, loading: quotationsLoading, fetchQuotations, getQuotationParts, updateQuotation, deleteQuotation } = useEnquiryQuotations();
   
   const [activeTab, setActiveTab] = useState('dashboard');
   const [listFilters, setListFilters] = useState<EnquiryListFilters | undefined>(undefined);
@@ -372,6 +372,30 @@ const QuotationControlHub = () => {
                                       quotation={q} 
                                       parts={quotationPartsMap[q.id] || []} 
                                     />
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>Delete Quotation</AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            Are you sure you want to delete quotation <strong>{q.enquiry_no}</strong>? This will also delete all associated parts. This action cannot be undone.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                          <AlertDialogAction
+                                            onClick={() => deleteQuotation(q.id)}
+                                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                          >
+                                            Delete
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
                                   </div>
                                 </TableCell>
                               </TableRow>
