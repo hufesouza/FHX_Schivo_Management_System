@@ -3,12 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useEnquiryLog } from '@/hooks/useEnquiryLog';
+import { useEnquiryQuotations } from '@/hooks/useEnquiryQuotations';
 import { EnquiryLog } from '@/types/enquiryLog';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { EnquiryLogUpload } from '@/components/quotation-control/EnquiryLogUpload';
 import { EnquiryDashboard } from '@/components/quotation-control/EnquiryDashboard';
 import { EnquiryList, EnquiryListFilters } from '@/components/quotation-control/EnquiryList';
 import { EnquiryWorkflow } from '@/components/quotation-control/EnquiryWorkflow';
+import { CreateQuotationDialog } from '@/components/quotation-control/CreateQuotationDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -16,6 +18,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +43,10 @@ import {
   User,
   Euro,
   FileText,
-  Kanban
+  Kanban,
+  PlusCircle,
+  FileSpreadsheet,
+  Eye
 } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -58,11 +65,13 @@ const QuotationControlHub = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
   const { enquiries, loading, uploading, stats, uploadData, clearAllData, fetchEnquiries, updateEnquiry } = useEnquiryLog();
+  const { quotations, loading: quotationsLoading, fetchQuotations } = useEnquiryQuotations();
   
   const [activeTab, setActiveTab] = useState('dashboard');
   const [listFilters, setListFilters] = useState<EnquiryListFilters | undefined>(undefined);
   const [selectedEnquiry, setSelectedEnquiry] = useState<EnquiryLog | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [createQuotationOpen, setCreateQuotationOpen] = useState(false);
 
   const isAdmin = role === 'admin';
 
@@ -132,6 +141,10 @@ const QuotationControlHub = () => {
                 <List className="h-4 w-4" />
                 Enquiry Log
               </TabsTrigger>
+              <TabsTrigger value="quotations" className="flex items-center gap-2">
+                <FileSpreadsheet className="h-4 w-4" />
+                Quotations
+              </TabsTrigger>
               <TabsTrigger value="upload" className="flex items-center gap-2">
                 <Upload className="h-4 w-4" />
                 Upload
@@ -139,6 +152,14 @@ const QuotationControlHub = () => {
             </TabsList>
 
             <div className="flex items-center gap-2">
+              <Button 
+                onClick={() => setCreateQuotationOpen(true)}
+                size="sm"
+              >
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Create Quotation
+              </Button>
+              
               <Button 
                 variant="outline" 
                 size="sm"
@@ -240,6 +261,90 @@ const QuotationControlHub = () => {
                     onSelectEnquiry={handleSelectEnquiry}
                   />
                 )}
+              </TabsContent>
+
+              <TabsContent value="quotations" className="mt-0">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileSpreadsheet className="h-5 w-5" />
+                        Quotations
+                      </CardTitle>
+                      <CardDescription>
+                        Quotations created from uploaded templates
+                      </CardDescription>
+                    </div>
+                    <Button onClick={() => setCreateQuotationOpen(true)}>
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      New Quotation
+                    </Button>
+                  </CardHeader>
+                  <CardContent>
+                    {quotationsLoading ? (
+                      <div className="flex items-center justify-center py-12">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                    ) : quotations.length === 0 ? (
+                      <div className="text-center py-12">
+                        <FileSpreadsheet className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-lg font-medium mb-2">No Quotations Yet</h3>
+                        <p className="text-muted-foreground mb-4">
+                          Create your first quotation by uploading a filled template
+                        </p>
+                        <Button onClick={() => setCreateQuotationOpen(true)}>
+                          <PlusCircle className="h-4 w-4 mr-2" />
+                          Create Quotation
+                        </Button>
+                      </div>
+                    ) : (
+                      <ScrollArea className="h-[500px]">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Enquiry No.</TableHead>
+                              <TableHead>Customer</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead className="text-right">Total Quote</TableHead>
+                              <TableHead className="text-right">Avg Margin</TableHead>
+                              <TableHead>Created</TableHead>
+                              <TableHead>Source File</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {quotations.map((q) => (
+                              <TableRow key={q.id}>
+                                <TableCell className="font-medium">{q.enquiry_no}</TableCell>
+                                <TableCell>{q.customer}</TableCell>
+                                <TableCell>
+                                  <Badge variant={q.status === 'DRAFT' ? 'secondary' : 'default'}>
+                                    {q.status}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {q.total_quoted_price 
+                                    ? new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR' }).format(q.total_quoted_price)
+                                    : '-'}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {q.average_margin !== null 
+                                    ? `${(q.average_margin * 100).toFixed(1)}%`
+                                    : '-'}
+                                </TableCell>
+                                <TableCell>
+                                  {format(new Date(q.created_at), 'dd MMM yyyy')}
+                                </TableCell>
+                                <TableCell className="text-muted-foreground text-sm max-w-[150px] truncate">
+                                  {q.source_file_name || '-'}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               <TabsContent value="upload" className="mt-0">
@@ -415,6 +520,14 @@ const QuotationControlHub = () => {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Create Quotation Dialog */}
+        <CreateQuotationDialog
+          open={createQuotationOpen}
+          onOpenChange={setCreateQuotationOpen}
+          enquiries={enquiries}
+          onSuccess={() => fetchQuotations()}
+        />
       </main>
     </AppLayout>
   );
