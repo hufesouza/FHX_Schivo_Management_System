@@ -265,38 +265,118 @@ export function ExportQuotationPDF({ quotation, parts }: ExportQuotationPDFProps
       // Get notes and conditions
       const { notes, conditions } = parseNotesAndConditions();
       
-      // Notes section
-      y = 170;
-      page.drawText('Notes and Conditions:', { x: margin, y: y, size: 10, font: helveticaBold, color: schivoOrange });
-      y -= 14;
+      // Helper function to wrap text to fit within maxWidth
+      const wrapText = (text: string, fontSize: number, font: typeof helvetica, maxWidth: number): string[] => {
+        const words = text.split(' ');
+        const lines: string[] = [];
+        let currentLine = '';
+        
+        for (const word of words) {
+          const testLine = currentLine ? `${currentLine} ${word}` : word;
+          const testWidth = font.widthOfTextAtSize(testLine, fontSize);
+          
+          if (testWidth > maxWidth && currentLine) {
+            lines.push(currentLine);
+            currentLine = word;
+          } else {
+            currentLine = testLine;
+          }
+        }
+        if (currentLine) {
+          lines.push(currentLine);
+        }
+        return lines;
+      };
       
+      // Add second page for notes
+      const notesPage = pdfDoc.addPage([595, 842]);
+      let notesY = height - margin;
+      
+      // Notes page header
+      notesPage.drawText('Notes and Conditions:', { x: margin, y: notesY, size: 12, font: helveticaBold, color: schivoOrange });
+      notesY -= 20;
+      
+      // Orange accent line under header
+      notesPage.drawRectangle({
+        x: margin,
+        y: notesY,
+        width: width - 2 * margin,
+        height: 2,
+        color: schivoOrange,
+      });
+      notesY -= 15;
+      
+      const maxTextWidth = width - 2 * margin - 15; // Account for bullet point
+      const notesFontSize = 8;
+      const lineHeight = 11;
+      
+      // Draw each note with text wrapping
       notes.forEach((note: string) => {
-        page.drawText('• ' + note, { x: margin, y: y, size: 7, font: helvetica, color: black });
-        y -= 10;
+        const wrappedLines = wrapText(note, notesFontSize, helvetica, maxTextWidth);
+        
+        wrappedLines.forEach((line, lineIdx) => {
+          const prefix = lineIdx === 0 ? '• ' : '  ';
+          notesPage.drawText(prefix + line, { 
+            x: margin, 
+            y: notesY, 
+            size: notesFontSize, 
+            font: helvetica, 
+            color: black 
+          });
+          notesY -= lineHeight;
+        });
+        notesY -= 3; // Extra space between notes
       });
       
-      y -= 5;
-      page.drawText(`Lead Time: ${conditions.leadTime}`, { x: margin, y: y, size: 8, font: helvetica, color: black });
-      y -= 10;
-      page.drawText(`Carriage: ${conditions.carriage}`, { x: margin, y: y, size: 8, font: helvetica, color: black });
-      y -= 10;
-      page.drawText(`Terms & Conditions of sale: ${conditions.validity}`, { x: margin, y: y, size: 8, font: helvetica, color: black });
-      y -= 10;
-      page.drawText(`Payment Terms: ${conditions.paymentTerms}`, { x: margin, y: y, size: 8, font: helvetica, color: black });
-      y -= 14;
-      page.drawText('Order Placement: All orders to be sent for the attention of: Orders@schivomedical.com', { x: margin, y: y, size: 8, font: helveticaBold, color: schivoOrange });
+      notesY -= 10;
       
-      // Footer with orange accent
-      y = margin + 10;
+      // Conditions section
+      notesPage.drawText('Lead Time:', { x: margin, y: notesY, size: 9, font: helveticaBold, color: schivoOrange });
+      notesPage.drawText(conditions.leadTime, { x: margin + 70, y: notesY, size: 9, font: helvetica, color: black });
+      notesY -= 14;
+      
+      notesPage.drawText('Carriage:', { x: margin, y: notesY, size: 9, font: helveticaBold, color: schivoOrange });
+      notesPage.drawText(conditions.carriage, { x: margin + 70, y: notesY, size: 9, font: helvetica, color: black });
+      notesY -= 14;
+      
+      notesPage.drawText('Terms & Conditions of sale:', { x: margin, y: notesY, size: 9, font: helveticaBold, color: schivoOrange });
+      notesPage.drawText(conditions.validity, { x: margin + 130, y: notesY, size: 9, font: helvetica, color: black });
+      notesY -= 14;
+      
+      notesPage.drawText('Payment Terms:', { x: margin, y: notesY, size: 9, font: helveticaBold, color: schivoOrange });
+      notesPage.drawText(conditions.paymentTerms, { x: margin + 100, y: notesY, size: 9, font: helvetica, color: black });
+      notesY -= 20;
+      
+      // Order placement notice
+      notesPage.drawText('Order Placement: All orders to be sent for the attention of: Orders@schivomedical.com', { 
+        x: margin, 
+        y: notesY, 
+        size: 9, 
+        font: helveticaBold, 
+        color: schivoOrange 
+      });
+      
+      // Footer on notes page
+      notesPage.drawRectangle({
+        x: margin,
+        y: margin + 10,
+        width: width - 2 * margin,
+        height: 2,
+        color: schivoOrange,
+      });
+      notesPage.drawText('WD-TMP-0003c', { x: margin, y: margin, size: 7, font: helvetica, color: schivoGray });
+      notesPage.drawText('2 of 2', { x: width - margin - 30, y: margin, size: 7, font: helvetica, color: schivoGray });
+      
+      // Footer on first page
       page.drawRectangle({
         x: margin,
-        y: y,
+        y: margin + 10,
         width: width - 2 * margin,
         height: 2,
         color: schivoOrange,
       });
       page.drawText('WD-TMP-0003c', { x: margin, y: margin, size: 7, font: helvetica, color: schivoGray });
-      page.drawText('1 of 1', { x: width - margin - 30, y: margin, size: 7, font: helvetica, color: schivoGray });
+      page.drawText('1 of 2', { x: width - margin - 30, y: margin, size: 7, font: helvetica, color: schivoGray });
       
       // Save and download
       const pdfBytes = await pdfDoc.save();
