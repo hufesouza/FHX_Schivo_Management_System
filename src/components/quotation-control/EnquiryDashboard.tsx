@@ -15,7 +15,11 @@ import {
   Users,
   Building,
   Filter,
-  X
+  X,
+  AlertTriangle,
+  CalendarDays,
+  TrendingUp,
+  Zap
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -23,6 +27,7 @@ export interface DashboardFilters {
   year?: string;
   quarter?: string;
   customer?: string;
+  quickFilter?: string;
 }
 
 interface EnquiryDashboardProps {
@@ -40,6 +45,18 @@ const STATUS_COLORS: Record<string, string> = {
   'ON HOLD': 'hsl(45, 93%, 47%)',
   'CANCELLED': 'hsl(0, 0%, 50%)',
 };
+
+// Quick filter definitions
+const QUICK_FILTERS = [
+  { id: 'this-month', label: 'This Month', icon: CalendarDays },
+  { id: 'this-quarter', label: 'This Quarter', icon: TrendingUp },
+  { id: 'needs-quote', label: 'Needs Quote', icon: Zap },
+  { id: 'aging-7', label: 'Aging > 7 days', icon: Clock },
+  { id: 'aging-14', label: 'Aging > 14 days', icon: Clock },
+  { id: 'aging-30', label: 'Aging > 30 days', icon: AlertTriangle },
+  { id: 'high-value', label: 'High Value (>€10k)', icon: Euro },
+  { id: 'overdue', label: 'Overdue ECD', icon: AlertTriangle },
+];
 
 export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustomer, onFilterByOwner }: EnquiryDashboardProps) {
   const [filters, setFilters] = useState<DashboardFilters>({});
@@ -61,9 +78,57 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
     return { years, customers };
   }, [enquiries]);
 
+  // Apply quick filter logic
+  const applyQuickFilter = (enquiry: EnquiryLog, quickFilter: string): boolean => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    switch (quickFilter) {
+      case 'this-month': {
+        if (!enquiry.date_received) return false;
+        const received = new Date(enquiry.date_received);
+        return received.getMonth() === now.getMonth() && received.getFullYear() === now.getFullYear();
+      }
+      case 'this-quarter': {
+        if (!enquiry.date_received) return false;
+        const received = new Date(enquiry.date_received);
+        const currentQuarter = Math.floor(now.getMonth() / 3);
+        const enquiryQuarter = Math.floor(received.getMonth() / 3);
+        return enquiryQuarter === currentQuarter && received.getFullYear() === now.getFullYear();
+      }
+      case 'needs-quote': {
+        return !enquiry.is_quoted && enquiry.status?.toUpperCase() !== 'CANCELLED' && enquiry.status?.toUpperCase() !== 'LOST';
+      }
+      case 'aging-7': {
+        return (enquiry.aging || 0) > 7;
+      }
+      case 'aging-14': {
+        return (enquiry.aging || 0) > 14;
+      }
+      case 'aging-30': {
+        return (enquiry.aging || 0) > 30;
+      }
+      case 'high-value': {
+        return (enquiry.quoted_price_euro || 0) > 10000;
+      }
+      case 'overdue': {
+        if (!enquiry.ecd_quote_submission) return false;
+        const ecd = new Date(enquiry.ecd_quote_submission);
+        return ecd < today && !enquiry.is_quoted;
+      }
+      default:
+        return true;
+    }
+  };
+
   // Apply filters to enquiries
   const filteredEnquiries = useMemo(() => {
     return enquiries.filter(e => {
+      // Quick filter
+      if (filters.quickFilter && !applyQuickFilter(e, filters.quickFilter)) {
+        return false;
+      }
+
       // Year filter
       if (filters.year && e.date_received) {
         try {
@@ -95,6 +160,15 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       return true;
     });
   }, [enquiries, filters]);
+
+  // Calculate quick filter counts
+  const quickFilterCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    QUICK_FILTERS.forEach(qf => {
+      counts[qf.id] = enquiries.filter(e => applyQuickFilter(e, qf.id)).length;
+    });
+    return counts;
+  }, [enquiries]);
 
   // Calculate stats from filtered enquiries
   const stats = useMemo(() => {
@@ -146,6 +220,13 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
   const hasActiveFilters = Object.values(filters).some(v => v);
 
   const clearFilters = () => setFilters({});
+
+  const toggleQuickFilter = (id: string) => {
+    setFilters(prev => ({
+      ...prev,
+      quickFilter: prev.quickFilter === id ? undefined : id,
+    }));
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-IE', {
@@ -243,7 +324,45 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
 
   return (
     <div className="space-y-6">
-      {/* Filter Bar */}
+      {/* Quick Filter Chips */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            Quick Filters
+          </CardTitle>
+          <CardDescription>Click to filter enquiries by common criteria</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            {QUICK_FILTERS.map((qf) => {
+              const Icon = qf.icon;
+              const isActive = filters.quickFilter === qf.id;
+              const count = quickFilterCounts[qf.id];
+              return (
+                <Button
+                  key={qf.id}
+                  variant={isActive ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => toggleQuickFilter(qf.id)}
+                  className={`gap-2 ${isActive ? '' : 'hover:bg-muted'}`}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                  {qf.label}
+                  <Badge 
+                    variant={isActive ? 'secondary' : 'outline'} 
+                    className={`ml-1 ${count === 0 ? 'opacity-50' : ''}`}
+                  >
+                    {count}
+                  </Badge>
+                </Button>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Advanced Filter Bar */}
       <Card>
         <CardContent className="p-4">
           <div className="flex flex-wrap items-center gap-4">
@@ -254,7 +373,7 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
               className={showFilters ? 'bg-primary/10' : ''}
             >
               <Filter className="h-4 w-4 mr-2" />
-              Filters
+              Advanced Filters
               {hasActiveFilters && (
                 <Badge variant="secondary" className="ml-2">Active</Badge>
               )}
@@ -263,7 +382,7 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
             {hasActiveFilters && (
               <Button variant="ghost" size="sm" onClick={clearFilters}>
                 <X className="h-4 w-4 mr-2" />
-                Clear
+                Clear All
               </Button>
             )}
 
