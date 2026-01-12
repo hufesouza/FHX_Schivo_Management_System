@@ -14,6 +14,7 @@ import {
   ChevronDown, 
   ChevronRight, 
   Eye, 
+  EyeOff,
   Package, 
   DollarSign
 } from 'lucide-react';
@@ -39,6 +40,7 @@ interface AssemblyGroup {
 export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCostBreakdownDialogProps) {
   const [open, setOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
 
   // Group parts by resource + assembly
   // Each top-level assembly gets its own group with its subparts
@@ -100,13 +102,21 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
     });
   })();
 
-  // Calculate grand total
-  const grandTotal = groupedParts.reduce((sum, g) => sum + g.totals.totalQuotedPrice, 0);
+  // Calculate grand total excluding hidden groups
+  const grandTotal = groupedParts
+    .filter(g => !hiddenGroups.has(g.topLevel.id))
+    .reduce((sum, g) => sum + g.totals.totalQuotedPrice, 0);
+
+  // Calculate visible total cost
+  const visibleTotalCost = groupedParts
+    .filter(g => !hiddenGroups.has(g.topLevel.id))
+    .reduce((sum, g) => sum + g.totals.totalCost, 0);
 
   // Expand all groups by default when dialog opens
   useEffect(() => {
     if (open) {
       setExpandedGroups(new Set(groupedParts.map(g => g.topLevel.id)));
+      setHiddenGroups(new Set()); // Reset hidden state when reopening
     }
   }, [open, groupedParts.length]);
 
@@ -118,6 +128,17 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
       newExpanded.add(groupId);
     }
     setExpandedGroups(newExpanded);
+  };
+
+  const toggleHidden = (groupId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newHidden = new Set(hiddenGroups);
+    if (newHidden.has(groupId)) {
+      newHidden.delete(groupId);
+    } else {
+      newHidden.add(groupId);
+    }
+    setHiddenGroups(newHidden);
   };
 
   const formatCurrency = (value: number | null) => {
@@ -173,27 +194,35 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
           <div className="space-y-3 pr-4">
             {groupedParts.map((group) => {
               const groupId = group.topLevel.id;
+              const isHidden = hiddenGroups.has(groupId);
               return (
               <Collapsible
                 key={groupId}
-                open={expandedGroups.has(groupId)}
-                onOpenChange={() => toggleGroup(groupId)}
+                open={expandedGroups.has(groupId) && !isHidden}
+                onOpenChange={() => !isHidden && toggleGroup(groupId)}
               >
                 <CollapsibleTrigger asChild>
-                  <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg cursor-pointer hover:bg-muted/50 transition-colors border">
+                  <div className={`flex items-center justify-between p-4 rounded-lg cursor-pointer transition-colors border ${
+                    isHidden 
+                      ? 'bg-muted/10 opacity-50' 
+                      : 'bg-muted/30 hover:bg-muted/50'
+                  }`}>
                     <div className="flex items-center gap-3">
-                      {expandedGroups.has(groupId) ? (
+                      {!isHidden && (expandedGroups.has(groupId) ? (
                         <ChevronDown className="h-5 w-5" />
                       ) : (
                         <ChevronRight className="h-5 w-5" />
-                      )}
-                      <Package className="h-5 w-5 text-primary" />
+                      ))}
+                      {isHidden && <div className="w-5" />}
+                      <Package className={`h-5 w-5 ${isHidden ? 'text-muted-foreground' : 'text-primary'}`} />
                       <div>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-lg">{group.topLevel.part_number || group.resource}</span>
+                          <span className={`font-bold text-lg ${isHidden ? 'line-through text-muted-foreground' : ''}`}>
+                            {group.topLevel.part_number || group.resource}
+                          </span>
                           <Badge 
                             variant={group.resource.includes('Insourced') ? 'default' : 'secondary'}
-                            className="text-xs"
+                            className={`text-xs ${isHidden ? 'opacity-50' : ''}`}
                           >
                             {group.resource}
                           </Badge>
@@ -202,25 +231,40 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
                       </div>
                     </div>
                     <div className="flex items-center gap-4 text-sm">
+                      <Button
+                        variant={isHidden ? 'outline' : 'ghost'}
+                        size="sm"
+                        onClick={(e) => toggleHidden(groupId, e)}
+                        title={isHidden ? 'Include in total' : 'Exclude from total'}
+                        className="h-8 w-8 p-0"
+                      >
+                        {isHidden ? (
+                          <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
+                      </Button>
                       <div className="text-right">
                         <div className="text-xs text-muted-foreground">Qty</div>
                         <div className="font-semibold">{group.topLevel?.quantity || 0}</div>
                       </div>
                       <div className="text-right">
                         <div className="text-xs text-muted-foreground">Unit Price</div>
-                        <div className="font-bold text-green-600">
+                        <div className={`font-bold ${isHidden ? 'text-muted-foreground' : 'text-green-600'}`}>
                           {formatCurrency(group.topLevel?.unit_price)}
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="text-xs text-muted-foreground">Total Quoted</div>
-                        <div className="font-bold text-green-600 text-lg">
+                        <div className={`font-bold text-lg ${isHidden ? 'text-muted-foreground' : 'text-green-600'}`}>
                           {formatCurrency(group.totals.totalQuotedPrice)}
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="text-xs text-muted-foreground">Margin</div>
-                        <div className="font-semibold">{formatPercent(group.totals.totalMargin)}</div>
+                        <div className={`font-semibold ${isHidden ? 'text-muted-foreground' : ''}`}>
+                          {formatPercent(group.totals.totalMargin)}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -275,10 +319,23 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
 
         {/* Grand Total */}
         <div className="mt-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
-          <div className="flex items-center justify-between">
-            <span className="text-lg font-semibold">Grand Total Quotation</span>
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <span className="text-lg font-semibold">Grand Total Quotation</span>
+              {hiddenGroups.size > 0 && (
+                <span className="ml-2 text-sm text-muted-foreground">
+                  ({hiddenGroups.size} excluded)
+                </span>
+              )}
+            </div>
             <span className="text-2xl font-bold text-primary">{formatCurrency(grandTotal)}</span>
           </div>
+          {hiddenGroups.size > 0 && (
+            <div className="flex items-center justify-between text-sm text-muted-foreground border-t pt-2">
+              <span>Visible assemblies cost total</span>
+              <span className="font-medium">{formatCurrency(visibleTotalCost)}</span>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>

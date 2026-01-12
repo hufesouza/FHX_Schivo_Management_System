@@ -12,13 +12,18 @@ interface ExportQuotationPDFProps {
   parts: EnquiryQuotationPart[];
 }
 
-// Default notes and conditions
+// Default notes and conditions matching WD-FRM-0040
 export const DEFAULT_NOTES = [
-  'Pricing in EUR and subject to review if exchange rate fluctuates greater than ±5%.',
-  'Schivo reserves the right to re-quote after initial samples and if material prices fluctuate.',
-  'Pricing based on current information available and may be subject to change upon receipt of additional requirements.',
-  'Pricing excludes any costs associated with validation, capability assessment, Gauge R&R activities, etc.',
-  "Pricing based on Schivo's standard inspection & packaging procedures.",
+  'Pricing quoted in Euros unless otherwise noted. Pricing is subject to confirmation at time of order and in the event of currency exchange rate fluctuations >5%.',
+  'Customer to confirm in Writing or detail on P.O. if any of the following is required: Certs of Conformity, Material Certs, Inspection Reports, RoHS Compliance Certification or any other required Documentation',
+  "Placing an order with SCHIVO Medical Ltd. is an acceptance of our \"Terms & Conditions of sale\" which is available upon request and on our Website.",
+  "Schivo's ability to achieve all dimensional, tolerance and any associated specification requirements to be confirmed with initial order. Subsequent component pricing may be impacted subject to implementation of any or all proposed design for manufacture change requests.",
+  'Pricing assumes expected annual usages are maintained with minimum production batch sizes based on quarterly requirements. Schivo accepts no liability for unused stock and the customer may be charged additional costs related to handling, disposal fees etc. at Schivo\'s discretion.',
+  'Pricing excludes any process validation activities or special inspection requirements beyond what Schivo deem appropriate. Additional requirements will require review and potentially incur further costs.',
+  'Pricing subject to changes based on any additional international customs duty costs fees etc. incurred at time of order placement.',
+  'Unit pricing and NRE cost have been calculated based on manufacturing the group of components quoted and partial orders for individual parts will be subject to price reviews resulting from any reduced production cost efficiencies.',
+  'Pricing excludes any special packaging requirements. Components will be packed & supplied as deemed appropriate by Schivo to prevent potential damage in transit.',
+  'Schivo reserves the right to requote upon discovery of any errors or changes to initial quotation assumptions & conditions.',
 ];
 
 export const DEFAULT_CONDITIONS = {
