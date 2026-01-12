@@ -184,15 +184,16 @@ export function parseQuotationTemplateExcel(file: File): Promise<ParsedQuotation
         let totalCost = 0;
         let marginSum = 0;
         let marginCount = 0;
+        let lineCounter = 0; // Use auto-incrementing line number
         
         // Start parsing from the row after headers
         for (let i = headerRowIndex + 1; i < rawData.length; i++) {
           const row = rawData[i];
           if (!row || row.length < 5) continue;
           
-          // Get line number
-          const lineNum = parseNumber(row[COLUMN_MAP.lineNumber]);
-          if (lineNum === null || lineNum < 1 || lineNum > 30) continue;
+          // Get line number from sheet (can be decimal like 1.1, 1.2)
+          const lineNumFromSheet = parseNumber(row[COLUMN_MAP.lineNumber]);
+          if (lineNumFromSheet === null || lineNumFromSheet < 1 || lineNumFromSheet > 30) continue;
           
           // Get part number - skip if empty
           const partNumber = normalizeString(row[COLUMN_MAP.partNumber]);
@@ -205,8 +206,11 @@ export function parseQuotationTemplateExcel(file: File): Promise<ParsedQuotation
           const totalCostPerPart = parseNumber(row[COLUMN_MAP.totalCostPerPart]);
           const margin = parsePercentage(row[COLUMN_MAP.margin]);
           
+          // Use auto-incrementing integer for line_number (database requires integer)
+          lineCounter++;
+          
           const part: ParsedQuotationPart = {
-            line_number: lineNum,
+            line_number: lineCounter,
             part_number: partNumber,
             description: normalizeString(row[COLUMN_MAP.description]),
             quantity: quantity,
