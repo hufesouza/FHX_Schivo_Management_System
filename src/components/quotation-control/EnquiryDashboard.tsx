@@ -103,13 +103,38 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
   // Calculate stats from filtered enquiries
   const stats = useMemo(() => {
     const data = filteredEnquiries;
+    
+    // Count based on actual status values in the enquiry log
+    const openStatuses = ['OPEN', 'WIP'];
+    const wonStatuses = ['WON', 'PO RAISED'];
+    const lostStatuses = ['LOST', 'NOT CONVERTED', 'DECLINED', 'CANCELLED'];
+    const holdStatuses = ['ON HOLD'];
+    
     return {
       total: data.length,
-      open: data.filter(e => e.status?.toUpperCase() === 'OPEN' || !e.status).length,
-      quoted: data.filter(e => e.is_quoted).length,
-      won: data.filter(e => e.po_received || e.status?.toUpperCase() === 'WON').length,
-      lost: data.filter(e => e.status?.toUpperCase() === 'LOST').length,
-      onHold: data.filter(e => e.status?.toUpperCase() === 'ON HOLD' || e.priority?.toLowerCase() === 'hold').length,
+      // Open: status is OPEN, WIP, or no status
+      open: data.filter(e => {
+        const status = (e.status || '').toUpperCase();
+        return openStatuses.includes(status) || !e.status;
+      }).length,
+      // Quoted: is_quoted flag is true
+      quoted: data.filter(e => e.is_quoted === true).length,
+      // Won: po_received is true OR status is WON/PO RAISED
+      won: data.filter(e => {
+        const status = (e.status || '').toUpperCase();
+        return e.po_received === true || wonStatuses.includes(status);
+      }).length,
+      // Lost: status is LOST, NOT CONVERTED, DECLINED, or CANCELLED
+      lost: data.filter(e => {
+        const status = (e.status || '').toUpperCase();
+        return lostStatuses.includes(status);
+      }).length,
+      // On Hold: status is ON HOLD or priority contains 'hold'
+      onHold: data.filter(e => {
+        const status = (e.status || '').toUpperCase();
+        const priority = (e.priority || '').toLowerCase();
+        return holdStatuses.includes(status) || priority.includes('hold');
+      }).length,
       totalQuotedValue: data.reduce((sum, e) => sum + (e.quoted_price_euro || 0), 0),
       totalPOValue: data.reduce((sum, e) => sum + (e.po_value_euro || 0), 0),
       avgTurnaround: data.filter(e => e.turnaround_days).length > 0
