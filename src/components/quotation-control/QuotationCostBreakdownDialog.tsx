@@ -40,35 +40,21 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
   const [open, setOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
 
-  // Helper to check if a resource is a top-level assembly (e.g., "ASSY 1" not "ASSY 1.1")
-  const isTopLevelAssembly = (resource: string | null): boolean => {
-    if (!resource) return false;
-    // Match patterns like "ASSY 1", "ASSY 2" but not "ASSY 1.1", "ASSY 2.3"
-    const match = resource.match(/^ASSY\s+(\d+)$/i);
-    return match !== null;
-  };
-
-  // Helper to get parent assembly from sub-assembly (e.g., "ASSY 1.1" -> "ASSY 1")
-  const getParentAssembly = (resource: string | null): string => {
-    if (!resource) return 'Unassigned';
-    const match = resource.match(/^ASSY\s+(\d+)/i);
-    return match ? `ASSY ${match[1]}` : resource;
-  };
-
-  // Get top-level parts and their sub-assemblies
+  // Group parts by resource (pricing option like "Outsourced Brazing", "Insourced Brazing")
+  // Within each group, identify top-level assemblies vs sub-parts
   const groupedParts: GroupedParts[] = (() => {
     const groupMap = new Map<string, { topLevel: EnquiryQuotationPart | null; subParts: EnquiryQuotationPart[] }>();
     
     parts.forEach(part => {
       const resource = part.resource || 'Unassigned';
-      const parentKey = getParentAssembly(resource);
       
-      if (!groupMap.has(parentKey)) {
-        groupMap.set(parentKey, { topLevel: null, subParts: [] });
+      if (!groupMap.has(resource)) {
+        groupMap.set(resource, { topLevel: null, subParts: [] });
       }
       
-      const group = groupMap.get(parentKey)!;
-      if (isTopLevelAssembly(resource)) {
+      const group = groupMap.get(resource)!;
+      // Top-level parts have unit_price set, sub-parts don't
+      if (part.unit_price !== null && part.unit_price > 0) {
         group.topLevel = part;
       } else {
         group.subParts.push(part);
@@ -106,13 +92,11 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
         },
       };
     }).filter(g => g.topLevel !== null) // Only show groups that have a top-level assembly
-      .sort((a, b) => {
-        // Sort by assembly number
-        const aNum = parseInt(a.resource.match(/\d+/)?.[0] || '0');
-        const bNum = parseInt(b.resource.match(/\d+/)?.[0] || '0');
-        return aNum - bNum;
-      });
+      .sort((a, b) => a.resource.localeCompare(b.resource));
   })();
+
+  // Calculate grand total
+  const grandTotal = groupedParts.reduce((sum, g) => sum + g.totals.totalQuotedPrice, 0);
 
   // Expand all groups by default when dialog opens
   useEffect(() => {
@@ -180,7 +164,7 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
           </div>
         </div>
 
-        <ScrollArea className="max-h-[60vh]">
+        <ScrollArea className="max-h-[55vh]">
           <div className="space-y-3 pr-4">
             {groupedParts.map((group) => (
               <Collapsible
@@ -198,25 +182,39 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
                       )}
                       <Package className="h-5 w-5 text-primary" />
                       <div>
-                        <span className="font-bold text-lg">{group.topLevel?.part_number || group.resource}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-lg">{group.topLevel?.part_number || group.resource}</span>
+                          <Badge 
+                            variant={group.resource.includes('Insourced') ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {group.resource}
+                          </Badge>
+                        </div>
                         <p className="text-sm text-muted-foreground">{group.topLevel?.description}</p>
                       </div>
-                      <Badge variant="outline" className="ml-2">
-                        Qty: {group.topLevel?.quantity || 0}
-                      </Badge>
                     </div>
-                    <div className="flex items-center gap-6 text-sm">
+                    <div className="flex items-center gap-4 text-sm">
+                      <div className="text-right">
+                        <div className="text-xs text-muted-foreground">Qty</div>
+                        <div className="font-semibold">{group.topLevel?.quantity || 0}</div>
+                      </div>
                       <div className="text-right">
                         <div className="text-xs text-muted-foreground">Unit Price</div>
-                        <div className="font-bold text-green-600 text-lg">
+                        <div className="font-bold text-green-600">
                           {formatCurrency(group.topLevel?.unit_price)}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-xs text-muted-foreground">Total Quoted</div>
+                        <div className="font-bold text-green-600 text-lg">
+                          {formatCurrency(group.totals.totalQuotedPrice)}
                         </div>
                       </div>
                       <div className="text-right">
                         <div className="text-xs text-muted-foreground">Margin</div>
                         <div className="font-semibold">{formatPercent(group.totals.totalMargin)}</div>
                       </div>
-                      <Badge variant="secondary">{group.totals.partCount} components</Badge>
                     </div>
                   </div>
                 </CollapsibleTrigger>
@@ -266,6 +264,14 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
             ))}
           </div>
         </ScrollArea>
+
+        {/* Grand Total */}
+        <div className="mt-4 p-4 bg-primary/10 rounded-lg border border-primary/20">
+          <div className="flex items-center justify-between">
+            <span className="text-lg font-semibold">Grand Total Quotation</span>
+            <span className="text-2xl font-bold text-primary">{formatCurrency(grandTotal)}</span>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
