@@ -13,6 +13,7 @@ import { EnquiryWorkflow } from '@/components/quotation-control/EnquiryWorkflow'
 import { CreateQuotationDialog } from '@/components/quotation-control/CreateQuotationDialog';
 import { ExportQuotationPDF } from '@/components/quotation-control/ExportQuotationPDF';
 import { EditQuotationNotesDialog } from '@/components/quotation-control/EditQuotationNotesDialog';
+import { QuotationCostBreakdownDialog } from '@/components/quotation-control/QuotationCostBreakdownDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -359,6 +360,10 @@ const QuotationControlHub = () => {
                                 </TableCell>
                                 <TableCell className="text-right">
                                   <div className="flex items-center justify-end gap-1">
+                                    <QuotationCostBreakdownDialog
+                                      quotation={q}
+                                      parts={quotationPartsMap[q.id] || []}
+                                    />
                                     <EditQuotationNotesDialog 
                                       quotation={q} 
                                       onSave={(id, notes) => updateQuotation(id, { notes })}
