@@ -19,7 +19,7 @@ import {
   ChevronDown,
   ChevronUp
 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 
 export interface DashboardFilters {
   yearMonths?: string[]; // Format: "YYYY-MM" e.g. "2025-11" for Dec 2025
@@ -34,13 +34,19 @@ interface EnquiryDashboardProps {
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  'OPEN': 'hsl(var(--primary))',
-  'QUOTED': 'hsl(142, 76%, 36%)',
-  'WON': 'hsl(142, 76%, 36%)',
-  'LOST': 'hsl(0, 84%, 60%)',
-  'ON HOLD': 'hsl(45, 93%, 47%)',
-  'CANCELLED': 'hsl(0, 0%, 50%)',
+  'OPEN': '#3b82f6',
+  'QUOTED': '#14b8a6',
+  'WON': '#22c55e',
+  'LOST': '#ef4444',
+  'ON HOLD': '#f59e0b',
+  'CANCELLED': '#6b7280',
+  'Not converted': '#8b5cf6',
 };
+
+const CUSTOMER_COLORS = [
+  '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316',
+  '#eab308', '#22c55e', '#14b8a6', '#06b6d4', '#3b82f6'
+];
 
 const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -117,7 +123,11 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
           return acc;
         }, {} as Record<string, number>)
       )
-        .map(([customer, count]) => ({ customer, count }))
+        .map(([customer, count], index) => ({ 
+          customer, 
+          count,
+          fill: CUSTOMER_COLORS[index % CUSTOMER_COLORS.length]
+        }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 10),
       byOwner: Object.entries(
@@ -138,6 +148,25 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       )
         .map(([status, count]) => ({ status, count }))
         .sort((a, b) => b.count - a.count),
+      turnaroundByMonth: (() => {
+        const byMonth: Record<string, { total: number; count: number }> = {};
+        data.forEach(e => {
+          if (e.date_received && e.turnaround_days) {
+            const date = new Date(e.date_received);
+            const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+            if (!byMonth[key]) byMonth[key] = { total: 0, count: 0 };
+            byMonth[key].total += e.turnaround_days;
+            byMonth[key].count += 1;
+          }
+        });
+        return Object.entries(byMonth)
+          .map(([month, { total, count }]) => ({
+            month,
+            avgTurnaround: Math.round(total / count * 10) / 10
+          }))
+          .sort((a, b) => a.month.localeCompare(b.month))
+          .slice(-12);
+      })(),
     };
   }, [filteredEnquiries]);
 
@@ -411,7 +440,7 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
 
       {/* Charts */}
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Status Distribution */}
+        {/* Status Distribution - Horizontal Bar Chart */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">By Status</CardTitle>
@@ -419,29 +448,22 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
           <CardContent>
             <div className="h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                    labelLine={false}
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={index} fill={entry.fill} />
-                    ))}
-                  </Pie>
+                <BarChart data={stats.byStatus} layout="vertical">
+                  <XAxis type="number" />
+                  <YAxis dataKey="status" type="category" width={90} tick={{ fontSize: 11 }} />
                   <Tooltip />
-                </PieChart>
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                    {stats.byStatus.map((entry, index) => (
+                      <Cell key={index} fill={STATUS_COLORS[entry.status] || '#6b7280'} />
+                    ))}
+                  </Bar>
+                </BarChart>
               </ResponsiveContainer>
             </div>
           </CardContent>
         </Card>
 
-        {/* Top Customers */}
+        {/* Top Customers - with colors */}
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -456,9 +478,48 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
                   <XAxis type="number" />
                   <YAxis dataKey="customer" type="category" width={100} tick={{ fontSize: 12 }} />
                   <Tooltip />
-                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                    {stats.byCustomer.slice(0, 5).map((entry, index) => (
+                      <Cell key={index} fill={CUSTOMER_COLORS[index % CUSTOMER_COLORS.length]} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Turnaround Trend Line Chart */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Clock className="h-4 w-4" />
+              Turnaround Trend (days)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[200px]">
+              {stats.turnaroundByMonth.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={stats.turnaroundByMonth}>
+                    <XAxis dataKey="month" tick={{ fontSize: 10 }} />
+                    <YAxis tick={{ fontSize: 11 }} />
+                    <Tooltip />
+                    <Line 
+                      type="monotone" 
+                      dataKey="avgTurnaround" 
+                      stroke="#f97316" 
+                      strokeWidth={2}
+                      dot={{ fill: '#f97316', strokeWidth: 2 }}
+                      name="Avg Days"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+                  No turnaround data available
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
