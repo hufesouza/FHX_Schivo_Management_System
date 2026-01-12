@@ -178,16 +178,16 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       value: stats.total,
       icon: FileText,
       color: 'text-indigo-600',
-      bgColor: 'bg-indigo-500/10',
-      borderColor: 'border-l-indigo-500',
+      bgColor: 'bg-indigo-100',
+      borderColor: '#6366f1',
     },
     {
       title: 'Open',
       value: stats.open,
       icon: Clock,
       color: 'text-sky-600',
-      bgColor: 'bg-sky-500/10',
-      borderColor: 'border-l-sky-500',
+      bgColor: 'bg-sky-100',
+      borderColor: '#0ea5e9',
       onClick: () => onFilterByStatus?.('OPEN'),
     },
     {
@@ -195,16 +195,16 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       value: stats.quoted,
       icon: CheckCircle,
       color: 'text-teal-600',
-      bgColor: 'bg-teal-500/10',
-      borderColor: 'border-l-teal-500',
+      bgColor: 'bg-teal-100',
+      borderColor: '#14b8a6',
     },
     {
       title: 'Won (PO Received)',
       value: stats.won,
       icon: Trophy,
       color: 'text-emerald-600',
-      bgColor: 'bg-emerald-500/10',
-      borderColor: 'border-l-emerald-500',
+      bgColor: 'bg-emerald-100',
+      borderColor: '#10b981',
       onClick: () => onFilterByStatus?.('WON'),
     },
     {
@@ -212,8 +212,8 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       value: stats.lost,
       icon: XCircle,
       color: 'text-rose-600',
-      bgColor: 'bg-rose-500/10',
-      borderColor: 'border-l-rose-500',
+      bgColor: 'bg-rose-100',
+      borderColor: '#f43f5e',
       onClick: () => onFilterByStatus?.('LOST'),
     },
     {
@@ -221,8 +221,8 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       value: stats.onHold,
       icon: PauseCircle,
       color: 'text-amber-600',
-      bgColor: 'bg-amber-500/10',
-      borderColor: 'border-l-amber-500',
+      bgColor: 'bg-amber-100',
+      borderColor: '#f59e0b',
     },
   ];
 
@@ -232,32 +232,32 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       value: formatCurrency(stats.totalQuotedValue),
       icon: Euro,
       color: 'text-cyan-600',
-      bgColor: 'bg-cyan-500/10',
-      borderColor: 'border-l-cyan-500',
+      bgColor: 'bg-cyan-100',
+      borderColor: '#06b6d4',
     },
     {
       title: 'Total PO Value',
       value: formatCurrency(stats.totalPOValue),
       icon: Trophy,
       color: 'text-green-600',
-      bgColor: 'bg-green-500/10',
-      borderColor: 'border-l-green-500',
+      bgColor: 'bg-green-100',
+      borderColor: '#22c55e',
     },
     {
       title: 'Avg Turnaround',
       value: `${stats.avgTurnaround.toFixed(1)} days`,
       icon: Clock,
       color: 'text-orange-600',
-      bgColor: 'bg-orange-500/10',
-      borderColor: 'border-l-orange-500',
+      bgColor: 'bg-orange-100',
+      borderColor: '#f97316',
     },
     {
       title: 'Win Rate',
       value: stats.quoted > 0 ? `${((stats.won / stats.quoted) * 100).toFixed(1)}%` : 'N/A',
       icon: Trophy,
       color: 'text-purple-600',
-      bgColor: 'bg-purple-500/10',
-      borderColor: 'border-l-purple-500',
+      bgColor: 'bg-purple-100',
+      borderColor: '#a855f7',
     },
   ];
 
@@ -361,7 +361,8 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
         {kpiCards.map((card) => (
           <Card 
             key={card.title} 
-            className={`border-l-4 ${card.borderColor} ${card.onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+            className={`border-l-4 ${card.onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+            style={{ borderLeftColor: card.borderColor }}
             onClick={card.onClick}
           >
             <CardContent className="p-4">
@@ -382,7 +383,11 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       {/* Value Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {valueCards.map((card) => (
-          <Card key={card.title} className={`border-l-4 ${card.borderColor}`}>
+          <Card 
+            key={card.title} 
+            className="border-l-4"
+            style={{ borderLeftColor: card.borderColor }}
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${card.bgColor}`}>
