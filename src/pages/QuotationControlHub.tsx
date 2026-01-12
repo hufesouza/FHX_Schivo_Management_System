@@ -14,6 +14,7 @@ import { CreateQuotationDialog } from '@/components/quotation-control/CreateQuot
 import { ExportQuotationPDF } from '@/components/quotation-control/ExportQuotationPDF';
 import { EditQuotationNotesDialog } from '@/components/quotation-control/EditQuotationNotesDialog';
 import { QuotationCostBreakdownDialog } from '@/components/quotation-control/QuotationCostBreakdownDialog';
+import { QuotationCompareDialog } from '@/components/quotation-control/QuotationCompareDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -295,10 +296,16 @@ const QuotationControlHub = () => {
                         Quotations created from uploaded templates
                       </CardDescription>
                     </div>
-                    <Button onClick={() => setCreateQuotationOpen(true)}>
-                      <PlusCircle className="h-4 w-4 mr-2" />
-                      New Quotation
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <QuotationCompareDialog 
+                        quotations={quotations}
+                        partsMap={quotationPartsMap}
+                      />
+                      <Button onClick={() => setCreateQuotationOpen(true)}>
+                        <PlusCircle className="h-4 w-4 mr-2" />
+                        New Quotation
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     {quotationsLoading ? (
