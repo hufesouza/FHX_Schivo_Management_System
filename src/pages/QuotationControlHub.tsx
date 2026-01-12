@@ -12,6 +12,7 @@ import { EnquiryList, EnquiryListFilters } from '@/components/quotation-control/
 import { EnquiryWorkflow } from '@/components/quotation-control/EnquiryWorkflow';
 import { CreateQuotationDialog } from '@/components/quotation-control/CreateQuotationDialog';
 import { ExportQuotationPDF } from '@/components/quotation-control/ExportQuotationPDF';
+import { EditQuotationNotesDialog } from '@/components/quotation-control/EditQuotationNotesDialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -66,7 +67,7 @@ const QuotationControlHub = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
   const { enquiries, loading, uploading, stats, uploadData, clearAllData, fetchEnquiries, updateEnquiry } = useEnquiryLog();
-  const { quotations, loading: quotationsLoading, fetchQuotations, getQuotationParts } = useEnquiryQuotations();
+  const { quotations, loading: quotationsLoading, fetchQuotations, getQuotationParts, updateQuotation } = useEnquiryQuotations();
   
   const [activeTab, setActiveTab] = useState('dashboard');
   const [listFilters, setListFilters] = useState<EnquiryListFilters | undefined>(undefined);
@@ -357,10 +358,16 @@ const QuotationControlHub = () => {
                                   {q.source_file_name || '-'}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                  <ExportQuotationPDF 
-                                    quotation={q} 
-                                    parts={quotationPartsMap[q.id] || []} 
-                                  />
+                                  <div className="flex items-center justify-end gap-1">
+                                    <EditQuotationNotesDialog 
+                                      quotation={q} 
+                                      onSave={(id, notes) => updateQuotation(id, { notes })}
+                                    />
+                                    <ExportQuotationPDF 
+                                      quotation={q} 
+                                      parts={quotationPartsMap[q.id] || []} 
+                                    />
+                                  </div>
                                 </TableCell>
                               </TableRow>
                             ))}

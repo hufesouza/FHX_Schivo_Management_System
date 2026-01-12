@@ -168,6 +168,36 @@ export function useEnquiryQuotations() {
     }
   }, []);
 
+  const updateQuotation = useCallback(async (
+    id: string, 
+    updates: { notes?: string; status?: string }
+  ): Promise<boolean> => {
+    try {
+      const { error } = await supabase
+        .from('enquiry_quotations')
+        .update(updates)
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Success',
+        description: 'Quotation updated',
+      });
+
+      await fetchQuotations();
+      return true;
+    } catch (error) {
+      console.error('Error updating quotation:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update quotation',
+        variant: 'destructive',
+      });
+      return false;
+    }
+  }, [toast, fetchQuotations]);
+
   const deleteQuotation = useCallback(async (id: string): Promise<boolean> => {
     try {
       const { error } = await supabase
@@ -205,6 +235,7 @@ export function useEnquiryQuotations() {
     creating,
     createQuotation,
     getQuotationParts,
+    updateQuotation,
     deleteQuotation,
     fetchQuotations,
   };
