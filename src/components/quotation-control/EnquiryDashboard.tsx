@@ -15,7 +15,9 @@ import {
   Users,
   Building,
   Filter,
-  X
+  X,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
@@ -175,46 +177,52 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       title: 'Total Enquiries',
       value: stats.total,
       icon: FileText,
-      color: 'text-primary',
-      bgColor: 'bg-primary/10',
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-500/10',
+      borderColor: 'border-l-indigo-500',
     },
     {
       title: 'Open',
       value: stats.open,
       icon: Clock,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-500/10',
+      color: 'text-sky-600',
+      bgColor: 'bg-sky-500/10',
+      borderColor: 'border-l-sky-500',
       onClick: () => onFilterByStatus?.('OPEN'),
     },
     {
       title: 'Quoted',
       value: stats.quoted,
       icon: CheckCircle,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-500/10',
+      color: 'text-teal-600',
+      bgColor: 'bg-teal-500/10',
+      borderColor: 'border-l-teal-500',
     },
     {
       title: 'Won (PO Received)',
       value: stats.won,
       icon: Trophy,
-      color: 'text-green-600',
-      bgColor: 'bg-green-500/10',
+      color: 'text-emerald-600',
+      bgColor: 'bg-emerald-500/10',
+      borderColor: 'border-l-emerald-500',
       onClick: () => onFilterByStatus?.('WON'),
     },
     {
       title: 'Lost',
       value: stats.lost,
       icon: XCircle,
-      color: 'text-red-600',
-      bgColor: 'bg-red-500/10',
+      color: 'text-rose-600',
+      bgColor: 'bg-rose-500/10',
+      borderColor: 'border-l-rose-500',
       onClick: () => onFilterByStatus?.('LOST'),
     },
     {
       title: 'On Hold',
       value: stats.onHold,
       icon: PauseCircle,
-      color: 'text-yellow-600',
-      bgColor: 'bg-yellow-500/10',
+      color: 'text-amber-600',
+      bgColor: 'bg-amber-500/10',
+      borderColor: 'border-l-amber-500',
     },
   ];
 
@@ -223,8 +231,9 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       title: 'Total Quoted Value',
       value: formatCurrency(stats.totalQuotedValue),
       icon: Euro,
-      color: 'text-emerald-600',
-      bgColor: 'bg-emerald-500/10',
+      color: 'text-cyan-600',
+      bgColor: 'bg-cyan-500/10',
+      borderColor: 'border-l-cyan-500',
     },
     {
       title: 'Total PO Value',
@@ -232,20 +241,23 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       icon: Trophy,
       color: 'text-green-600',
       bgColor: 'bg-green-500/10',
+      borderColor: 'border-l-green-500',
     },
     {
       title: 'Avg Turnaround',
       value: `${stats.avgTurnaround.toFixed(1)} days`,
       icon: Clock,
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-500/10',
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-500/10',
+      borderColor: 'border-l-orange-500',
     },
     {
       title: 'Win Rate',
       value: stats.quoted > 0 ? `${((stats.won / stats.quoted) * 100).toFixed(1)}%` : 'N/A',
       icon: Trophy,
-      color: 'text-violet-600',
-      bgColor: 'bg-violet-500/10',
+      color: 'text-purple-600',
+      bgColor: 'bg-purple-500/10',
+      borderColor: 'border-l-purple-500',
     },
   ];
 
@@ -265,12 +277,19 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
               variant="outline"
               size="sm"
               onClick={() => setShowFilters(!showFilters)}
-              className={showFilters ? 'bg-primary/10' : ''}
+              className={hasActiveFilters ? 'bg-primary/10 border-primary' : ''}
             >
               <Filter className="h-4 w-4 mr-2" />
               Filters
               {hasActiveFilters && (
-                <Badge variant="secondary" className="ml-2">Active</Badge>
+                <Badge variant="secondary" className="ml-2">
+                  {(filters.yearMonths?.length || 0) + (filters.customer ? 1 : 0)}
+                </Badge>
+              )}
+              {showFilters ? (
+                <ChevronUp className="h-4 w-4 ml-2" />
+              ) : (
+                <ChevronDown className="h-4 w-4 ml-2" />
               )}
             </Button>
 
@@ -342,7 +361,7 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
         {kpiCards.map((card) => (
           <Card 
             key={card.title} 
-            className={`${card.onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
+            className={`border-l-4 ${card.borderColor} ${card.onClick ? 'cursor-pointer hover:shadow-md transition-shadow' : ''}`}
             onClick={card.onClick}
           >
             <CardContent className="p-4">
@@ -363,7 +382,7 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       {/* Value Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {valueCards.map((card) => (
-          <Card key={card.title}>
+          <Card key={card.title} className={`border-l-4 ${card.borderColor}`}>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${card.bgColor}`}>
