@@ -68,8 +68,8 @@ export function ExportQuotationPDF({ quotation, parts }: ExportQuotationPDFProps
       const margin = 40;
       let y = height - margin;
       
-      // Schivo brand colors
-      const schivoOrange = rgb(0.945, 0.608, 0.157); // #F19B28
+      // Schivo brand colors - muted orange for better readability
+      const schivoOrange = rgb(0.82, 0.50, 0.12); // Darker, muted orange
       const schivoGray = rgb(0.392, 0.431, 0.412); // #646E69
       const lightGray = rgb(0.95, 0.95, 0.95);
       const black = rgb(0, 0, 0);
