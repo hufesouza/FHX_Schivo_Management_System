@@ -164,7 +164,7 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
 
   const formatPercent = (value: number | null) => {
     if (value === null || value === undefined) return '—';
-    return `${(value * 100).toFixed(1)}%`;
+    return `${value.toFixed(1)}%`;
   };
 
   const exportBreakdownPDF = async () => {
