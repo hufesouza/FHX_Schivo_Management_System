@@ -15,6 +15,19 @@ interface QuotationCompareDialogProps {
   currentQuotation?: EnquiryQuotation;
 }
 
+interface ComparisonRow {
+  partNumber: string;
+  description: string;
+  quantity: number;
+  resource: string;
+  leftPrice: number;
+  rightPrice: number;
+  difference: number;
+  percentChange: number;
+  leftCost: number;
+  rightCost: number;
+}
+
 export function QuotationCompareDialog({ quotations, partsMap, currentQuotation }: QuotationCompareDialogProps) {
   const [open, setOpen] = useState(false);
   const [leftQuotationId, setLeftQuotationId] = useState<string>('');
@@ -46,31 +59,35 @@ export function QuotationCompareDialog({ quotations, partsMap, currentQuotation 
   const leftAssemblies = leftParts.filter(p => p.unit_price !== null);
   const rightAssemblies = rightParts.filter(p => p.unit_price !== null);
 
-  // Create comparison data
-  const comparisonData = leftAssemblies.map(leftPart => {
-    const rightPart = rightAssemblies.find(r => r.part_number === leftPart.part_number);
+  // Create comparison data - group by part number AND resource type
+  const comparisonData: ComparisonRow[] = leftAssemblies.map(leftPart => {
+    // Find matching part with same part number AND resource type
+    const rightPart = rightAssemblies.find(
+      r => r.part_number === leftPart.part_number && r.resource === leftPart.resource
+    );
     const leftPrice = leftPart.unit_price || 0;
     const rightPrice = rightPart?.unit_price || 0;
     const difference = rightPrice - leftPrice;
     const percentChange = leftPrice > 0 ? ((difference / leftPrice) * 100) : 0;
 
     return {
-      partNumber: leftPart.part_number,
-      description: leftPart.description,
-      quantity: leftPart.quantity,
+      partNumber: leftPart.part_number || '',
+      description: leftPart.description || '',
+      quantity: leftPart.quantity || 0,
+      resource: leftPart.resource || 'N/A',
       leftPrice,
       rightPrice,
       difference,
       percentChange,
       leftCost: leftPart.total_cost_per_part || 0,
       rightCost: rightPart?.total_cost_per_part || 0,
-      leftNre: leftPart.nre || 0,
-      rightNre: rightPart?.nre || 0,
     };
   });
 
-  const totalLeftPrice = comparisonData.reduce((sum, item) => sum + (item.leftPrice * (item.quantity || 1)), 0);
-  const totalRightPrice = comparisonData.reduce((sum, item) => sum + (item.rightPrice * (item.quantity || 1)), 0);
+  // Calculate totals (use outsourced prices only for total calculation to avoid double counting)
+  const outsourcedParts = comparisonData.filter(item => item.resource === 'Outsourced Brazing');
+  const totalLeftPrice = outsourcedParts.reduce((sum, item) => sum + (item.leftPrice * item.quantity), 0);
+  const totalRightPrice = outsourcedParts.reduce((sum, item) => sum + (item.rightPrice * item.quantity), 0);
   const totalDifference = totalRightPrice - totalLeftPrice;
   const totalPercentChange = totalLeftPrice > 0 ? ((totalDifference / totalLeftPrice) * 100) : 0;
 
@@ -100,6 +117,12 @@ export function QuotationCompareDialog({ quotations, partsMap, currentQuotation 
     return <Minus className="h-4 w-4 text-muted-foreground" />;
   };
 
+  const getResourceBadgeVariant = (resource: string): 'default' | 'secondary' | 'outline' => {
+    if (resource === 'Outsourced Brazing') return 'default';
+    if (resource === 'Insourced Brazing') return 'secondary';
+    return 'outline';
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -108,7 +131,7 @@ export function QuotationCompareDialog({ quotations, partsMap, currentQuotation 
           Compare Prices
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-5xl max-h-[90vh]">
+      <DialogContent className="max-w-6xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GitCompare className="h-5 w-5" />
@@ -156,14 +179,16 @@ export function QuotationCompareDialog({ quotations, partsMap, currentQuotation 
             <div className="grid grid-cols-3 gap-4">
               <Card>
                 <CardContent className="p-4">
-                  <div className="text-sm text-muted-foreground mb-1">{leftQuotation.enquiry_no}</div>
+                  <div className="text-sm text-muted-foreground mb-1">{leftQuotation.enquiry_no} (Outsourced)</div>
                   <div className="text-2xl font-bold">{formatCurrency(totalLeftPrice)}</div>
+                  <div className="text-xs text-muted-foreground mt-1">Margin: {leftQuotation.average_margin}%</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4">
-                  <div className="text-sm text-muted-foreground mb-1">{rightQuotation.enquiry_no}</div>
+                  <div className="text-sm text-muted-foreground mb-1">{rightQuotation.enquiry_no} (Outsourced)</div>
                   <div className="text-2xl font-bold">{formatCurrency(totalRightPrice)}</div>
+                  <div className="text-xs text-muted-foreground mt-1">Margin: {rightQuotation.average_margin}%</div>
                 </CardContent>
               </Card>
               <Card className={totalDifference < 0 ? 'border-green-200 bg-green-50' : totalDifference > 0 ? 'border-red-200 bg-red-50' : ''}>
@@ -187,6 +212,7 @@ export function QuotationCompareDialog({ quotations, partsMap, currentQuotation 
                   <TableRow>
                     <TableHead>Part Number</TableHead>
                     <TableHead>Description</TableHead>
+                    <TableHead>Option</TableHead>
                     <TableHead className="text-center">Qty</TableHead>
                     <TableHead className="text-right">{leftQuotation.enquiry_no}</TableHead>
                     <TableHead className="text-center w-12"></TableHead>
@@ -199,7 +225,12 @@ export function QuotationCompareDialog({ quotations, partsMap, currentQuotation 
                   {comparisonData.map((item, idx) => (
                     <TableRow key={idx}>
                       <TableCell className="font-mono text-sm">{item.partNumber}</TableCell>
-                      <TableCell className="text-sm max-w-[200px] truncate">{item.description}</TableCell>
+                      <TableCell className="text-sm max-w-[150px] truncate">{item.description}</TableCell>
+                      <TableCell>
+                        <Badge variant={getResourceBadgeVariant(item.resource)} className="text-xs whitespace-nowrap">
+                          {item.resource === 'Outsourced Brazing' ? 'Outsourced' : 'Insourced'}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="text-center">{item.quantity}</TableCell>
                       <TableCell className="text-right font-medium">{formatCurrency(item.leftPrice)}</TableCell>
                       <TableCell className="text-center">
@@ -221,56 +252,44 @@ export function QuotationCompareDialog({ quotations, partsMap, currentQuotation 
             </ScrollArea>
           )}
 
-          {/* Cost and NRE Comparison */}
+          {/* Cost Comparison */}
           {leftQuotation && rightQuotation && comparisonData.length > 0 && (
-            <div className="grid grid-cols-2 gap-4">
-              <Card>
-                <CardContent className="p-4">
-                  <h4 className="font-medium mb-3">Unit Cost Comparison</h4>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Part</TableHead>
-                        <TableHead className="text-right">Original</TableHead>
-                        <TableHead className="text-right">Comparison</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {comparisonData.map((item, idx) => (
+            <Card>
+              <CardContent className="p-4">
+                <h4 className="font-medium mb-3">Unit Cost Comparison (Excluding Margin)</h4>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Part</TableHead>
+                      <TableHead>Option</TableHead>
+                      <TableHead className="text-right">{leftQuotation.enquiry_no}</TableHead>
+                      <TableHead className="text-right">{rightQuotation.enquiry_no}</TableHead>
+                      <TableHead className="text-right">Savings</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {comparisonData.map((item, idx) => {
+                      const costDiff = item.rightCost - item.leftCost;
+                      return (
                         <TableRow key={idx}>
                           <TableCell className="font-mono text-xs">{item.partNumber}</TableCell>
+                          <TableCell>
+                            <Badge variant={getResourceBadgeVariant(item.resource)} className="text-xs">
+                              {item.resource === 'Outsourced Brazing' ? 'Outsourced' : 'Insourced'}
+                            </Badge>
+                          </TableCell>
                           <TableCell className="text-right">{formatCurrency(item.leftCost)}</TableCell>
                           <TableCell className="text-right">{formatCurrency(item.rightCost)}</TableCell>
+                          <TableCell className={`text-right font-medium ${getDifferenceColor(costDiff)}`}>
+                            {formatCurrency(costDiff)}
+                          </TableCell>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <h4 className="font-medium mb-3">NRE Comparison</h4>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Part</TableHead>
-                        <TableHead className="text-right">Original</TableHead>
-                        <TableHead className="text-right">Comparison</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {comparisonData.map((item, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell className="font-mono text-xs">{item.partNumber}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(item.leftNre)}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(item.rightNre)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            </div>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           )}
 
           {(!leftQuotation || !rightQuotation) && (
