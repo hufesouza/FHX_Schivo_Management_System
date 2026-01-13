@@ -138,7 +138,9 @@ export function CreateQuotationDialog({
 
   const formatPercent = (value: number | null) => {
     if (value === null || value === undefined) return '-';
-    return `${value.toFixed(1)}%`;
+    // If value is already a decimal (0-1), multiply by 100
+    const percent = value <= 1 ? value * 100 : value;
+    return `${percent.toFixed(1)}%`;
   };
 
   return (
@@ -146,7 +148,7 @@ export function CreateQuotationDialog({
       if (!value) resetForm();
       onOpenChange(value);
     }}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
@@ -286,69 +288,115 @@ export function CreateQuotationDialog({
               </div>
 
               {/* Summary Cards */}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-5 gap-3">
                 <Card>
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Package className="h-4 w-4" />
+                  <CardHeader className="py-2">
+                    <CardTitle className="text-xs flex items-center gap-1 text-muted-foreground">
+                      <Package className="h-3 w-3" />
                       Parts
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-2xl font-bold">{parsedData.parts.length}</p>
+                  <CardContent className="pt-0 pb-2">
+                    <p className="text-xl font-bold">{parsedData.parts.length}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {parsedData.parts.filter(p => p.unit_price && p.unit_price > 0).length} priced
+                    </p>
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Euro className="h-4 w-4" />
+                  <CardHeader className="py-2">
+                    <CardTitle className="text-xs flex items-center gap-1 text-muted-foreground">
+                      <Euro className="h-3 w-3" />
+                      Total Cost
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0 pb-2">
+                    <p className="text-xl font-bold text-orange-600">{formatCurrency(parsedData.totals.total_cost)}</p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="py-2">
+                    <CardTitle className="text-xs flex items-center gap-1 text-muted-foreground">
+                      NRE
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0 pb-2">
+                    <p className="text-xl font-bold text-blue-600">
+                      {formatCurrency(parsedData.parts.reduce((sum, p) => sum + (p.nre || 0), 0))}
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="py-2">
+                    <CardTitle className="text-xs flex items-center gap-1 text-muted-foreground">
+                      <Euro className="h-3 w-3" />
                       Total Quote
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-2xl font-bold">{formatCurrency(parsedData.totals.total_quoted_price)}</p>
+                  <CardContent className="pt-0 pb-2">
+                    <p className="text-xl font-bold text-green-600">{formatCurrency(parsedData.totals.total_quoted_price)}</p>
                   </CardContent>
                 </Card>
 
                 <Card>
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Percent className="h-4 w-4" />
+                  <CardHeader className="py-2">
+                    <CardTitle className="text-xs flex items-center gap-1 text-muted-foreground">
+                      <Percent className="h-3 w-3" />
                       Avg Margin
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-2xl font-bold">{formatPercent(parsedData.totals.average_margin)}</p>
+                  <CardContent className="pt-0 pb-2">
+                    <p className="text-xl font-bold">{parsedData.totals.average_margin ? `${(parsedData.totals.average_margin * 100).toFixed(0)}%` : '-'}</p>
                   </CardContent>
                 </Card>
               </div>
 
               <Separator />
 
-              {/* Parts Table */}
+              {/* Parts Table - Detailed view */}
               <div className="flex-1 min-h-0">
                 <ScrollArea className="h-[300px] border rounded-lg">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-12">#</TableHead>
-                        <TableHead>Part Number</TableHead>
+                        <TableHead className="w-10 sticky left-0 bg-background">#</TableHead>
+                        <TableHead className="sticky left-10 bg-background">Part Number</TableHead>
                         <TableHead>Description</TableHead>
+                        <TableHead>Resource</TableHead>
                         <TableHead className="text-right">Qty</TableHead>
-                        <TableHead className="text-right">Unit Price</TableHead>
+                        <TableHead className="text-right">Material</TableHead>
+                        <TableHead className="text-right">Subcon</TableHead>
+                        <TableHead className="text-right">Labour Cost</TableHead>
+                        <TableHead className="text-right">NRE</TableHead>
+                        <TableHead className="text-right">Cost/Part</TableHead>
                         <TableHead className="text-right">Margin</TableHead>
+                        <TableHead className="text-right">Unit Price</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {parsedData.parts.map((part) => (
-                        <TableRow key={part.line_number}>
-                          <TableCell className="font-medium">{part.line_number}</TableCell>
-                          <TableCell>{part.part_number || '-'}</TableCell>
-                          <TableCell className="max-w-[200px] truncate">{part.description || '-'}</TableCell>
+                        <TableRow key={part.line_number} className={!part.unit_price ? 'bg-muted/30' : ''}>
+                          <TableCell className="font-medium sticky left-0 bg-inherit">{part.line_number}</TableCell>
+                          <TableCell className="font-medium sticky left-10 bg-inherit">{part.part_number || '-'}</TableCell>
+                          <TableCell className="max-w-[150px] truncate" title={part.description || ''}>{part.description || '-'}</TableCell>
+                          <TableCell>
+                            {part.resource && (
+                              <Badge variant="outline" className="text-xs whitespace-nowrap">
+                                {part.resource}
+                              </Badge>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">{part.quantity?.toLocaleString() || '-'}</TableCell>
-                          <TableCell className="text-right">{formatCurrency(part.unit_price)}</TableCell>
-                          <TableCell className="text-right">{formatPercent(part.margin)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(part.total_material)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(part.subcon_cost_per_part)}</TableCell>
+                          <TableCell className="text-right">{formatCurrency(part.labour_processing_cost)}</TableCell>
+                          <TableCell className="text-right text-blue-600 font-medium">{formatCurrency(part.nre)}</TableCell>
+                          <TableCell className="text-right text-orange-600">{formatCurrency(part.total_cost_per_part)}</TableCell>
+                          <TableCell className="text-right">{part.margin !== null ? `${(part.margin * 100).toFixed(0)}%` : '-'}</TableCell>
+                          <TableCell className="text-right text-green-600 font-medium">{formatCurrency(part.unit_price)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
