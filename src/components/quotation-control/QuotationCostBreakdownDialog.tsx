@@ -460,29 +460,44 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
                         </tr>
                       </thead>
                       <tbody>
-                        {group.subParts.map((part, idx) => (
-                          <tr 
-                            key={part.id} 
-                            className={idx % 2 === 0 ? 'bg-background' : 'bg-muted/20'}
-                          >
-                            <td className="p-3 font-medium">{part.part_number || '-'}</td>
-                            <td className="p-3 text-muted-foreground">{part.description || '-'}</td>
-                            <td className="p-3 text-right">{part.quantity || 0}</td>
-                            <td className="p-3 text-right font-medium text-orange-600">
-                              {formatCurrency(part.total_cost_per_part)}
-                            </td>
-                            <td className="p-3 text-right font-medium">
-                              {formatCurrency((part.total_cost_per_part || 0) * (part.quantity || 0))}
+                        {group.subParts.length === 0 ? (
+                          <tr className="bg-background">
+                            <td colSpan={5} className="p-3 text-muted-foreground">
+                              No component breakdown rows found for this assembly.
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          group.subParts.map((part, idx) => (
+                            <tr
+                              key={part.id}
+                              className={idx % 2 === 0 ? 'bg-background' : 'bg-muted/20'}
+                            >
+                              <td className="p-3 font-medium">{part.part_number || '-'}</td>
+                              <td className="p-3 text-muted-foreground">{part.description || '-'}</td>
+                              <td className="p-3 text-right">{part.quantity || 0}</td>
+                              <td className="p-3 text-right font-medium text-orange-600">
+                                {formatCurrency(part.total_cost_per_part)}
+                              </td>
+                              <td className="p-3 text-right font-medium">
+                                {formatCurrency((part.total_cost_per_part || 0) * (part.quantity || 0))}
+                              </td>
+                            </tr>
+                          ))
+                        )}
                       </tbody>
                       <tfoot className="bg-muted/30 border-t">
                         <tr>
                           <td colSpan={3} className="p-3 font-semibold">Total Components Cost</td>
                           <td></td>
                           <td className="p-3 text-right font-bold text-orange-600">
-                            {formatCurrency(group.subParts.reduce((sum, p) => sum + ((p.total_cost_per_part || 0) * (p.quantity || 0)), 0))}
+                            {formatCurrency(
+                              group.subParts.length > 0
+                                ? group.subParts.reduce(
+                                    (sum, p) => sum + (p.total_cost_per_part || 0) * (p.quantity || 0),
+                                    0,
+                                  )
+                                : (group.topLevel.total_cost_per_part || 0) * (group.topLevel.quantity || 0),
+                            )}
                           </td>
                         </tr>
                       </tfoot>
