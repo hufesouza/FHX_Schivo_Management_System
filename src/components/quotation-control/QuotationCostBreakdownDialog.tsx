@@ -43,12 +43,193 @@ interface AssemblyGroup {
   };
 }
 
+// Component for showing detailed breakdown of a single part
+function PartBreakdownDetail({ 
+  part, 
+  formatCurrency, 
+  formatPercent 
+}: { 
+  part: EnquiryQuotationPart; 
+  formatCurrency: (v: number | null) => string;
+  formatPercent: (v: number | null) => string;
+}) {
+  const formatNumber = (v: number | null) => v !== null && v !== undefined ? v.toFixed(2) : '—';
+  
+  return (
+    <div className="p-4 space-y-4 bg-muted/10">
+      {/* Material Section */}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="bg-blue-100 dark:bg-blue-900/30 px-3 py-2 font-semibold text-sm text-blue-800 dark:text-blue-200">
+          Material
+        </div>
+        <div className="grid grid-cols-5 gap-2 p-3 text-sm">
+          <div>
+            <span className="text-muted-foreground text-xs">Material</span>
+            <p className="font-medium truncate" title={part.material_name || ''}>{part.material_name || '—'}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Qty/Unit</span>
+            <p className="font-medium">{formatNumber(part.material_qty_per_unit)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Std Cost Est</span>
+            <p className="font-medium">{formatCurrency(part.material_std_cost_est)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Markup</span>
+            <p className="font-medium">{formatPercent(part.material_markup ? part.material_markup * 100 : null)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Total Material</span>
+            <p className="font-bold text-blue-600">{formatCurrency(part.total_material)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Subcon Section */}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="bg-purple-100 dark:bg-purple-900/30 px-3 py-2 font-semibold text-sm text-purple-800 dark:text-purple-200">
+          Subcon
+        </div>
+        <div className="grid grid-cols-3 gap-2 p-3 text-sm">
+          <div>
+            <span className="text-muted-foreground text-xs">Subcon Cost</span>
+            <p className="font-medium">{formatCurrency(part.subcon_cost)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Subcon Markup</span>
+            <p className="font-medium">{formatPercent(part.subcon_markup ? part.subcon_markup * 100 : null)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Subcon Cost/Part</span>
+            <p className="font-bold text-purple-600">{formatCurrency(part.subcon_cost_per_part)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Development Section */}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="bg-amber-100 dark:bg-amber-900/30 px-3 py-2 font-semibold text-sm text-amber-800 dark:text-amber-200">
+          Development
+        </div>
+        <div className="grid grid-cols-6 gap-2 p-3 text-sm">
+          <div>
+            <span className="text-muted-foreground text-xs">Resource</span>
+            <p className="font-medium">{part.resource || '—'}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Volume</span>
+            <p className="font-medium">{formatNumber(part.volume)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Dev Time</span>
+            <p className="font-medium">{formatNumber(part.development_time)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Days Dev</span>
+            <p className="font-medium">{formatNumber(part.days_dev_time)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Shift</span>
+            <p className="font-medium">{formatNumber(part.shift)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Dev Time Cost</span>
+            <p className="font-bold text-amber-600">{formatCurrency(part.dev_time_cost)}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2 px-3 pb-3 text-sm">
+          <div>
+            <span className="text-muted-foreground text-xs">Tooling</span>
+            <p className="font-medium">{formatCurrency(part.tooling)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">NRE</span>
+            <p className="font-bold text-amber-600">{formatCurrency(part.nre)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Routing Section */}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="bg-green-100 dark:bg-green-900/30 px-3 py-2 font-semibold text-sm text-green-800 dark:text-green-200">
+          Routing
+        </div>
+        <div className="grid grid-cols-5 gap-2 p-3 text-sm">
+          <div>
+            <span className="text-muted-foreground text-xs">Machine Manning</span>
+            <p className="font-medium">{part.machine_manning || '—'}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Setup (min)</span>
+            <p className="font-medium">{formatNumber(part.machine_setup)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Run Time (min)</span>
+            <p className="font-medium">{formatNumber(part.machine_run_time)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Deburr (min)</span>
+            <p className="font-medium">{formatNumber(part.part_deburr)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Wash (min)</span>
+            <p className="font-medium">{formatNumber(part.wash)}</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-5 gap-2 px-3 pb-3 text-sm">
+          <div>
+            <span className="text-muted-foreground text-xs">Labour/hr</span>
+            <p className="font-medium">{formatCurrency(part.labour_per_hr)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Overheads/hr</span>
+            <p className="font-medium">{formatCurrency(part.overheads_per_hr)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Machine Cost/min</span>
+            <p className="font-medium">{formatCurrency(part.machine_cost_per_min)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Sec Ops Cost/min</span>
+            <p className="font-medium">{formatCurrency(part.secondary_ops_cost_per_min)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Processing Cost</span>
+            <p className="font-bold text-green-600">{formatCurrency(part.labour_processing_cost)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Summary Section */}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="bg-primary/20 px-3 py-2 font-semibold text-sm">
+          Price Summary
+        </div>
+        <div className="grid grid-cols-3 gap-2 p-3 text-sm">
+          <div>
+            <span className="text-muted-foreground text-xs">Total Cost/Part</span>
+            <p className="font-bold text-orange-600 text-lg">{formatCurrency(part.total_cost_per_part)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Margin</span>
+            <p className="font-bold text-lg">{formatPercent(part.margin ? part.margin * 100 : null)}</p>
+          </div>
+          <div>
+            <span className="text-muted-foreground text-xs">Unit Price</span>
+            <p className="font-bold text-green-600 text-lg">{formatCurrency(part.unit_price)}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCostBreakdownDialogProps) {
   const [open, setOpen] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
   const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
   const [exporting, setExporting] = useState(false);
-
   // Group parts by resource + assembly
   // Each top-level assembly gets its own group with its subparts
   const groupedParts: AssemblyGroup[] = (() => {
@@ -253,8 +434,76 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
         page.drawText(`Margin: ${formatPercent(group.totals.totalMargin)}`, { x: margin + 400, y, size: 8, font: helvetica, color: black });
         y -= 18;
         
-        // Sub-parts table header
-        if (group.subParts.length > 0) {
+        // For single parts (no sub-parts), show detailed breakdown
+        if (group.subParts.length === 0) {
+          const part = group.topLevel;
+          const blue = rgb(0.15, 0.35, 0.70);
+          const purple = rgb(0.5, 0.2, 0.6);
+          const amber = rgb(0.8, 0.5, 0.1);
+          
+          // Check for new page
+          if (y < 280) {
+            page = pdfDoc.addPage([pageWidth, pageHeight]);
+            y = pageHeight - margin;
+          }
+          
+          // Material section
+          page.drawText('Material:', { x: margin + 10, y, size: 8, font: helveticaBold, color: blue });
+          y -= 10;
+          page.drawText(`Material: ${part.material_name || '-'}`, { x: margin + 15, y, size: 7, font: helvetica, color: black });
+          y -= 9;
+          page.drawText(`Qty/Unit: ${part.material_qty_per_unit?.toFixed(3) || '-'}`, { x: margin + 15, y, size: 7, font: helvetica, color: black });
+          page.drawText(`Std Cost: ${formatCurrency(part.material_std_cost_est)}`, { x: margin + 100, y, size: 7, font: helvetica, color: black });
+          page.drawText(`Markup: ${formatPercent(part.material_markup ? part.material_markup * 100 : null)}`, { x: margin + 200, y, size: 7, font: helvetica, color: black });
+          page.drawText(`Total Material: ${formatCurrency(part.total_material)}`, { x: margin + 300, y, size: 7, font: helveticaBold, color: blue });
+          y -= 12;
+          
+          // Subcon section
+          page.drawText('Subcon:', { x: margin + 10, y, size: 8, font: helveticaBold, color: purple });
+          y -= 10;
+          page.drawText(`Subcon Cost: ${formatCurrency(part.subcon_cost)}`, { x: margin + 15, y, size: 7, font: helvetica, color: black });
+          page.drawText(`Markup: ${formatPercent(part.subcon_markup ? part.subcon_markup * 100 : null)}`, { x: margin + 120, y, size: 7, font: helvetica, color: black });
+          page.drawText(`Subcon/Part: ${formatCurrency(part.subcon_cost_per_part)}`, { x: margin + 220, y, size: 7, font: helveticaBold, color: purple });
+          y -= 12;
+          
+          // Development section
+          page.drawText('Development:', { x: margin + 10, y, size: 8, font: helveticaBold, color: amber });
+          y -= 10;
+          page.drawText(`Resource: ${part.resource || '-'}`, { x: margin + 15, y, size: 7, font: helvetica, color: black });
+          page.drawText(`Volume: ${part.volume || '-'}`, { x: margin + 120, y, size: 7, font: helvetica, color: black });
+          page.drawText(`Dev Time: ${part.development_time?.toFixed(0) || '-'}`, { x: margin + 180, y, size: 7, font: helvetica, color: black });
+          page.drawText(`Days Dev: ${part.days_dev_time?.toFixed(2) || '-'}`, { x: margin + 260, y, size: 7, font: helvetica, color: black });
+          y -= 9;
+          page.drawText(`Shift: ${part.shift || '-'}`, { x: margin + 15, y, size: 7, font: helvetica, color: black });
+          page.drawText(`Dev Cost: ${formatCurrency(part.dev_time_cost)}`, { x: margin + 80, y, size: 7, font: helvetica, color: amber });
+          page.drawText(`Tooling: ${formatCurrency(part.tooling)}`, { x: margin + 180, y, size: 7, font: helvetica, color: black });
+          page.drawText(`NRE: ${formatCurrency(part.nre)}`, { x: margin + 280, y, size: 7, font: helveticaBold, color: amber });
+          y -= 12;
+          
+          // Routing section
+          page.drawText('Routing:', { x: margin + 10, y, size: 8, font: helveticaBold, color: green });
+          y -= 10;
+          page.drawText(`Manning: ${part.machine_manning || '-'}`, { x: margin + 15, y, size: 7, font: helvetica, color: black });
+          page.drawText(`Setup: ${part.machine_setup || '-'}`, { x: margin + 150, y, size: 7, font: helvetica, color: black });
+          page.drawText(`Run: ${part.machine_run_time || '-'}`, { x: margin + 210, y, size: 7, font: helvetica, color: black });
+          page.drawText(`Deburr: ${part.part_deburr || '-'}`, { x: margin + 280, y, size: 7, font: helvetica, color: black });
+          page.drawText(`Wash: ${part.wash || '-'}`, { x: margin + 350, y, size: 7, font: helvetica, color: black });
+          y -= 9;
+          page.drawText(`Labour/hr: ${formatCurrency(part.labour_per_hr)}`, { x: margin + 15, y, size: 7, font: helvetica, color: black });
+          page.drawText(`OH/hr: ${formatCurrency(part.overheads_per_hr)}`, { x: margin + 110, y, size: 7, font: helvetica, color: black });
+          page.drawText(`Mach/min: ${formatCurrency(part.machine_cost_per_min)}`, { x: margin + 200, y, size: 7, font: helvetica, color: black });
+          page.drawText(`Processing: ${formatCurrency(part.labour_processing_cost)}`, { x: margin + 320, y, size: 7, font: helveticaBold, color: green });
+          y -= 12;
+          
+          // Summary line
+          page.drawRectangle({ x: margin + 10, y: y + 2, width: pageWidth - 2 * margin - 20, height: 0.5, color: black });
+          y -= 8;
+          page.drawText(`Cost/Part: ${formatCurrency(part.total_cost_per_part)}`, { x: margin + 15, y, size: 8, font: helveticaBold, color: orange });
+          page.drawText(`Margin: ${formatPercent(part.margin ? part.margin * 100 : null)}`, { x: margin + 150, y, size: 8, font: helveticaBold, color: black });
+          page.drawText(`Unit Price: ${formatCurrency(part.unit_price)}`, { x: margin + 280, y, size: 8, font: helveticaBold, color: green });
+          y -= 15;
+        } else {
+          // For assemblies with sub-parts, show component table
           page.drawText('Part Number', { x: margin + 10, y, size: 7, font: helveticaBold, color: black });
           page.drawText('Description', { x: margin + 100, y, size: 7, font: helveticaBold, color: black });
           page.drawText('Qty', { x: margin + 280, y, size: 7, font: helveticaBold, color: black });
@@ -454,25 +703,23 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="mt-2 ml-8 border rounded-lg overflow-hidden">
-                    <table className="w-full text-sm">
-                      <thead className="bg-muted/50">
-                        <tr>
-                          <th className="text-left p-3 font-medium">Part Number</th>
-                          <th className="text-left p-3 font-medium">Description</th>
-                          <th className="text-right p-3 font-medium">Qty</th>
-                          <th className="text-right p-3 font-medium">Unit Cost</th>
-                          <th className="text-right p-3 font-medium">Total Cost</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {group.subParts.length === 0 ? (
-                          <tr className="bg-background">
-                            <td colSpan={5} className="p-3 text-muted-foreground">
-                              No component breakdown rows found for this assembly.
-                            </td>
+                    {/* For single parts (no sub-parts), show detailed breakdown */}
+                    {group.subParts.length === 0 ? (
+                      <PartBreakdownDetail part={group.topLevel} formatCurrency={formatCurrency} formatPercent={formatPercent} />
+                    ) : (
+                      /* For assemblies with sub-parts, show the component table */
+                      <table className="w-full text-sm">
+                        <thead className="bg-muted/50">
+                          <tr>
+                            <th className="text-left p-3 font-medium">Part Number</th>
+                            <th className="text-left p-3 font-medium">Description</th>
+                            <th className="text-right p-3 font-medium">Qty</th>
+                            <th className="text-right p-3 font-medium">Unit Cost</th>
+                            <th className="text-right p-3 font-medium">Total Cost</th>
                           </tr>
-                        ) : (
-                          group.subParts.map((part, idx) => (
+                        </thead>
+                        <tbody>
+                          {group.subParts.map((part, idx) => (
                             <tr
                               key={part.id}
                               className={idx % 2 === 0 ? 'bg-background' : 'bg-muted/20'}
@@ -487,26 +734,24 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
                                 {formatCurrency((part.total_cost_per_part || 0) * (part.quantity || 0))}
                               </td>
                             </tr>
-                          ))
-                        )}
-                      </tbody>
-                      <tfoot className="bg-muted/30 border-t">
-                        <tr>
-                          <td colSpan={3} className="p-3 font-semibold">Total Components Cost</td>
-                          <td></td>
-                          <td className="p-3 text-right font-bold text-orange-600">
-                            {formatCurrency(
-                              group.subParts.length > 0
-                                ? group.subParts.reduce(
-                                    (sum, p) => sum + (p.total_cost_per_part || 0) * (p.quantity || 0),
-                                    0,
-                                  )
-                                : (group.topLevel.total_cost_per_part || 0) * (group.topLevel.quantity || 0),
-                            )}
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
+                          ))}
+                        </tbody>
+                        <tfoot className="bg-muted/30 border-t">
+                          <tr>
+                            <td colSpan={3} className="p-3 font-semibold">Total Components Cost</td>
+                            <td></td>
+                            <td className="p-3 text-right font-bold text-orange-600">
+                              {formatCurrency(
+                                group.subParts.reduce(
+                                  (sum, p) => sum + (p.total_cost_per_part || 0) * (p.quantity || 0),
+                                  0,
+                                )
+                              )}
+                            </td>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    )}
                   </div>
                 </CollapsibleContent>
               </Collapsible>
