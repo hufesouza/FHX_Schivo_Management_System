@@ -137,8 +137,8 @@ export function CreateQuotationDialog({
   };
 
   const formatPercent = (value: number | null) => {
-    if (value === null) return '-';
-    return `${(value * 100).toFixed(1)}%`;
+    if (value === null || value === undefined) return '-';
+    return `${value.toFixed(1)}%`;
   };
 
   return (
