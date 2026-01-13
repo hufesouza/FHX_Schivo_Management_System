@@ -56,30 +56,35 @@ export function QuotationCostBreakdownDialog({ quotation, parts }: QuotationCost
     const topLevelParts = parts.filter(p => p.unit_price !== null && p.unit_price > 0);
     const subParts = parts.filter(p => p.unit_price === null || p.unit_price === 0);
     
-    // For each top-level, find its subparts based on resource and line_number range
-    // Sort by resource then line_number to group correctly
-    const sortedTopLevel = [...topLevelParts].sort((a, b) => {
-      const resourceCompare = (a.resource || '').localeCompare(b.resource || '');
-      if (resourceCompare !== 0) return resourceCompare;
-      return a.line_number - b.line_number;
-    });
+    // Sort by line_number to group correctly
+    const sortedTopLevel = [...topLevelParts].sort((a, b) => a.line_number - b.line_number);
+
+    // Track which subparts have been assigned to avoid duplicates
+    const assignedSubPartIds = new Set<string>();
 
     return sortedTopLevel.map((topLevel, idx) => {
       const resource = topLevel.resource || 'Unassigned';
       const currentLineNum = topLevel.line_number;
       
-      // Find next top-level in same resource to determine line number range
-      const nextTopLevelInResource = sortedTopLevel.find(
-        t => t.resource === resource && t.line_number > currentLineNum
-      );
-      const maxLineNum = nextTopLevelInResource?.line_number ?? Infinity;
+      // Find the next top-level part (any resource) to determine line number range
+      const nextTopLevel = sortedTopLevel.find(t => t.line_number > currentLineNum);
+      const maxLineNum = nextTopLevel?.line_number ?? Infinity;
       
-      // Get subparts for this assembly (same resource, line_number between current and next)
-      const assemblySubParts = subParts.filter(
-        p => p.resource === resource && 
-             p.line_number > currentLineNum && 
-             p.line_number < maxLineNum
-      );
+      // Get subparts for this assembly based on line_number range
+      // Subparts are between this top-level and the next top-level, regardless of resource
+      const assemblySubParts = subParts.filter(p => {
+        // Skip if already assigned
+        if (assignedSubPartIds.has(p.id)) return false;
+        
+        // Check if line number is within range
+        const inRange = p.line_number > currentLineNum && p.line_number < maxLineNum;
+        
+        if (inRange) {
+          assignedSubPartIds.add(p.id);
+          return true;
+        }
+        return false;
+      });
 
       // Calculate totals
       const subPartsTotalCost = assemblySubParts.reduce(
