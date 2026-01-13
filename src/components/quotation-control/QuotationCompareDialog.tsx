@@ -6,8 +6,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { GitCompare, TrendingDown, TrendingUp, Minus, ArrowRight } from 'lucide-react';
+import { GitCompare, TrendingDown, TrendingUp, Minus, ArrowRight, FileDown, Loader2 } from 'lucide-react';
 import { EnquiryQuotation, EnquiryQuotationPart } from '@/hooks/useEnquiryQuotations';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
+import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 interface QuotationCompareDialogProps {
   quotations: EnquiryQuotation[];
@@ -32,6 +35,7 @@ export function QuotationCompareDialog({ quotations, partsMap, currentQuotation 
   const [open, setOpen] = useState(false);
   const [leftQuotationId, setLeftQuotationId] = useState<string>('');
   const [rightQuotationId, setRightQuotationId] = useState<string>('');
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     if (currentQuotation && open) {
@@ -74,7 +78,7 @@ export function QuotationCompareDialog({ quotations, partsMap, currentQuotation 
       partNumber: leftPart.part_number || '',
       description: leftPart.description || '',
       quantity: leftPart.quantity || 0,
-      resource: leftPart.resource || 'N/A',
+      resource: leftPart.resource || '',
       leftPrice,
       rightPrice,
       difference,
@@ -84,10 +88,9 @@ export function QuotationCompareDialog({ quotations, partsMap, currentQuotation 
     };
   });
 
-  // Calculate totals (use outsourced prices only for total calculation to avoid double counting)
-  const outsourcedParts = comparisonData.filter(item => item.resource === 'Outsourced Brazing');
-  const totalLeftPrice = outsourcedParts.reduce((sum, item) => sum + (item.leftPrice * item.quantity), 0);
-  const totalRightPrice = outsourcedParts.reduce((sum, item) => sum + (item.rightPrice * item.quantity), 0);
+  // Calculate totals - sum all parts for total calculation
+  const totalLeftPrice = comparisonData.reduce((sum, item) => sum + (item.leftPrice * item.quantity), 0);
+  const totalRightPrice = comparisonData.reduce((sum, item) => sum + (item.rightPrice * item.quantity), 0);
   const totalDifference = totalRightPrice - totalLeftPrice;
   const totalPercentChange = totalLeftPrice > 0 ? ((totalDifference / totalLeftPrice) * 100) : 0;
 
@@ -123,6 +126,164 @@ export function QuotationCompareDialog({ quotations, partsMap, currentQuotation 
     return 'outline';
   };
 
+  const getResourceLabel = (resource: string) => {
+    if (resource === 'Outsourced Brazing') return 'Outsourced';
+    if (resource === 'Insourced Brazing') return 'Insourced';
+    return resource || '-';
+  };
+
+  const exportComparisonPDF = async () => {
+    if (!leftQuotation || !rightQuotation) return;
+    
+    setExporting(true);
+    try {
+      const pdfDoc = await PDFDocument.create();
+      const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      
+      const pageWidth = 842; // A4 Landscape
+      const pageHeight = 595;
+      const margin = 40;
+      
+      let page = pdfDoc.addPage([pageWidth, pageHeight]);
+      let y = pageHeight - margin;
+      
+      const black = rgb(0, 0, 0);
+      const green = rgb(0, 0.5, 0);
+      const red = rgb(0.8, 0, 0);
+      const gray = rgb(0.4, 0.4, 0.4);
+      const schivoOrange = rgb(0.93, 0.49, 0.19);
+      
+      // Header
+      page.drawText('Price Comparison Report', { x: margin, y, size: 18, font: helveticaBold, color: schivoOrange });
+      y -= 25;
+      page.drawText(`Generated: ${format(new Date(), 'dd-MMM-yyyy HH:mm')}`, { x: margin, y, size: 10, font: helvetica, color: gray });
+      y -= 30;
+      
+      // Summary section
+      page.drawText('Summary', { x: margin, y, size: 14, font: helveticaBold, color: black });
+      y -= 20;
+      
+      page.drawText(`${leftQuotation.enquiry_no}:`, { x: margin, y, size: 10, font: helveticaBold, color: black });
+      page.drawText(formatCurrency(totalLeftPrice), { x: margin + 120, y, size: 10, font: helvetica, color: black });
+      y -= 15;
+      
+      page.drawText(`${rightQuotation.enquiry_no}:`, { x: margin, y, size: 10, font: helveticaBold, color: black });
+      page.drawText(formatCurrency(totalRightPrice), { x: margin + 120, y, size: 10, font: helvetica, color: black });
+      y -= 15;
+      
+      const diffColor = totalDifference < 0 ? green : totalDifference > 0 ? red : gray;
+      page.drawText('Difference:', { x: margin, y, size: 10, font: helveticaBold, color: black });
+      page.drawText(`${formatCurrency(totalDifference)} (${formatPercent(totalPercentChange)})`, { 
+        x: margin + 120, y, size: 10, font: helveticaBold, color: diffColor 
+      });
+      y -= 30;
+      
+      // Table header
+      page.drawText('Price Comparison Details', { x: margin, y, size: 14, font: helveticaBold, color: black });
+      y -= 20;
+      
+      const colWidths = [90, 150, 70, 50, 90, 90, 80, 60];
+      const colX = [margin, margin + 90, margin + 240, margin + 310, margin + 360, margin + 450, margin + 540, margin + 620];
+      
+      // Table headers
+      const headers = ['Part Number', 'Description', 'Option', 'Qty', leftQuotation.enquiry_no, rightQuotation.enquiry_no, 'Difference', '%'];
+      headers.forEach((header, i) => {
+        page.drawText(header, { x: colX[i], y, size: 8, font: helveticaBold, color: black });
+      });
+      y -= 5;
+      page.drawLine({ start: { x: margin, y }, end: { x: pageWidth - margin, y }, thickness: 1, color: gray });
+      y -= 15;
+      
+      // Table rows
+      for (const item of comparisonData) {
+        if (y < 60) {
+          page = pdfDoc.addPage([pageWidth, pageHeight]);
+          y = pageHeight - margin;
+        }
+        
+        const rowDiffColor = item.difference < 0 ? green : item.difference > 0 ? red : gray;
+        
+        page.drawText(item.partNumber.substring(0, 12), { x: colX[0], y, size: 8, font: helvetica, color: black });
+        page.drawText(item.description.substring(0, 25), { x: colX[1], y, size: 8, font: helvetica, color: gray });
+        page.drawText(getResourceLabel(item.resource).substring(0, 12), { x: colX[2], y, size: 8, font: helvetica, color: gray });
+        page.drawText(String(item.quantity), { x: colX[3], y, size: 8, font: helvetica, color: black });
+        page.drawText(formatCurrency(item.leftPrice), { x: colX[4], y, size: 8, font: helvetica, color: black });
+        page.drawText(formatCurrency(item.rightPrice), { x: colX[5], y, size: 8, font: helvetica, color: black });
+        page.drawText(formatCurrency(item.difference), { x: colX[6], y, size: 8, font: helveticaBold, color: rowDiffColor });
+        page.drawText(formatPercent(item.percentChange), { x: colX[7], y, size: 8, font: helvetica, color: rowDiffColor });
+        
+        y -= 15;
+      }
+      
+      // Total row
+      y -= 5;
+      page.drawLine({ start: { x: margin, y: y + 10 }, end: { x: pageWidth - margin, y: y + 10 }, thickness: 1, color: gray });
+      page.drawText('TOTAL', { x: colX[0], y, size: 9, font: helveticaBold, color: black });
+      page.drawText(formatCurrency(totalLeftPrice), { x: colX[4], y, size: 9, font: helveticaBold, color: black });
+      page.drawText(formatCurrency(totalRightPrice), { x: colX[5], y, size: 9, font: helveticaBold, color: black });
+      page.drawText(formatCurrency(totalDifference), { x: colX[6], y, size: 9, font: helveticaBold, color: diffColor });
+      page.drawText(formatPercent(totalPercentChange), { x: colX[7], y, size: 9, font: helveticaBold, color: diffColor });
+      
+      // Cost comparison section
+      y -= 40;
+      if (y < 150) {
+        page = pdfDoc.addPage([pageWidth, pageHeight]);
+        y = pageHeight - margin;
+      }
+      
+      page.drawText('Unit Cost Comparison (Excluding Margin)', { x: margin, y, size: 14, font: helveticaBold, color: black });
+      y -= 20;
+      
+      const costHeaders = ['Part Number', 'Option', leftQuotation.enquiry_no, rightQuotation.enquiry_no, 'Cost Savings'];
+      const costColX = [margin, margin + 100, margin + 200, margin + 320, margin + 440];
+      
+      costHeaders.forEach((header, i) => {
+        page.drawText(header, { x: costColX[i], y, size: 8, font: helveticaBold, color: black });
+      });
+      y -= 5;
+      page.drawLine({ start: { x: margin, y }, end: { x: pageWidth - margin, y }, thickness: 1, color: gray });
+      y -= 15;
+      
+      for (const item of comparisonData) {
+        if (y < 60) {
+          page = pdfDoc.addPage([pageWidth, pageHeight]);
+          y = pageHeight - margin;
+        }
+        
+        const costDiff = item.rightCost - item.leftCost;
+        const costDiffColor = costDiff < 0 ? green : costDiff > 0 ? red : gray;
+        
+        page.drawText(item.partNumber, { x: costColX[0], y, size: 8, font: helvetica, color: black });
+        page.drawText(getResourceLabel(item.resource), { x: costColX[1], y, size: 8, font: helvetica, color: gray });
+        page.drawText(formatCurrency(item.leftCost), { x: costColX[2], y, size: 8, font: helvetica, color: schivoOrange });
+        page.drawText(formatCurrency(item.rightCost), { x: costColX[3], y, size: 8, font: helvetica, color: schivoOrange });
+        page.drawText(formatCurrency(costDiff), { x: costColX[4], y, size: 8, font: helveticaBold, color: costDiffColor });
+        
+        y -= 15;
+      }
+      
+      // Download PDF
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Price_Comparison_${leftQuotation.enquiry_no}_vs_${rightQuotation.enquiry_no}_${format(new Date(), 'yyyyMMdd')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast.success('Comparison PDF exported successfully');
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast.error('Failed to export PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -133,9 +294,26 @@ export function QuotationCompareDialog({ quotations, partsMap, currentQuotation 
       </DialogTrigger>
       <DialogContent className="max-w-6xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <GitCompare className="h-5 w-5" />
-            Price Comparison
+          <DialogTitle className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <GitCompare className="h-5 w-5" />
+              Price Comparison
+            </div>
+            {leftQuotation && rightQuotation && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={exportComparisonPDF}
+                disabled={exporting}
+              >
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <FileDown className="h-4 w-4 mr-2" />
+                )}
+                Export PDF
+              </Button>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -179,14 +357,14 @@ export function QuotationCompareDialog({ quotations, partsMap, currentQuotation 
             <div className="grid grid-cols-3 gap-4">
               <Card>
                 <CardContent className="p-4">
-                  <div className="text-sm text-muted-foreground mb-1">{leftQuotation.enquiry_no} (Outsourced)</div>
+                  <div className="text-sm text-muted-foreground mb-1">{leftQuotation.enquiry_no}</div>
                   <div className="text-2xl font-bold">{formatCurrency(totalLeftPrice)}</div>
                   <div className="text-xs text-muted-foreground mt-1">Margin: {leftQuotation.average_margin}%</div>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-4">
-                  <div className="text-sm text-muted-foreground mb-1">{rightQuotation.enquiry_no} (Outsourced)</div>
+                  <div className="text-sm text-muted-foreground mb-1">{rightQuotation.enquiry_no}</div>
                   <div className="text-2xl font-bold">{formatCurrency(totalRightPrice)}</div>
                   <div className="text-xs text-muted-foreground mt-1">Margin: {rightQuotation.average_margin}%</div>
                 </CardContent>
@@ -227,9 +405,13 @@ export function QuotationCompareDialog({ quotations, partsMap, currentQuotation 
                       <TableCell className="font-mono text-sm">{item.partNumber}</TableCell>
                       <TableCell className="text-sm max-w-[150px] truncate">{item.description}</TableCell>
                       <TableCell>
-                        <Badge variant={getResourceBadgeVariant(item.resource)} className="text-xs whitespace-nowrap">
-                          {item.resource === 'Outsourced Brazing' ? 'Outsourced' : 'Insourced'}
-                        </Badge>
+                        {item.resource ? (
+                          <Badge variant={getResourceBadgeVariant(item.resource)} className="text-xs whitespace-nowrap">
+                            {getResourceLabel(item.resource)}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">-</span>
+                        )}
                       </TableCell>
                       <TableCell className="text-center">{item.quantity}</TableCell>
                       <TableCell className="text-right font-medium">{formatCurrency(item.leftPrice)}</TableCell>
@@ -274,9 +456,13 @@ export function QuotationCompareDialog({ quotations, partsMap, currentQuotation 
                         <TableRow key={idx}>
                           <TableCell className="font-mono text-xs">{item.partNumber}</TableCell>
                           <TableCell>
-                            <Badge variant={getResourceBadgeVariant(item.resource)} className="text-xs">
-                              {item.resource === 'Outsourced Brazing' ? 'Outsourced' : 'Insourced'}
-                            </Badge>
+                            {item.resource ? (
+                              <Badge variant={getResourceBadgeVariant(item.resource)} className="text-xs">
+                                {getResourceLabel(item.resource)}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">-</span>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">{formatCurrency(item.leftCost)}</TableCell>
                           <TableCell className="text-right">{formatCurrency(item.rightCost)}</TableCell>
