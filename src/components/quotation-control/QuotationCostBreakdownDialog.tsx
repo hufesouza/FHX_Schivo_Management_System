@@ -43,7 +43,7 @@ interface AssemblyGroup {
   };
 }
 
-// Component for showing detailed breakdown of a single part
+// Component for showing detailed breakdown of a single part - compact cards layout
 function PartBreakdownDetail({ 
   part, 
   formatCurrency, 
@@ -56,168 +56,147 @@ function PartBreakdownDetail({
   const formatNumber = (v: number | null) => v !== null && v !== undefined ? v.toFixed(2) : '—';
   
   return (
-    <div className="p-4 space-y-4 bg-muted/10">
-      {/* Material Section */}
-      <div className="border rounded-lg overflow-hidden">
-        <div className="bg-blue-100 dark:bg-blue-900/30 px-3 py-2 font-semibold text-sm text-blue-800 dark:text-blue-200">
-          Material
+    <div className="p-3 bg-muted/10">
+      {/* Compact 2x2 grid of breakdown cards */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Material Card */}
+        <div className="border rounded-lg overflow-hidden">
+          <div className="bg-blue-100 dark:bg-blue-900/30 px-2 py-1 font-semibold text-xs text-blue-800 dark:text-blue-200">
+            Material
+          </div>
+          <div className="p-2 space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Material:</span>
+              <span className="font-medium truncate max-w-[120px]" title={part.material_name || ''}>{part.material_name || '—'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Qty/Unit:</span>
+              <span className="font-medium">{formatNumber(part.material_qty_per_unit)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Std Cost:</span>
+              <span className="font-medium">{formatCurrency(part.material_std_cost_est)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Markup:</span>
+              <span className="font-medium">{formatPercent(part.material_markup ? part.material_markup * 100 : null)}</span>
+            </div>
+            <div className="flex justify-between border-t pt-1 mt-1">
+              <span className="text-muted-foreground font-medium">Total:</span>
+              <span className="font-bold text-blue-600">{formatCurrency(part.total_material)}</span>
+            </div>
+          </div>
         </div>
-        <div className="grid grid-cols-5 gap-2 p-3 text-sm">
-          <div>
-            <span className="text-muted-foreground text-xs">Material</span>
-            <p className="font-medium truncate" title={part.material_name || ''}>{part.material_name || '—'}</p>
+
+        {/* Subcon Card */}
+        <div className="border rounded-lg overflow-hidden">
+          <div className="bg-purple-100 dark:bg-purple-900/30 px-2 py-1 font-semibold text-xs text-purple-800 dark:text-purple-200">
+            Subcon
           </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Qty/Unit</span>
-            <p className="font-medium">{formatNumber(part.material_qty_per_unit)}</p>
+          <div className="p-2 space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Subcon Cost:</span>
+              <span className="font-medium">{formatCurrency(part.subcon_cost)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Markup:</span>
+              <span className="font-medium">{formatPercent(part.subcon_markup ? part.subcon_markup * 100 : null)}</span>
+            </div>
+            <div className="flex justify-between border-t pt-1 mt-1">
+              <span className="text-muted-foreground font-medium">Cost/Part:</span>
+              <span className="font-bold text-purple-600">{formatCurrency(part.subcon_cost_per_part)}</span>
+            </div>
           </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Std Cost Est</span>
-            <p className="font-medium">{formatCurrency(part.material_std_cost_est)}</p>
+        </div>
+
+        {/* Development Card */}
+        <div className="border rounded-lg overflow-hidden">
+          <div className="bg-amber-100 dark:bg-amber-900/30 px-2 py-1 font-semibold text-xs text-amber-800 dark:text-amber-200">
+            Development
           </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Markup</span>
-            <p className="font-medium">{formatPercent(part.material_markup ? part.material_markup * 100 : null)}</p>
+          <div className="p-2 space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Resource:</span>
+              <span className="font-medium">{part.resource || '—'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Volume:</span>
+              <span className="font-medium">{formatNumber(part.volume)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Dev Time:</span>
+              <span className="font-medium">{formatNumber(part.development_time)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Days/Shift:</span>
+              <span className="font-medium">{formatNumber(part.days_dev_time)} / {formatNumber(part.shift)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Tooling:</span>
+              <span className="font-medium">{formatCurrency(part.tooling)}</span>
+            </div>
+            <div className="flex justify-between border-t pt-1 mt-1">
+              <span className="text-muted-foreground font-medium">Dev Cost:</span>
+              <span className="font-bold text-amber-600">{formatCurrency(part.dev_time_cost)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground font-medium">NRE:</span>
+              <span className="font-bold text-amber-600">{formatCurrency(part.nre)}</span>
+            </div>
           </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Total Material</span>
-            <p className="font-bold text-blue-600">{formatCurrency(part.total_material)}</p>
+        </div>
+
+        {/* Routing Card */}
+        <div className="border rounded-lg overflow-hidden">
+          <div className="bg-green-100 dark:bg-green-900/30 px-2 py-1 font-semibold text-xs text-green-800 dark:text-green-200">
+            Routing
+          </div>
+          <div className="p-2 space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Manning:</span>
+              <span className="font-medium">{part.machine_manning || '—'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Setup:</span>
+              <span className="font-medium">{formatNumber(part.machine_setup)} min</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Run Time:</span>
+              <span className="font-medium">{formatNumber(part.machine_run_time)} min</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Deburr/Wash:</span>
+              <span className="font-medium">{formatNumber(part.part_deburr)} / {formatNumber(part.wash)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Labour/hr:</span>
+              <span className="font-medium">{formatCurrency(part.labour_per_hr)}</span>
+            </div>
+            <div className="flex justify-between border-t pt-1 mt-1">
+              <span className="text-muted-foreground font-medium">Processing:</span>
+              <span className="font-bold text-green-600">{formatCurrency(part.labour_processing_cost)}</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Subcon Section */}
-      <div className="border rounded-lg overflow-hidden">
-        <div className="bg-purple-100 dark:bg-purple-900/30 px-3 py-2 font-semibold text-sm text-purple-800 dark:text-purple-200">
-          Subcon
-        </div>
-        <div className="grid grid-cols-3 gap-2 p-3 text-sm">
-          <div>
-            <span className="text-muted-foreground text-xs">Subcon Cost</span>
-            <p className="font-medium">{formatCurrency(part.subcon_cost)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Subcon Markup</span>
-            <p className="font-medium">{formatPercent(part.subcon_markup ? part.subcon_markup * 100 : null)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Subcon Cost/Part</span>
-            <p className="font-bold text-purple-600">{formatCurrency(part.subcon_cost_per_part)}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Development Section */}
-      <div className="border rounded-lg overflow-hidden">
-        <div className="bg-amber-100 dark:bg-amber-900/30 px-3 py-2 font-semibold text-sm text-amber-800 dark:text-amber-200">
-          Development
-        </div>
-        <div className="grid grid-cols-6 gap-2 p-3 text-sm">
-          <div>
-            <span className="text-muted-foreground text-xs">Resource</span>
-            <p className="font-medium">{part.resource || '—'}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Volume</span>
-            <p className="font-medium">{formatNumber(part.volume)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Dev Time</span>
-            <p className="font-medium">{formatNumber(part.development_time)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Days Dev</span>
-            <p className="font-medium">{formatNumber(part.days_dev_time)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Shift</span>
-            <p className="font-medium">{formatNumber(part.shift)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Dev Time Cost</span>
-            <p className="font-bold text-amber-600">{formatCurrency(part.dev_time_cost)}</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-2 px-3 pb-3 text-sm">
-          <div>
-            <span className="text-muted-foreground text-xs">Tooling</span>
-            <p className="font-medium">{formatCurrency(part.tooling)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">NRE</span>
-            <p className="font-bold text-amber-600">{formatCurrency(part.nre)}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Routing Section */}
-      <div className="border rounded-lg overflow-hidden">
-        <div className="bg-green-100 dark:bg-green-900/30 px-3 py-2 font-semibold text-sm text-green-800 dark:text-green-200">
-          Routing
-        </div>
-        <div className="grid grid-cols-5 gap-2 p-3 text-sm">
-          <div>
-            <span className="text-muted-foreground text-xs">Machine Manning</span>
-            <p className="font-medium">{part.machine_manning || '—'}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Setup (min)</span>
-            <p className="font-medium">{formatNumber(part.machine_setup)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Run Time (min)</span>
-            <p className="font-medium">{formatNumber(part.machine_run_time)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Deburr (min)</span>
-            <p className="font-medium">{formatNumber(part.part_deburr)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Wash (min)</span>
-            <p className="font-medium">{formatNumber(part.wash)}</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-5 gap-2 px-3 pb-3 text-sm">
-          <div>
-            <span className="text-muted-foreground text-xs">Labour/hr</span>
-            <p className="font-medium">{formatCurrency(part.labour_per_hr)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Overheads/hr</span>
-            <p className="font-medium">{formatCurrency(part.overheads_per_hr)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Machine Cost/min</span>
-            <p className="font-medium">{formatCurrency(part.machine_cost_per_min)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Sec Ops Cost/min</span>
-            <p className="font-medium">{formatCurrency(part.secondary_ops_cost_per_min)}</p>
-          </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Processing Cost</span>
-            <p className="font-bold text-green-600">{formatCurrency(part.labour_processing_cost)}</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Summary Section */}
-      <div className="border rounded-lg overflow-hidden">
-        <div className="bg-primary/20 px-3 py-2 font-semibold text-sm">
+      {/* Price Summary - horizontal compact bar */}
+      <div className="mt-3 border rounded-lg overflow-hidden">
+        <div className="bg-primary/20 px-2 py-1 font-semibold text-xs">
           Price Summary
         </div>
-        <div className="grid grid-cols-3 gap-2 p-3 text-sm">
-          <div>
-            <span className="text-muted-foreground text-xs">Total Cost/Part</span>
-            <p className="font-bold text-orange-600 text-lg">{formatCurrency(part.total_cost_per_part)}</p>
+        <div className="flex justify-between items-center p-2 text-sm">
+          <div className="flex items-center gap-4">
+            <span className="text-muted-foreground text-xs">Cost/Part:</span>
+            <span className="font-bold text-orange-600">{formatCurrency(part.total_cost_per_part)}</span>
           </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Margin</span>
-            <p className="font-bold text-lg">{formatPercent(part.margin ? part.margin * 100 : null)}</p>
+          <div className="flex items-center gap-4">
+            <span className="text-muted-foreground text-xs">Margin:</span>
+            <span className="font-bold">{formatPercent(part.margin ? part.margin * 100 : null)}</span>
           </div>
-          <div>
-            <span className="text-muted-foreground text-xs">Unit Price</span>
-            <p className="font-bold text-green-600 text-lg">{formatCurrency(part.unit_price)}</p>
+          <div className="flex items-center gap-4">
+            <span className="text-muted-foreground text-xs">Unit Price:</span>
+            <span className="font-bold text-green-600">{formatCurrency(part.unit_price)}</span>
           </div>
         </div>
       </div>
