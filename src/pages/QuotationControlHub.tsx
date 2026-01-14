@@ -11,7 +11,7 @@ import { EnquiryDashboard } from '@/components/quotation-control/EnquiryDashboar
 import { EnquiryList, EnquiryListFilters } from '@/components/quotation-control/EnquiryList';
 import { EnquiryWorkflow } from '@/components/quotation-control/EnquiryWorkflow';
 import { CreateQuotationDialog } from '@/components/quotation-control/CreateQuotationDialog';
-import { ExportQuotationPDF } from '@/components/quotation-control/ExportQuotationPDF';
+import { ExportQuotationDialog } from '@/components/quotation-control/ExportQuotationDialog';
 import { EditQuotationNotesDialog } from '@/components/quotation-control/EditQuotationNotesDialog';
 import { QuotationCostBreakdownDialog } from '@/components/quotation-control/QuotationCostBreakdownDialog';
 import { QuotationCompareDialog } from '@/components/quotation-control/QuotationCompareDialog';
@@ -375,7 +375,7 @@ const QuotationControlHub = () => {
                                       quotation={q} 
                                       onSave={(id, notes) => updateQuotation(id, { notes })}
                                     />
-                                    <ExportQuotationPDF 
+                                    <ExportQuotationDialog 
                                       quotation={q} 
                                       parts={quotationPartsMap[q.id] || []} 
                                     />
