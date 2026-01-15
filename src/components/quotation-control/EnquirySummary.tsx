@@ -31,6 +31,7 @@ interface QuotationWithPricing {
   totalPrice: number;
   totalCost: number;
   margin: number;
+  unitPriceQuoted: number;
 }
 
 export function EnquirySummary({
@@ -74,13 +75,15 @@ export function EnquirySummary({
           const qty = firstPricing?.quantity || 1;
           const totalCost = costPerUnit * qty;
           const margin = firstPricing?.margin || 0;
+          const unitPriceQuoted = firstPricing?.unit_price_quoted || 0;
 
           pricingMap.set(quotation.id, {
             quotation,
             volumePricing: pricing,
             totalPrice,
             totalCost,
-            margin
+            margin,
+            unitPriceQuoted
           });
         }
 
@@ -108,13 +111,17 @@ export function EnquirySummary({
         const value = pricing?.totalPrice || 0;
         const cost = pricing?.totalCost || 0;
         const margin = pricing?.margin || 0;
+        const unitPrice = pricing?.unitPriceQuoted || 0;
+        const costPerUnit = pricing?.totalCost && pricing?.volumePricing[0]?.quantity 
+          ? pricing.totalCost / pricing.volumePricing[0].quantity 
+          : 0;
         totalValue += value;
         totalCost += cost;
         return {
           ...part,
           quotation,
-          unitPrice: value,
-          cost,
+          unitPrice,
+          cost: costPerUnit,
           margin
         };
       }
