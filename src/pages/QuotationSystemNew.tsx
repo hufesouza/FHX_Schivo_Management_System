@@ -62,6 +62,13 @@ interface VolumePricing {
   margin: number;
 }
 
+interface Customer {
+  id: string;
+  bp_code: string;
+  bp_name: string;
+  is_active: boolean;
+}
+
 const QuotationSystemNew = () => {
   const navigate = useNavigate();
   const { id: editId } = useParams<{ id: string }>();
@@ -72,8 +79,33 @@ const QuotationSystemNew = () => {
   const [loadingQuotation, setLoadingQuotation] = useState(false);
   const [activeTab, setActiveTab] = useState('header');
   const [quotationId, setQuotationId] = useState<string | null>(editId || null);
+  const [customers, setCustomers] = useState<Customer[]>([]);
 
   const tabOrder = ['header', 'materials', 'subcon', 'routings', 'pricing'];
+
+  // Fetch customers list
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      const { data, error } = await supabase
+        .from('quotation_customers')
+        .select('*')
+        .eq('is_active', true)
+        .order('bp_name');
+      
+      if (!error && data) {
+        setCustomers(data);
+      }
+    };
+    fetchCustomers();
+  }, []);
+
+  // Auto-update customer code when customer name changes
+  const getCustomerCode = (customerName: string): string => {
+    const match = customers.find(c => 
+      c.bp_name.toLowerCase() === customerName.toLowerCase()
+    );
+    return match ? match.bp_code : 'N/A';
+  };
 
   // Header state
   const [header, setHeader] = useState({
@@ -456,6 +488,7 @@ const QuotationSystemNew = () => {
           .from('system_quotations')
           .update({
             ...header,
+            customer_code: getCustomerCode(header.customer),
             vol_1: volumes[0]?.quantity || null,
             vol_2: volumes[1]?.quantity || null,
             vol_3: volumes[2]?.quantity || null,
@@ -475,6 +508,7 @@ const QuotationSystemNew = () => {
           .from('system_quotations')
           .insert({
             ...header,
+            customer_code: getCustomerCode(header.customer),
             vol_1: volumes[0]?.quantity || null,
             vol_2: volumes[1]?.quantity || null,
             vol_3: volumes[2]?.quantity || null,
@@ -699,10 +733,14 @@ const QuotationSystemNew = () => {
                   <div className="space-y-2">
                     <Label>Customer Code</Label>
                     <Input
-                      value={header.customer_code}
-                      onChange={(e) => setHeader({ ...header, customer_code: e.target.value })}
-                      placeholder="e.g., CI0008"
+                      value={getCustomerCode(header.customer)}
+                      readOnly
+                      className="bg-muted"
+                      placeholder="Auto-filled from customer name"
                     />
+                    <p className="text-xs text-muted-foreground">
+                      Auto-populated from customer list
+                    </p>
                   </div>
                   <div className="space-y-2">
                     <Label>Quoted By</Label>
