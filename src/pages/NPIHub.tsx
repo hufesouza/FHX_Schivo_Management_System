@@ -22,7 +22,8 @@ import {
   Bell,
   CalendarDays,
   FolderKanban,
-  FileType2
+  FileType2,
+  FileSpreadsheet
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -61,6 +62,15 @@ const subModules = [
     icon: ClipboardList,
     href: '/npi/pipeline',
     color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+    available: true,
+  },
+  {
+    id: 'quotation-system',
+    title: 'Quotation System',
+    description: 'Digital quotation with routing sheets, BOM, subcon and cost calculations (WD-FRM-0018)',
+    icon: FileSpreadsheet,
+    href: '/npi/quotation-system',
+    color: 'bg-teal-500/10 text-teal-600 border-teal-500/20',
     available: true,
   },
   {
