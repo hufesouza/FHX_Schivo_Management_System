@@ -86,6 +86,7 @@ const EnquiryDetail = () => {
   const [newPartRevision, setNewPartRevision] = useState('');
   const [newPartDrawing, setNewPartDrawing] = useState<File | null>(null);
   const [addingPart, setAddingPart] = useState(false);
+  const [extractingDetails, setExtractingDetails] = useState(false);
   
   // File upload
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -146,6 +147,61 @@ const EnquiryDetail = () => {
     if (!id) return;
     await updateEnquiryStatus(id, newStatus);
     loadEnquiry();
+  };
+
+  const handleDrawingUploadAndExtract = async (file: File) => {
+    setNewPartDrawing(file);
+    setExtractingDetails(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-part-from-drawing`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: formData,
+        }
+      );
+      
+      if (!response.ok) {
+        if (response.status === 429) {
+          toast.error('Rate limit exceeded. Please try again in a moment.');
+        } else if (response.status === 402) {
+          toast.error('AI credits depleted. Please add credits to continue.');
+        } else {
+          throw new Error('Failed to extract part details');
+        }
+        return;
+      }
+      
+      const data = await response.json();
+      
+      if (data.part_number) {
+        setNewPartNumber(data.part_number);
+      }
+      if (data.description) {
+        setNewPartDescription(data.description);
+      }
+      if (data.revision) {
+        setNewPartRevision(data.revision);
+      }
+      
+      if (data.part_number || data.description || data.revision) {
+        toast.success('Part details extracted from drawing');
+      } else {
+        toast.info('Could not extract details - please enter manually');
+      }
+    } catch (error) {
+      console.error('Error extracting part details:', error);
+      toast.error('Failed to extract part details from drawing');
+    } finally {
+      setExtractingDetails(false);
+    }
   };
 
   const handleAddPart = async () => {
@@ -397,20 +453,72 @@ const EnquiryDetail = () => {
                     Add Part
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="sm:max-w-md">
                   <DialogHeader>
                     <DialogTitle>Add New Part</DialogTitle>
                     <DialogDescription>
-                      Enter the part details to add to this enquiry.
+                      Upload a drawing to auto-extract part details, or enter them manually.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
+                    {/* Drawing upload first - triggers auto-extraction */}
+                    <div className="grid gap-2">
+                      <Label className="flex items-center gap-2">
+                        <Upload className="h-4 w-4" />
+                        Drawing (PDF or Image)
+                      </Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              handleDrawingUploadAndExtract(file);
+                            }
+                          }}
+                          className="flex-1"
+                          disabled={extractingDetails}
+                        />
+                        {newPartDrawing && !extractingDetails && (
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => {
+                              setNewPartDrawing(null);
+                              setNewPartNumber('');
+                              setNewPartDescription('');
+                              setNewPartRevision('');
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      {extractingDetails && (
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Extracting part details from drawing...
+                        </div>
+                      )}
+                      {newPartDrawing && !extractingDetails && (
+                        <p className="text-sm text-muted-foreground">
+                          ✓ {newPartDrawing.name}
+                        </p>
+                      )}
+                    </div>
+
+                    <Separator />
+                    
+                    {/* Part details - auto-filled or manual entry */}
                     <div className="grid gap-2">
                       <Label>Part Number *</Label>
                       <Input
                         value={newPartNumber}
                         onChange={(e) => setNewPartNumber(e.target.value)}
                         placeholder="e.g., 12345-ABC"
+                        disabled={extractingDetails}
                       />
                     </div>
                     <div className="grid gap-2">
@@ -419,6 +527,7 @@ const EnquiryDetail = () => {
                         value={newPartDescription}
                         onChange={(e) => setNewPartDescription(e.target.value)}
                         placeholder="Part description"
+                        disabled={extractingDetails}
                       />
                     </div>
                     <div className="grid gap-2">
@@ -427,40 +536,15 @@ const EnquiryDetail = () => {
                         value={newPartRevision}
                         onChange={(e) => setNewPartRevision(e.target.value)}
                         placeholder="e.g., A, 01, Rev.1"
+                        disabled={extractingDetails}
                       />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label>Drawing (PDF or Image)</Label>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          onChange={(e) => setNewPartDrawing(e.target.files?.[0] || null)}
-                          className="flex-1"
-                        />
-                        {newPartDrawing && (
-                          <Button 
-                            type="button" 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => setNewPartDrawing(null)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                      {newPartDrawing && (
-                        <p className="text-sm text-muted-foreground">
-                          Selected: {newPartDrawing.name}
-                        </p>
-                      )}
                     </div>
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setAddPartOpen(false)}>
                       Cancel
                     </Button>
-                    <Button onClick={handleAddPart} disabled={addingPart}>
+                    <Button onClick={handleAddPart} disabled={addingPart || extractingDetails}>
                       {addingPart ? (
                         <>
                           <Loader2 className="h-4 w-4 mr-2 animate-spin" />
