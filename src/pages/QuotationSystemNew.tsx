@@ -22,7 +22,7 @@ import { useQuotationResources, useQuotationSettings } from '@/hooks/useQuotatio
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-type CalculationExplainer = 'hours' | 'costPerHour' | 'labour' | 'material' | 'subcon' | 'totalCost' | 'costPerPart' | 'unitPrice' | 'margin' | null;
+type CalculationExplainer = 'routingCost' | 'material' | 'subcon' | 'totalCost' | 'costPerPart' | 'unitPrice' | 'margin' | null;
 
 interface MaterialLine {
   line_number: number;
@@ -804,22 +804,21 @@ const QuotationSystemNew = () => {
       // Insert volume pricing
       const costPerHour = getSettingValue('cost_per_hour') || 55;
       const volumeInserts = volumes.map(v => {
-        // hours = ((((totalSetupTime / qty) + runTime) * qty) / 60)
-        const hours = ((((totals.totalSetupTime / v.quantity) + totals.totalRunTime) * v.quantity) / 60);
-        const labourCost = hours * costPerHour;
+        // Routing cost = (Setup Time + Run Time × Qty) / 60 × Cost/Hr
+        const routingCost = (totals.totalSetupTime + totals.totalRunTime * v.quantity) / 60 * costPerHour;
         const materialCost = totals.totalMaterialCost * v.quantity;
         // Get subcon cost specific to this quantity tier
         const subconCostPerUnit = getSubconCostForQuantity(v.quantity) * (1 + header.subcon_markup / 100);
         const subconCost = subconCostPerUnit * v.quantity;
-        const totalCost = labourCost + materialCost + subconCost;
+        const totalCost = routingCost + materialCost + subconCost;
         const unitPrice = totalCost / v.quantity / (1 - v.margin / 100);
 
         return {
           quotation_id: currentQuotationId,
           quantity: v.quantity,
-          hours,
+          hours: (totals.totalSetupTime + totals.totalRunTime * v.quantity) / 60,
           cost_per_hour: costPerHour,
-          labour_cost: labourCost,
+          labour_cost: routingCost,
           material_cost: materialCost,
           subcon_cost: subconCost,
           tooling_cost: 0,
@@ -2071,21 +2070,9 @@ const QuotationSystemNew = () => {
                         <TableHead>Qty</TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
-                          onClick={() => setExplainerOpen('hours')}
+                          onClick={() => setExplainerOpen('routingCost')}
                         >
-                          <span className="underline decoration-dotted">Hours</span>
-                        </TableHead>
-                        <TableHead 
-                          className="text-right cursor-pointer hover:bg-muted transition-colors"
-                          onClick={() => setExplainerOpen('costPerHour')}
-                        >
-                          <span className="underline decoration-dotted">Cost/Hr (€)</span>
-                        </TableHead>
-                        <TableHead 
-                          className="text-right cursor-pointer hover:bg-muted transition-colors"
-                          onClick={() => setExplainerOpen('labour')}
-                        >
-                          <span className="underline decoration-dotted">Labour (€)</span>
+                          <span className="underline decoration-dotted">Routing (€)</span>
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
@@ -2127,20 +2114,17 @@ const QuotationSystemNew = () => {
                     </TableHeader>
                     <TableBody>
                       {volumes.map((vol, idx) => {
-                        const hours = ((((totals.totalSetupTime / vol.quantity) + totals.totalRunTime) * vol.quantity) / 60);
-                        const labourCost = hours * totals.costPerHour;
+                        const routingCost = (totals.totalSetupTime + totals.totalRunTime * vol.quantity) / 60 * totals.costPerHour;
                         const materialCost = totals.totalMaterialCost * vol.quantity;
                         const subconCost = totals.totalSubconCost * vol.quantity;
-                        const totalCost = labourCost + materialCost + subconCost;
+                        const totalCost = routingCost + materialCost + subconCost;
                         const unitPriceEur = totalCost / vol.quantity / (1 - vol.margin / 100);
                         const unitPriceConverted = unitPriceEur * exchangeRate;
 
                         return (
                           <TableRow key={idx}>
                             <TableCell className="font-medium">{vol.quantity}</TableCell>
-                            <TableCell className="text-right">{hours.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">€{totals.costPerHour.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">€{labourCost.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">€{routingCost.toFixed(2)}</TableCell>
                             <TableCell className="text-right">€{materialCost.toFixed(2)}</TableCell>
                             <TableCell className="text-right">€{subconCost.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-medium">€{totalCost.toFixed(2)}</TableCell>
@@ -2186,9 +2170,7 @@ const QuotationSystemNew = () => {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Calculator className="h-5 w-5" />
-                  {explainerOpen === 'hours' && 'Hours Calculation'}
-                  {explainerOpen === 'costPerHour' && 'Cost per Hour'}
-                  {explainerOpen === 'labour' && 'Labour Cost Calculation'}
+                  {explainerOpen === 'routingCost' && 'Routing Cost Calculation'}
                   {explainerOpen === 'material' && 'Material Cost Calculation'}
                   {explainerOpen === 'subcon' && 'Subcon Cost Calculation'}
                   {explainerOpen === 'totalCost' && 'Total Cost Calculation'}
@@ -2198,49 +2180,19 @@ const QuotationSystemNew = () => {
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
-                {explainerOpen === 'hours' && (
+                {explainerOpen === 'routingCost' && (
                   <>
                     <DialogDescription>
-                      Total hours required to produce the batch at each volume tier.
+                      Total routing cost based on setup time, run time, and hourly rate.
                     </DialogDescription>
                     <div className="bg-muted p-4 rounded-lg space-y-2">
-                      <p className="font-mono text-sm">Hours = (Setup Time + Run Time × Quantity) ÷ 60</p>
+                      <p className="font-mono text-sm">Routing = (Setup Time + Run Time × Qty) ÷ 60 × Cost/Hr</p>
                       <div className="border-t pt-2 mt-2">
                         <p className="text-sm"><strong>Current Values:</strong></p>
                         <ul className="text-sm space-y-1 mt-1">
                           <li>• Total Setup Time: <strong>{totals.totalSetupTime.toFixed(1)} min</strong></li>
                           <li>• Run Time per Part: <strong>{totals.totalRunTime.toFixed(1)} min</strong></li>
-                        </ul>
-                      </div>
-                    </div>
-                  </>
-                )}
-                {explainerOpen === 'costPerHour' && (
-                  <>
-                    <DialogDescription>
-                      The hourly cost rate used for labour calculations.
-                    </DialogDescription>
-                    <div className="bg-muted p-4 rounded-lg space-y-2">
-                      <p className="text-sm">This value is set in the <strong>Quotation System Settings</strong> page.</p>
-                      <div className="border-t pt-2 mt-2">
-                        <p className="text-sm"><strong>Current Value:</strong></p>
-                        <p className="text-lg font-bold">€{totals.costPerHour.toFixed(2)}/hr</p>
-                      </div>
-                    </div>
-                  </>
-                )}
-                {explainerOpen === 'labour' && (
-                  <>
-                    <DialogDescription>
-                      Total labour cost based on hours worked at the hourly rate.
-                    </DialogDescription>
-                    <div className="bg-muted p-4 rounded-lg space-y-2">
-                      <p className="font-mono text-sm">Labour Cost = Hours × Cost per Hour</p>
-                      <div className="border-t pt-2 mt-2">
-                        <p className="text-sm"><strong>Components:</strong></p>
-                        <ul className="text-sm space-y-1 mt-1">
-                          <li>• Hours: Calculated from routings</li>
-                          <li>• Cost/Hr: <strong>€{totals.costPerHour.toFixed(2)}</strong></li>
+                          <li>• Cost per Hour: <strong>€{totals.costPerHour.toFixed(2)}</strong></li>
                         </ul>
                       </div>
                     </div>
