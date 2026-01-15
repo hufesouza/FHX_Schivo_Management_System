@@ -2067,24 +2067,28 @@ const QuotationSystemNew = () => {
                               />
                             </TableCell>
                             <TableCell className="text-center">
-                              <div className="flex items-center justify-center">
-                                <input
-                                  type="checkbox"
-                                  checked={isIncluded}
-                                  onChange={(e) => {
-                                    setSetupIncludedOps(prev => {
-                                      const newSet = new Set(prev);
-                                      if (e.target.checked) {
-                                        newSet.add(route.op_no);
-                                      } else {
-                                        newSet.delete(route.op_no);
-                                      }
-                                      return newSet;
-                                    });
-                                  }}
-                                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                                />
-                              </div>
+                              {route.setup_time > 0 ? (
+                                <div className="flex items-center justify-center">
+                                  <input
+                                    type="checkbox"
+                                    checked={isIncluded}
+                                    onChange={(e) => {
+                                      setSetupIncludedOps(prev => {
+                                        const newSet = new Set(prev);
+                                        if (e.target.checked) {
+                                          newSet.add(route.op_no);
+                                        } else {
+                                          newSet.delete(route.op_no);
+                                        }
+                                        return newSet;
+                                      });
+                                    }}
+                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                  />
+                                </div>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
                             </TableCell>
                             <TableCell className="text-right">
                               <span className={`font-medium ${isIncluded ? 'text-primary' : 'text-muted-foreground line-through'}`}>
