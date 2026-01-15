@@ -2109,6 +2109,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          site: string
           updated_at: string
         }
         Insert: {
@@ -2117,6 +2118,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          site?: string
           updated_at?: string
         }
         Update: {
@@ -2125,6 +2127,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          site?: string
           updated_at?: string
         }
         Relationships: []
@@ -2136,6 +2139,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          site: string
           updated_at: string
         }
         Insert: {
@@ -2144,6 +2148,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          site?: string
           updated_at?: string
         }
         Update: {
@@ -2152,6 +2157,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          site?: string
           updated_at?: string
         }
         Relationships: []
@@ -2232,6 +2238,7 @@ export type Database = {
           is_active: boolean | null
           resource_description: string
           resource_no: string
+          site: string
           updated_at: string
         }
         Insert: {
@@ -2241,6 +2248,7 @@ export type Database = {
           is_active?: boolean | null
           resource_description: string
           resource_no: string
+          site?: string
           updated_at?: string
         }
         Update: {
@@ -2250,6 +2258,7 @@ export type Database = {
           is_active?: boolean | null
           resource_description?: string
           resource_no?: string
+          site?: string
           updated_at?: string
         }
         Relationships: []
@@ -2324,6 +2333,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          site: string
           updated_at: string
         }
         Insert: {
@@ -2332,6 +2342,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          site?: string
           updated_at?: string
         }
         Update: {
@@ -2340,6 +2351,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          site?: string
           updated_at?: string
         }
         Relationships: []
@@ -2400,6 +2412,7 @@ export type Database = {
           id: string
           setting_key: string
           setting_value: number
+          site: string
           updated_at: string
           updated_by: string | null
         }
@@ -2408,6 +2421,7 @@ export type Database = {
           id?: string
           setting_key: string
           setting_value: number
+          site?: string
           updated_at?: string
           updated_by?: string | null
         }
@@ -2416,6 +2430,7 @@ export type Database = {
           id?: string
           setting_key?: string
           setting_value?: number
+          site?: string
           updated_at?: string
           updated_by?: string | null
         }

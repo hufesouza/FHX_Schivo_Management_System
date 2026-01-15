@@ -8,17 +8,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Save, Search, Plus, Settings, DollarSign, Percent, Truck, Trash2, Package, Users } from 'lucide-react';
+import { Loader2, Save, Search, Plus, Settings, DollarSign, Percent, Truck, Trash2, Package, Users, Building2, MapPin } from 'lucide-react';
 import { useQuotationResources, useQuotationSettings } from '@/hooks/useQuotationSystem';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+type Site = 'waterford' | 'mexico';
 
 interface SubconVendor {
   id: string;
   bp_code: string;
   bp_name: string;
   is_active: boolean;
+  site: string;
 }
 
 interface MaterialSupplier {
@@ -26,6 +29,7 @@ interface MaterialSupplier {
   bp_code: string;
   bp_name: string;
   is_active: boolean;
+  site: string;
 }
 
 interface Customer {
@@ -33,11 +37,17 @@ interface Customer {
   bp_code: string;
   bp_name: string;
   is_active: boolean;
+  site: string;
 }
 
-const QuotationSystemSettings = () => {
-  const { resources, loading: resourcesLoading, updateResource, addResource } = useQuotationResources();
-  const { settings, loading: settingsLoading, updateSetting } = useQuotationSettings();
+interface SiteSettingsTabsProps {
+  site: Site;
+  siteLabel: string;
+}
+
+const SiteSettingsTabs = ({ site, siteLabel }: SiteSettingsTabsProps) => {
+  const { resources, loading: resourcesLoading, updateResource, addResource, fetchResources } = useQuotationResources();
+  const { settings, loading: settingsLoading, updateSetting, fetchSettings } = useQuotationSettings();
   const [searchTerm, setSearchTerm] = useState('');
   const [vendorSearchTerm, setVendorSearchTerm] = useState('');
   const [newResource, setNewResource] = useState({ resource_no: '', resource_description: '', cost_per_minute: 0 });
@@ -68,6 +78,7 @@ const QuotationSystemSettings = () => {
       const { data, error } = await supabase
         .from('quotation_subcon_vendors')
         .select('*')
+        .eq('site', site)
         .order('bp_name');
 
       if (error) throw error;
@@ -78,13 +89,14 @@ const QuotationSystemSettings = () => {
     } finally {
       setVendorsLoading(false);
     }
-  }, []);
+  }, [site]);
 
   const fetchSuppliers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('quotation_material_suppliers')
         .select('*')
+        .eq('site', site)
         .order('bp_name');
 
       if (error) throw error;
@@ -95,13 +107,14 @@ const QuotationSystemSettings = () => {
     } finally {
       setSuppliersLoading(false);
     }
-  }, []);
+  }, [site]);
 
   const fetchCustomers = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('quotation_customers')
         .select('*')
+        .eq('site', site)
         .order('bp_name');
 
       if (error) throw error;
@@ -112,7 +125,7 @@ const QuotationSystemSettings = () => {
     } finally {
       setCustomersLoading(false);
     }
-  }, []);
+  }, [site]);
 
   useEffect(() => {
     fetchVendors();
@@ -120,7 +133,11 @@ const QuotationSystemSettings = () => {
     fetchCustomers();
   }, [fetchVendors, fetchSuppliers, fetchCustomers]);
 
-  const filteredResources = resources.filter(r => 
+  // Filter resources by site
+  const siteResources = resources.filter(r => r.site === site);
+  const siteSettings = settings.filter(s => s.site === site);
+
+  const filteredResources = siteResources.filter(r => 
     r.resource_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
     r.resource_description.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -140,12 +157,11 @@ const QuotationSystemSettings = () => {
     c.bp_code.toLowerCase().includes(customerSearchTerm.toLowerCase())
   );
 
-
   const handleAddResource = async () => {
     if (!newResource.resource_no || !newResource.resource_description) {
       return;
     }
-    await addResource(newResource);
+    await addResource({ ...newResource, site });
     setNewResource({ resource_no: '', resource_description: '', cost_per_minute: 0 });
     setIsAddDialogOpen(false);
   };
@@ -158,7 +174,7 @@ const QuotationSystemSettings = () => {
     try {
       const { error } = await supabase
         .from('quotation_subcon_vendors')
-        .insert(newVendor);
+        .insert({ ...newVendor, site });
 
       if (error) throw error;
       toast.success('Vendor added');
@@ -210,7 +226,7 @@ const QuotationSystemSettings = () => {
     try {
       const { error } = await supabase
         .from('quotation_material_suppliers')
-        .insert(newSupplier);
+        .insert({ ...newSupplier, site });
 
       if (error) throw error;
       toast.success('Supplier added');
@@ -262,7 +278,7 @@ const QuotationSystemSettings = () => {
     try {
       const { error } = await supabase
         .from('quotation_customers')
-        .insert(newCustomer);
+        .insert({ ...newCustomer, site });
 
       if (error) throw error;
       toast.success('Customer added');
@@ -312,527 +328,502 @@ const QuotationSystemSettings = () => {
 
   if (resourcesLoading || settingsLoading || vendorsLoading || suppliersLoading || customersLoading) {
     return (
-      <AppLayout title="Quotation Settings" subtitle="Resource Ratings & System Configuration" showBackButton backTo="/npi/quotation-system">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </AppLayout>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
 
   return (
-    <AppLayout title="Quotation Settings" subtitle="Resource Ratings & System Configuration" showBackButton backTo="/npi/quotation-system">
-      <div className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="resources" className="space-y-6">
-          <TabsList className="grid w-full max-w-3xl grid-cols-5">
-            <TabsTrigger value="resources" className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4" />
-              Resources
-            </TabsTrigger>
-            <TabsTrigger value="vendors" className="flex items-center gap-2">
-              <Truck className="h-4 w-4" />
-              Vendors
-            </TabsTrigger>
-            <TabsTrigger value="suppliers" className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              Suppliers
-            </TabsTrigger>
-            <TabsTrigger value="customers" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Customers
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Settings
-            </TabsTrigger>
-          </TabsList>
+    <Tabs defaultValue="resources" className="space-y-4">
+      <TabsList className="grid w-full max-w-2xl grid-cols-4">
+        <TabsTrigger value="resources" className="flex items-center gap-2">
+          <DollarSign className="h-4 w-4" />
+          Resources
+        </TabsTrigger>
+        <TabsTrigger value="vendors" className="flex items-center gap-2">
+          <Truck className="h-4 w-4" />
+          Vendors
+        </TabsTrigger>
+        <TabsTrigger value="suppliers" className="flex items-center gap-2">
+          <Package className="h-4 w-4" />
+          Suppliers
+        </TabsTrigger>
+        <TabsTrigger value="customers" className="flex items-center gap-2">
+          <Users className="h-4 w-4" />
+          Customers
+        </TabsTrigger>
+      </TabsList>
 
-          <TabsContent value="resources">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Resource Cost Ratings</CardTitle>
-                    <CardDescription>
-                      Manage the cost per minute for each manufacturing resource
-                    </CardDescription>
-                  </div>
-                  <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Resource
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add New Resource</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label>Resource Code</Label>
-                          <Input
-                            value={newResource.resource_no}
-                            onChange={(e) => setNewResource({ ...newResource, resource_no: e.target.value })}
-                            placeholder="e.g., Doosan5100-2"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Description</Label>
-                          <Input
-                            value={newResource.resource_description}
-                            onChange={(e) => setNewResource({ ...newResource, resource_description: e.target.value })}
-                            placeholder="e.g., Doosan NHP 5100 Machine 2"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>Cost per Minute (€)</Label>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={newResource.cost_per_minute}
-                            onChange={(e) => setNewResource({ ...newResource, cost_per_minute: parseFloat(e.target.value) || 0 })}
-                          />
-                        </div>
-                        <Button onClick={handleAddResource} className="w-full">
-                          Add Resource
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search resources..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
-
-                <div className="border rounded-lg max-h-[600px] overflow-auto">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-background">
-                      <TableRow>
-                        <TableHead>Resource Code</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead className="text-right">Cost/Min (€)</TableHead>
-                        <TableHead className="text-center">Active</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredResources.map((resource) => (
-                        <TableRow key={resource.id}>
-                          <TableCell className="font-mono text-sm">
-                            {resource.resource_no}
-                          </TableCell>
-                          <TableCell className="max-w-[300px] truncate">
-                            {resource.resource_description}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              defaultValue={resource.cost_per_minute}
-                              className="w-24 ml-auto text-right"
-                              onBlur={(e) => {
-                                const newValue = parseFloat(e.target.value) || 0;
-                                if (newValue !== resource.cost_per_minute) {
-                                  updateResource(resource.id, { cost_per_minute: newValue });
-                                }
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Switch
-                              checked={resource.is_active}
-                              onCheckedChange={(checked) => updateResource(resource.id, { is_active: checked })}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <p className="text-sm text-muted-foreground mt-4">
-                  Showing {filteredResources.length} of {resources.length} resources
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="vendors">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Subcon Vendors</CardTitle>
-                    <CardDescription>
-                      Manage subcontractor vendors for outsourced processes
-                    </CardDescription>
-                  </div>
-                  <Dialog open={isAddVendorDialogOpen} onOpenChange={setIsAddVendorDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Vendor
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add New Vendor</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label>BP Code</Label>
-                          <Input
-                            value={newVendor.bp_code}
-                            onChange={(e) => setNewVendor({ ...newVendor, bp_code: e.target.value })}
-                            placeholder="e.g., SA0001"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>BP Name</Label>
-                          <Input
-                            value={newVendor.bp_name}
-                            onChange={(e) => setNewVendor({ ...newVendor, bp_name: e.target.value })}
-                            placeholder="e.g., Acme Coatings Ltd."
-                          />
-                        </div>
-                        <Button onClick={handleAddVendor} className="w-full">
-                          Add Vendor
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search vendors..."
-                      value={vendorSearchTerm}
-                      onChange={(e) => setVendorSearchTerm(e.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
-
-                <div className="border rounded-lg max-h-[600px] overflow-auto">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-background">
-                      <TableRow>
-                        <TableHead>BP Code</TableHead>
-                        <TableHead>BP Name</TableHead>
-                        <TableHead className="text-center">Active</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredVendors.map((vendor) => (
-                        <TableRow key={vendor.id}>
-                          <TableCell className="font-mono text-sm">
-                            {vendor.bp_code}
-                          </TableCell>
-                          <TableCell>
-                            {vendor.bp_name}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Switch
-                              checked={vendor.is_active}
-                              onCheckedChange={(checked) => handleToggleVendorActive(vendor.id, checked)}
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button 
-                              size="sm" 
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => handleDeleteVendor(vendor.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <p className="text-sm text-muted-foreground mt-4">
-                  Showing {filteredVendors.length} of {vendors.length} vendors
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="suppliers">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Material Suppliers</CardTitle>
-                    <CardDescription>
-                      Manage material suppliers for raw materials and components
-                    </CardDescription>
-                  </div>
-                  <Dialog open={isAddSupplierDialogOpen} onOpenChange={setIsAddSupplierDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Supplier
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add New Supplier</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label>BP Code</Label>
-                          <Input
-                            value={newSupplier.bp_code}
-                            onChange={(e) => setNewSupplier({ ...newSupplier, bp_code: e.target.value })}
-                            placeholder="e.g., SA0001"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>BP Name</Label>
-                          <Input
-                            value={newSupplier.bp_name}
-                            onChange={(e) => setNewSupplier({ ...newSupplier, bp_name: e.target.value })}
-                            placeholder="e.g., Abbey Seals"
-                          />
-                        </div>
-                        <Button onClick={handleAddSupplier} className="w-full">
-                          Add Supplier
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search suppliers..."
-                      value={supplierSearchTerm}
-                      onChange={(e) => setSupplierSearchTerm(e.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
-
-                <div className="border rounded-lg max-h-[600px] overflow-auto">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-background">
-                      <TableRow>
-                        <TableHead>BP Code</TableHead>
-                        <TableHead>BP Name</TableHead>
-                        <TableHead className="text-center">Active</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredSuppliers.map((supplier) => (
-                        <TableRow key={supplier.id}>
-                          <TableCell className="font-mono text-sm">
-                            {supplier.bp_code}
-                          </TableCell>
-                          <TableCell>
-                            {supplier.bp_name}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Switch
-                              checked={supplier.is_active}
-                              onCheckedChange={(checked) => handleToggleSupplierActive(supplier.id, checked)}
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button 
-                              size="sm" 
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => handleDeleteSupplier(supplier.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <p className="text-sm text-muted-foreground mt-4">
-                  Showing {filteredSuppliers.length} of {suppliers.length} suppliers
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="customers">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Customers</CardTitle>
-                    <CardDescription>
-                      Manage customer accounts for quotations
-                    </CardDescription>
-                  </div>
-                  <Dialog open={isAddCustomerDialogOpen} onOpenChange={setIsAddCustomerDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Customer
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add New Customer</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                          <Label>BP Code</Label>
-                          <Input
-                            value={newCustomer.bp_code}
-                            onChange={(e) => setNewCustomer({ ...newCustomer, bp_code: e.target.value })}
-                            placeholder="e.g., CA0001"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label>BP Name</Label>
-                          <Input
-                            value={newCustomer.bp_name}
-                            onChange={(e) => setNewCustomer({ ...newCustomer, bp_name: e.target.value })}
-                            placeholder="e.g., Acme Corporation"
-                          />
-                        </div>
-                        <Button onClick={handleAddCustomer} className="w-full">
-                          Add Customer
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Search customers..."
-                      value={customerSearchTerm}
-                      onChange={(e) => setCustomerSearchTerm(e.target.value)}
-                      className="pl-9"
-                    />
-                  </div>
-                </div>
-
-                <div className="border rounded-lg max-h-[600px] overflow-auto">
-                  <Table>
-                    <TableHeader className="sticky top-0 bg-background">
-                      <TableRow>
-                        <TableHead>BP Code</TableHead>
-                        <TableHead>BP Name</TableHead>
-                        <TableHead className="text-center">Active</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredCustomers.map((customer) => (
-                        <TableRow key={customer.id}>
-                          <TableCell className="font-mono text-sm">
-                            {customer.bp_code}
-                          </TableCell>
-                          <TableCell>
-                            {customer.bp_name}
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Switch
-                              checked={customer.is_active}
-                              onCheckedChange={(checked) => handleToggleCustomerActive(customer.id, checked)}
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button 
-                              size="sm" 
-                              variant="ghost"
-                              className="text-destructive hover:text-destructive"
-                              onClick={() => handleDeleteCustomer(customer.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-
-                <p className="text-sm text-muted-foreground mt-4">
-                  Showing {filteredCustomers.length} of {customers.length} customers
-                </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="settings">
-            <Card>
-              <CardHeader>
-                <CardTitle>General Quotation Settings</CardTitle>
+      <TabsContent value="resources">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Resource Cost Ratings - {siteLabel}</CardTitle>
                 <CardDescription>
-                  Configure default values for quotation calculations
+                  Manage the cost per minute for each manufacturing resource
                 </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-6 md:grid-cols-2">
-                  {settings.map((setting) => (
-                    <div key={setting.id} className="space-y-2">
-                      <Label className="flex items-center gap-2">
-                        {setting.setting_key.includes('margin') ? (
-                          <Percent className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <DollarSign className="h-4 w-4 text-muted-foreground" />
-                        )}
-                        {formatSettingName(setting.setting_key)}
-                      </Label>
-                      <div className="flex gap-2">
+              </div>
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Resource
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Resource - {siteLabel}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>Resource Code</Label>
+                      <Input
+                        value={newResource.resource_no}
+                        onChange={(e) => setNewResource({ ...newResource, resource_no: e.target.value })}
+                        placeholder="e.g., Doosan5100-2"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Description</Label>
+                      <Input
+                        value={newResource.resource_description}
+                        onChange={(e) => setNewResource({ ...newResource, resource_description: e.target.value })}
+                        placeholder="e.g., Doosan NHP 5100 Machine 2"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Cost per Minute (€)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={newResource.cost_per_minute}
+                        onChange={(e) => setNewResource({ ...newResource, cost_per_minute: parseFloat(e.target.value) || 0 })}
+                      />
+                    </div>
+                    <Button onClick={handleAddResource} className="w-full">
+                      Add Resource
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search resources..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            <div className="border rounded-lg max-h-[600px] overflow-auto">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background">
+                  <TableRow>
+                    <TableHead>Resource Code</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead className="text-right">Cost/Min (€)</TableHead>
+                    <TableHead className="text-center">Active</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredResources.map((resource) => (
+                    <TableRow key={resource.id}>
+                      <TableCell className="font-mono text-sm">
+                        {resource.resource_no}
+                      </TableCell>
+                      <TableCell className="max-w-[300px] truncate">
+                        {resource.resource_description}
+                      </TableCell>
+                      <TableCell className="text-right">
                         <Input
                           type="number"
                           step="0.01"
-                          defaultValue={setting.setting_value}
+                          defaultValue={resource.cost_per_minute}
+                          className="w-24 ml-auto text-right"
                           onBlur={(e) => {
-                            const newValue = parseFloat(e.target.value);
-                            if (newValue !== setting.setting_value) {
-                              updateSetting(setting.id, newValue);
+                            const newValue = parseFloat(e.target.value) || 0;
+                            if (newValue !== resource.cost_per_minute) {
+                              updateResource(resource.id, { cost_per_minute: newValue });
                             }
                           }}
-                          className="flex-1"
                         />
-                        <span className="flex items-center text-muted-foreground text-sm">
-                          {setting.setting_key.includes('margin') || setting.setting_key.includes('markup') ? '%' : '€'}
-                        </span>
-                      </div>
-                      {setting.description && (
-                        <p className="text-xs text-muted-foreground">{setting.description}</p>
-                      )}
-                    </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Switch
+                          checked={resource.is_active}
+                          onCheckedChange={(checked) => updateResource(resource.id, { is_active: checked })}
+                        />
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </div>
-              </CardContent>
-            </Card>
+                </TableBody>
+              </Table>
+            </div>
+
+            <p className="text-sm text-muted-foreground mt-4">
+              Showing {filteredResources.length} of {siteResources.length} resources
+            </p>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="vendors">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Subcon Vendors - {siteLabel}</CardTitle>
+                <CardDescription>
+                  Manage subcontractor vendors for outsourced processes
+                </CardDescription>
+              </div>
+              <Dialog open={isAddVendorDialogOpen} onOpenChange={setIsAddVendorDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Vendor
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Vendor - {siteLabel}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>BP Code</Label>
+                      <Input
+                        value={newVendor.bp_code}
+                        onChange={(e) => setNewVendor({ ...newVendor, bp_code: e.target.value })}
+                        placeholder="e.g., SA0001"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>BP Name</Label>
+                      <Input
+                        value={newVendor.bp_name}
+                        onChange={(e) => setNewVendor({ ...newVendor, bp_name: e.target.value })}
+                        placeholder="e.g., Acme Coatings Ltd."
+                      />
+                    </div>
+                    <Button onClick={handleAddVendor} className="w-full">
+                      Add Vendor
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search vendors..."
+                  value={vendorSearchTerm}
+                  onChange={(e) => setVendorSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            <div className="border rounded-lg max-h-[600px] overflow-auto">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background">
+                  <TableRow>
+                    <TableHead>BP Code</TableHead>
+                    <TableHead>BP Name</TableHead>
+                    <TableHead className="text-center">Active</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredVendors.map((vendor) => (
+                    <TableRow key={vendor.id}>
+                      <TableCell className="font-mono text-sm">
+                        {vendor.bp_code}
+                      </TableCell>
+                      <TableCell>
+                        {vendor.bp_name}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Switch
+                          checked={vendor.is_active}
+                          onCheckedChange={(checked) => handleToggleVendorActive(vendor.id, checked)}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteVendor(vendor.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <p className="text-sm text-muted-foreground mt-4">
+              Showing {filteredVendors.length} of {vendors.length} vendors
+            </p>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="suppliers">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Material Suppliers - {siteLabel}</CardTitle>
+                <CardDescription>
+                  Manage material suppliers for raw materials and components
+                </CardDescription>
+              </div>
+              <Dialog open={isAddSupplierDialogOpen} onOpenChange={setIsAddSupplierDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Supplier
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Supplier - {siteLabel}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>BP Code</Label>
+                      <Input
+                        value={newSupplier.bp_code}
+                        onChange={(e) => setNewSupplier({ ...newSupplier, bp_code: e.target.value })}
+                        placeholder="e.g., SA0001"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>BP Name</Label>
+                      <Input
+                        value={newSupplier.bp_name}
+                        onChange={(e) => setNewSupplier({ ...newSupplier, bp_name: e.target.value })}
+                        placeholder="e.g., Abbey Seals"
+                      />
+                    </div>
+                    <Button onClick={handleAddSupplier} className="w-full">
+                      Add Supplier
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search suppliers..."
+                  value={supplierSearchTerm}
+                  onChange={(e) => setSupplierSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            <div className="border rounded-lg max-h-[600px] overflow-auto">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background">
+                  <TableRow>
+                    <TableHead>BP Code</TableHead>
+                    <TableHead>BP Name</TableHead>
+                    <TableHead className="text-center">Active</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredSuppliers.map((supplier) => (
+                    <TableRow key={supplier.id}>
+                      <TableCell className="font-mono text-sm">
+                        {supplier.bp_code}
+                      </TableCell>
+                      <TableCell>
+                        {supplier.bp_name}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Switch
+                          checked={supplier.is_active}
+                          onCheckedChange={(checked) => handleToggleSupplierActive(supplier.id, checked)}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteSupplier(supplier.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <p className="text-sm text-muted-foreground mt-4">
+              Showing {filteredSuppliers.length} of {suppliers.length} suppliers
+            </p>
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="customers">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Customers - {siteLabel}</CardTitle>
+                <CardDescription>
+                  Manage customer accounts for quotations
+                </CardDescription>
+              </div>
+              <Dialog open={isAddCustomerDialogOpen} onOpenChange={setIsAddCustomerDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Customer
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Customer - {siteLabel}</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label>BP Code</Label>
+                      <Input
+                        value={newCustomer.bp_code}
+                        onChange={(e) => setNewCustomer({ ...newCustomer, bp_code: e.target.value })}
+                        placeholder="e.g., CA0001"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>BP Name</Label>
+                      <Input
+                        value={newCustomer.bp_name}
+                        onChange={(e) => setNewCustomer({ ...newCustomer, bp_name: e.target.value })}
+                        placeholder="e.g., Acme Corporation"
+                      />
+                    </div>
+                    <Button onClick={handleAddCustomer} className="w-full">
+                      Add Customer
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search customers..."
+                  value={customerSearchTerm}
+                  onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            <div className="border rounded-lg max-h-[600px] overflow-auto">
+              <Table>
+                <TableHeader className="sticky top-0 bg-background">
+                  <TableRow>
+                    <TableHead>BP Code</TableHead>
+                    <TableHead>BP Name</TableHead>
+                    <TableHead className="text-center">Active</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredCustomers.map((customer) => (
+                    <TableRow key={customer.id}>
+                      <TableCell className="font-mono text-sm">
+                        {customer.bp_code}
+                      </TableCell>
+                      <TableCell>
+                        {customer.bp_name}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Switch
+                          checked={customer.is_active}
+                          onCheckedChange={(checked) => handleToggleCustomerActive(customer.id, checked)}
+                        />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button 
+                          size="sm" 
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => handleDeleteCustomer(customer.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+
+            <p className="text-sm text-muted-foreground mt-4">
+              Showing {filteredCustomers.length} of {customers.length} customers
+            </p>
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
+  );
+};
+
+const QuotationSystemSettings = () => {
+  const [activeSite, setActiveSite] = useState<Site>('waterford');
+
+  return (
+    <AppLayout title="Quotation Settings" subtitle="Resource Ratings & System Configuration" showBackButton backTo="/npi/quotation-system">
+      <div className="container mx-auto px-4 py-8">
+        {/* Parent Site Tabs */}
+        <Tabs value={activeSite} onValueChange={(v) => setActiveSite(v as Site)} className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="waterford" className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              Schivo Waterford
+            </TabsTrigger>
+            <TabsTrigger value="mexico" className="flex items-center gap-2">
+              <MapPin className="h-4 w-4" />
+              Schivo Mexico
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="waterford">
+            <SiteSettingsTabs site="waterford" siteLabel="Schivo Waterford" />
+          </TabsContent>
+
+          <TabsContent value="mexico">
+            <SiteSettingsTabs site="mexico" siteLabel="Schivo Mexico" />
           </TabsContent>
         </Tabs>
       </div>
