@@ -8,6 +8,7 @@ export interface QuotationResource {
   resource_description: string;
   cost_per_minute: number;
   is_active: boolean;
+  site: string;
 }
 
 export interface QuotationSetting {
@@ -15,6 +16,7 @@ export interface QuotationSetting {
   setting_key: string;
   setting_value: number;
   description: string | null;
+  site: string;
 }
 
 export interface SystemQuotation {
@@ -149,7 +151,7 @@ export function useQuotationResources() {
     }
   };
 
-  const addResource = async (resource: Omit<QuotationResource, 'id' | 'is_active'>) => {
+  const addResource = async (resource: Omit<QuotationResource, 'id' | 'is_active'> & { site: string }) => {
     try {
       const { error } = await supabase
         .from('quotation_resources')
