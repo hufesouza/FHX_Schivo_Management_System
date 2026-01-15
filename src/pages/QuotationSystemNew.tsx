@@ -2334,13 +2334,13 @@ const QuotationSystemNew = () => {
                 {explainerOpen === 'setupCost' && (
                   <>
                     <DialogDescription>
-                      Setup cost (batch cost) divided by quantity to get per-part setup cost. Control which operations are included using the "Inc. Setup" checkbox in the Routing tab.
+                      Total setup cost (batch cost) from included operations. Control which operations are included using the "Inc. Setup" checkbox in the Routing tab.
                     </DialogDescription>
                     <div className="bg-muted p-4 rounded-lg space-y-3">
-                      <p className="font-mono text-sm">Setup per Part = Σ(Selected Setup Time × Resource Rate) ÷ Qty</p>
+                      <p className="font-mono text-sm">Total Setup Cost = Σ(Selected Setup Time × Resource Rate)</p>
                       
                       <div className="border-t pt-3 mt-2">
-                        <p className="text-sm font-medium mb-2">Included Operations:</p>
+                        <p className="text-sm font-medium mb-2">Operations Breakdown:</p>
                         <div className="max-h-48 overflow-y-auto space-y-1">
                           {routings.filter(r => r.setup_time > 0).map((r) => {
                             const costPerMin = getResourceCost(r.resource_no);
@@ -2373,13 +2373,9 @@ const QuotationSystemNew = () => {
                         <p className="text-sm"><strong>Summary:</strong></p>
                         <ul className="text-sm space-y-1 mt-1">
                           <li>• Included Setup Time: <strong>{totals.selectedSetupTime.toFixed(1)} min</strong></li>
-                          <li>• Excluded Setup Time: <strong>{(totals.totalSetupTime - totals.selectedSetupTime).toFixed(1)} min</strong> (development)</li>
-                          <li>• Total Setup Cost (batch): <strong>€{totals.totalSetupCost.toFixed(2)}</strong></li>
+                          <li>• Excluded Setup Time: <strong>{(totals.totalSetupTime - totals.selectedSetupTime).toFixed(1)} min</strong></li>
+                          <li>• <strong>Total Setup Cost: €{totals.totalSetupCost.toFixed(2)}</strong></li>
                         </ul>
-                      </div>
-                      
-                      <div className="border-t pt-2 mt-2 text-xs text-muted-foreground">
-                        <p><strong>Note:</strong> Development/engineering resources (ManuEng, Eng, Program, Dev) are excluded by default. You can override this in the Routing tab.</p>
                       </div>
                     </div>
                   </>
