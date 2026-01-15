@@ -84,6 +84,7 @@ const EnquiryDetail = () => {
   const [newPartNumber, setNewPartNumber] = useState('');
   const [newPartDescription, setNewPartDescription] = useState('');
   const [newPartRevision, setNewPartRevision] = useState('');
+  const [newPartDrawing, setNewPartDrawing] = useState<File | null>(null);
   const [addingPart, setAddingPart] = useState(false);
   
   // File upload
@@ -168,11 +169,17 @@ const EnquiryDetail = () => {
       drawing_file_name: null
     });
 
+    if (result && newPartDrawing) {
+      // Upload drawing if one was selected
+      await uploadDrawing(result.id, newPartDrawing);
+    }
+
     if (result) {
       setAddPartOpen(false);
       setNewPartNumber('');
       setNewPartDescription('');
       setNewPartRevision('');
+      setNewPartDrawing(null);
     }
     setAddingPart(false);
   };
@@ -421,6 +428,32 @@ const EnquiryDetail = () => {
                         onChange={(e) => setNewPartRevision(e.target.value)}
                         placeholder="e.g., A, 01, Rev.1"
                       />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label>Drawing (PDF or Image)</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          onChange={(e) => setNewPartDrawing(e.target.files?.[0] || null)}
+                          className="flex-1"
+                        />
+                        {newPartDrawing && (
+                          <Button 
+                            type="button" 
+                            variant="ghost" 
+                            size="icon"
+                            onClick={() => setNewPartDrawing(null)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                      {newPartDrawing && (
+                        <p className="text-sm text-muted-foreground">
+                          Selected: {newPartDrawing.name}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <DialogFooter>
