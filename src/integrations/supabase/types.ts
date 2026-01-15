@@ -2102,6 +2102,33 @@ export type Database = {
           },
         ]
       }
+      quotation_material_suppliers: {
+        Row: {
+          bp_code: string
+          bp_name: string
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          bp_code: string
+          bp_name: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          bp_code?: string
+          bp_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       quotation_materials: {
         Row: {
           certification_required: string | null
