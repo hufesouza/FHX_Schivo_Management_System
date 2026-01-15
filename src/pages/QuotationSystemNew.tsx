@@ -102,6 +102,7 @@ const QuotationSystemNew = () => {
   const [loadingQuotation, setLoadingQuotation] = useState(false);
   const [activeTab, setActiveTab] = useState('header');
   const [quotationId, setQuotationId] = useState<string | null>(editId || null);
+  const [enquiryPartId, setEnquiryPartId] = useState<string | null>(null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [subconVendors, setSubconVendors] = useState<SubconVendor[]>([]);
   const [materialSuppliers, setMaterialSuppliers] = useState<MaterialSupplier[]>([]);
@@ -421,11 +422,14 @@ const QuotationSystemNew = () => {
   // Pre-populate from enquiry part when coming from enquiry
   useEffect(() => {
     const loadEnquiryData = async () => {
-      const enquiryPartId = searchParams.get('enquiryPartId');
+      const partId = searchParams.get('enquiryPartId');
       const enquiryNo = searchParams.get('enquiryNo');
       const customer = searchParams.get('customer');
       
-      if (!enquiryPartId || editId) return; // Only for new quotations from enquiry
+      if (!partId || editId || searchParams.get('quotationId')) return; // Only for new quotations from enquiry
+      
+      // Store the enquiry part ID for linking
+      setEnquiryPartId(partId);
       
       try {
         // Fetch the enquiry part with its parent enquiry
@@ -435,7 +439,7 @@ const QuotationSystemNew = () => {
             *,
             enquiry:quotation_enquiries(*)
           `)
-          .eq('id', enquiryPartId)
+          .eq('id', partId)
           .maybeSingle();
         
         if (partError) throw partError;
@@ -501,6 +505,9 @@ const QuotationSystemNew = () => {
         if (quotation) {
           // Set site first so filtering works correctly
           setSite((quotation as any).site || 'waterford');
+          
+          // Set enquiry_part_id for linking
+          setEnquiryPartId(quotation.enquiry_part_id || null);
           
           setHeader({
             enquiry_no: quotation.enquiry_no || '',
@@ -905,6 +912,7 @@ const QuotationSystemNew = () => {
             vol_1: volumes[0]?.quantity || null,
             vol_2: volumes[1]?.quantity || null,
             vol_3: volumes[2]?.quantity || null,
+            enquiry_part_id: enquiryPartId,
             created_by: user.id
           })
           .select()
