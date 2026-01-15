@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -64,12 +64,14 @@ interface VolumePricing {
 
 const QuotationSystemNew = () => {
   const navigate = useNavigate();
+  const { id: editId } = useParams<{ id: string }>();
   const { user } = useAuth();
   const { resources, loading: resourcesLoading } = useQuotationResources();
   const { settings, getSettingValue, loading: settingsLoading } = useQuotationSettings();
   const [saving, setSaving] = useState(false);
+  const [loadingQuotation, setLoadingQuotation] = useState(false);
   const [activeTab, setActiveTab] = useState('header');
-  const [quotationId, setQuotationId] = useState<string | null>(null);
+  const [quotationId, setQuotationId] = useState<string | null>(editId || null);
 
   const tabOrder = ['header', 'materials', 'subcon', 'routings', 'pricing'];
 
@@ -142,6 +144,150 @@ const QuotationSystemNew = () => {
       ]);
     }
   }, [settings]);
+
+  // Load existing quotation for editing
+  useEffect(() => {
+    const loadQuotation = async () => {
+      if (!editId) return;
+      
+      setLoadingQuotation(true);
+      try {
+        // Load main quotation
+        const { data: quotation, error: quotationError } = await supabase
+          .from('system_quotations')
+          .select('*')
+          .eq('id', editId)
+          .single();
+        
+        if (quotationError) throw quotationError;
+        
+        if (quotation) {
+          setHeader({
+            enquiry_no: quotation.enquiry_no || '',
+            customer: quotation.customer || '',
+            customer_code: quotation.customer_code || '',
+            quoted_by: quotation.quoted_by || '',
+            part_number: quotation.part_number || '',
+            revision: quotation.revision || '',
+            description: quotation.description || '',
+            qty_per: quotation.qty_per || 1,
+            manufacture_type: quotation.manufacture_type || 'Manufacture',
+            blue_review_required: quotation.blue_review_required || false,
+            batch_traceable: quotation.batch_traceable || false,
+            rohs_compliant: quotation.rohs_compliant ?? true,
+            serial_traceable: quotation.serial_traceable || false,
+            material_markup: quotation.material_markup || 20,
+            subcon_markup: quotation.subcon_markup || 20,
+          });
+        }
+
+        // Load volume pricing (for volumes and margins)
+        const { data: volumeData } = await supabase
+          .from('quotation_volume_pricing')
+          .select('*')
+          .eq('quotation_id', editId)
+          .order('quantity', { ascending: true });
+        
+        if (volumeData && volumeData.length > 0) {
+          setVolumes(volumeData.map(v => ({
+            quantity: v.quantity,
+            margin: v.margin || 35
+          })));
+        }
+
+        // Load materials
+        const { data: materialsData } = await supabase
+          .from('quotation_materials')
+          .select('*')
+          .eq('quotation_id', editId)
+          .order('line_number', { ascending: true });
+        
+        if (materialsData && materialsData.length > 0) {
+          setMaterials(materialsData.map(m => ({
+            line_number: m.line_number,
+            vendor_no: m.vendor_no || '',
+            vendor_name: m.vendor_name || '',
+            part_number: m.part_number || '',
+            material_description: m.material_description || '',
+            mat_category: m.mat_category || '',
+            uom: m.uom || 'Each',
+            qty_per_unit: m.qty_per_unit || 1,
+            qa_inspection_required: m.qa_inspection_required || false,
+            std_cost_est: m.std_cost_est || 0,
+            certification_required: m.certification_required || '',
+            purchaser: m.purchaser || ''
+          })));
+        }
+
+        // Load subcons
+        const { data: subconsData } = await supabase
+          .from('quotation_subcons')
+          .select('*')
+          .eq('quotation_id', editId)
+          .order('line_number', { ascending: true });
+        
+        if (subconsData && subconsData.length > 0) {
+          // Group subcons by part_number pattern to reconstruct subcon_id
+          const subconGroups = new Map<string, number>();
+          let subconIdCounter = 1;
+          
+          setSubcons(subconsData.map((s, idx) => {
+            // Extract SCL number from part_number if exists
+            const match = s.part_number?.match(/SCL(\d+)$/);
+            let subconId = 1;
+            if (match) {
+              const sclNum = parseInt(match[1]);
+              const key = `${s.vendor_no}-${s.process_description}-${sclNum}`;
+              if (!subconGroups.has(key)) {
+                subconGroups.set(key, sclNum);
+              }
+              subconId = subconGroups.get(key) || sclNum;
+            }
+            
+            return {
+              line_number: s.line_number,
+              subcon_id: subconId,
+              vendor_no: s.vendor_no || '',
+              vendor_name: s.vendor_name || '',
+              part_number: s.part_number || '',
+              process_description: s.process_description || '',
+              quantity: volumeData?.find((v, i) => i === (idx % (volumeData?.length || 1)))?.quantity || 0,
+              std_cost_est: s.std_cost_est || 0,
+              certification_required: s.certification_required || false
+            };
+          }));
+        }
+
+        // Load routings
+        const { data: routingsData } = await supabase
+          .from('quotation_routings')
+          .select('*')
+          .eq('quotation_id', editId)
+          .order('op_no', { ascending: true });
+        
+        if (routingsData && routingsData.length > 0) {
+          setRoutings(routingsData.map(r => ({
+            op_no: r.op_no,
+            sublevel_bom: r.sublevel_bom || false,
+            part_number: r.part_number || '',
+            resource_no: r.resource_no || '',
+            operation_details: r.operation_details || '',
+            subcon_processing_time: r.subcon_processing_time || 0,
+            setup_time: r.setup_time || 0,
+            run_time: r.run_time || 0
+          })));
+        }
+
+      } catch (error) {
+        console.error('Error loading quotation:', error);
+        toast.error('Failed to load quotation');
+      } finally {
+        setLoadingQuotation(false);
+      }
+    };
+
+    loadQuotation();
+  }, [editId]);
 
   const addMaterialLine = () => {
     setMaterials([...materials, {
@@ -409,9 +555,11 @@ const QuotationSystemNew = () => {
     await handleSave(true, true);
   };
 
-  if (resourcesLoading || settingsLoading) {
+  const pageTitle = editId ? 'Edit Quotation' : 'New Quotation';
+
+  if (resourcesLoading || settingsLoading || loadingQuotation) {
     return (
-      <AppLayout title="New Quotation" showBackButton backTo="/npi/quotation-system">
+      <AppLayout title={pageTitle} showBackButton backTo="/npi/quotation-system/list">
         <div className="flex items-center justify-center min-h-[400px]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -420,7 +568,7 @@ const QuotationSystemNew = () => {
   }
 
   return (
-    <AppLayout title="New Quotation" subtitle="WD-FRM-0018 Quotation/Routing Sheet" showBackButton backTo="/npi/quotation-system">
+    <AppLayout title={pageTitle} subtitle="WD-FRM-0018 Quotation/Routing Sheet" showBackButton backTo="/npi/quotation-system/list">
       <div className="container mx-auto px-4 py-6">
         <div className="flex justify-end mb-4">
           <Button onClick={handleFinalSave} disabled={saving}>
