@@ -28,6 +28,10 @@ import AdminFormFields from "./pages/AdminFormFields";
 import Tasks from "./pages/Tasks";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
+import QuotationSystemHub from "./pages/QuotationSystemHub";
+import QuotationSystemNew from "./pages/QuotationSystemNew";
+import QuotationSystemList from "./pages/QuotationSystemList";
+import QuotationSystemSettings from "./pages/QuotationSystemSettings";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +57,10 @@ const App = () => (
           <Route path="/npi/quotation/compliance" element={<QuotationComplianceSettings />} />
           
           <Route path="/npi/quotation-control" element={<QuotationControlHub />} />
+          <Route path="/npi/quotation-system" element={<QuotationSystemHub />} />
+          <Route path="/npi/quotation-system/new" element={<QuotationSystemNew />} />
+          <Route path="/npi/quotation-system/list" element={<QuotationSystemList />} />
+          <Route path="/npi/quotation-system/settings" element={<QuotationSystemSettings />} />
           <Route path="/npi/projects" element={<NPIProjects />} />
           <Route path="/npi/projects/:id" element={<NPIProjectDetail />} />
           <Route path="/npi/drawing-translate" element={<DrawingTranslate />} />
