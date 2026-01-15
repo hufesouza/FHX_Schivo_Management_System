@@ -734,13 +734,13 @@ const QuotationSystemNew = () => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Label>Volume Quantities & Target Margins</Label>
+                      <Label>Volume Quantities</Label>
                       <Tooltip>
                         <TooltipTrigger>
                           <HelpCircle className="h-4 w-4 text-muted-foreground" />
                         </TooltipTrigger>
                         <TooltipContent className="max-w-sm">
-                          <p>Define volume tiers for pricing. <strong>Blue box:</strong> Quantity per volume. <strong>Amber box:</strong> Target margin percentage. Higher volumes typically have lower margins.</p>
+                          <p>Define volume tiers for pricing. Enter the quantities you want to quote for. Margins can be adjusted in the Pricing tab.</p>
                         </TooltipContent>
                       </Tooltip>
                     </div>
@@ -754,39 +754,23 @@ const QuotationSystemNew = () => {
                     </Button>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Enter different order quantities and their corresponding margin targets. The system will calculate unit prices based on total costs and desired margins.
+                    Enter different order quantities to quote. Margins can be adjusted in the Pricing section.
                   </p>
                   <div className="flex flex-wrap gap-4">
                     {volumes.map((vol, idx) => (
                       <div key={idx} className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30">
                         <span className="text-sm font-medium text-muted-foreground w-12">Qty {idx + 1}</span>
-                        <div className="flex-1">
-                          <Input
-                            type="number"
-                            value={vol.quantity}
-                            onChange={(e) => {
-                              const newVols = [...volumes];
-                              newVols[idx].quantity = parseInt(e.target.value) || 0;
-                              setVolumes(newVols);
-                            }}
-                            placeholder="Qty"
-                            className="w-24 border-primary/50 bg-primary/5 focus:border-primary"
-                          />
-                        </div>
-                        <div className="relative">
-                          <Input
-                            type="number"
-                            value={vol.margin}
-                            onChange={(e) => {
-                              const newVols = [...volumes];
-                              newVols[idx].margin = parseFloat(e.target.value) || 0;
-                              setVolumes(newVols);
-                            }}
-                            placeholder="Margin"
-                            className="w-20 pr-7 border-amber-500/50 bg-amber-500/5 focus:border-amber-500"
-                          />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-amber-600 font-medium">%</span>
-                        </div>
+                        <Input
+                          type="number"
+                          value={vol.quantity}
+                          onChange={(e) => {
+                            const newVols = [...volumes];
+                            newVols[idx].quantity = parseInt(e.target.value) || 0;
+                            setVolumes(newVols);
+                          }}
+                          placeholder="Qty"
+                          className="w-24 border-primary/50 bg-primary/5 focus:border-primary"
+                        />
                         {volumes.length > 1 && (
                           <Button
                             type="button"
