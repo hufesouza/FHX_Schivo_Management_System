@@ -81,6 +81,13 @@ interface SubconVendor {
   is_active: boolean;
 }
 
+interface MaterialSupplier {
+  id: string;
+  bp_code: string;
+  bp_name: string;
+  is_active: boolean;
+}
+
 const QuotationSystemNew = () => {
   const navigate = useNavigate();
   const { id: editId } = useParams<{ id: string }>();
@@ -93,13 +100,16 @@ const QuotationSystemNew = () => {
   const [quotationId, setQuotationId] = useState<string | null>(editId || null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [subconVendors, setSubconVendors] = useState<SubconVendor[]>([]);
+  const [materialSuppliers, setMaterialSuppliers] = useState<MaterialSupplier[]>([]);
   const [explainerOpen, setExplainerOpen] = useState<CalculationExplainer>(null);
   const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
+  const [materialVendorPopoverOpen, setMaterialVendorPopoverOpen] = useState<number | null>(null);
+  const [subconVendorPopoverOpen, setSubconVendorPopoverOpen] = useState<number | null>(null);
 
   const tabOrder = ['header', 'materials', 'subcon', 'routings', 'pricing'];
 
 
-  // Fetch customers and subcon vendors lists
+  // Fetch customers, subcon vendors, and material suppliers lists
   useEffect(() => {
     const fetchCustomers = async () => {
       const { data, error } = await supabase
@@ -124,9 +134,22 @@ const QuotationSystemNew = () => {
         setSubconVendors(data);
       }
     };
+
+    const fetchMaterialSuppliers = async () => {
+      const { data, error } = await supabase
+        .from('quotation_material_suppliers')
+        .select('*')
+        .eq('is_active', true)
+        .order('bp_name');
+      
+      if (!error && data) {
+        setMaterialSuppliers(data);
+      }
+    };
     
     fetchCustomers();
     fetchSubconVendors();
+    fetchMaterialSuppliers();
   }, []);
 
   // Auto-update customer code when customer name changes
@@ -154,12 +177,54 @@ const QuotationSystemNew = () => {
     );
   };
 
-  // Auto-update vendor code when vendor name changes
+  // Auto-update vendor code when vendor name changes (for subcon)
   const getVendorCode = (vendorName: string): string => {
     const match = subconVendors.find(v => 
       v.bp_name.toLowerCase() === vendorName.toLowerCase()
     );
     return match ? match.bp_code : 'N/A';
+  };
+
+  // Check if subcon vendor is in the list
+  const isKnownSubconVendor = (vendorName: string): boolean => {
+    if (!vendorName.trim()) return true;
+    return subconVendors.some(v => 
+      v.bp_name.toLowerCase() === vendorName.toLowerCase()
+    );
+  };
+
+  // Filter subcon vendors by search term
+  const getFilteredSubconVendors = (searchTerm: string) => {
+    if (!searchTerm.trim()) return subconVendors;
+    return subconVendors.filter(v => 
+      v.bp_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      v.bp_code.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  };
+
+  // Auto-update material supplier code when name changes
+  const getMaterialSupplierCode = (supplierName: string): string => {
+    const match = materialSuppliers.find(s => 
+      s.bp_name.toLowerCase() === supplierName.toLowerCase()
+    );
+    return match ? match.bp_code : 'N/A';
+  };
+
+  // Check if material supplier is in the list
+  const isKnownMaterialSupplier = (supplierName: string): boolean => {
+    if (!supplierName.trim()) return true;
+    return materialSuppliers.some(s => 
+      s.bp_name.toLowerCase() === supplierName.toLowerCase()
+    );
+  };
+
+  // Filter material suppliers by search term
+  const getFilteredMaterialSuppliers = (searchTerm: string) => {
+    if (!searchTerm.trim()) return materialSuppliers;
+    return materialSuppliers.filter(s => 
+      s.bp_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.bp_code.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   };
 
   // Header state
@@ -1127,24 +1192,75 @@ const QuotationSystemNew = () => {
                           <TableCell>{mat.line_number}</TableCell>
                           <TableCell>
                             <Input
-                              value={mat.vendor_no}
-                              onChange={(e) => {
-                                const newMats = [...materials];
-                                newMats[idx].vendor_no = e.target.value;
-                                setMaterials(newMats);
-                              }}
-                              className="w-24"
+                              value={getMaterialSupplierCode(mat.vendor_name)}
+                              readOnly
+                              className={`w-24 bg-muted ${mat.vendor_name && !isKnownMaterialSupplier(mat.vendor_name) ? 'text-amber-600' : ''}`}
                             />
                           </TableCell>
                           <TableCell>
-                            <Input
-                              value={mat.vendor_name}
-                              onChange={(e) => {
-                                const newMats = [...materials];
-                                newMats[idx].vendor_name = e.target.value;
-                                setMaterials(newMats);
-                              }}
-                            />
+                            <Popover open={materialVendorPopoverOpen === idx} onOpenChange={(open) => setMaterialVendorPopoverOpen(open ? idx : null)}>
+                              <PopoverTrigger asChild>
+                                <div className="relative">
+                                  <Input
+                                    value={mat.vendor_name}
+                                    onChange={(e) => {
+                                      const newMats = [...materials];
+                                      newMats[idx].vendor_name = e.target.value;
+                                      setMaterials(newMats);
+                                      if (e.target.value) setMaterialVendorPopoverOpen(idx);
+                                    }}
+                                    onFocus={() => setMaterialVendorPopoverOpen(idx)}
+                                    placeholder="Search..."
+                                    className={mat.vendor_name && !isKnownMaterialSupplier(mat.vendor_name) ? 'border-amber-300 pr-8' : ''}
+                                  />
+                                  {mat.vendor_name && isKnownMaterialSupplier(mat.vendor_name) && (
+                                    <Check className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                                  )}
+                                  {mat.vendor_name && !isKnownMaterialSupplier(mat.vendor_name) && (
+                                    <AlertTriangle className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500" />
+                                  )}
+                                </div>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[280px] p-0" align="start">
+                                <Command>
+                                  <CommandInput 
+                                    placeholder="Search suppliers..." 
+                                    value={mat.vendor_name}
+                                    onValueChange={(value) => {
+                                      const newMats = [...materials];
+                                      newMats[idx].vendor_name = value;
+                                      setMaterials(newMats);
+                                    }}
+                                  />
+                                  <CommandList>
+                                    <CommandEmpty>
+                                      <div className="py-2 px-4 text-sm text-muted-foreground">
+                                        No supplier found.
+                                      </div>
+                                    </CommandEmpty>
+                                    <CommandGroup>
+                                      {getFilteredMaterialSuppliers(mat.vendor_name).slice(0, 8).map((supplier) => (
+                                        <CommandItem
+                                          key={supplier.id}
+                                          value={supplier.bp_name}
+                                          onSelect={() => {
+                                            const newMats = [...materials];
+                                            newMats[idx].vendor_name = supplier.bp_name;
+                                            setMaterials(newMats);
+                                            setMaterialVendorPopoverOpen(null);
+                                          }}
+                                        >
+                                          <div className="flex justify-between w-full">
+                                            <span className="truncate">{supplier.bp_name}</span>
+                                            <span className="text-muted-foreground text-xs ml-2">{supplier.bp_code}</span>
+                                          </div>
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
                           </TableCell>
                           <TableCell>
                             <Input
@@ -1319,25 +1435,88 @@ const QuotationSystemNew = () => {
                             <Input
                               value={getVendorCode(firstLine?.vendor_name || '')}
                               readOnly
-                              className="bg-muted"
+                              className={`bg-muted ${firstLine?.vendor_name && !isKnownSubconVendor(firstLine?.vendor_name || '') ? 'text-amber-600' : ''}`}
                               placeholder="Auto-filled"
                             />
                             <p className="text-xs text-muted-foreground">
-                              Auto-populated from vendor list
+                              {firstLine?.vendor_name && !isKnownSubconVendor(firstLine?.vendor_name || '')
+                                ? 'Vendor not in list'
+                                : 'Auto-populated from vendor list'}
                             </p>
                           </div>
                           <div className="space-y-2">
-                            <Label>Vendor Name</Label>
-                            <Input
-                              value={firstLine?.vendor_name || ''}
-                              onChange={(e) => {
-                                const newSubs = subcons.map(s =>
-                                  s.subcon_id === subconId ? { ...s, vendor_name: e.target.value } : s
-                                );
-                                setSubcons(newSubs);
-                              }}
-                              placeholder="Vendor name"
-                            />
+                            <Label className="flex items-center gap-2">
+                              Vendor Name
+                              {firstLine?.vendor_name && !isKnownSubconVendor(firstLine?.vendor_name || '') && (
+                                <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-xs">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  New
+                                </Badge>
+                              )}
+                            </Label>
+                            <Popover open={subconVendorPopoverOpen === subconId} onOpenChange={(open) => setSubconVendorPopoverOpen(open ? subconId : null)}>
+                              <PopoverTrigger asChild>
+                                <div className="relative">
+                                  <Input
+                                    value={firstLine?.vendor_name || ''}
+                                    onChange={(e) => {
+                                      const newSubs = subcons.map(s =>
+                                        s.subcon_id === subconId ? { ...s, vendor_name: e.target.value } : s
+                                      );
+                                      setSubcons(newSubs);
+                                      if (e.target.value) setSubconVendorPopoverOpen(subconId);
+                                    }}
+                                    onFocus={() => setSubconVendorPopoverOpen(subconId)}
+                                    placeholder="Search..."
+                                    className={firstLine?.vendor_name && !isKnownSubconVendor(firstLine?.vendor_name || '') ? 'border-amber-300 pr-8' : ''}
+                                  />
+                                  {firstLine?.vendor_name && isKnownSubconVendor(firstLine?.vendor_name || '') && (
+                                    <Check className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                                  )}
+                                </div>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-[280px] p-0" align="start">
+                                <Command>
+                                  <CommandInput 
+                                    placeholder="Search vendors..." 
+                                    value={firstLine?.vendor_name || ''}
+                                    onValueChange={(value) => {
+                                      const newSubs = subcons.map(s =>
+                                        s.subcon_id === subconId ? { ...s, vendor_name: value } : s
+                                      );
+                                      setSubcons(newSubs);
+                                    }}
+                                  />
+                                  <CommandList>
+                                    <CommandEmpty>
+                                      <div className="py-2 px-4 text-sm text-muted-foreground">
+                                        No vendor found.
+                                      </div>
+                                    </CommandEmpty>
+                                    <CommandGroup>
+                                      {getFilteredSubconVendors(firstLine?.vendor_name || '').slice(0, 8).map((vendor) => (
+                                        <CommandItem
+                                          key={vendor.id}
+                                          value={vendor.bp_name}
+                                          onSelect={() => {
+                                            const newSubs = subcons.map(s =>
+                                              s.subcon_id === subconId ? { ...s, vendor_name: vendor.bp_name } : s
+                                            );
+                                            setSubcons(newSubs);
+                                            setSubconVendorPopoverOpen(null);
+                                          }}
+                                        >
+                                          <div className="flex justify-between w-full">
+                                            <span className="truncate">{vendor.bp_name}</span>
+                                            <span className="text-muted-foreground text-xs ml-2">{vendor.bp_code}</span>
+                                          </div>
+                                        </CommandItem>
+                                      ))}
+                                    </CommandGroup>
+                                  </CommandList>
+                                </Command>
+                              </PopoverContent>
+                            </Popover>
                           </div>
                           <div className="space-y-2">
                             <Label>Process Description</Label>
