@@ -2270,6 +2270,7 @@ export type Database = {
           id: string
           op_no: number
           operation_details: string | null
+          override_cost: number | null
           part_number: string | null
           quotation_id: string
           resource_id: string | null
@@ -2285,6 +2286,7 @@ export type Database = {
           id?: string
           op_no: number
           operation_details?: string | null
+          override_cost?: number | null
           part_number?: string | null
           quotation_id: string
           resource_id?: string | null
@@ -2300,6 +2302,7 @@ export type Database = {
           id?: string
           op_no?: number
           operation_details?: string | null
+          override_cost?: number | null
           part_number?: string | null
           quotation_id?: string
           resource_id?: string | null
