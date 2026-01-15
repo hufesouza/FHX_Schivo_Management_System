@@ -40,8 +40,6 @@ const QuotationSystemSettings = () => {
   const { settings, loading: settingsLoading, updateSetting } = useQuotationSettings();
   const [searchTerm, setSearchTerm] = useState('');
   const [vendorSearchTerm, setVendorSearchTerm] = useState('');
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState<number>(0);
   const [newResource, setNewResource] = useState({ resource_no: '', resource_description: '', cost_per_minute: 0 });
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   
@@ -142,10 +140,6 @@ const QuotationSystemSettings = () => {
     c.bp_code.toLowerCase().includes(customerSearchTerm.toLowerCase())
   );
 
-  const handleSaveEdit = async (id: string) => {
-    await updateResource(id, { cost_per_minute: editValue });
-    setEditingId(null);
-  };
 
   const handleAddResource = async () => {
     if (!newResource.resource_no || !newResource.resource_description) {
@@ -429,7 +423,6 @@ const QuotationSystemSettings = () => {
                         <TableHead>Description</TableHead>
                         <TableHead className="text-right">Cost/Min (€)</TableHead>
                         <TableHead className="text-center">Active</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -442,49 +435,24 @@ const QuotationSystemSettings = () => {
                             {resource.resource_description}
                           </TableCell>
                           <TableCell className="text-right">
-                            {editingId === resource.id ? (
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={editValue}
-                                onChange={(e) => setEditValue(parseFloat(e.target.value) || 0)}
-                                className="w-24 ml-auto"
-                                autoFocus
-                              />
-                            ) : (
-                              <Badge variant={resource.cost_per_minute > 0 ? 'default' : 'secondary'}>
-                                €{resource.cost_per_minute.toFixed(2)}
-                              </Badge>
-                            )}
+                            <Input
+                              type="number"
+                              step="0.01"
+                              defaultValue={resource.cost_per_minute}
+                              className="w-24 ml-auto text-right"
+                              onBlur={(e) => {
+                                const newValue = parseFloat(e.target.value) || 0;
+                                if (newValue !== resource.cost_per_minute) {
+                                  updateResource(resource.id, { cost_per_minute: newValue });
+                                }
+                              }}
+                            />
                           </TableCell>
                           <TableCell className="text-center">
                             <Switch
                               checked={resource.is_active}
                               onCheckedChange={(checked) => updateResource(resource.id, { is_active: checked })}
                             />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {editingId === resource.id ? (
-                              <div className="flex gap-2 justify-end">
-                                <Button size="sm" onClick={() => handleSaveEdit(resource.id)}>
-                                  <Save className="h-3 w-3" />
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
-                                  Cancel
-                                </Button>
-                              </div>
-                            ) : (
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => {
-                                  setEditingId(resource.id);
-                                  setEditValue(resource.cost_per_minute);
-                                }}
-                              >
-                                Edit
-                              </Button>
-                            )}
                           </TableCell>
                         </TableRow>
                       ))}
