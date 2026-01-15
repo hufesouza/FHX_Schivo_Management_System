@@ -2112,7 +2112,7 @@ const QuotationSystemNew = () => {
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
                           onClick={() => setExplainerOpen('setupCost')}
                         >
-                          <span className="underline decoration-dotted">Setup (€)</span>
+                          <span className="underline decoration-dotted">Set up per part (€)</span>
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
