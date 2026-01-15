@@ -22,7 +22,7 @@ import { useQuotationResources, useQuotationSettings } from '@/hooks/useQuotatio
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-type CalculationExplainer = 'hours' | 'costPerHour' | 'labour' | 'material' | 'subcon' | 'totalCost' | 'unitPrice' | 'margin' | null;
+type CalculationExplainer = 'hours' | 'costPerHour' | 'labour' | 'material' | 'subcon' | 'totalCost' | 'costPerPart' | 'unitPrice' | 'margin' | null;
 
 interface MaterialLine {
   line_number: number;
@@ -2107,6 +2107,12 @@ const QuotationSystemNew = () => {
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
+                          onClick={() => setExplainerOpen('costPerPart')}
+                        >
+                          <span className="underline decoration-dotted">Cost/Part (€)</span>
+                        </TableHead>
+                        <TableHead 
+                          className="text-right cursor-pointer hover:bg-muted transition-colors"
                           onClick={() => setExplainerOpen('unitPrice')}
                         >
                           <span className="underline decoration-dotted">Unit Price ({currencySymbols[currency]})</span>
@@ -2138,6 +2144,7 @@ const QuotationSystemNew = () => {
                             <TableCell className="text-right">€{materialCost.toFixed(2)}</TableCell>
                             <TableCell className="text-right">€{subconCost.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-medium">€{totalCost.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">€{(totalCost / vol.quantity).toFixed(2)}</TableCell>
                             <TableCell className="text-right">
                               <Badge className="bg-primary">{currencySymbols[currency]}{unitPriceConverted.toFixed(2)}</Badge>
                             </TableCell>
@@ -2185,6 +2192,7 @@ const QuotationSystemNew = () => {
                   {explainerOpen === 'material' && 'Material Cost Calculation'}
                   {explainerOpen === 'subcon' && 'Subcon Cost Calculation'}
                   {explainerOpen === 'totalCost' && 'Total Cost Calculation'}
+                  {explainerOpen === 'costPerPart' && 'Cost per Part Calculation'}
                   {explainerOpen === 'unitPrice' && 'Unit Price Calculation'}
                   {explainerOpen === 'margin' && 'Margin Explanation'}
                 </DialogTitle>
@@ -2287,6 +2295,24 @@ const QuotationSystemNew = () => {
                           <li>• Labour: Hours × Cost/Hr</li>
                           <li>• Material: Material cost per unit × Quantity</li>
                           <li>• Subcon: Subcon cost per unit × Quantity</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </>
+                )}
+                {explainerOpen === 'costPerPart' && (
+                  <>
+                    <DialogDescription>
+                      The cost to produce each individual part at this volume.
+                    </DialogDescription>
+                    <div className="bg-muted p-4 rounded-lg space-y-2">
+                      <p className="font-mono text-sm">Cost per Part = Total Cost ÷ Quantity</p>
+                      <div className="border-t pt-2 mt-2">
+                        <p className="text-sm"><strong>Components:</strong></p>
+                        <ul className="text-sm space-y-1 mt-1">
+                          <li>• Labour cost per part</li>
+                          <li>• Material cost per part: <strong>€{totals.totalMaterialCost.toFixed(2)}</strong></li>
+                          <li>• Subcon cost per part: <strong>€{totals.totalSubconCost.toFixed(2)}</strong></li>
                         </ul>
                       </div>
                     </div>
