@@ -1553,12 +1553,14 @@ const QuotationSystemNew = () => {
                               <TableRow>
                                 <TableHead className="w-28">Quantity</TableHead>
                                 <TableHead className="text-center w-32">Cost/Unit (€)</TableHead>
+                                <TableHead className="text-center w-32">Cost/Unit + {header.subcon_markup}% (€)</TableHead>
                                 <TableHead className="text-right w-36">Qty × Cost (€)</TableHead>
                                 <TableHead className="text-right w-36">With Markup (€)</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {lines.map((line) => {
+                                const costPerUnitWithMarkup = line.std_cost_est * (1 + header.subcon_markup / 100);
                                 const totalWithoutMarkup = line.quantity * line.std_cost_est;
                                 const totalWithMarkup = totalWithoutMarkup * (1 + header.subcon_markup / 100);
                                 return (
@@ -1582,6 +1584,9 @@ const QuotationSystemNew = () => {
                                         className="w-24 text-center mx-auto"
                                         placeholder="0.00"
                                       />
+                                    </TableCell>
+                                    <TableCell className="text-center font-medium text-primary">
+                                      €{costPerUnitWithMarkup.toFixed(2)}
                                     </TableCell>
                                     <TableCell className="text-right text-muted-foreground">
                                       €{totalWithoutMarkup.toFixed(2)}
