@@ -2342,27 +2342,21 @@ const QuotationSystemNew = () => {
                       <div className="border-t pt-3 mt-2">
                         <p className="text-sm font-medium mb-2">Operations Breakdown:</p>
                         <div className="max-h-48 overflow-y-auto space-y-1">
-                          {routings.filter(r => r.setup_time > 0).map((r) => {
+                          {routings.filter(r => r.setup_time > 0 && setupIncludedOps.has(r.op_no)).map((r) => {
                             const costPerMin = getResourceCost(r.resource_no);
                             const setupCostForOp = r.setup_time * costPerMin;
-                            const isIncluded = setupIncludedOps.has(r.op_no);
                             return (
                               <div
                                 key={r.op_no}
-                                className={`flex items-center gap-3 p-2 rounded text-sm ${isIncluded ? 'bg-primary/10' : 'bg-muted-foreground/10 opacity-60'}`}
+                                className="flex items-center justify-between p-2 rounded text-sm bg-background"
                               >
-                                <span className={`w-4 h-4 rounded flex items-center justify-center text-xs ${isIncluded ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/30'}`}>
-                                  {isIncluded ? '✓' : '✗'}
-                                </span>
-                                <div className="flex-1">
+                                <div>
                                   <span className="font-medium">Op {r.op_no}</span>
                                   <span className="text-muted-foreground"> - {r.resource_no}</span>
                                 </div>
-                                <div className="text-right">
-                                  <span className={isIncluded ? 'font-medium' : 'line-through text-muted-foreground'}>
-                                    {r.setup_time} min × €{costPerMin.toFixed(2)} = €{setupCostForOp.toFixed(2)}
-                                  </span>
-                                </div>
+                                <span className="font-medium">
+                                  {r.setup_time} min × €{costPerMin.toFixed(2)} = €{setupCostForOp.toFixed(2)}
+                                </span>
                               </div>
                             );
                           })}
@@ -2373,7 +2367,6 @@ const QuotationSystemNew = () => {
                         <p className="text-sm"><strong>Summary:</strong></p>
                         <ul className="text-sm space-y-1 mt-1">
                           <li>• Included Setup Time: <strong>{totals.selectedSetupTime.toFixed(1)} min</strong></li>
-                          <li>• Excluded Setup Time: <strong>{(totals.totalSetupTime - totals.selectedSetupTime).toFixed(1)} min</strong></li>
                           <li>• <strong>Total Setup Cost: €{totals.totalSetupCost.toFixed(2)}</strong></li>
                         </ul>
                       </div>
