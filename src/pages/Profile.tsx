@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useTasks } from '@/hooks/useTasks';
+import { useQuotationReviewTasks } from '@/hooks/useQuotationReviewTasks';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,6 +85,7 @@ export default function Profile() {
   const { user, loading: authLoading } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
   const { getMyTasks, loading: tasksLoading, tasks: allTasks } = useTasks();
+  const { tasks: quotationReviewTasks, loading: quotationTasksLoading } = useQuotationReviewTasks();
   
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -115,6 +117,7 @@ export default function Profile() {
 
   const isManager = user?.email === MANAGER_EMAIL;
   const myTasks = getMyTasks();
+  const totalPendingTasks = myTasks.length + quotationReviewTasks.length;
 
   // Load meeting actions and recognitions assigned to user
   useEffect(() => {
@@ -325,13 +328,13 @@ export default function Profile() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card 
             className="bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20 cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => document.getElementById('tasks-section')?.scrollIntoView({ behavior: 'smooth' })}
+            onClick={() => navigate('/tasks')}
           >
             <CardContent className="pt-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-muted-foreground">Pending Tasks</p>
-                  <p className="text-3xl font-bold text-blue-600">{myTasks.length}</p>
+                  <p className="text-3xl font-bold text-blue-600">{totalPendingTasks}</p>
                 </div>
                 <FileText className="h-8 w-8 text-blue-500/50" />
               </div>
