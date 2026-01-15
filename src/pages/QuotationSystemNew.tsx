@@ -353,23 +353,11 @@ const QuotationSystemNew = () => {
     { op_no: 20, sublevel_bom: false, part_number: '', resource_no: 'Saw', operation_details: 'BOOK OUT ALLOCATED MATERIAL', subcon_processing_time: 0, setup_time: 10, run_time: 0, include_setup_calc: true },
   ]);
 
-  // Initialize setupIncludedOps when routings change
+  // Keep setupIncludedOps in sync when routing lines are removed
   useEffect(() => {
-    setSetupIncludedOps(prev => {
-      // Add all new op_nos that aren't yet in the set
-      const newSet = new Set(prev);
-      routings.forEach(r => {
-        if (!prev.has(r.op_no)) {
-          newSet.add(r.op_no);
-        }
-      });
-      // Remove op_nos that no longer exist
-      prev.forEach(opNo => {
-        if (!routings.find(r => r.op_no === opNo)) {
-          newSet.delete(opNo);
-        }
-      });
-      return newSet;
+    setSetupIncludedOps((prev) => {
+      const existingOpNos = new Set(routings.map((r) => r.op_no));
+      return new Set([...prev].filter((opNo) => existingOpNos.has(opNo)));
     });
   }, [routings]);
 
@@ -624,17 +612,29 @@ const QuotationSystemNew = () => {
 
   const addRoutingLine = () => {
     const lastOpNo = routings.length > 0 ? routings[routings.length - 1].op_no : 0;
-    setRoutings([...routings, {
-      op_no: lastOpNo + 10,
-      sublevel_bom: false,
-      part_number: header.part_number + 'Rev' + header.revision,
-      resource_no: '',
-      operation_details: '',
-      subcon_processing_time: 0,
-      setup_time: 0,
-      run_time: 0,
-      include_setup_calc: true
-    }]);
+    const nextOpNo = lastOpNo + 10;
+
+    setRoutings((prev) => [
+      ...prev,
+      {
+        op_no: nextOpNo,
+        sublevel_bom: false,
+        part_number: header.part_number + 'Rev' + header.revision,
+        resource_no: '',
+        operation_details: '',
+        subcon_processing_time: 0,
+        setup_time: 0,
+        run_time: 0,
+        include_setup_calc: true,
+      },
+    ]);
+
+    // Default new operations to be included in setup calc
+    setSetupIncludedOps((prev) => {
+      const next = new Set(prev);
+      next.add(nextOpNo);
+      return next;
+    });
   };
 
   const getResourceCost = (resourceNo: string): number => {
@@ -1914,9 +1914,21 @@ const QuotationSystemNew = () => {
                               type="number"
                               value={route.op_no}
                               onChange={(e) => {
+                                const nextOpNo = parseInt(e.target.value) || 0;
+                                const prevOpNo = route.op_no;
+
                                 const newRoutes = [...routings];
-                                newRoutes[idx].op_no = parseInt(e.target.value) || 0;
+                                newRoutes[idx].op_no = nextOpNo;
                                 setRoutings(newRoutes);
+
+                                // Preserve setup selection for this row when op_no changes
+                                setSetupIncludedOps((prev) => {
+                                  if (!prev.has(prevOpNo)) return prev;
+                                  const next = new Set(prev);
+                                  next.delete(prevOpNo);
+                                  next.add(nextOpNo);
+                                  return next;
+                                });
                               }}
                               className="w-16"
                             />
@@ -2204,8 +2216,8 @@ const QuotationSystemNew = () => {
                         const unitPriceEur = totalCost / vol.quantity / (1 - vol.margin / 100);
                         const unitPriceConverted = unitPriceEur * exchangeRate;
                         // Calculate rate per hour: Price per Part × (60 / Minutes per Part)
-                        // Time per part = Run Time + (Setup Time / Qty)
-                        const timePerPartMins = totals.totalRunTime + (totals.selectedSetupTime / vol.quantity);
+                        // Minutes per Part (for this metric) = Total Run Time
+                        const timePerPartMins = totals.totalRunTime;
                         const ratePerHour = timePerPartMins > 0 ? unitPriceEur * (60 / timePerPartMins) : 0;
 
                         return (
@@ -2453,12 +2465,11 @@ const QuotationSystemNew = () => {
                     </DialogDescription>
                     <div className="bg-muted p-4 rounded-lg space-y-2">
                       <p className="font-mono text-sm">Hourly Rate = Price per Part × (60 ÷ Minutes per Part)</p>
-                      <p className="font-mono text-xs text-muted-foreground">Minutes per Part = Run Time + (Setup Time ÷ Qty)</p>
+                      <p className="font-mono text-xs text-muted-foreground">Minutes per Part = Total Run Time</p>
                       <div className="border-t pt-2 mt-2">
                         <p className="text-sm"><strong>Current Values:</strong></p>
                         <ul className="text-sm space-y-1 mt-1">
-                          <li>• Run Time: <strong>{totals.totalRunTime.toFixed(1)} min</strong></li>
-                          <li>• Selected Setup Time: <strong>{totals.selectedSetupTime.toFixed(1)} min</strong></li>
+                          <li>• Total Run Time: <strong>{totals.totalRunTime.toFixed(1)} min</strong></li>
                         </ul>
                       </div>
                       <div className="border-t pt-2 mt-2">
