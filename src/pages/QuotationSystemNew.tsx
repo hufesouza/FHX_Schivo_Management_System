@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw, AlertTriangle, Check } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw, AlertTriangle, Check, Pencil, X } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -60,6 +60,7 @@ interface RoutingLine {
   subcon_processing_time: number;
   setup_time: number;
   run_time: number;
+  override_cost?: number | null;
 }
 
 interface VolumePricing {
@@ -622,6 +623,9 @@ const QuotationSystemNew = () => {
   };
 
   const calculateRoutingCost = (line: RoutingLine): number => {
+    if (line.override_cost !== null && line.override_cost !== undefined) {
+      return line.override_cost;
+    }
     const costPerMin = getResourceCost(line.resource_no);
     return (line.setup_time + line.run_time) * costPerMin;
   };
@@ -1869,8 +1873,54 @@ const QuotationSystemNew = () => {
                           <TableCell className="text-right text-muted-foreground">
                             €{getResourceCost(route.resource_no).toFixed(2)}
                           </TableCell>
-                          <TableCell className="text-right font-medium">
-                            €{calculateRoutingCost(route).toFixed(2)}
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-1">
+                              {route.override_cost !== null && route.override_cost !== undefined ? (
+                                <>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={route.override_cost}
+                                    onChange={(e) => {
+                                      const newRoutes = [...routings];
+                                      newRoutes[idx].override_cost = parseFloat(e.target.value) || 0;
+                                      setRoutings(newRoutes);
+                                    }}
+                                    className="w-20 text-right border-amber-400"
+                                  />
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                    onClick={() => {
+                                      const newRoutes = [...routings];
+                                      newRoutes[idx].override_cost = null;
+                                      setRoutings(newRoutes);
+                                    }}
+                                    title="Remove override"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </Button>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="font-medium">€{calculateRoutingCost(route).toFixed(2)}</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-muted-foreground hover:text-primary"
+                                    onClick={() => {
+                                      const newRoutes = [...routings];
+                                      newRoutes[idx].override_cost = calculateRoutingCost(route);
+                                      setRoutings(newRoutes);
+                                    }}
+                                    title="Override cost"
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
