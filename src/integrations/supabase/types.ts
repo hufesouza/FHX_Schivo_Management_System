@@ -201,6 +201,7 @@ export type Database = {
           id: string
           line_number: number
           part_number: string
+          quote_status: string | null
           revision: string | null
           updated_at: string
         }
@@ -213,6 +214,7 @@ export type Database = {
           id?: string
           line_number: number
           part_number: string
+          quote_status?: string | null
           revision?: string | null
           updated_at?: string
         }
@@ -225,6 +227,7 @@ export type Database = {
           id?: string
           line_number?: number
           part_number?: string
+          quote_status?: string | null
           revision?: string | null
           updated_at?: string
         }

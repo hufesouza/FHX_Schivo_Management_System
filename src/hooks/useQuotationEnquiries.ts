@@ -34,6 +34,7 @@ export interface EnquiryPart {
   revision: string | null;
   drawing_url: string | null;
   drawing_file_name: string | null;
+  quote_status: string | null;
   created_at: string;
   updated_at: string;
 }
