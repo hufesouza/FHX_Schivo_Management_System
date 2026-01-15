@@ -236,7 +236,8 @@ const EnquiryDetail = () => {
       description: newPartDescription.trim() || null,
       revision: newPartRevision.trim() || null,
       drawing_url: null,
-      drawing_file_name: null
+      drawing_file_name: null,
+      quote_status: 'pending'
     });
 
     if (result && newPartDrawing) {
@@ -366,7 +367,8 @@ const EnquiryDetail = () => {
           description: description || null,
           revision: revision || null,
           drawing_url: null,
-          drawing_file_name: null
+          drawing_file_name: null,
+          quote_status: 'pending'
         });
 
         if (result) {
@@ -799,6 +801,7 @@ const EnquiryDetail = () => {
                       <TableHead>Part Number</TableHead>
                       <TableHead>Description</TableHead>
                       <TableHead>Rev</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead>Drawing</TableHead>
                       <TableHead>Quotation</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -819,6 +822,19 @@ const EnquiryDetail = () => {
                             {part.description || '-'}
                           </TableCell>
                           <TableCell>{part.revision || '-'}</TableCell>
+                          <TableCell>
+                            {(part as any).quote_status === 'quoted' ? (
+                              <Badge className="bg-green-600 hover:bg-green-700">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Quoted
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-muted-foreground">
+                                <Clock className="h-3 w-3 mr-1" />
+                                Pending
+                              </Badge>
+                            )}
+                          </TableCell>
                           <TableCell>
                             {part.drawing_url ? (
                               <div className="flex items-center gap-2">

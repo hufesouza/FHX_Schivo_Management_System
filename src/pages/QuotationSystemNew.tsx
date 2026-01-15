@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw, AlertTriangle, Check, Pencil, X } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw, AlertTriangle, Check, Pencil, X, CheckCircle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -98,6 +98,7 @@ const QuotationSystemNew = () => {
   const { resources, loading: resourcesLoading } = useQuotationResources();
   const { settings, getSettingValue, loading: settingsLoading } = useQuotationSettings();
   const [saving, setSaving] = useState(false);
+  const [finishingQuote, setFinishingQuote] = useState(false);
   const [loadingQuotation, setLoadingQuotation] = useState(false);
   const [activeTab, setActiveTab] = useState('header');
   const [quotationId, setQuotationId] = useState<string | null>(editId || null);
@@ -764,6 +765,63 @@ const QuotationSystemNew = () => {
   };
 
   const totals = calculateTotals();
+
+  // Handle finishing the quote - saves and updates part status to 'quoted'
+  const handleFinishQuote = async () => {
+    const enquiryPartId = searchParams.get('enquiryPartId');
+    
+    setFinishingQuote(true);
+    try {
+      // First save the quote
+      const saved = await handleSave(false, false);
+      if (!saved) {
+        setFinishingQuote(false);
+        return;
+      }
+
+      // Update the part status to 'quoted' if we have an enquiry part ID
+      if (enquiryPartId) {
+        const { error: updateError } = await supabase
+          .from('enquiry_parts')
+          .update({ quote_status: 'quoted' })
+          .eq('id', enquiryPartId);
+
+        if (updateError) {
+          console.error('Error updating part status:', updateError);
+          toast.error('Quote saved but failed to update part status');
+        } else {
+          toast.success('Quote completed! Part status updated to Quoted');
+        }
+      } else {
+        toast.success('Quote saved successfully');
+      }
+
+      // Navigate back to the enquiry
+      const enquiryNo = searchParams.get('enquiryNo');
+      if (enquiryNo) {
+        // Find the enquiry ID and navigate to it
+        const { data: enquiryData } = await supabase
+          .from('quotation_enquiries')
+          .select('id')
+          .eq('enquiry_no', enquiryNo)
+          .maybeSingle();
+        
+        if (enquiryData) {
+          navigate(`/npi/quotation-system/enquiry/${enquiryData.id}`);
+        } else {
+          navigate('/npi/quotation-system');
+        }
+      } else {
+        navigate('/npi/quotation-system');
+      }
+    } catch (error) {
+      console.error('Error finishing quote:', error);
+      toast.error('Failed to finish quote');
+    } finally {
+      setFinishingQuote(false);
+    }
+  };
+
 
   const handleSave = async (showSuccessToast = true, navigateAfter = true): Promise<boolean> => {
     if (!user) {
@@ -2362,10 +2420,22 @@ const QuotationSystemNew = () => {
                     </TableBody>
                   </Table>
                 </div>
-                <div className="mt-4">
+                <div className="mt-4 flex justify-between">
                   <Button variant="outline" onClick={handleBack}>
                     <ChevronLeft className="h-4 w-4 mr-1" />
                     Back
+                  </Button>
+                  <Button 
+                    onClick={handleFinishQuote}
+                    disabled={saving || finishingQuote}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    {finishingQuote ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                    )}
+                    Finish Quote
                   </Button>
                 </div>
               </CardContent>
