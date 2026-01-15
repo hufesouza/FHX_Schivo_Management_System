@@ -517,7 +517,7 @@ const QuotationSystemNew = () => {
                   <div className="flex flex-wrap gap-4">
                     {volumes.map((vol, idx) => (
                       <div key={idx} className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30">
-                        <span className="text-sm font-medium text-muted-foreground w-12">Vol {idx + 1}</span>
+                        <span className="text-sm font-medium text-muted-foreground w-12">Qty {idx + 1}</span>
                         <div className="flex-1">
                           <Input
                             type="number"
