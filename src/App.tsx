@@ -59,6 +59,7 @@ const App = () => (
           <Route path="/npi/quotation-control" element={<QuotationControlHub />} />
           <Route path="/npi/quotation-system" element={<QuotationSystemHub />} />
           <Route path="/npi/quotation-system/new" element={<QuotationSystemNew />} />
+          <Route path="/npi/quotation-system/edit/:id" element={<QuotationSystemNew />} />
           <Route path="/npi/quotation-system/list" element={<QuotationSystemList />} />
           <Route path="/npi/quotation-system/settings" element={<QuotationSystemSettings />} />
           <Route path="/npi/projects" element={<NPIProjects />} />
