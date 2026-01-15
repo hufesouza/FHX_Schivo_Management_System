@@ -280,7 +280,7 @@ const QuotationSystemNew = () => {
       subcon_id: subconId,
       vendor_no: vendorNo,
       vendor_name: vendorName,
-      part_number: `${header.part_number}${header.revision}SCL${subconId}`,
+      part_number: `${header.part_number}Rev${header.revision}SCL${subconId}`,
       process_description: processDesc,
       quantity: vol.quantity,
       std_cost_est: costs[idx] || 0,
@@ -512,7 +512,7 @@ const QuotationSystemNew = () => {
       subcon_id: newSubconId,
       vendor_no: '',
       vendor_name: '',
-      part_number: `${header.part_number}${header.revision}SCL${newSubconId}`,
+      part_number: `${header.part_number}Rev${header.revision}SCL${newSubconId}`,
       process_description: '',
       quantity: vol.quantity,
       std_cost_est: 0,
@@ -540,7 +540,7 @@ const QuotationSystemNew = () => {
     setRoutings([...routings, {
       op_no: lastOpNo + 10,
       sublevel_bom: false,
-      part_number: header.part_number + '-' + header.revision,
+      part_number: header.part_number + 'Rev' + header.revision,
       resource_no: '',
       operation_details: '',
       subcon_processing_time: 0,
@@ -662,7 +662,7 @@ const QuotationSystemNew = () => {
         line_number: s.line_number,
         vendor_no: s.vendor_no,
         vendor_name: s.vendor_name,
-        part_number: `${header.part_number}${header.revision}SCL${s.subcon_id}`,
+        part_number: `${header.part_number}Rev${header.revision}SCL${s.subcon_id}`,
         process_description: s.process_description,
         std_cost_est: s.std_cost_est,
         certification_required: s.certification_required,
@@ -1416,7 +1416,7 @@ const QuotationSystemNew = () => {
                           <div className="flex items-center gap-2">
                             <Badge variant="outline">SCL{subconId}</Badge>
                             <span className="text-sm text-muted-foreground">
-                              PN: {header.part_number}{header.revision}SCL{subconId}
+                              PN: {header.part_number}Rev{header.revision}SCL{subconId}
                             </span>
                           </div>
                           <Button
