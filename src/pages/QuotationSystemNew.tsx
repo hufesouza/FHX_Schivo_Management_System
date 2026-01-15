@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw, AlertTriangle, Check } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -92,6 +94,7 @@ const QuotationSystemNew = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [subconVendors, setSubconVendors] = useState<SubconVendor[]>([]);
   const [explainerOpen, setExplainerOpen] = useState<CalculationExplainer>(null);
+  const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
 
   const tabOrder = ['header', 'materials', 'subcon', 'routings', 'pricing'];
 
@@ -132,6 +135,23 @@ const QuotationSystemNew = () => {
       c.bp_name.toLowerCase() === customerName.toLowerCase()
     );
     return match ? match.bp_code : 'N/A';
+  };
+
+  // Check if customer is in the list
+  const isKnownCustomer = (customerName: string): boolean => {
+    if (!customerName.trim()) return true; // Empty is fine
+    return customers.some(c => 
+      c.bp_name.toLowerCase() === customerName.toLowerCase()
+    );
+  };
+
+  // Filter customers by search term
+  const getFilteredCustomers = (searchTerm: string) => {
+    if (!searchTerm.trim()) return customers;
+    return customers.filter(c => 
+      c.bp_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.bp_code.toLowerCase().includes(searchTerm.toLowerCase())
+    );
   };
 
   // Auto-update vendor code when vendor name changes
@@ -758,23 +778,80 @@ const QuotationSystemNew = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Customer *</Label>
-                    <Input
-                      value={header.customer}
-                      onChange={(e) => setHeader({ ...header, customer: e.target.value })}
-                      placeholder="Customer name"
-                    />
+                    <Label className="flex items-center gap-2">
+                      Customer *
+                      {header.customer && !isKnownCustomer(header.customer) && (
+                        <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 text-xs">
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          New Customer
+                        </Badge>
+                      )}
+                    </Label>
+                    <Popover open={customerPopoverOpen} onOpenChange={setCustomerPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <div className="relative">
+                          <Input
+                            value={header.customer}
+                            onChange={(e) => {
+                              setHeader({ ...header, customer: e.target.value });
+                              if (e.target.value) setCustomerPopoverOpen(true);
+                            }}
+                            onFocus={() => setCustomerPopoverOpen(true)}
+                            placeholder="Start typing to search..."
+                            className={header.customer && !isKnownCustomer(header.customer) ? 'border-amber-300 pr-8' : ''}
+                          />
+                          {header.customer && isKnownCustomer(header.customer) && (
+                            <Check className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                          )}
+                        </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[300px] p-0" align="start">
+                        <Command>
+                          <CommandInput 
+                            placeholder="Search customers..." 
+                            value={header.customer}
+                            onValueChange={(value) => setHeader({ ...header, customer: value })}
+                          />
+                          <CommandList>
+                            <CommandEmpty>
+                              <div className="py-2 px-4 text-sm text-muted-foreground">
+                                No customer found. You can still use "{header.customer}" as a new customer.
+                              </div>
+                            </CommandEmpty>
+                            <CommandGroup>
+                              {getFilteredCustomers(header.customer).slice(0, 10).map((customer) => (
+                                <CommandItem
+                                  key={customer.id}
+                                  value={customer.bp_name}
+                                  onSelect={() => {
+                                    setHeader({ ...header, customer: customer.bp_name });
+                                    setCustomerPopoverOpen(false);
+                                  }}
+                                >
+                                  <div className="flex justify-between w-full">
+                                    <span>{customer.bp_name}</span>
+                                    <span className="text-muted-foreground text-xs">{customer.bp_code}</span>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
+                        </Command>
+                      </PopoverContent>
+                    </Popover>
                   </div>
                   <div className="space-y-2">
                     <Label>Customer Code</Label>
                     <Input
                       value={getCustomerCode(header.customer)}
                       readOnly
-                      className="bg-muted"
+                      className={`bg-muted ${header.customer && !isKnownCustomer(header.customer) ? 'text-amber-600' : ''}`}
                       placeholder="Auto-filled from customer name"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Auto-populated from customer list
+                      {header.customer && !isKnownCustomer(header.customer) 
+                        ? 'Customer not in list - code shows N/A'
+                        : 'Auto-populated from customer list'}
                     </p>
                   </div>
                   <div className="space-y-2">
