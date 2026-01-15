@@ -74,9 +74,13 @@ const EnquiryList = () => {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
 
   const fetchCustomers = async (search: string) => {
-    if (search.length < 2) return;
+    if (search.length < 2) {
+      setCustomers([]);
+      return;
+    }
     setLoadingCustomers(true);
     try {
       const { data, error } = await supabase
@@ -90,6 +94,7 @@ const EnquiryList = () => {
       setCustomers(data || []);
     } catch (error) {
       console.error('Error fetching customers:', error);
+      setCustomers([]);
     } finally {
       setLoadingCustomers(false);
     }
@@ -156,6 +161,8 @@ const EnquiryList = () => {
     setCustomerId(null);
     setSalesRep('');
     setNotes('');
+    setCustomerSearchTerm('');
+    setCustomers([]);
   };
 
   if (loading) {
@@ -306,72 +313,82 @@ const EnquiryList = () => {
               
               <div className="grid gap-2">
                 <Label>Customer *</Label>
-                <Popover open={customerSearchOpen} onOpenChange={setCustomerSearchOpen}>
+                <Popover open={customerSearchOpen} onOpenChange={(open) => {
+                  setCustomerSearchOpen(open);
+                  if (open) {
+                    setCustomerSearchTerm('');
+                    setCustomers([]);
+                  }
+                }}>
                   <PopoverTrigger asChild>
                     <Button
                       variant="outline"
                       role="combobox"
                       className="justify-between font-normal"
                     >
-                      {customerName || "Search or enter customer..."}
+                      {customerName || "Search customer..."}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-[400px] p-0" align="start">
-                    <Command>
+                    <Command shouldFilter={false}>
                       <CommandInput 
-                        placeholder="Search customers..." 
+                        placeholder="Type to search customers..." 
+                        value={customerSearchTerm}
                         onValueChange={(v) => {
-                          setCustomerName(v);
+                          setCustomerSearchTerm(v);
                           fetchCustomers(v);
                         }}
                       />
                       <CommandList>
                         {loadingCustomers && (
-                          <div className="py-2 text-center">
+                          <div className="py-4 text-center">
                             <Loader2 className="h-4 w-4 animate-spin mx-auto" />
                           </div>
                         )}
-                        <CommandEmpty>
-                          {customerName.length >= 2 ? (
-                            <div className="p-2">
-                              <p className="text-sm text-muted-foreground mb-2">No customer found.</p>
-                              <Button 
-                                size="sm" 
-                                variant="outline" 
-                                className="w-full"
-                                onClick={() => {
-                                  setCustomerId(null);
-                                  setCustomerSearchOpen(false);
-                                }}
-                              >
-                                Use "{customerName}" as customer name
-                              </Button>
-                            </div>
-                          ) : (
-                            <p className="text-sm text-muted-foreground p-2">
-                              Type at least 2 characters to search
-                            </p>
-                          )}
-                        </CommandEmpty>
-                        <CommandGroup>
-                          {customers.map((customer) => (
-                            <CommandItem
-                              key={customer.id}
-                              onSelect={() => {
-                                setCustomerId(customer.id);
-                                setCustomerName(customer.bp_name);
+                        {!loadingCustomers && customerSearchTerm.length < 2 && (
+                          <div className="py-4 text-center text-sm text-muted-foreground">
+                            Type at least 2 characters to search
+                          </div>
+                        )}
+                        {!loadingCustomers && customerSearchTerm.length >= 2 && customers.length === 0 && (
+                          <div className="p-2">
+                            <p className="text-sm text-muted-foreground mb-2 text-center">No customer found.</p>
+                            <Button 
+                              size="sm" 
+                              variant="outline" 
+                              className="w-full"
+                              onClick={() => {
+                                setCustomerId(null);
+                                setCustomerName(customerSearchTerm);
                                 setCustomerSearchOpen(false);
                               }}
                             >
-                              <Check className={cn(
-                                "mr-2 h-4 w-4",
-                                customerId === customer.id ? "opacity-100" : "opacity-0"
-                              )} />
-                              <span className="font-mono text-xs mr-2">{customer.bp_code}</span>
-                              {customer.bp_name}
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
+                              Use "{customerSearchTerm}" as customer name
+                            </Button>
+                          </div>
+                        )}
+                        {!loadingCustomers && customers.length > 0 && (
+                          <CommandGroup>
+                            {customers.map((customer) => (
+                              <CommandItem
+                                key={customer.id}
+                                value={customer.id}
+                                onSelect={() => {
+                                  setCustomerId(customer.id);
+                                  setCustomerName(customer.bp_name);
+                                  setCustomerSearchOpen(false);
+                                }}
+                              >
+                                <Check className={cn(
+                                  "mr-2 h-4 w-4",
+                                  customerId === customer.id ? "opacity-100" : "opacity-0"
+                                )} />
+                                <span className="font-mono text-xs mr-2 text-muted-foreground">{customer.bp_code}</span>
+                                {customer.bp_name}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        )}
                       </CommandList>
                     </Command>
                   </PopoverContent>
