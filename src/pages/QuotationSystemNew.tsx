@@ -538,7 +538,8 @@ const QuotationSystemNew = () => {
             operation_details: r.operation_details || '',
             subcon_processing_time: r.subcon_processing_time || 0,
             setup_time: r.setup_time || 0,
-            run_time: r.run_time || 0
+            run_time: r.run_time || 0,
+            override_cost: r.override_cost ?? null
           })));
         }
 
@@ -752,7 +753,15 @@ const QuotationSystemNew = () => {
       // Insert routings
       const routingInserts = routings.filter(r => r.resource_no || r.operation_details).map(r => ({
         quotation_id: currentQuotationId,
-        ...r,
+        op_no: r.op_no,
+        sublevel_bom: r.sublevel_bom,
+        part_number: r.part_number,
+        resource_no: r.resource_no,
+        operation_details: r.operation_details,
+        subcon_processing_time: r.subcon_processing_time,
+        setup_time: r.setup_time,
+        run_time: r.run_time,
+        override_cost: r.override_cost ?? null,
         cost: calculateRoutingCost(r)
       }));
 
