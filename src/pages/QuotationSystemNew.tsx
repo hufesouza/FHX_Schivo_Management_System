@@ -476,10 +476,16 @@ const QuotationSystemNew = () => {
     loadEnquiryData();
   }, [searchParams, editId]);
 
-  // Load existing quotation for editing
+  // Load existing quotation for editing (from route param OR search param)
   useEffect(() => {
     const loadQuotation = async () => {
-      if (!editId) return;
+      const quotationIdFromUrl = searchParams.get('quotationId');
+      const idToLoad = editId || quotationIdFromUrl;
+      
+      if (!idToLoad) return;
+      
+      // Set the quotation ID for updates
+      setQuotationId(idToLoad);
       
       setLoadingQuotation(true);
       try {
@@ -487,7 +493,7 @@ const QuotationSystemNew = () => {
         const { data: quotation, error: quotationError } = await supabase
           .from('system_quotations')
           .select('*')
-          .eq('id', editId)
+          .eq('id', idToLoad)
           .single();
         
         if (quotationError) throw quotationError;
@@ -520,7 +526,7 @@ const QuotationSystemNew = () => {
         const { data: volumeData } = await supabase
           .from('quotation_volume_pricing')
           .select('*')
-          .eq('quotation_id', editId)
+          .eq('quotation_id', idToLoad)
           .order('quantity', { ascending: true });
         
         if (volumeData && volumeData.length > 0) {
@@ -534,7 +540,7 @@ const QuotationSystemNew = () => {
         const { data: materialsData } = await supabase
           .from('quotation_materials')
           .select('*')
-          .eq('quotation_id', editId)
+          .eq('quotation_id', idToLoad)
           .order('line_number', { ascending: true });
         
         if (materialsData && materialsData.length > 0) {
@@ -558,7 +564,7 @@ const QuotationSystemNew = () => {
         const { data: subconsData } = await supabase
           .from('quotation_subcons')
           .select('*')
-          .eq('quotation_id', editId)
+          .eq('quotation_id', idToLoad)
           .order('line_number', { ascending: true });
         
         if (subconsData && subconsData.length > 0) {
@@ -597,7 +603,7 @@ const QuotationSystemNew = () => {
         const { data: routingsData } = await supabase
           .from('quotation_routings')
           .select('*')
-          .eq('quotation_id', editId)
+          .eq('quotation_id', idToLoad)
           .order('op_no', { ascending: true });
         
         if (routingsData && routingsData.length > 0) {
@@ -629,7 +635,7 @@ const QuotationSystemNew = () => {
     };
 
     loadQuotation();
-  }, [editId]);
+  }, [editId, searchParams]);
 
   const addMaterialLine = () => {
     setMaterials([...materials, {
@@ -1088,7 +1094,7 @@ const QuotationSystemNew = () => {
     await handleSave(true, true);
   };
 
-  const pageTitle = editId ? 'Edit Quotation' : 'New Quotation';
+  const pageTitle = (editId || searchParams.get('quotationId')) ? 'Edit Quotation' : 'New Quotation';
 
   if (resourcesLoading || settingsLoading || loadingQuotation) {
     return (
