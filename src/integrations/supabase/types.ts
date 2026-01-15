@@ -191,6 +191,53 @@ export type Database = {
         }
         Relationships: []
       }
+      enquiry_parts: {
+        Row: {
+          created_at: string
+          description: string | null
+          drawing_file_name: string | null
+          drawing_url: string | null
+          enquiry_id: string
+          id: string
+          line_number: number
+          part_number: string
+          revision: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          drawing_file_name?: string | null
+          drawing_url?: string | null
+          enquiry_id: string
+          id?: string
+          line_number: number
+          part_number: string
+          revision?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          drawing_file_name?: string | null
+          drawing_url?: string | null
+          enquiry_id?: string
+          id?: string
+          line_number?: number
+          part_number?: string
+          revision?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enquiry_parts_enquiry_id_fkey"
+            columns: ["enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "quotation_enquiries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       enquiry_quotation_parts: {
         Row: {
           created_at: string
@@ -2132,6 +2179,53 @@ export type Database = {
         }
         Relationships: []
       }
+      quotation_enquiries: {
+        Row: {
+          created_at: string
+          created_by: string
+          customer_id: string | null
+          customer_name: string
+          enquiry_no: string
+          id: string
+          notes: string | null
+          sales_representative: string | null
+          status: Database["public"]["Enums"]["enquiry_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          customer_id?: string | null
+          customer_name: string
+          enquiry_no: string
+          id?: string
+          notes?: string | null
+          sales_representative?: string | null
+          status?: Database["public"]["Enums"]["enquiry_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          customer_id?: string | null
+          customer_name?: string
+          enquiry_no?: string
+          id?: string
+          notes?: string | null
+          sales_representative?: string | null
+          status?: Database["public"]["Enums"]["enquiry_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_enquiries_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "quotation_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotation_material_suppliers: {
         Row: {
           bp_code: string
@@ -2685,6 +2779,7 @@ export type Database = {
           customer_code: string | null
           description: string | null
           enquiry_no: string
+          enquiry_part_id: string | null
           id: string
           manufacture_type: string | null
           material_markup: number | null
@@ -2715,6 +2810,7 @@ export type Database = {
           customer_code?: string | null
           description?: string | null
           enquiry_no: string
+          enquiry_part_id?: string | null
           id?: string
           manufacture_type?: string | null
           material_markup?: number | null
@@ -2745,6 +2841,7 @@ export type Database = {
           customer_code?: string | null
           description?: string | null
           enquiry_no?: string
+          enquiry_part_id?: string | null
           id?: string
           manufacture_type?: string | null
           material_markup?: number | null
@@ -2766,7 +2863,15 @@ export type Database = {
           vol_5?: number | null
           won_volume?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "system_quotations_enquiry_part_id_fkey"
+            columns: ["enquiry_part_id"]
+            isOneToOne: false
+            referencedRelation: "enquiry_parts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tasks: {
         Row: {
@@ -3210,6 +3315,15 @@ export type Database = {
         | "quality"
         | "npi"
         | "supply_chain"
+      enquiry_status:
+        | "open"
+        | "in_progress"
+        | "submitted_for_review"
+        | "approved"
+        | "declined"
+        | "submitted"
+        | "won"
+        | "lost"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3344,6 +3458,16 @@ export const Constants = {
         "quality",
         "npi",
         "supply_chain",
+      ],
+      enquiry_status: [
+        "open",
+        "in_progress",
+        "submitted_for_review",
+        "approved",
+        "declined",
+        "submitted",
+        "won",
+        "lost",
       ],
     },
   },

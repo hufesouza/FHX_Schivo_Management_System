@@ -32,6 +32,8 @@ import QuotationSystemHub from "./pages/QuotationSystemHub";
 import QuotationSystemNew from "./pages/QuotationSystemNew";
 import QuotationSystemList from "./pages/QuotationSystemList";
 import QuotationSystemSettings from "./pages/QuotationSystemSettings";
+import EnquiryList from "./pages/EnquiryList";
+import EnquiryDetail from "./pages/EnquiryDetail";
 
 const queryClient = new QueryClient();
 
@@ -58,6 +60,8 @@ const App = () => (
           
           <Route path="/npi/quotation-control" element={<QuotationControlHub />} />
           <Route path="/npi/quotation-system" element={<QuotationSystemHub />} />
+          <Route path="/npi/quotation-system/enquiries" element={<EnquiryList />} />
+          <Route path="/npi/quotation-system/enquiry/:id" element={<EnquiryDetail />} />
           <Route path="/npi/quotation-system/new" element={<QuotationSystemNew />} />
           <Route path="/npi/quotation-system/edit/:id" element={<QuotationSystemNew />} />
           <Route path="/npi/quotation-system/list" element={<QuotationSystemList />} />

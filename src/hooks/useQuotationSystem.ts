@@ -47,6 +47,7 @@ export interface SystemQuotation {
   created_by: string;
   created_at: string;
   updated_at: string;
+  enquiry_part_id: string | null;
 }
 
 export interface QuotationMaterial {
