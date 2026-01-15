@@ -781,7 +781,8 @@ const QuotationSystemNew = () => {
 
   // Handle finishing the quote - saves and updates part status to 'quoted'
   const handleFinishQuote = async () => {
-    const enquiryPartId = searchParams.get('enquiryPartId');
+    // Use the stored enquiryPartId state (works for both new and edit flows)
+    const partIdToUpdate = enquiryPartId || searchParams.get('enquiryPartId');
     
     setFinishingQuote(true);
     try {
@@ -793,11 +794,11 @@ const QuotationSystemNew = () => {
       }
 
       // Update the part status to 'quoted' if we have an enquiry part ID
-      if (enquiryPartId) {
+      if (partIdToUpdate) {
         const { error: updateError } = await supabase
           .from('enquiry_parts')
           .update({ quote_status: 'quoted' })
-          .eq('id', enquiryPartId);
+          .eq('id', partIdToUpdate);
 
         if (updateError) {
           console.error('Error updating part status:', updateError);
@@ -809,8 +810,8 @@ const QuotationSystemNew = () => {
         toast.success('Quote saved successfully');
       }
 
-      // Navigate back to the enquiry
-      const enquiryNo = searchParams.get('enquiryNo');
+      // Navigate back to the enquiry - use header.enquiry_no which is always populated
+      const enquiryNo = header.enquiry_no || searchParams.get('enquiryNo');
       if (enquiryNo) {
         // Find the enquiry ID and navigate to it
         const { data: enquiryData } = await supabase
