@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useTasks } from '@/hooks/useTasks';
+import { useQuotationReviewTasks, QuotationReviewTask } from '@/hooks/useQuotationReviewTasks';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +14,9 @@ import {
   Calendar,
   User,
   CheckCircle2,
-  Clock
+  Clock,
+  DollarSign,
+  TrendingUp
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -45,6 +48,7 @@ const Tasks = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
   const { tasks, loading, getMyTasks, getAllPendingTasks } = useTasks();
+  const { tasks: quotationReviewTasks, loading: quotationLoading } = useQuotationReviewTasks();
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -52,7 +56,7 @@ const Tasks = () => {
     }
   }, [isAuthenticated, authLoading, navigate]);
 
-  if (authLoading || loading || roleLoading) {
+  if (authLoading || loading || roleLoading || quotationLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -63,6 +67,7 @@ const Tasks = () => {
   const myTasks = getMyTasks();
   const allPending = getAllPendingTasks();
   const completedTasks = tasks.filter(t => t.status === 'completed');
+  const totalMyTasks = myTasks.length + quotationReviewTasks.length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -87,9 +92,17 @@ const Tasks = () => {
           <TabsList>
             <TabsTrigger value="my-tasks" className="relative">
               My Tasks
-              {myTasks.length > 0 && (
+              {totalMyTasks > 0 && (
                 <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                  {myTasks.length}
+                  {totalMyTasks}
+                </Badge>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="quotation-reviews" className="relative">
+              Quotation Reviews
+              {quotationReviewTasks.length > 0 && (
+                <Badge variant="destructive" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  {quotationReviewTasks.length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -98,7 +111,7 @@ const Tasks = () => {
           </TabsList>
 
           <TabsContent value="my-tasks">
-            {myTasks.length === 0 ? (
+            {myTasks.length === 0 && quotationReviewTasks.length === 0 ? (
               <Card className="text-center py-12">
                 <CardContent>
                   <div className="bg-muted rounded-full p-4 w-fit mx-auto mb-4">
@@ -111,9 +124,58 @@ const Tasks = () => {
                 </CardContent>
               </Card>
             ) : (
+              <div className="space-y-6">
+                {/* Quotation Review Tasks */}
+                {quotationReviewTasks.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                      <DollarSign className="h-4 w-4" />
+                      Quotation Reviews ({quotationReviewTasks.length})
+                    </h3>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {quotationReviewTasks.map((task, index) => (
+                        <QuotationReviewCard key={task.id} task={task} index={index} navigate={navigate} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Work Order Review Tasks */}
+                {myTasks.length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-2">
+                      <FileText className="h-4 w-4" />
+                      Work Order Reviews ({myTasks.length})
+                    </h3>
+                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                      {myTasks.map((task, index) => (
+                        <TaskCard key={task.id} task={task} index={index} navigate={navigate} />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* Quotation Reviews Tab */}
+          <TabsContent value="quotation-reviews">
+            {quotationReviewTasks.length === 0 ? (
+              <Card className="text-center py-12">
+                <CardContent>
+                  <div className="bg-muted rounded-full p-4 w-fit mx-auto mb-4">
+                    <DollarSign className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">No quotation reviews</h3>
+                  <p className="text-muted-foreground">
+                    Quotation reviews assigned to you will appear here.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {myTasks.map((task, index) => (
-                  <TaskCard key={task.id} task={task} index={index} navigate={navigate} />
+                {quotationReviewTasks.map((task, index) => (
+                  <QuotationReviewCard key={task.id} task={task} index={index} navigate={navigate} />
                 ))}
               </div>
             )}
@@ -155,6 +217,65 @@ const Tasks = () => {
     </div>
   );
 };
+
+// Quotation Review Card Component
+interface QuotationReviewCardProps {
+  task: QuotationReviewTask;
+  index: number;
+  navigate: (path: string) => void;
+}
+
+function QuotationReviewCard({ task, index, navigate }: QuotationReviewCardProps) {
+  return (
+    <Card 
+      className="hover:shadow-elegant transition-smooth cursor-pointer animate-fade-in border-l-4 border-l-green-500"
+      style={{ animationDelay: `${index * 50}ms` }}
+      onClick={() => navigate(`/npi/quotation-system/enquiry/${task.enquiry_id}`)}
+    >
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between">
+          <div>
+            <CardTitle className="text-base font-medium flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-green-600" />
+              {task.enquiry?.enquiry_no || 'Quotation Review'}
+            </CardTitle>
+            <CardDescription className="mt-1">
+              {task.enquiry?.customer_name || 'No customer'}
+            </CardDescription>
+          </div>
+          <Badge className="bg-green-600">Review</Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2 text-sm">
+          {task.enquiry?.total_quoted_value && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <DollarSign className="h-3 w-3" />
+              <span>€{task.enquiry.total_quoted_value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+          )}
+          {task.enquiry?.average_margin && (
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <TrendingUp className="h-3 w-3" />
+              <span>{task.enquiry.average_margin.toFixed(1)}% margin</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
+            <div className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              Assigned {formatDate(task.created_at)}
+            </div>
+          </div>
+          {task.comments && (
+            <p className="text-xs text-muted-foreground italic truncate">
+              "{task.comments}"
+            </p>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 interface TaskCardProps {
   task: ReturnType<typeof useTasks>['tasks'][0];
