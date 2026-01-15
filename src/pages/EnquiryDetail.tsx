@@ -67,7 +67,7 @@ const EnquiryDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
-  const { updateEnquiry, updateEnquiryStatus, deleteEnquiry, getEnquiryWithParts } = useQuotationEnquiries();
+  const { updateEnquiry, updateEnquiryStatus, deleteEnquiry } = useQuotationEnquiries();
   const { parts, addPart, updatePart, deletePart, uploadDrawing, loading: partsLoading } = useEnquiryParts(id);
   const { quotations } = useSystemQuotations();
   
@@ -95,17 +95,36 @@ const EnquiryDetail = () => {
     parts.some(p => q.enquiry_part_id === p.id)
   );
 
+  // Fetch enquiry directly to avoid dependency loop
   const loadEnquiry = useCallback(async () => {
     if (!id) return;
     setLoading(true);
-    const data = await getEnquiryWithParts(id);
-    if (data) {
-      setEnquiry(data);
-      setSalesRep(data.sales_representative || '');
-      setNotes(data.notes || '');
+    try {
+      const { data: enquiryData, error: enquiryError } = await supabase
+        .from('quotation_enquiries')
+        .select('*')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (enquiryError) throw enquiryError;
+      
+      if (enquiryData) {
+        setEnquiry({
+          ...(enquiryData as any),
+          parts: []
+        });
+        setSalesRep(enquiryData.sales_representative || '');
+        setNotes(enquiryData.notes || '');
+      } else {
+        setEnquiry(null);
+      }
+    } catch (error) {
+      console.error('Error fetching enquiry:', error);
+      toast.error('Failed to load enquiry details');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-  }, [id, getEnquiryWithParts]);
+  }, [id]);
 
   useEffect(() => {
     loadEnquiry();
