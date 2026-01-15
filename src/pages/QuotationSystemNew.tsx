@@ -1765,7 +1765,7 @@ const QuotationSystemNew = () => {
                         <TableHead className="text-right">Setup (min)</TableHead>
                         <TableHead className="text-right">Run (min)</TableHead>
                         <TableHead className="text-right">Cost/Min (€)</TableHead>
-                        <TableHead className="text-right">Total (€)</TableHead>
+                        <TableHead className="text-right">Total/Part (€)</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
