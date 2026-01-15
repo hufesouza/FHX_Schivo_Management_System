@@ -2203,11 +2203,10 @@ const QuotationSystemNew = () => {
                         const totalCost = setupCost + routingCost + materialCost + subconCost;
                         const unitPriceEur = totalCost / vol.quantity / (1 - vol.margin / 100);
                         const unitPriceConverted = unitPriceEur * exchangeRate;
-                        // Calculate rate per hour: Unit Price / Total Time per part in hours
+                        // Calculate rate per hour: Price per Part × (60 / Minutes per Part)
                         // Time per part = Run Time + (Setup Time / Qty)
                         const timePerPartMins = totals.totalRunTime + (totals.selectedSetupTime / vol.quantity);
-                        const timePerPartHours = timePerPartMins / 60;
-                        const ratePerHour = timePerPartHours > 0 ? unitPriceEur / timePerPartHours : 0;
+                        const ratePerHour = timePerPartMins > 0 ? unitPriceEur * (60 / timePerPartMins) : 0;
 
                         return (
                           <TableRow key={idx}>
@@ -2453,8 +2452,8 @@ const QuotationSystemNew = () => {
                       Effective hourly rate being charged based on the unit price (including material and subcon).
                     </DialogDescription>
                     <div className="bg-muted p-4 rounded-lg space-y-2">
-                      <p className="font-mono text-sm">Rate/hr = Unit Price ÷ Time per Part (hrs)</p>
-                      <p className="font-mono text-xs text-muted-foreground">Time per Part = Run Time + (Setup Time ÷ Qty)</p>
+                      <p className="font-mono text-sm">Hourly Rate = Price per Part × (60 ÷ Minutes per Part)</p>
+                      <p className="font-mono text-xs text-muted-foreground">Minutes per Part = Run Time + (Setup Time ÷ Qty)</p>
                       <div className="border-t pt-2 mt-2">
                         <p className="text-sm"><strong>Current Values:</strong></p>
                         <ul className="text-sm space-y-1 mt-1">
@@ -2464,7 +2463,7 @@ const QuotationSystemNew = () => {
                       </div>
                       <div className="border-t pt-2 mt-2">
                         <p className="text-sm"><strong>How it works:</strong></p>
-                        <p className="text-sm">This shows the effective hourly rate you're charging, calculated by dividing the unit price by total time per part (run time + amortized setup time). This includes all costs: material, subcon, and labour.</p>
+                        <p className="text-sm">This shows the effective hourly rate you're charging, calculated by multiplying the unit price by 60 and dividing by the minutes per part. This includes all costs: material, subcon, and labour.</p>
                       </div>
                     </div>
                   </>
