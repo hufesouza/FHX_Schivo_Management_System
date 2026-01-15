@@ -152,80 +152,83 @@ const QuotationSystemNew = () => {
     fetchMaterialSuppliers();
   }, []);
 
-  // Auto-update customer code when customer name changes
+  // Auto-update customer code when customer name changes (uses site-filtered list)
   const getCustomerCode = (customerName: string): string => {
-    const match = customers.find(c => 
+    const match = siteCustomers.find(c => 
       c.bp_name.toLowerCase() === customerName.toLowerCase()
     );
     return match ? match.bp_code : 'N/A';
   };
 
-  // Check if customer is in the list
+  // Check if customer is in the list (uses site-filtered list)
   const isKnownCustomer = (customerName: string): boolean => {
     if (!customerName.trim()) return true; // Empty is fine
-    return customers.some(c => 
+    return siteCustomers.some(c => 
       c.bp_name.toLowerCase() === customerName.toLowerCase()
     );
   };
 
-  // Filter customers by search term
+  // Filter customers by search term (uses site-filtered list)
   const getFilteredCustomers = (searchTerm: string) => {
-    if (!searchTerm.trim()) return customers;
-    return customers.filter(c => 
+    if (!searchTerm.trim()) return siteCustomers;
+    return siteCustomers.filter(c => 
       c.bp_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.bp_code.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
 
-  // Auto-update vendor code when vendor name changes (for subcon)
+  // Auto-update vendor code when vendor name changes (uses site-filtered list)
   const getVendorCode = (vendorName: string): string => {
-    const match = subconVendors.find(v => 
+    const match = siteSubconVendors.find(v => 
       v.bp_name.toLowerCase() === vendorName.toLowerCase()
     );
     return match ? match.bp_code : 'N/A';
   };
 
-  // Check if subcon vendor is in the list
+  // Check if subcon vendor is in the list (uses site-filtered list)
   const isKnownSubconVendor = (vendorName: string): boolean => {
     if (!vendorName.trim()) return true;
-    return subconVendors.some(v => 
+    return siteSubconVendors.some(v => 
       v.bp_name.toLowerCase() === vendorName.toLowerCase()
     );
   };
 
-  // Filter subcon vendors by search term
+  // Filter subcon vendors by search term (uses site-filtered list)
   const getFilteredSubconVendors = (searchTerm: string) => {
-    if (!searchTerm.trim()) return subconVendors;
-    return subconVendors.filter(v => 
+    if (!searchTerm.trim()) return siteSubconVendors;
+    return siteSubconVendors.filter(v => 
       v.bp_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       v.bp_code.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
 
-  // Auto-update material supplier code when name changes
+  // Auto-update material supplier code when name changes (uses site-filtered list)
   const getMaterialSupplierCode = (supplierName: string): string => {
-    const match = materialSuppliers.find(s => 
+    const match = siteMaterialSuppliers.find(s => 
       s.bp_name.toLowerCase() === supplierName.toLowerCase()
     );
     return match ? match.bp_code : 'N/A';
   };
 
-  // Check if material supplier is in the list
+  // Check if material supplier is in the list (uses site-filtered list)
   const isKnownMaterialSupplier = (supplierName: string): boolean => {
     if (!supplierName.trim()) return true;
-    return materialSuppliers.some(s => 
+    return siteMaterialSuppliers.some(s => 
       s.bp_name.toLowerCase() === supplierName.toLowerCase()
     );
   };
 
-  // Filter material suppliers by search term
+  // Filter material suppliers by search term (uses site-filtered list)
   const getFilteredMaterialSuppliers = (searchTerm: string) => {
-    if (!searchTerm.trim()) return materialSuppliers;
-    return materialSuppliers.filter(s => 
+    if (!searchTerm.trim()) return siteMaterialSuppliers;
+    return siteMaterialSuppliers.filter(s => 
       s.bp_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.bp_code.toLowerCase().includes(searchTerm.toLowerCase())
     );
   };
+
+  // Site selection
+  const [site, setSite] = useState<'waterford' | 'mexico'>('waterford');
 
   // Header state
   const [header, setHeader] = useState({
@@ -246,6 +249,33 @@ const QuotationSystemNew = () => {
     subcon_markup: 20,
     status: 'draft',
   });
+
+  // Filter data by selected site
+  const siteResources = useMemo(() => {
+    const seen = new Set<string>();
+    return resources
+      .filter(r => r.site === site && r.is_active)
+      .filter(r => {
+        if (seen.has(r.resource_no)) return false;
+        seen.add(r.resource_no);
+        return true;
+      });
+  }, [resources, site]);
+
+  const siteCustomers = useMemo(() => 
+    customers.filter(c => (c as any).site === site || !(c as any).site),
+    [customers, site]
+  );
+
+  const siteSubconVendors = useMemo(() => 
+    subconVendors.filter(v => (v as any).site === site || !(v as any).site),
+    [subconVendors, site]
+  );
+
+  const siteMaterialSuppliers = useMemo(() => 
+    materialSuppliers.filter(s => (s as any).site === site || !(s as any).site),
+    [materialSuppliers, site]
+  );
 
   // Currency state
   const [currency, setCurrency] = useState<'EUR' | 'USD' | 'CAD' | 'GBP'>('EUR');
@@ -550,7 +580,7 @@ const QuotationSystemNew = () => {
   };
 
   const getResourceCost = (resourceNo: string): number => {
-    const resource = resources.find(r => r.resource_no === resourceNo);
+    const resource = siteResources.find(r => r.resource_no === resourceNo);
     return resource?.cost_per_minute || 0;
   };
 
@@ -827,6 +857,28 @@ const QuotationSystemNew = () => {
                 <CardDescription>Enter the basic quotation information from the customer RFQ</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {/* Site Selection - First thing to choose */}
+                <div className="p-4 border-2 border-primary/30 rounded-lg bg-primary/5">
+                  <div className="flex items-center gap-4">
+                    <Label className="text-base font-semibold">Site *</Label>
+                    <Select
+                      value={site}
+                      onValueChange={(v: 'waterford' | 'mexico') => setSite(v)}
+                    >
+                      <SelectTrigger className="w-48">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="waterford">🇮🇪 Waterford</SelectItem>
+                        <SelectItem value="mexico">🇲🇽 Mexico</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-sm text-muted-foreground">
+                      Select the site first — this filters customers, vendors, suppliers, and resources.
+                    </p>
+                  </div>
+                </div>
+
                 <Alert className="bg-muted/50 border-primary/20">
                   <Info className="h-4 w-4 text-primary" />
                   <AlertDescription className="text-sm text-muted-foreground">
@@ -1705,7 +1757,7 @@ const QuotationSystemNew = () => {
                                 <SelectValue placeholder="Select..." />
                               </SelectTrigger>
                               <SelectContent className="max-h-[300px]">
-                                {resources.filter(r => r.is_active).map(r => (
+                                {siteResources.map(r => (
                                   <SelectItem key={r.id} value={r.resource_no}>
                                     {r.resource_no}
                                   </SelectItem>
