@@ -959,39 +959,47 @@ const QuotationSystemNew = () => {
                           <Table>
                             <TableHeader>
                               <TableRow>
-                                <TableHead>Quantity</TableHead>
-                                <TableHead className="text-right">Cost per Unit (€)</TableHead>
-                                <TableHead className="text-right">Total with Markup (€)</TableHead>
+                                <TableHead className="w-28">Quantity</TableHead>
+                                <TableHead className="text-center w-32">Cost/Unit (€)</TableHead>
+                                <TableHead className="text-right w-36">Qty × Cost (€)</TableHead>
+                                <TableHead className="text-right w-36">With Markup (€)</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
-                              {lines.map((line, idx) => (
-                                <TableRow key={line.line_number}>
-                                  <TableCell>
-                                    <Badge variant="secondary">{line.quantity} units</Badge>
-                                  </TableCell>
-                                  <TableCell>
-                                    <Input
-                                      type="number"
-                                      step="0.01"
-                                      value={line.std_cost_est}
-                                      onChange={(e) => {
-                                        const newSubs = [...subcons];
-                                        const subIdx = newSubs.findIndex(s => s.line_number === line.line_number);
-                                        if (subIdx >= 0) {
-                                          newSubs[subIdx].std_cost_est = parseFloat(e.target.value) || 0;
-                                          setSubcons(newSubs);
-                                        }
-                                      }}
-                                      className="w-32 text-right"
-                                      placeholder="0.00"
-                                    />
-                                  </TableCell>
-                                  <TableCell className="text-right font-medium">
-                                    €{(line.std_cost_est * (1 + header.subcon_markup / 100)).toFixed(2)}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
+                              {lines.map((line) => {
+                                const totalWithoutMarkup = line.quantity * line.std_cost_est;
+                                const totalWithMarkup = totalWithoutMarkup * (1 + header.subcon_markup / 100);
+                                return (
+                                  <TableRow key={line.line_number}>
+                                    <TableCell>
+                                      <Badge variant="secondary">{line.quantity} units</Badge>
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        value={line.std_cost_est}
+                                        onChange={(e) => {
+                                          const newSubs = [...subcons];
+                                          const subIdx = newSubs.findIndex(s => s.line_number === line.line_number);
+                                          if (subIdx >= 0) {
+                                            newSubs[subIdx].std_cost_est = parseFloat(e.target.value) || 0;
+                                            setSubcons(newSubs);
+                                          }
+                                        }}
+                                        className="w-24 text-center mx-auto"
+                                        placeholder="0.00"
+                                      />
+                                    </TableCell>
+                                    <TableCell className="text-right text-muted-foreground">
+                                      €{totalWithoutMarkup.toFixed(2)}
+                                    </TableCell>
+                                    <TableCell className="text-right font-medium">
+                                      €{totalWithMarkup.toFixed(2)}
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
                             </TableBody>
                           </Table>
                         </div>
