@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
@@ -345,6 +345,13 @@ const QuotationSystemNew = () => {
     }
   };
 
+  const handleBack = () => {
+    const currentIndex = tabOrder.indexOf(activeTab);
+    if (currentIndex > 0) {
+      setActiveTab(tabOrder[currentIndex - 1]);
+    }
+  };
+
   const handleFinalSave = async () => {
     await handleSave(true, true);
   };
@@ -479,7 +486,7 @@ const QuotationSystemNew = () => {
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-4">
+                <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Qty Per</Label>
                     <Input
@@ -500,22 +507,6 @@ const QuotationSystemNew = () => {
                         <SelectItem value="Subcon">Subcon Only</SelectItem>
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Material Markup (%)</Label>
-                    <Input
-                      type="number"
-                      value={header.material_markup}
-                      onChange={(e) => setHeader({ ...header, material_markup: parseFloat(e.target.value) || 0 })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Subcon Markup (%)</Label>
-                    <Input
-                      type="number"
-                      value={header.subcon_markup}
-                      onChange={(e) => setHeader({ ...header, subcon_markup: parseFloat(e.target.value) || 0 })}
-                    />
                   </div>
                 </div>
 
@@ -767,10 +758,25 @@ const QuotationSystemNew = () => {
                     </TableBody>
                   </Table>
                 </div>
-                <div className="mt-4 flex justify-between items-center">
+                <div className="mt-4 p-4 border rounded-lg bg-muted/30 flex items-center gap-4">
+                  <div className="space-y-2">
+                    <Label>Material Markup (%)</Label>
+                    <Input
+                      type="number"
+                      value={header.material_markup}
+                      onChange={(e) => setHeader({ ...header, material_markup: parseFloat(e.target.value) || 0 })}
+                      className="w-24"
+                    />
+                  </div>
                   <Badge variant="secondary" className="text-lg px-4 py-2">
                     Total Material (with {header.material_markup}% markup): €{totals.totalMaterialCost.toFixed(2)}
                   </Badge>
+                </div>
+                <div className="mt-4 flex justify-between items-center">
+                  <Button variant="outline" onClick={handleBack}>
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Back
+                  </Button>
                   <Button onClick={handleNext} disabled={saving}>
                     {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                     Next: Subcon
@@ -900,10 +906,25 @@ const QuotationSystemNew = () => {
                     </TableBody>
                   </Table>
                 </div>
-                <div className="mt-4 flex justify-between items-center">
+                <div className="mt-4 p-4 border rounded-lg bg-muted/30 flex items-center gap-4">
+                  <div className="space-y-2">
+                    <Label>Subcon Markup (%)</Label>
+                    <Input
+                      type="number"
+                      value={header.subcon_markup}
+                      onChange={(e) => setHeader({ ...header, subcon_markup: parseFloat(e.target.value) || 0 })}
+                      className="w-24"
+                    />
+                  </div>
                   <Badge variant="secondary" className="text-lg px-4 py-2">
                     Total Subcon (with {header.subcon_markup}% markup): €{totals.totalSubconCost.toFixed(2)}
                   </Badge>
+                </div>
+                <div className="mt-4 flex justify-between items-center">
+                  <Button variant="outline" onClick={handleBack}>
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Back
+                  </Button>
                   <Button onClick={handleNext} disabled={saving}>
                     {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                     Next: Routings
@@ -1053,7 +1074,11 @@ const QuotationSystemNew = () => {
                   </Table>
                 </div>
                 <div className="mt-4 flex justify-between items-center">
-                  <div className="flex gap-4">
+                  <div className="flex gap-4 items-center">
+                    <Button variant="outline" onClick={handleBack}>
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Back
+                    </Button>
                     <Badge variant="outline" className="px-4 py-2">
                       Total Setup: {totals.totalSetupTime.toFixed(1)} min
                     </Badge>
@@ -1142,6 +1167,12 @@ const QuotationSystemNew = () => {
                       })}
                     </TableBody>
                   </Table>
+                </div>
+                <div className="mt-4">
+                  <Button variant="outline" onClick={handleBack}>
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Back
+                  </Button>
                 </div>
               </CardContent>
             </Card>
