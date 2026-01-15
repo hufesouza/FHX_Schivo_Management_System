@@ -107,7 +107,8 @@ const QuotationSystemNew = () => {
   const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
   const [materialVendorPopoverOpen, setMaterialVendorPopoverOpen] = useState<number | null>(null);
   const [subconVendorPopoverOpen, setSubconVendorPopoverOpen] = useState<number | null>(null);
-  const [setupIncludedOps, setSetupIncludedOps] = useState<Set<number>>(new Set());
+  // Initialize with only non-development operations included (e.g., op_no 20 = Saw)
+  const [setupIncludedOps, setSetupIncludedOps] = useState<Set<number>>(new Set([20]));
 
   const tabOrder = ['header', 'materials', 'subcon', 'routings', 'pricing'];
 
@@ -347,9 +348,9 @@ const QuotationSystemNew = () => {
     return [...siteResources, ...subconResources];
   }, [siteResources, subconResources]);
 
-  // Routing state
+  // Routing state - ManuEng is development, so include_setup_calc defaults to false
   const [routings, setRoutings] = useState<RoutingLine[]>([
-    { op_no: 10, sublevel_bom: false, part_number: '', resource_no: 'ManuEng', operation_details: 'REVIEW PROCESS, METHOD & FILL IN BLUE REVIEW', subcon_processing_time: 0, setup_time: 0.1, run_time: 0, include_setup_calc: true },
+    { op_no: 10, sublevel_bom: false, part_number: '', resource_no: 'ManuEng', operation_details: 'REVIEW PROCESS, METHOD & FILL IN BLUE REVIEW', subcon_processing_time: 0, setup_time: 0.1, run_time: 0, include_setup_calc: false },
     { op_no: 20, sublevel_bom: false, part_number: '', resource_no: 'Saw', operation_details: 'BOOK OUT ALLOCATED MATERIAL', subcon_processing_time: 0, setup_time: 10, run_time: 0, include_setup_calc: true },
   ]);
 
@@ -1889,7 +1890,8 @@ const QuotationSystemNew = () => {
                 <Alert className="bg-muted/50 border-primary/20 mb-4">
                   <Info className="h-4 w-4 text-primary" />
                   <AlertDescription className="text-sm text-muted-foreground">
-                    <strong>Op No:</strong> Operation sequence (10, 20, 30...). <strong>Resource:</strong> Machine/workstation from settings. <strong>Setup:</strong> One-time setup minutes per batch. <strong>Run:</strong> Minutes per part. Cost is calculated as (Setup + Run) × Resource Rate.
+                    <strong>Op No:</strong> Operation sequence. <strong>Resource:</strong> Machine/workstation. <strong>Setup:</strong> One-time setup minutes per batch. <strong>Run:</strong> Minutes per part. 
+                    <strong className="ml-1">Inc. Setup:</strong> Check to include this setup in the cost calculation (development operations are excluded by default).
                   </AlertDescription>
                 </Alert>
                 <div className="border rounded-lg overflow-auto">
@@ -1901,213 +1903,253 @@ const QuotationSystemNew = () => {
                         <TableHead>Operation Details</TableHead>
                         <TableHead className="text-right">Subcon Time</TableHead>
                         <TableHead className="text-right">Setup (min)</TableHead>
+                        <TableHead className="text-center w-20">
+                          <Tooltip>
+                            <TooltipTrigger className="flex items-center gap-1 justify-center">
+                              Inc. Setup
+                              <HelpCircle className="h-3 w-3" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p>Include this operation's setup time in the batch setup cost calculation. Uncheck for development/engineering operations.</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableHead>
+                        <TableHead className="text-right">Setup Cost (€)</TableHead>
                         <TableHead className="text-right">Run (min)</TableHead>
                         <TableHead className="text-right">Cost/Min (€)</TableHead>
-                        <TableHead className="text-right">Total/Part (€)</TableHead>
+                        <TableHead className="text-right">Run Cost (€)</TableHead>
+                        <TableHead className="w-10"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {routings.map((route, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              value={route.op_no}
-                              onChange={(e) => {
-                                const nextOpNo = parseInt(e.target.value) || 0;
-                                const prevOpNo = route.op_no;
+                      {routings.map((route, idx) => {
+                        const costPerMin = getResourceCost(route.resource_no);
+                        const setupCostForOp = route.setup_time * costPerMin;
+                        const runCostForOp = route.run_time * costPerMin;
+                        const isIncluded = setupIncludedOps.has(route.op_no);
+                        // Check if this is a development/engineering resource (exclude setup by default)
+                        const isDevelopmentResource = route.resource_no.toLowerCase().includes('eng') || 
+                                                      route.resource_no.toLowerCase().includes('dev') ||
+                                                      route.resource_no.toLowerCase().includes('manueng') ||
+                                                      route.resource_no.toLowerCase().includes('program');
+                        
+                        return (
+                          <TableRow key={idx} className={!isIncluded ? 'bg-muted/30' : ''}>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={route.op_no}
+                                onChange={(e) => {
+                                  const nextOpNo = parseInt(e.target.value) || 0;
+                                  const prevOpNo = route.op_no;
 
-                                const newRoutes = [...routings];
-                                newRoutes[idx].op_no = nextOpNo;
-                                setRoutings(newRoutes);
+                                  const newRoutes = [...routings];
+                                  newRoutes[idx].op_no = nextOpNo;
+                                  setRoutings(newRoutes);
 
-                                // Preserve setup selection for this row when op_no changes
-                                setSetupIncludedOps((prev) => {
-                                  if (!prev.has(prevOpNo)) return prev;
-                                  const next = new Set(prev);
-                                  next.delete(prevOpNo);
-                                  next.add(nextOpNo);
-                                  return next;
-                                });
-                              }}
-                              className="w-16"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <div>
-                                  <Select
-                                    value={route.resource_no}
-                                    onValueChange={(v) => {
-                                      const newRoutes = [...routings];
-                                      newRoutes[idx].resource_no = v;
-                                      setRoutings(newRoutes);
-                                    }}
-                                  >
-                                    <SelectTrigger className={`w-48 ${isSubconResource(route.resource_no) ? 'border-amber-400 bg-amber-50' : ''}`}>
-                                      <SelectValue placeholder="Select..." />
-                                    </SelectTrigger>
-                                    <SelectContent className="max-h-[300px]">
-                                      {/* Regular site resources */}
-                                      {siteResources.map(r => (
-                                        <SelectItem key={r.id} value={r.resource_no}>
-                                          {r.resource_no}
-                                        </SelectItem>
-                                      ))}
-                                      {/* Virtual subcon resources (if any subcons exist) */}
-                                      {subconResources.length > 0 && (
-                                        <>
-                                          <div className="px-2 py-1.5 text-xs font-semibold text-amber-600 bg-amber-50 border-t">
-                                            Subcon Operations
-                                          </div>
-                                          {subconResources.map(r => (
-                                            <SelectItem key={r.id} value={r.resource_no} className="text-amber-700">
-                                              🔗 {r.resource_no}
-                                            </SelectItem>
-                                          ))}
-                                        </>
-                                      )}
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                              </TooltipTrigger>
-                              {route.resource_no && (
-                                <TooltipContent side="bottom" className="max-w-md">
-                                  {route.resource_no}
-                                </TooltipContent>
-                              )}
-                            </Tooltip>
-                          </TableCell>
-                          <TableCell>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Input
-                                  value={route.operation_details}
-                                  onChange={(e) => {
-                                    const newRoutes = [...routings];
-                                    newRoutes[idx].operation_details = e.target.value;
-                                    setRoutings(newRoutes);
-                                  }}
-                                  className="truncate"
-                                />
-                              </TooltipTrigger>
-                              {route.operation_details && (
-                                <TooltipContent side="bottom" className="max-w-md whitespace-pre-wrap">
-                                  {route.operation_details}
-                                </TooltipContent>
-                              )}
-                            </Tooltip>
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              value={route.subcon_processing_time}
-                              onChange={(e) => {
-                                const newRoutes = [...routings];
-                                newRoutes[idx].subcon_processing_time = parseFloat(e.target.value) || 0;
-                                setRoutings(newRoutes);
-                              }}
-                              className="w-20 text-right"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              value={route.setup_time}
-                              onChange={(e) => {
-                                const newRoutes = [...routings];
-                                newRoutes[idx].setup_time = parseFloat(e.target.value) || 0;
-                                setRoutings(newRoutes);
-                              }}
-                              className="w-20 text-right"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              value={route.run_time}
-                              onChange={(e) => {
-                                const newRoutes = [...routings];
-                                newRoutes[idx].run_time = parseFloat(e.target.value) || 0;
-                                setRoutings(newRoutes);
-                              }}
-                              className="w-20 text-right"
-                            />
-                          </TableCell>
-                          <TableCell className="text-right text-muted-foreground">
-                            €{getResourceCost(route.resource_no).toFixed(2)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              {route.override_cost !== null && route.override_cost !== undefined ? (
-                                <>
+                                  // Preserve setup selection for this row when op_no changes
+                                  setSetupIncludedOps((prev) => {
+                                    if (!prev.has(prevOpNo)) return prev;
+                                    const next = new Set(prev);
+                                    next.delete(prevOpNo);
+                                    next.add(nextOpNo);
+                                    return next;
+                                  });
+                                }}
+                                className="w-16"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div>
+                                    <Select
+                                      value={route.resource_no}
+                                      onValueChange={(v) => {
+                                        const newRoutes = [...routings];
+                                        newRoutes[idx].resource_no = v;
+                                        setRoutings(newRoutes);
+                                        
+                                        // Auto-exclude development resources from setup calculation
+                                        const isDevResource = v.toLowerCase().includes('eng') || 
+                                                              v.toLowerCase().includes('dev') ||
+                                                              v.toLowerCase().includes('manueng') ||
+                                                              v.toLowerCase().includes('program');
+                                        if (isDevResource) {
+                                          setSetupIncludedOps((prev) => {
+                                            const next = new Set(prev);
+                                            next.delete(route.op_no);
+                                            return next;
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      <SelectTrigger className={`w-48 ${isSubconResource(route.resource_no) ? 'border-amber-400 bg-amber-50' : ''}`}>
+                                        <SelectValue placeholder="Select..." />
+                                      </SelectTrigger>
+                                      <SelectContent className="max-h-[300px]">
+                                        {/* Regular site resources */}
+                                        {siteResources.map(r => (
+                                          <SelectItem key={r.id} value={r.resource_no}>
+                                            {r.resource_no}
+                                          </SelectItem>
+                                        ))}
+                                        {/* Virtual subcon resources (if any subcons exist) */}
+                                        {subconResources.length > 0 && (
+                                          <>
+                                            <div className="px-2 py-1.5 text-xs font-semibold text-amber-600 bg-amber-50 border-t">
+                                              Subcon Operations
+                                            </div>
+                                            {subconResources.map(r => (
+                                              <SelectItem key={r.id} value={r.resource_no} className="text-amber-700">
+                                                🔗 {r.resource_no}
+                                              </SelectItem>
+                                            ))}
+                                          </>
+                                        )}
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                </TooltipTrigger>
+                                {route.resource_no && (
+                                  <TooltipContent side="bottom" className="max-w-md">
+                                    {route.resource_no}
+                                    {isDevelopmentResource && (
+                                      <span className="text-amber-500 block text-xs">Development resource - setup excluded by default</span>
+                                    )}
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
+                            </TableCell>
+                            <TableCell>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
                                   <Input
-                                    type="number"
-                                    step="0.01"
-                                    value={route.override_cost}
+                                    value={route.operation_details}
                                     onChange={(e) => {
                                       const newRoutes = [...routings];
-                                      newRoutes[idx].override_cost = parseFloat(e.target.value) || 0;
+                                      newRoutes[idx].operation_details = e.target.value;
                                       setRoutings(newRoutes);
                                     }}
-                                    className="w-20 text-right border-amber-400"
+                                    className="truncate"
                                   />
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                    onClick={() => {
-                                      const newRoutes = [...routings];
-                                      newRoutes[idx].override_cost = null;
-                                      setRoutings(newRoutes);
-                                    }}
-                                    title="Remove override"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </Button>
-                                </>
-                              ) : (
-                                <>
-                                  <span className="font-medium">€{calculateRoutingCost(route).toFixed(2)}</span>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 text-muted-foreground hover:text-primary"
-                                    onClick={() => {
-                                      const newRoutes = [...routings];
-                                      newRoutes[idx].override_cost = calculateRoutingCost(route);
-                                      setRoutings(newRoutes);
-                                    }}
-                                    title="Override cost"
-                                  >
-                                    <Pencil className="h-3 w-3" />
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                                </TooltipTrigger>
+                                {route.operation_details && (
+                                  <TooltipContent side="bottom" className="max-w-md whitespace-pre-wrap">
+                                    {route.operation_details}
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={route.subcon_processing_time}
+                                onChange={(e) => {
+                                  const newRoutes = [...routings];
+                                  newRoutes[idx].subcon_processing_time = parseFloat(e.target.value) || 0;
+                                  setRoutings(newRoutes);
+                                }}
+                                className="w-20 text-right"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step="0.1"
+                                value={route.setup_time}
+                                onChange={(e) => {
+                                  const newRoutes = [...routings];
+                                  newRoutes[idx].setup_time = parseFloat(e.target.value) || 0;
+                                  setRoutings(newRoutes);
+                                }}
+                                className="w-20 text-right"
+                              />
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <div className="flex items-center justify-center">
+                                <input
+                                  type="checkbox"
+                                  checked={isIncluded}
+                                  onChange={(e) => {
+                                    setSetupIncludedOps(prev => {
+                                      const newSet = new Set(prev);
+                                      if (e.target.checked) {
+                                        newSet.add(route.op_no);
+                                      } else {
+                                        newSet.delete(route.op_no);
+                                      }
+                                      return newSet;
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <span className={`font-medium ${isIncluded ? 'text-primary' : 'text-muted-foreground line-through'}`}>
+                                €{setupCostForOp.toFixed(2)}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step="0.1"
+                                value={route.run_time}
+                                onChange={(e) => {
+                                  const newRoutes = [...routings];
+                                  newRoutes[idx].run_time = parseFloat(e.target.value) || 0;
+                                  setRoutings(newRoutes);
+                                }}
+                                className="w-20 text-right"
+                              />
+                            </TableCell>
+                            <TableCell className="text-right text-muted-foreground">
+                              €{costPerMin.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <span className="font-medium">€{runCostForOp.toFixed(2)}</span>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                onClick={() => {
+                                  const newRoutes = routings.filter((_, i) => i !== idx);
+                                  setRoutings(newRoutes);
+                                }}
+                                title="Remove operation"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 </div>
                 <div className="mt-4 flex justify-between items-center">
-                  <div className="flex gap-4 items-center">
+                  <div className="flex gap-4 items-center flex-wrap">
                     <Button variant="outline" onClick={handleBack}>
                       <ChevronLeft className="h-4 w-4 mr-1" />
                       Back
                     </Button>
-                    <Badge variant="outline" className="px-4 py-2">
-                      Total Setup: {totals.totalSetupTime.toFixed(1)} min
+                    <Badge variant="outline" className="px-3 py-1.5">
+                      Setup (included): {totals.selectedSetupTime.toFixed(1)} min
                     </Badge>
-                    <Badge variant="outline" className="px-4 py-2">
-                      Total Run: {totals.totalRunTime.toFixed(1)} min
+                    <Badge variant="outline" className="px-3 py-1.5 text-muted-foreground">
+                      Setup (excluded): {(totals.totalSetupTime - totals.selectedSetupTime).toFixed(1)} min
+                    </Badge>
+                    <Badge variant="secondary" className="px-3 py-1.5">
+                      Setup Cost: €{totals.totalSetupCost.toFixed(2)}
+                    </Badge>
+                    <Badge variant="outline" className="px-3 py-1.5">
+                      Run Time: {totals.totalRunTime.toFixed(1)} min
                     </Badge>
                     <Badge variant="secondary" className="text-lg px-4 py-2">
-                      Total Routing Cost: €{totals.totalRoutingCost.toFixed(2)}
+                      Run Cost: €{totals.totalRoutingCost.toFixed(2)}
                     </Badge>
                   </div>
                   <Button onClick={handleNext} disabled={saving}>
@@ -2288,63 +2330,52 @@ const QuotationSystemNew = () => {
                 {explainerOpen === 'setupCost' && (
                   <>
                     <DialogDescription>
-                      Setup cost amortized across the quantity. Select which operations to include in the setup calculation.
+                      Setup cost (batch cost) divided by quantity to get per-part setup cost. Control which operations are included using the "Inc. Setup" checkbox in the Routing tab.
                     </DialogDescription>
                     <div className="bg-muted p-4 rounded-lg space-y-3">
-                      <p className="font-mono text-sm">Setup = Σ(Selected Setup Time × Resource Rate) ÷ Qty</p>
+                      <p className="font-mono text-sm">Setup per Part = Σ(Selected Setup Time × Resource Rate) ÷ Qty</p>
                       
                       <div className="border-t pt-3 mt-2">
-                        <p className="text-sm font-medium mb-2">Select Operations to Include:</p>
-                        <div className="max-h-48 overflow-y-auto space-y-2">
+                        <p className="text-sm font-medium mb-2">Included Operations:</p>
+                        <div className="max-h-48 overflow-y-auto space-y-1">
                           {routings.filter(r => r.setup_time > 0).map((r) => {
                             const costPerMin = getResourceCost(r.resource_no);
                             const setupCostForOp = r.setup_time * costPerMin;
+                            const isIncluded = setupIncludedOps.has(r.op_no);
                             return (
-                              <label
+                              <div
                                 key={r.op_no}
-                                className="flex items-center gap-3 p-2 rounded hover:bg-background cursor-pointer"
+                                className={`flex items-center gap-3 p-2 rounded text-sm ${isIncluded ? 'bg-primary/10' : 'bg-muted-foreground/10 opacity-60'}`}
                               >
-                                <input
-                                  type="checkbox"
-                                  checked={setupIncludedOps.has(r.op_no)}
-                                  onChange={(e) => {
-                                    setSetupIncludedOps(prev => {
-                                      const newSet = new Set(prev);
-                                      if (e.target.checked) {
-                                        newSet.add(r.op_no);
-                                      } else {
-                                        newSet.delete(r.op_no);
-                                      }
-                                      return newSet;
-                                    });
-                                  }}
-                                  className="h-4 w-4 rounded border-gray-300"
-                                />
+                                <span className={`w-4 h-4 rounded flex items-center justify-center text-xs ${isIncluded ? 'bg-primary text-primary-foreground' : 'bg-muted-foreground/30'}`}>
+                                  {isIncluded ? '✓' : '✗'}
+                                </span>
                                 <div className="flex-1">
                                   <span className="font-medium">Op {r.op_no}</span>
                                   <span className="text-muted-foreground"> - {r.resource_no}</span>
-                                  {r.operation_details && (
-                                    <span className="text-xs text-muted-foreground block truncate max-w-[200px]">
-                                      {r.operation_details}
-                                    </span>
-                                  )}
                                 </div>
-                                <div className="text-right text-sm">
-                                  <div>{r.setup_time} min</div>
-                                  <div className="text-muted-foreground">€{setupCostForOp.toFixed(2)}</div>
+                                <div className="text-right">
+                                  <span className={isIncluded ? 'font-medium' : 'line-through text-muted-foreground'}>
+                                    {r.setup_time} min × €{costPerMin.toFixed(2)} = €{setupCostForOp.toFixed(2)}
+                                  </span>
                                 </div>
-                              </label>
+                              </div>
                             );
                           })}
                         </div>
                       </div>
                       
                       <div className="border-t pt-2 mt-2">
-                        <p className="text-sm"><strong>Selected Values:</strong></p>
+                        <p className="text-sm"><strong>Summary:</strong></p>
                         <ul className="text-sm space-y-1 mt-1">
-                          <li>• Selected Setup Time: <strong>{totals.selectedSetupTime.toFixed(1)} min</strong> (of {totals.totalSetupTime.toFixed(1)} min total)</li>
-                          <li>• Selected Setup Cost: <strong>€{totals.totalSetupCost.toFixed(2)}</strong></li>
+                          <li>• Included Setup Time: <strong>{totals.selectedSetupTime.toFixed(1)} min</strong></li>
+                          <li>• Excluded Setup Time: <strong>{(totals.totalSetupTime - totals.selectedSetupTime).toFixed(1)} min</strong> (development)</li>
+                          <li>• Total Setup Cost (batch): <strong>€{totals.totalSetupCost.toFixed(2)}</strong></li>
                         </ul>
+                      </div>
+                      
+                      <div className="border-t pt-2 mt-2 text-xs text-muted-foreground">
+                        <p><strong>Note:</strong> Development/engineering resources (ManuEng, Eng, Program, Dev) are excluded by default. You can override this in the Routing tab.</p>
                       </div>
                     </div>
                   </>
