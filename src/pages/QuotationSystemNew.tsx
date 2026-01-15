@@ -69,6 +69,13 @@ interface Customer {
   is_active: boolean;
 }
 
+interface SubconVendor {
+  id: string;
+  bp_code: string;
+  bp_name: string;
+  is_active: boolean;
+}
+
 const QuotationSystemNew = () => {
   const navigate = useNavigate();
   const { id: editId } = useParams<{ id: string }>();
@@ -80,10 +87,11 @@ const QuotationSystemNew = () => {
   const [activeTab, setActiveTab] = useState('header');
   const [quotationId, setQuotationId] = useState<string | null>(editId || null);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [subconVendors, setSubconVendors] = useState<SubconVendor[]>([]);
 
   const tabOrder = ['header', 'materials', 'subcon', 'routings', 'pricing'];
 
-  // Fetch customers list
+  // Fetch customers and subcon vendors lists
   useEffect(() => {
     const fetchCustomers = async () => {
       const { data, error } = await supabase
@@ -96,13 +104,35 @@ const QuotationSystemNew = () => {
         setCustomers(data);
       }
     };
+    
+    const fetchSubconVendors = async () => {
+      const { data, error } = await supabase
+        .from('quotation_subcon_vendors')
+        .select('*')
+        .eq('is_active', true)
+        .order('bp_name');
+      
+      if (!error && data) {
+        setSubconVendors(data);
+      }
+    };
+    
     fetchCustomers();
+    fetchSubconVendors();
   }, []);
 
   // Auto-update customer code when customer name changes
   const getCustomerCode = (customerName: string): string => {
     const match = customers.find(c => 
       c.bp_name.toLowerCase() === customerName.toLowerCase()
+    );
+    return match ? match.bp_code : 'N/A';
+  };
+
+  // Auto-update vendor code when vendor name changes
+  const getVendorCode = (vendorName: string): string => {
+    const match = subconVendors.find(v => 
+      v.bp_name.toLowerCase() === vendorName.toLowerCase()
     );
     return match ? match.bp_code : 'N/A';
   };
@@ -1205,15 +1235,14 @@ const QuotationSystemNew = () => {
                           <div className="space-y-2">
                             <Label>Vendor No.</Label>
                             <Input
-                              value={firstLine?.vendor_no || ''}
-                              onChange={(e) => {
-                                const newSubs = subcons.map(s =>
-                                  s.subcon_id === subconId ? { ...s, vendor_no: e.target.value } : s
-                                );
-                                setSubcons(newSubs);
-                              }}
-                              placeholder="e.g., V001"
+                              value={getVendorCode(firstLine?.vendor_name || '')}
+                              readOnly
+                              className="bg-muted"
+                              placeholder="Auto-filled"
                             />
+                            <p className="text-xs text-muted-foreground">
+                              Auto-populated from vendor list
+                            </p>
                           </div>
                           <div className="space-y-2">
                             <Label>Vendor Name</Label>
