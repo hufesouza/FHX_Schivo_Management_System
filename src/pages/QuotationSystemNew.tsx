@@ -22,7 +22,7 @@ import { useQuotationResources, useQuotationSettings } from '@/hooks/useQuotatio
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-type CalculationExplainer = 'setupCost' | 'routingCost' | 'material' | 'subcon' | 'totalCost' | 'costPerPart' | 'unitPrice' | 'margin' | null;
+type CalculationExplainer = 'setupCost' | 'routingCost' | 'material' | 'subcon' | 'totalCost' | 'costPerPart' | 'unitPrice' | 'ratePerHour' | 'margin' | null;
 
 interface MaterialLine {
   line_number: number;
@@ -2152,6 +2152,12 @@ const QuotationSystemNew = () => {
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
+                          onClick={() => setExplainerOpen('ratePerHour')}
+                        >
+                          <span className="underline decoration-dotted">Rate/hr (€)</span>
+                        </TableHead>
+                        <TableHead 
+                          className="text-right cursor-pointer hover:bg-muted transition-colors"
                           onClick={() => setExplainerOpen('margin')}
                         >
                           <span className="underline decoration-dotted">Margin</span>
@@ -2167,6 +2173,12 @@ const QuotationSystemNew = () => {
                         const totalCost = setupCost + routingCost + materialCost + subconCost;
                         const unitPriceEur = totalCost / vol.quantity / (1 - vol.margin / 100);
                         const unitPriceConverted = unitPriceEur * exchangeRate;
+                        // Calculate rate per hour: (Unit Price - Material - Subcon cost per part) / Run Time in hours
+                        const materialPerPart = totals.totalMaterialCost;
+                        const subconPerPart = totals.totalSubconCost;
+                        const labourRevenuePerPart = unitPriceEur - materialPerPart - subconPerPart;
+                        const runTimeHours = totals.totalRunTime / 60;
+                        const ratePerHour = runTimeHours > 0 ? labourRevenuePerPart / runTimeHours : 0;
 
                         return (
                           <TableRow key={idx}>
@@ -2179,6 +2191,9 @@ const QuotationSystemNew = () => {
                             <TableCell className="text-right">€{(totalCost / vol.quantity).toFixed(2)}</TableCell>
                             <TableCell className="text-right">
                               <Badge className="bg-primary">{currencySymbols[currency]}{unitPriceConverted.toFixed(2)}</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant="outline" className="border-green-500 text-green-600">€{ratePerHour.toFixed(2)}</Badge>
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
@@ -2225,6 +2240,7 @@ const QuotationSystemNew = () => {
                   {explainerOpen === 'totalCost' && 'Total Cost Calculation'}
                   {explainerOpen === 'costPerPart' && 'Cost per Part Calculation'}
                   {explainerOpen === 'unitPrice' && 'Unit Price Calculation'}
+                  {explainerOpen === 'ratePerHour' && 'Rate per Hour Calculation'}
                   {explainerOpen === 'margin' && 'Margin Explanation'}
                 </DialogTitle>
               </DialogHeader>
@@ -2399,6 +2415,28 @@ const QuotationSystemNew = () => {
                           <p className="text-sm">1 EUR = {exchangeRate.toFixed(4)} {currency}</p>
                         </div>
                       )}
+                    </div>
+                  </>
+                )}
+                {explainerOpen === 'ratePerHour' && (
+                  <>
+                    <DialogDescription>
+                      Effective hourly rate being charged based on the unit price, after deducting material and subcon costs.
+                    </DialogDescription>
+                    <div className="bg-muted p-4 rounded-lg space-y-2">
+                      <p className="font-mono text-sm">Rate/hr = (Unit Price - Material - Subcon) ÷ Run Time (hrs)</p>
+                      <div className="border-t pt-2 mt-2">
+                        <p className="text-sm"><strong>Current Values:</strong></p>
+                        <ul className="text-sm space-y-1 mt-1">
+                          <li>• Material Cost/Part: <strong>€{totals.totalMaterialCost.toFixed(2)}</strong></li>
+                          <li>• Subcon Cost/Part: <strong>€{totals.totalSubconCost.toFixed(2)}</strong></li>
+                          <li>• Total Run Time: <strong>{totals.totalRunTime.toFixed(1)} min</strong> ({(totals.totalRunTime / 60).toFixed(2)} hrs)</li>
+                        </ul>
+                      </div>
+                      <div className="border-t pt-2 mt-2">
+                        <p className="text-sm"><strong>How it works:</strong></p>
+                        <p className="text-sm">This shows what hourly rate you're effectively charging the customer for labour/manufacturing time, calculated from the unit price minus material and subcon pass-through costs.</p>
+                      </div>
                     </div>
                   </>
                 )}
