@@ -63,6 +63,15 @@ const statusFlow: EnquiryStatus[] = [
   'won'
 ];
 
+interface ProcessingFile {
+  file: File;
+  status: 'pending' | 'extracting' | 'adding' | 'done' | 'error';
+  partNumber?: string;
+  description?: string;
+  revision?: string;
+  error?: string;
+}
+
 const EnquiryDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
@@ -91,6 +100,11 @@ const EnquiryDetail = () => {
   // File upload
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingDrawingId, setUploadingDrawingId] = useState<string | null>(null);
+  
+  // Drag and drop
+  const [isDragging, setIsDragging] = useState(false);
+  const [processingFiles, setProcessingFiles] = useState<ProcessingFile[]>([]);
+  const dropZoneRef = useRef<HTMLDivElement>(null);
 
   // Get quotations for this enquiry's parts
   const partQuotations = quotations.filter(q => 
@@ -238,6 +252,147 @@ const EnquiryDetail = () => {
       setNewPartDrawing(null);
     }
     setAddingPart(false);
+  };
+
+  // Drag and drop handlers
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.currentTarget === dropZoneRef.current) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const files = Array.from(e.dataTransfer.files).filter(
+      file => file.type === 'application/pdf' || 
+              file.type.startsWith('image/')
+    );
+
+    if (files.length === 0) {
+      toast.error('Please drop PDF or image files');
+      return;
+    }
+
+    await processMultipleFiles(files);
+  };
+
+  const handleBulkFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files ? Array.from(e.target.files) : [];
+    if (files.length > 0) {
+      await processMultipleFiles(files);
+    }
+    e.target.value = '';
+  };
+
+  const processMultipleFiles = async (files: File[]) => {
+    if (!id) return;
+
+    // Initialize processing state for all files
+    const initialState: ProcessingFile[] = files.map(file => ({
+      file,
+      status: 'pending'
+    }));
+    setProcessingFiles(initialState);
+
+    // Process each file
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      
+      // Update status to extracting
+      setProcessingFiles(prev => prev.map((pf, idx) => 
+        idx === i ? { ...pf, status: 'extracting' } : pf
+      ));
+
+      try {
+        // Extract details from drawing
+        const formData = new FormData();
+        formData.append('file', file);
+        
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-part-from-drawing`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+            },
+            body: formData,
+          }
+        );
+
+        let partNumber = `PART-${Date.now()}-${i + 1}`;
+        let description = '';
+        let revision = '';
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.part_number) partNumber = data.part_number;
+          if (data.description) description = data.description;
+          if (data.revision) revision = data.revision;
+        }
+
+        // Update status to adding
+        setProcessingFiles(prev => prev.map((pf, idx) => 
+          idx === i ? { ...pf, status: 'adding', partNumber, description, revision } : pf
+        ));
+
+        // Calculate next line number
+        const currentMaxLine = parts.length > 0 
+          ? Math.max(...parts.map(p => p.line_number)) 
+          : 0;
+        const processedCount = initialState.slice(0, i).filter(pf => pf.status === 'done').length;
+        const nextLineNumber = currentMaxLine + i + 1;
+
+        // Add the part
+        const result = await addPart({
+          enquiry_id: id,
+          line_number: nextLineNumber,
+          part_number: partNumber,
+          description: description || null,
+          revision: revision || null,
+          drawing_url: null,
+          drawing_file_name: null
+        });
+
+        if (result) {
+          // Upload the drawing
+          await uploadDrawing(result.id, file);
+          
+          setProcessingFiles(prev => prev.map((pf, idx) => 
+            idx === i ? { ...pf, status: 'done' } : pf
+          ));
+        } else {
+          throw new Error('Failed to add part');
+        }
+
+      } catch (error) {
+        console.error(`Error processing file ${file.name}:`, error);
+        setProcessingFiles(prev => prev.map((pf, idx) => 
+          idx === i ? { ...pf, status: 'error', error: 'Failed to process' } : pf
+        ));
+      }
+    }
+
+    // Clear processing state after a delay
+    setTimeout(() => {
+      setProcessingFiles([]);
+      toast.success(`Successfully added ${files.length} part(s)`);
+    }, 2000);
   };
 
   const handleDeletePart = async (partId: string) => {
@@ -563,18 +718,77 @@ const EnquiryDetail = () => {
             </div>
           </CardHeader>
           <CardContent>
+            {/* Processing files indicator */}
+            {processingFiles.length > 0 && (
+              <div className="mb-4 p-4 bg-muted/50 rounded-lg space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Processing {processingFiles.length} file(s)...
+                </div>
+                {processingFiles.map((pf, idx) => (
+                  <div key={idx} className="flex items-center gap-2 text-sm">
+                    <span className="truncate max-w-[200px]">{pf.file.name}</span>
+                    {pf.status === 'pending' && <Clock className="h-3 w-3 text-muted-foreground" />}
+                    {pf.status === 'extracting' && <Loader2 className="h-3 w-3 animate-spin text-blue-500" />}
+                    {pf.status === 'adding' && <Loader2 className="h-3 w-3 animate-spin text-amber-500" />}
+                    {pf.status === 'done' && <CheckCircle className="h-3 w-3 text-green-500" />}
+                    {pf.status === 'error' && <XCircle className="h-3 w-3 text-red-500" />}
+                    {pf.partNumber && <span className="text-muted-foreground">→ {pf.partNumber}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Drag and drop zone */}
+            <div
+              ref={dropZoneRef}
+              onDragEnter={handleDragEnter}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={handleDrop}
+              className={cn(
+                "border-2 border-dashed rounded-lg p-6 mb-4 transition-colors",
+                isDragging 
+                  ? "border-primary bg-primary/5" 
+                  : "border-muted-foreground/25 hover:border-muted-foreground/50"
+              )}
+            >
+              <div className="flex flex-col items-center justify-center text-center">
+                <FileUp className={cn(
+                  "h-10 w-10 mb-3",
+                  isDragging ? "text-primary" : "text-muted-foreground"
+                )} />
+                <p className="text-sm font-medium mb-1">
+                  {isDragging ? "Drop files here" : "Drag & drop drawings here"}
+                </p>
+                <p className="text-xs text-muted-foreground mb-3">
+                  Drop multiple PDFs or images to add parts automatically
+                </p>
+                <label>
+                  <input
+                    type="file"
+                    multiple
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={handleBulkFileSelect}
+                    className="hidden"
+                  />
+                  <Button variant="outline" size="sm" asChild>
+                    <span>
+                      <Upload className="h-3 w-3 mr-2" />
+                      Browse Files
+                    </span>
+                  </Button>
+                </label>
+              </div>
+            </div>
+
             {partsLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
               </div>
             ) : parts.length === 0 ? (
-              <div className="text-center py-8">
-                <FileText className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground mb-3">No parts added yet</p>
-                <Button variant="outline" onClick={() => setAddPartOpen(true)}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add First Part
-                </Button>
+              <div className="text-center py-4">
+                <p className="text-muted-foreground text-sm">No parts added yet. Drop files above or use "Add Part" button.</p>
               </div>
             ) : (
               <div className="border rounded-lg overflow-auto">
