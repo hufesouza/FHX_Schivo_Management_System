@@ -1029,10 +1029,15 @@ const QuotationSystemNew = () => {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
+                                <SelectItem value="Billet">Billet</SelectItem>
                                 <SelectItem value="Each">Each</SelectItem>
-                                <SelectItem value="Kg">Kg</SelectItem>
-                                <SelectItem value="M">M</SelectItem>
-                                <SelectItem value="M2">M²</SelectItem>
+                                <SelectItem value="Inch">Inch</SelectItem>
+                                <SelectItem value="Metre">Metre</SelectItem>
+                                <SelectItem value="MM">MM</SelectItem>
+                                <SelectItem value="Plate">Plate</SelectItem>
+                                <SelectItem value="cc">cc</SelectItem>
+                                <SelectItem value="Feet">Feet</SelectItem>
+                                <SelectItem value="ML">ML</SelectItem>
                               </SelectContent>
                             </Select>
                           </TableCell>
