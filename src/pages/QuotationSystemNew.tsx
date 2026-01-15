@@ -106,6 +106,7 @@ const QuotationSystemNew = () => {
   const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
   const [materialVendorPopoverOpen, setMaterialVendorPopoverOpen] = useState<number | null>(null);
   const [subconVendorPopoverOpen, setSubconVendorPopoverOpen] = useState<number | null>(null);
+  const [setupIncludedOps, setSetupIncludedOps] = useState<Set<number>>(new Set());
 
   const tabOrder = ['header', 'materials', 'subcon', 'routings', 'pricing'];
 
@@ -350,6 +351,26 @@ const QuotationSystemNew = () => {
     { op_no: 10, sublevel_bom: false, part_number: '', resource_no: 'ManuEng', operation_details: 'REVIEW PROCESS, METHOD & FILL IN BLUE REVIEW', subcon_processing_time: 0, setup_time: 0.1, run_time: 0 },
     { op_no: 20, sublevel_bom: false, part_number: '', resource_no: 'Saw', operation_details: 'BOOK OUT ALLOCATED MATERIAL', subcon_processing_time: 0, setup_time: 10, run_time: 0 },
   ]);
+
+  // Initialize setupIncludedOps when routings change
+  useEffect(() => {
+    setSetupIncludedOps(prev => {
+      // Add all new op_nos that aren't yet in the set
+      const newSet = new Set(prev);
+      routings.forEach(r => {
+        if (!prev.has(r.op_no)) {
+          newSet.add(r.op_no);
+        }
+      });
+      // Remove op_nos that no longer exist
+      prev.forEach(opNo => {
+        if (!routings.find(r => r.op_no === opNo)) {
+          newSet.delete(opNo);
+        }
+      });
+      return newSet;
+    });
+  }, [routings]);
 
   // Set default markups from settings
   useEffect(() => {
@@ -644,10 +665,16 @@ const QuotationSystemNew = () => {
     const totalSubconCost = getSubconCostForQuantity(firstQty);
     const totalSetupTime = routings.reduce((sum, r) => sum + r.setup_time, 0);
     const totalRunTime = routings.reduce((sum, r) => sum + r.run_time, 0);
-    // Calculate total setup cost using each routing's resource rate
+    // Calculate total setup cost using only selected routing's resource rate
     const totalSetupCost = routings.reduce((sum, r) => {
+      if (!setupIncludedOps.has(r.op_no)) return sum;
       const costPerMin = getResourceCost(r.resource_no);
       return sum + (r.setup_time * costPerMin);
+    }, 0);
+    // Selected setup time for display
+    const selectedSetupTime = routings.reduce((sum, r) => {
+      if (!setupIncludedOps.has(r.op_no)) return sum;
+      return sum + r.setup_time;
     }, 0);
     // totalRoutingCost is run_time × resource rate (setup handled separately)
     const totalRoutingCost = routings.reduce((sum, r) => {
@@ -660,6 +687,7 @@ const QuotationSystemNew = () => {
       totalMaterialCost: totalMaterialCost * (1 + header.material_markup / 100),
       totalSubconCost: totalSubconCost * (1 + header.subcon_markup / 100),
       totalSetupTime,
+      selectedSetupTime,
       totalRunTime,
       totalSetupCost,
       totalRoutingCost,
@@ -2204,15 +2232,62 @@ const QuotationSystemNew = () => {
                 {explainerOpen === 'setupCost' && (
                   <>
                     <DialogDescription>
-                      Setup cost amortized across the quantity. Uses resource rates from settings.
+                      Setup cost amortized across the quantity. Select which operations to include in the setup calculation.
                     </DialogDescription>
-                    <div className="bg-muted p-4 rounded-lg space-y-2">
-                      <p className="font-mono text-sm">Setup = Σ(Setup Time × Resource Rate) ÷ Qty</p>
+                    <div className="bg-muted p-4 rounded-lg space-y-3">
+                      <p className="font-mono text-sm">Setup = Σ(Selected Setup Time × Resource Rate) ÷ Qty</p>
+                      
+                      <div className="border-t pt-3 mt-2">
+                        <p className="text-sm font-medium mb-2">Select Operations to Include:</p>
+                        <div className="max-h-48 overflow-y-auto space-y-2">
+                          {routings.map((r) => {
+                            const costPerMin = getResourceCost(r.resource_no);
+                            const setupCostForOp = r.setup_time * costPerMin;
+                            return (
+                              <label
+                                key={r.op_no}
+                                className="flex items-center gap-3 p-2 rounded hover:bg-background cursor-pointer"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={setupIncludedOps.has(r.op_no)}
+                                  onChange={(e) => {
+                                    setSetupIncludedOps(prev => {
+                                      const newSet = new Set(prev);
+                                      if (e.target.checked) {
+                                        newSet.add(r.op_no);
+                                      } else {
+                                        newSet.delete(r.op_no);
+                                      }
+                                      return newSet;
+                                    });
+                                  }}
+                                  className="h-4 w-4 rounded border-gray-300"
+                                />
+                                <div className="flex-1">
+                                  <span className="font-medium">Op {r.op_no}</span>
+                                  <span className="text-muted-foreground"> - {r.resource_no}</span>
+                                  {r.operation_details && (
+                                    <span className="text-xs text-muted-foreground block truncate max-w-[200px]">
+                                      {r.operation_details}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-right text-sm">
+                                  <div>{r.setup_time} min</div>
+                                  <div className="text-muted-foreground">€{setupCostForOp.toFixed(2)}</div>
+                                </div>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      
                       <div className="border-t pt-2 mt-2">
-                        <p className="text-sm"><strong>Current Values:</strong></p>
+                        <p className="text-sm"><strong>Selected Values:</strong></p>
                         <ul className="text-sm space-y-1 mt-1">
-                          <li>• Total Setup Time: <strong>{totals.totalSetupTime.toFixed(1)} min</strong></li>
-                          <li>• Total Setup Cost: <strong>€{totals.totalSetupCost.toFixed(2)}</strong></li>
+                          <li>• Selected Setup Time: <strong>{totals.selectedSetupTime.toFixed(1)} min</strong> (of {totals.totalSetupTime.toFixed(1)} min total)</li>
+                          <li>• Selected Setup Cost: <strong>€{totals.totalSetupCost.toFixed(2)}</strong></li>
                         </ul>
                       </div>
                     </div>
