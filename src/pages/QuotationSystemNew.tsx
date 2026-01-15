@@ -644,7 +644,16 @@ const QuotationSystemNew = () => {
     const totalSubconCost = getSubconCostForQuantity(firstQty);
     const totalSetupTime = routings.reduce((sum, r) => sum + r.setup_time, 0);
     const totalRunTime = routings.reduce((sum, r) => sum + r.run_time, 0);
-    const totalRoutingCost = routings.reduce((sum, r) => sum + calculateRoutingCost(r), 0);
+    // Calculate total setup cost using each routing's resource rate
+    const totalSetupCost = routings.reduce((sum, r) => {
+      const costPerMin = getResourceCost(r.resource_no);
+      return sum + (r.setup_time * costPerMin);
+    }, 0);
+    // totalRoutingCost is run_time × resource rate (setup handled separately)
+    const totalRoutingCost = routings.reduce((sum, r) => {
+      const costPerMin = getResourceCost(r.resource_no);
+      return sum + (r.run_time * costPerMin);
+    }, 0);
     const costPerHour = getSettingValue('cost_per_hour') || 55;
 
     return {
@@ -652,6 +661,7 @@ const QuotationSystemNew = () => {
       totalSubconCost: totalSubconCost * (1 + header.subcon_markup / 100),
       totalSetupTime,
       totalRunTime,
+      totalSetupCost,
       totalRoutingCost,
       costPerHour
     };
@@ -804,8 +814,8 @@ const QuotationSystemNew = () => {
       // Insert volume pricing
       const costPerHour = getSettingValue('cost_per_hour') || 55;
       const volumeInserts = volumes.map(v => {
-        // Setup cost = (Setup Time × Resource Rate) / Qty
-        const setupCost = (totals.totalSetupTime / 60 * costPerHour) / v.quantity;
+        // Setup cost = totalSetupCost / Qty (uses resource rates from settings)
+        const setupCost = totals.totalSetupCost / v.quantity;
         // Routing cost = totalRoutingCost × quantity
         const routingCost = totals.totalRoutingCost * v.quantity;
         const materialCost = totals.totalMaterialCost * v.quantity;
@@ -2122,7 +2132,7 @@ const QuotationSystemNew = () => {
                     </TableHeader>
                     <TableBody>
                       {volumes.map((vol, idx) => {
-                        const setupCost = (totals.totalSetupTime / 60 * totals.costPerHour) / vol.quantity;
+                        const setupCost = totals.totalSetupCost / vol.quantity;
                         const routingCost = totals.totalRoutingCost * vol.quantity;
                         const materialCost = totals.totalMaterialCost * vol.quantity;
                         const subconCost = totals.totalSubconCost * vol.quantity;
@@ -2194,15 +2204,15 @@ const QuotationSystemNew = () => {
                 {explainerOpen === 'setupCost' && (
                   <>
                     <DialogDescription>
-                      Setup cost amortized across the quantity.
+                      Setup cost amortized across the quantity. Uses resource rates from settings.
                     </DialogDescription>
                     <div className="bg-muted p-4 rounded-lg space-y-2">
-                      <p className="font-mono text-sm">Setup = (Setup Time × Resource Rate) ÷ Qty</p>
+                      <p className="font-mono text-sm">Setup = Σ(Setup Time × Resource Rate) ÷ Qty</p>
                       <div className="border-t pt-2 mt-2">
                         <p className="text-sm"><strong>Current Values:</strong></p>
                         <ul className="text-sm space-y-1 mt-1">
                           <li>• Total Setup Time: <strong>{totals.totalSetupTime.toFixed(1)} min</strong></li>
-                          <li>• Resource Rate: <strong>€{totals.costPerHour.toFixed(2)}/hr</strong></li>
+                          <li>• Total Setup Cost: <strong>€{totals.totalSetupCost.toFixed(2)}</strong></li>
                         </ul>
                       </div>
                     </div>
