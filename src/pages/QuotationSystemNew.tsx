@@ -804,8 +804,8 @@ const QuotationSystemNew = () => {
       // Insert volume pricing
       const costPerHour = getSettingValue('cost_per_hour') || 55;
       const volumeInserts = volumes.map(v => {
-        // Routing cost = (Setup Time + Run Time × Qty) / 60 × Cost/Hr
-        const routingCost = (totals.totalSetupTime + totals.totalRunTime * v.quantity) / 60 * costPerHour;
+        // Routing cost = totalRoutingCost × quantity
+        const routingCost = totals.totalRoutingCost * v.quantity;
         const materialCost = totals.totalMaterialCost * v.quantity;
         // Get subcon cost specific to this quantity tier
         const subconCostPerUnit = getSubconCostForQuantity(v.quantity) * (1 + header.subcon_markup / 100);
@@ -2114,7 +2114,7 @@ const QuotationSystemNew = () => {
                     </TableHeader>
                     <TableBody>
                       {volumes.map((vol, idx) => {
-                        const routingCost = (totals.totalSetupTime + totals.totalRunTime * vol.quantity) / 60 * totals.costPerHour;
+                        const routingCost = totals.totalRoutingCost * vol.quantity;
                         const materialCost = totals.totalMaterialCost * vol.quantity;
                         const subconCost = totals.totalSubconCost * vol.quantity;
                         const totalCost = routingCost + materialCost + subconCost;
@@ -2183,16 +2183,14 @@ const QuotationSystemNew = () => {
                 {explainerOpen === 'routingCost' && (
                   <>
                     <DialogDescription>
-                      Total routing cost based on setup time, run time, and hourly rate.
+                      Total routing cost from all operations multiplied by quantity.
                     </DialogDescription>
                     <div className="bg-muted p-4 rounded-lg space-y-2">
-                      <p className="font-mono text-sm">Routing = (Setup Time + Run Time × Qty) ÷ 60 × Cost/Hr</p>
+                      <p className="font-mono text-sm">Routing = Routing Cost per Part × Quantity</p>
                       <div className="border-t pt-2 mt-2">
                         <p className="text-sm"><strong>Current Values:</strong></p>
                         <ul className="text-sm space-y-1 mt-1">
-                          <li>• Total Setup Time: <strong>{totals.totalSetupTime.toFixed(1)} min</strong></li>
-                          <li>• Run Time per Part: <strong>{totals.totalRunTime.toFixed(1)} min</strong></li>
-                          <li>• Cost per Hour: <strong>€{totals.costPerHour.toFixed(2)}</strong></li>
+                          <li>• Routing Cost per Part: <strong>€{totals.totalRoutingCost.toFixed(2)}</strong></li>
                         </ul>
                       </div>
                     </div>
