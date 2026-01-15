@@ -36,6 +36,15 @@ export function ReviewApprovalDialog({
     try {
       const newStatus: EnquiryStatus = approved ? 'approved' : 'declined';
       
+      // Get the original submitter (creator) of the quotation
+      const { data: enquiryData, error: enquiryFetchError } = await supabase
+        .from('quotation_enquiries')
+        .select('submitted_by')
+        .eq('id', enquiryId)
+        .single();
+
+      if (enquiryFetchError) throw enquiryFetchError;
+
       // Update enquiry status and review info
       const { error: updateError } = await supabase
         .from('quotation_enquiries')
@@ -61,6 +70,27 @@ export function ReviewApprovalDialog({
 
         if (taskError) {
           console.error('Error updating task:', taskError);
+        }
+      }
+
+      // Create a return task for the original creator to continue the process
+      if (enquiryData?.submitted_by) {
+        const taskType = approved ? 'revision' : 'revision'; // Both cases need creator action
+        const { error: returnTaskError } = await supabase
+          .from('quotation_review_tasks')
+          .insert({
+            enquiry_id: enquiryId,
+            assigned_to: enquiryData.submitted_by,
+            assigned_by: user.id,
+            task_type: taskType,
+            status: 'pending',
+            comments: approved 
+              ? `Quotation approved. ${comments ? 'Reviewer notes: ' + comments : 'Please proceed with the quotation process.'}`
+              : `Quotation declined. ${comments ? 'Reason: ' + comments : 'Please revise and resubmit.'}`
+          });
+
+        if (returnTaskError) {
+          console.error('Error creating return task:', returnTaskError);
         }
       }
 
