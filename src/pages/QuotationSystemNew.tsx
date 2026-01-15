@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
@@ -94,6 +94,20 @@ const QuotationSystemNew = () => {
     subcon_markup: 20,
   });
 
+  // Currency state
+  const [currency, setCurrency] = useState<'EUR' | 'USD' | 'CAD' | 'GBP'>('EUR');
+  const [exchangeRate, setExchangeRate] = useState(1.0);
+  const [baseRates, setBaseRates] = useState<Record<string, number>>({ EUR: 1.0, USD: 1.08, GBP: 0.86, CAD: 1.47 });
+  const [fetchingRates, setFetchingRates] = useState(false);
+  const [ratesSource, setRatesSource] = useState('');
+
+  const currencySymbols: Record<string, string> = {
+    EUR: '€',
+    USD: '$',
+    CAD: 'C$',
+    GBP: '£'
+  };
+
   // Volume state
   const [volumes, setVolumes] = useState<VolumePricing[]>([
     { quantity: 500, margin: 45 },
@@ -144,6 +158,44 @@ const QuotationSystemNew = () => {
       ]);
     }
   }, [settings]);
+
+  // Fetch exchange rates
+  const fetchExchangeRates = async () => {
+    setFetchingRates(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-exchange-rates');
+      
+      if (error) throw error;
+      
+      setBaseRates({
+        EUR: data.EUR || 1.0,
+        USD: data.USD || 1.08,
+        GBP: data.GBP || 0.86,
+        CAD: data.CAD || 1.47
+      });
+      setRatesSource(`${data.source} (${data.date})`);
+      
+      // Update current exchange rate based on selected currency
+      setExchangeRate(data[currency] || 1.0);
+      
+      toast.success('Exchange rates updated');
+    } catch (error) {
+      console.error('Error fetching exchange rates:', error);
+      toast.error('Failed to fetch exchange rates, using defaults');
+    } finally {
+      setFetchingRates(false);
+    }
+  };
+
+  // Fetch rates on mount
+  useEffect(() => {
+    fetchExchangeRates();
+  }, []);
+
+  // Update exchange rate when currency changes
+  useEffect(() => {
+    setExchangeRate(baseRates[currency] || 1.0);
+  }, [currency, baseRates]);
 
   // Load existing quotation for editing
   useEffect(() => {
@@ -687,7 +739,7 @@ const QuotationSystemNew = () => {
                   </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-4 md:grid-cols-4">
                   <div className="space-y-2">
                     <Label>Qty Per</Label>
                     <Input
@@ -708,6 +760,64 @@ const QuotationSystemNew = () => {
                         <SelectItem value="Subcon">Subcon Only</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label>Quote Currency</Label>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm">
+                          <p>Select the currency for the final quote. Costs are calculated in EUR, then converted using the exchange rate.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Select value={currency} onValueChange={(v: 'EUR' | 'USD' | 'CAD' | 'GBP') => setCurrency(v)}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="EUR">€ Euro (EUR)</SelectItem>
+                        <SelectItem value="USD">$ US Dollar (USD)</SelectItem>
+                        <SelectItem value="CAD">C$ Canadian Dollar (CAD)</SelectItem>
+                        <SelectItem value="GBP">£ British Pound (GBP)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Label>Exchange Rate</Label>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm">
+                          <p>1 EUR = {exchangeRate.toFixed(4)} {currency}. Rate from ECB. Edit if needed.</p>
+                          {ratesSource && <p className="text-xs mt-1">{ratesSource}</p>}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <div className="flex gap-2">
+                      <Input
+                        type="number"
+                        step="0.0001"
+                        value={exchangeRate}
+                        onChange={(e) => setExchangeRate(parseFloat(e.target.value) || 1)}
+                        className="flex-1"
+                        disabled={currency === 'EUR'}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={fetchExchangeRates}
+                        disabled={fetchingRates}
+                        title="Refresh rates from ECB"
+                      >
+                        <RefreshCw className={`h-4 w-4 ${fetchingRates ? 'animate-spin' : ''}`} />
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
@@ -1354,7 +1464,8 @@ const QuotationSystemNew = () => {
                 <Alert className="bg-muted/50 border-primary/20 mb-4">
                   <Info className="h-4 w-4 text-primary" />
                   <AlertDescription className="text-sm text-muted-foreground">
-                    <strong>Formula:</strong> Total Cost = Labour + Materials + Subcon. <strong>Unit Price</strong> = Cost per Unit ÷ (1 - Margin%). Higher volumes reduce per-unit costs due to setup amortization.
+                    <strong>Formula:</strong> Total Cost = Labour + Materials + Subcon. <strong>Unit Price</strong> = Cost per Unit ÷ (1 - Margin%). 
+                    {currency !== 'EUR' && <span className="ml-2"><strong>Currency:</strong> {currency} (1 EUR = {exchangeRate.toFixed(4)} {currency})</span>}
                   </AlertDescription>
                 </Alert>
                 <div className="border rounded-lg overflow-auto">
@@ -1363,12 +1474,12 @@ const QuotationSystemNew = () => {
                       <TableRow className="bg-muted/50">
                         <TableHead>Qty</TableHead>
                         <TableHead className="text-right">Hours</TableHead>
-                        <TableHead className="text-right">Cost/Hr</TableHead>
-                        <TableHead className="text-right">Labour Cost</TableHead>
-                        <TableHead className="text-right">Material Cost</TableHead>
-                        <TableHead className="text-right">Subcon Cost</TableHead>
-                        <TableHead className="text-right">Total Cost</TableHead>
-                        <TableHead className="text-right">Unit Price</TableHead>
+                        <TableHead className="text-right">Cost/Hr (€)</TableHead>
+                        <TableHead className="text-right">Labour (€)</TableHead>
+                        <TableHead className="text-right">Material (€)</TableHead>
+                        <TableHead className="text-right">Subcon (€)</TableHead>
+                        <TableHead className="text-right">Total Cost (€)</TableHead>
+                        <TableHead className="text-right">Unit Price ({currencySymbols[currency]})</TableHead>
                         <TableHead className="text-right">Margin</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -1379,7 +1490,8 @@ const QuotationSystemNew = () => {
                         const materialCost = totals.totalMaterialCost * vol.quantity;
                         const subconCost = totals.totalSubconCost * vol.quantity;
                         const totalCost = labourCost + materialCost + subconCost;
-                        const unitPrice = totalCost / vol.quantity / (1 - vol.margin / 100);
+                        const unitPriceEur = totalCost / vol.quantity / (1 - vol.margin / 100);
+                        const unitPriceConverted = unitPriceEur * exchangeRate;
 
                         return (
                           <TableRow key={idx}>
@@ -1391,7 +1503,7 @@ const QuotationSystemNew = () => {
                             <TableCell className="text-right">€{subconCost.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-medium">€{totalCost.toFixed(2)}</TableCell>
                             <TableCell className="text-right">
-                              <Badge className="bg-primary">${unitPrice.toFixed(2)}</Badge>
+                              <Badge className="bg-primary">{currencySymbols[currency]}{unitPriceConverted.toFixed(2)}</Badge>
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
