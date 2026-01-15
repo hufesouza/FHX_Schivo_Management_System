@@ -61,6 +61,7 @@ interface RoutingLine {
   setup_time: number;
   run_time: number;
   override_cost?: number | null;
+  include_setup_calc: boolean;
 }
 
 interface VolumePricing {
@@ -348,8 +349,8 @@ const QuotationSystemNew = () => {
 
   // Routing state
   const [routings, setRoutings] = useState<RoutingLine[]>([
-    { op_no: 10, sublevel_bom: false, part_number: '', resource_no: 'ManuEng', operation_details: 'REVIEW PROCESS, METHOD & FILL IN BLUE REVIEW', subcon_processing_time: 0, setup_time: 0.1, run_time: 0 },
-    { op_no: 20, sublevel_bom: false, part_number: '', resource_no: 'Saw', operation_details: 'BOOK OUT ALLOCATED MATERIAL', subcon_processing_time: 0, setup_time: 10, run_time: 0 },
+    { op_no: 10, sublevel_bom: false, part_number: '', resource_no: 'ManuEng', operation_details: 'REVIEW PROCESS, METHOD & FILL IN BLUE REVIEW', subcon_processing_time: 0, setup_time: 0.1, run_time: 0, include_setup_calc: true },
+    { op_no: 20, sublevel_bom: false, part_number: '', resource_no: 'Saw', operation_details: 'BOOK OUT ALLOCATED MATERIAL', subcon_processing_time: 0, setup_time: 10, run_time: 0, include_setup_calc: true },
   ]);
 
   // Initialize setupIncludedOps when routings change
@@ -551,7 +552,7 @@ const QuotationSystemNew = () => {
           .order('op_no', { ascending: true });
         
         if (routingsData && routingsData.length > 0) {
-          setRoutings(routingsData.map(r => ({
+          const loadedRoutings = routingsData.map(r => ({
             op_no: r.op_no,
             sublevel_bom: r.sublevel_bom || false,
             part_number: r.part_number || '',
@@ -560,8 +561,14 @@ const QuotationSystemNew = () => {
             subcon_processing_time: r.subcon_processing_time || 0,
             setup_time: r.setup_time || 0,
             run_time: r.run_time || 0,
-            override_cost: r.override_cost ?? null
-          })));
+            override_cost: r.override_cost ?? null,
+            include_setup_calc: r.include_setup_calc !== false // default to true
+          }));
+          setRoutings(loadedRoutings);
+          // Initialize setupIncludedOps from loaded data
+          setSetupIncludedOps(new Set(
+            loadedRoutings.filter(r => r.include_setup_calc).map(r => r.op_no)
+          ));
         }
 
       } catch (error) {
@@ -625,7 +632,8 @@ const QuotationSystemNew = () => {
       operation_details: '',
       subcon_processing_time: 0,
       setup_time: 0,
-      run_time: 0
+      run_time: 0,
+      include_setup_calc: true
     }]);
   };
 
@@ -829,7 +837,8 @@ const QuotationSystemNew = () => {
         setup_time: r.setup_time,
         run_time: r.run_time,
         override_cost: r.override_cost ?? null,
-        cost: calculateRoutingCost(r)
+        cost: calculateRoutingCost(r),
+        include_setup_calc: setupIncludedOps.has(r.op_no)
       }));
 
       if (routingInserts.length > 0) {
