@@ -876,25 +876,14 @@ const EnquiryDetail = () => {
                           </TableCell>
                           <TableCell>
                             {quotation ? (
-                              <div className="flex items-center gap-2">
-                                <Badge variant="secondary">
-                                  <CheckCircle className="h-3 w-3 mr-1" />
-                                  Quoted
-                                </Badge>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button 
-                                      variant="ghost" 
-                                      size="icon" 
-                                      className="h-6 w-6"
-                                      onClick={() => navigate(`/npi/quotation-system/edit/${quotation.id}`)}
-                                    >
-                                      <Eye className="h-3 w-3" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>View Quotation</TooltipContent>
-                                </Tooltip>
-                              </div>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => navigate(`/npi/quotation-system/new?quotationId=${quotation.id}`)}
+                              >
+                                <Pencil className="h-3 w-3 mr-1" />
+                                View / Edit
+                              </Button>
                             ) : (
                               <Button 
                                 variant="outline" 
