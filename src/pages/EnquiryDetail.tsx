@@ -669,7 +669,7 @@ const EnquiryDetail = () => {
                               <Button 
                                 variant="outline" 
                                 size="sm"
-                                onClick={() => navigate(`/npi/quotation-system/new?enquiryPartId=${part.id}&enquiryNo=${enquiry.enquiry_no}&partNumber=${part.part_number}&customer=${encodeURIComponent(enquiry.customer_name)}`)}
+                                onClick={() => navigate(`/npi/quotation-system/new?enquiryPartId=${part.id}&enquiryNo=${encodeURIComponent(enquiry.enquiry_no)}&partNumber=${encodeURIComponent(part.part_number)}&customer=${encodeURIComponent(enquiry.customer_name)}&description=${encodeURIComponent(part.description || '')}&revision=${encodeURIComponent(part.revision || '')}`)}
                               >
                                 <Calculator className="h-3 w-3 mr-1" />
                                 Quote

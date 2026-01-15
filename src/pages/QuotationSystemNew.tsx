@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -93,6 +93,7 @@ interface MaterialSupplier {
 const QuotationSystemNew = () => {
   const navigate = useNavigate();
   const { id: editId } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { resources, loading: resourcesLoading } = useQuotationResources();
   const { settings, getSettingValue, loading: settingsLoading } = useQuotationSettings();
@@ -415,6 +416,64 @@ const QuotationSystemNew = () => {
   useEffect(() => {
     setExchangeRate(baseRates[currency] || 1.0);
   }, [currency, baseRates]);
+
+  // Pre-populate from enquiry part when coming from enquiry
+  useEffect(() => {
+    const loadEnquiryData = async () => {
+      const enquiryPartId = searchParams.get('enquiryPartId');
+      const enquiryNo = searchParams.get('enquiryNo');
+      const customer = searchParams.get('customer');
+      
+      if (!enquiryPartId || editId) return; // Only for new quotations from enquiry
+      
+      try {
+        // Fetch the enquiry part with its parent enquiry
+        const { data: partData, error: partError } = await supabase
+          .from('enquiry_parts')
+          .select(`
+            *,
+            enquiry:quotation_enquiries(*)
+          `)
+          .eq('id', enquiryPartId)
+          .maybeSingle();
+        
+        if (partError) throw partError;
+        
+        if (partData) {
+          // Pre-populate header with enquiry data
+          setHeader(prev => ({
+            ...prev,
+            enquiry_no: enquiryNo || (partData.enquiry as any)?.enquiry_no || '',
+            customer: customer || (partData.enquiry as any)?.customer_name || '',
+            part_number: partData.part_number || '',
+            revision: partData.revision || '',
+            description: partData.description || '',
+          }));
+
+          // Try to get customer code
+          const customerName = customer || (partData.enquiry as any)?.customer_name;
+          if (customerName) {
+            const { data: customerData } = await supabase
+              .from('quotation_customers')
+              .select('bp_code')
+              .ilike('bp_name', customerName)
+              .maybeSingle();
+            
+            if (customerData) {
+              setHeader(prev => ({
+                ...prev,
+                customer_code: customerData.bp_code
+              }));
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading enquiry data:', error);
+      }
+    };
+    
+    loadEnquiryData();
+  }, [searchParams, editId]);
 
   // Load existing quotation for editing
   useEffect(() => {
