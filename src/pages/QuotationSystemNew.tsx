@@ -2173,12 +2173,14 @@ const QuotationSystemNew = () => {
                         const totalCost = setupCost + routingCost + materialCost + subconCost;
                         const unitPriceEur = totalCost / vol.quantity / (1 - vol.margin / 100);
                         const unitPriceConverted = unitPriceEur * exchangeRate;
-                        // Calculate rate per hour: (Unit Price - Material - Subcon cost per part) / Run Time in hours
+                        // Calculate rate per hour: (Unit Price - Material - Subcon) / Total Time per part in hours
                         const materialPerPart = totals.totalMaterialCost;
                         const subconPerPart = totals.totalSubconCost;
                         const labourRevenuePerPart = unitPriceEur - materialPerPart - subconPerPart;
-                        const runTimeHours = totals.totalRunTime / 60;
-                        const ratePerHour = runTimeHours > 0 ? labourRevenuePerPart / runTimeHours : 0;
+                        // Time per part = Run Time + (Setup Time / Qty)
+                        const timePerPartMins = totals.totalRunTime + (totals.selectedSetupTime / vol.quantity);
+                        const timePerPartHours = timePerPartMins / 60;
+                        const ratePerHour = timePerPartHours > 0 ? labourRevenuePerPart / timePerPartHours : 0;
 
                         return (
                           <TableRow key={idx}>
@@ -2424,18 +2426,20 @@ const QuotationSystemNew = () => {
                       Effective hourly rate being charged based on the unit price, after deducting material and subcon costs.
                     </DialogDescription>
                     <div className="bg-muted p-4 rounded-lg space-y-2">
-                      <p className="font-mono text-sm">Rate/hr = (Unit Price - Material - Subcon) ÷ Run Time (hrs)</p>
+                      <p className="font-mono text-sm">Rate/hr = (Unit Price - Material - Subcon) ÷ Time per Part (hrs)</p>
+                      <p className="font-mono text-xs text-muted-foreground">Time per Part = Run Time + (Setup Time ÷ Qty)</p>
                       <div className="border-t pt-2 mt-2">
                         <p className="text-sm"><strong>Current Values:</strong></p>
                         <ul className="text-sm space-y-1 mt-1">
                           <li>• Material Cost/Part: <strong>€{totals.totalMaterialCost.toFixed(2)}</strong></li>
                           <li>• Subcon Cost/Part: <strong>€{totals.totalSubconCost.toFixed(2)}</strong></li>
-                          <li>• Total Run Time: <strong>{totals.totalRunTime.toFixed(1)} min</strong> ({(totals.totalRunTime / 60).toFixed(2)} hrs)</li>
+                          <li>• Run Time: <strong>{totals.totalRunTime.toFixed(1)} min</strong></li>
+                          <li>• Selected Setup Time: <strong>{totals.selectedSetupTime.toFixed(1)} min</strong></li>
                         </ul>
                       </div>
                       <div className="border-t pt-2 mt-2">
                         <p className="text-sm"><strong>How it works:</strong></p>
-                        <p className="text-sm">This shows what hourly rate you're effectively charging the customer for labour/manufacturing time, calculated from the unit price minus material and subcon pass-through costs.</p>
+                        <p className="text-sm">This shows the effective hourly rate you're charging for labour/manufacturing. It takes the selling price, subtracts material and subcon costs, then divides by total time (run time + amortized setup time).</p>
                       </div>
                     </div>
                   </>
