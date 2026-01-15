@@ -671,11 +671,18 @@ const QuotationSystemNew = () => {
     }
 
     setSaving(true);
-    try {
-      let currentQuotationId = quotationId;
+    // Safety net: when editing, keep a copy of existing rows so a failed save can't wipe data
+    let currentQuotationId = quotationId;
+    let backup: {
+      materials: any[];
+      subcons: any[];
+      routings: any[];
+      volumes: any[];
+    } | null = null;
 
+    try {
       if (currentQuotationId) {
-        // Update existing quotation
+        // Update existing quotation header first
         const { error: updateError } = await supabase
           .from('system_quotations')
           .update({
@@ -690,11 +697,33 @@ const QuotationSystemNew = () => {
 
         if (updateError) throw updateError;
 
+        // Backup current related rows BEFORE deleting anything
+        const [mRes, sRes, rRes, vRes] = await Promise.all([
+          supabase.from('quotation_materials').select('*').eq('quotation_id', currentQuotationId),
+          supabase.from('quotation_subcons').select('*').eq('quotation_id', currentQuotationId),
+          supabase.from('quotation_routings').select('*').eq('quotation_id', currentQuotationId),
+          supabase.from('quotation_volume_pricing').select('*').eq('quotation_id', currentQuotationId),
+        ]);
+
+        backup = {
+          materials: mRes.data ?? [],
+          subcons: sRes.data ?? [],
+          routings: rRes.data ?? [],
+          volumes: vRes.data ?? [],
+        };
+
         // Delete existing related data to re-insert
-        await supabase.from('quotation_materials').delete().eq('quotation_id', currentQuotationId);
-        await supabase.from('quotation_subcons').delete().eq('quotation_id', currentQuotationId);
-        await supabase.from('quotation_routings').delete().eq('quotation_id', currentQuotationId);
-        await supabase.from('quotation_volume_pricing').delete().eq('quotation_id', currentQuotationId);
+        const [dm, ds, dr, dv] = await Promise.all([
+          supabase.from('quotation_materials').delete().eq('quotation_id', currentQuotationId),
+          supabase.from('quotation_subcons').delete().eq('quotation_id', currentQuotationId),
+          supabase.from('quotation_routings').delete().eq('quotation_id', currentQuotationId),
+          supabase.from('quotation_volume_pricing').delete().eq('quotation_id', currentQuotationId),
+        ]);
+
+        if (dm.error) throw dm.error;
+        if (ds.error) throw ds.error;
+        if (dr.error) throw dr.error;
+        if (dv.error) throw dv.error;
       } else {
         // Create quotation header
         const { data: quotation, error: quotationError } = await supabase
@@ -816,7 +845,54 @@ const QuotationSystemNew = () => {
       return true;
     } catch (error) {
       console.error('Error saving quotation:', error);
-      toast.error('Failed to save quotation');
+
+      // If we were editing an existing quotation, try to restore the previous rows
+      if (currentQuotationId && backup) {
+        try {
+          await Promise.all([
+            supabase.from('quotation_materials').delete().eq('quotation_id', currentQuotationId),
+            supabase.from('quotation_subcons').delete().eq('quotation_id', currentQuotationId),
+            supabase.from('quotation_routings').delete().eq('quotation_id', currentQuotationId),
+            supabase.from('quotation_volume_pricing').delete().eq('quotation_id', currentQuotationId),
+          ]);
+
+          if (backup.materials.length > 0) {
+            const { error: restoreMaterialsError } = await supabase
+              .from('quotation_materials')
+              .insert(backup.materials);
+            if (restoreMaterialsError) throw restoreMaterialsError;
+          }
+
+          if (backup.subcons.length > 0) {
+            const { error: restoreSubconsError } = await supabase
+              .from('quotation_subcons')
+              .insert(backup.subcons);
+            if (restoreSubconsError) throw restoreSubconsError;
+          }
+
+          if (backup.routings.length > 0) {
+            const { error: restoreRoutingsError } = await supabase
+              .from('quotation_routings')
+              .insert(backup.routings);
+            if (restoreRoutingsError) throw restoreRoutingsError;
+          }
+
+          if (backup.volumes.length > 0) {
+            const { error: restoreVolumesError } = await supabase
+              .from('quotation_volume_pricing')
+              .insert(backup.volumes);
+            if (restoreVolumesError) throw restoreVolumesError;
+          }
+
+          toast.error('Save failed — previous data was restored');
+        } catch (restoreError) {
+          console.error('Error restoring previous data after failed save:', restoreError);
+          toast.error('Failed to save quotation');
+        }
+      } else {
+        toast.error('Failed to save quotation');
+      }
+
       return false;
     } finally {
       setSaving(false);
