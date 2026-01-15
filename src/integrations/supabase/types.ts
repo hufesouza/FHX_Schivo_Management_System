@@ -2184,6 +2184,9 @@ export type Database = {
       }
       quotation_enquiries: {
         Row: {
+          approver_id: string | null
+          approver_name: string | null
+          average_margin: number | null
           created_at: string
           created_by: string
           customer_id: string | null
@@ -2191,11 +2194,19 @@ export type Database = {
           enquiry_no: string
           id: string
           notes: string | null
+          review_comments: string | null
+          reviewed_at: string | null
           sales_representative: string | null
           status: Database["public"]["Enums"]["enquiry_status"]
+          submitted_by: string | null
+          submitted_for_review_at: string | null
+          total_quoted_value: number | null
           updated_at: string
         }
         Insert: {
+          approver_id?: string | null
+          approver_name?: string | null
+          average_margin?: number | null
           created_at?: string
           created_by: string
           customer_id?: string | null
@@ -2203,11 +2214,19 @@ export type Database = {
           enquiry_no: string
           id?: string
           notes?: string | null
+          review_comments?: string | null
+          reviewed_at?: string | null
           sales_representative?: string | null
           status?: Database["public"]["Enums"]["enquiry_status"]
+          submitted_by?: string | null
+          submitted_for_review_at?: string | null
+          total_quoted_value?: number | null
           updated_at?: string
         }
         Update: {
+          approver_id?: string | null
+          approver_name?: string | null
+          average_margin?: number | null
           created_at?: string
           created_by?: string
           customer_id?: string | null
@@ -2215,8 +2234,13 @@ export type Database = {
           enquiry_no?: string
           id?: string
           notes?: string | null
+          review_comments?: string | null
+          reviewed_at?: string | null
           sales_representative?: string | null
           status?: Database["public"]["Enums"]["enquiry_status"]
+          submitted_by?: string | null
+          submitted_for_review_at?: string | null
+          total_quoted_value?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -2359,6 +2383,50 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      quotation_review_tasks: {
+        Row: {
+          assigned_by: string | null
+          assigned_to: string
+          comments: string | null
+          completed_at: string | null
+          created_at: string
+          enquiry_id: string
+          id: string
+          status: string
+          task_type: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          assigned_to: string
+          comments?: string | null
+          completed_at?: string | null
+          created_at?: string
+          enquiry_id: string
+          id?: string
+          status?: string
+          task_type?: string
+        }
+        Update: {
+          assigned_by?: string | null
+          assigned_to?: string
+          comments?: string | null
+          completed_at?: string | null
+          created_at?: string
+          enquiry_id?: string
+          id?: string
+          status?: string
+          task_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_review_tasks_enquiry_id_fkey"
+            columns: ["enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "quotation_enquiries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       quotation_routings: {
         Row: {

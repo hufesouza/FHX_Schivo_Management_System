@@ -23,6 +23,15 @@ export interface QuotationEnquiry {
   created_by: string;
   created_at: string;
   updated_at: string;
+  // Review workflow fields
+  approver_id: string | null;
+  approver_name: string | null;
+  submitted_for_review_at: string | null;
+  submitted_by: string | null;
+  reviewed_at: string | null;
+  review_comments: string | null;
+  total_quoted_value: number | null;
+  average_margin: number | null;
 }
 
 export interface EnquiryPart {
@@ -66,7 +75,7 @@ export function useQuotationEnquiries() {
   }, []);
 
   const createEnquiry = async (
-    enquiry: Omit<QuotationEnquiry, 'id' | 'created_at' | 'updated_at' | 'status'>
+    enquiry: Pick<QuotationEnquiry, 'enquiry_no' | 'customer_name' | 'customer_id' | 'sales_representative' | 'notes' | 'created_by'>
   ): Promise<QuotationEnquiry | null> => {
     try {
       const { data, error } = await supabase
