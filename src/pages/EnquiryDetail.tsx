@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,7 +32,9 @@ import {
   Eye,
   ChevronRight,
   Pencil,
-  FileUp
+  FileUp,
+  ClipboardCheck,
+  MessageSquare
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useQuotationEnquiries, useEnquiryParts, EnquiryStatus, EnquiryWithParts, EnquiryPart } from '@/hooks/useQuotationEnquiries';
@@ -42,6 +44,9 @@ import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { EnquirySummary } from '@/components/quotation-control/EnquirySummary';
+import { SubmitForReviewDialog } from '@/components/quotation-control/SubmitForReviewDialog';
+import { ReviewApprovalDialog } from '@/components/quotation-control/ReviewApprovalDialog';
 
 const statusConfig: Record<EnquiryStatus, { label: string; icon: React.ElementType; color: string }> = {
   open: { label: 'Open', icon: FileText, color: 'bg-slate-500' },
@@ -105,11 +110,52 @@ const EnquiryDetail = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [processingFiles, setProcessingFiles] = useState<ProcessingFile[]>([]);
   const dropZoneRef = useRef<HTMLDivElement>(null);
+  
+  // Summary state for submit for review
+  const [summaryTotalValue, setSummaryTotalValue] = useState(0);
+  const [summaryAverageMargin, setSummaryAverageMargin] = useState(0);
+  
+  // Review task for current user
+  const [reviewTask, setReviewTask] = useState<{ id: string } | null>(null);
 
   // Get quotations for this enquiry's parts
-  const partQuotations = quotations.filter(q => 
-    parts.some(p => q.enquiry_part_id === p.id)
-  );
+  const partQuotations = useMemo(() => {
+    return quotations.filter(q => parts.some(p => q.enquiry_part_id === p.id));
+  }, [quotations, parts]);
+  
+  // Check if all parts are quoted
+  const allPartsQuoted = useMemo(() => {
+    if (parts.length === 0) return false;
+    return parts.every(p => p.quote_status === 'quoted');
+  }, [parts]);
+  
+  // Check if user is the approver
+  const isApprover = useMemo(() => {
+    if (!user || !enquiry) return false;
+    return (enquiry as any).approver_id === user.id;
+  }, [user, enquiry]);
+  
+  // Fetch review task if user is approver
+  useEffect(() => {
+    const fetchReviewTask = async () => {
+      if (!id || !user || !isApprover) {
+        setReviewTask(null);
+        return;
+      }
+      
+      const { data } = await supabase
+        .from('quotation_review_tasks')
+        .select('id')
+        .eq('enquiry_id', id)
+        .eq('assigned_to', user.id)
+        .eq('status', 'pending')
+        .maybeSingle();
+      
+      setReviewTask(data);
+    };
+    
+    fetchReviewTask();
+  }, [id, user, isApprover]);
 
   // Fetch enquiry directly to avoid dependency loop
   const loadEnquiry = useCallback(async () => {
@@ -942,6 +988,113 @@ const EnquiryDetail = () => {
             )}
           </CardContent>
         </Card>
+
+        {/* Quotation Summary - Show when all parts are quoted */}
+        {allPartsQuoted && (
+          <EnquirySummary
+            enquiryNo={enquiry.enquiry_no}
+            customerName={enquiry.customer_name}
+            salesRep={salesRep}
+            parts={parts}
+            quotations={partQuotations}
+            notes={notes}
+            onSummaryCalculated={(total, margin) => {
+              setSummaryTotalValue(total);
+              setSummaryAverageMargin(margin);
+            }}
+          />
+        )}
+
+        {/* Submit for Review / Review Actions */}
+        {allPartsQuoted && enquiry.status === 'in_progress' && (
+          <Card className="border-primary/50">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                    All Parts Quoted
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Ready to submit for review and approval
+                  </p>
+                </div>
+                <SubmitForReviewDialog
+                  enquiryId={id!}
+                  enquiryNo={enquiry.enquiry_no}
+                  totalValue={summaryTotalValue}
+                  averageMargin={summaryAverageMargin}
+                  onSubmitted={loadEnquiry}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Approver Review Banner */}
+        {enquiry.status === 'submitted_for_review' && isApprover && (
+          <Card className="border-blue-500/50 bg-blue-50/50 dark:bg-blue-950/20">
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <ClipboardCheck className="h-5 w-5 text-blue-600" />
+                    Review Required
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    You have been assigned to review and approve this quotation
+                  </p>
+                </div>
+                <ReviewApprovalDialog
+                  enquiryId={id!}
+                  enquiryNo={enquiry.enquiry_no}
+                  taskId={reviewTask?.id}
+                  onReviewed={loadEnquiry}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Waiting for Review Banner */}
+        {enquiry.status === 'submitted_for_review' && !isApprover && (
+          <Card className="border-amber-500/50 bg-amber-50/50 dark:bg-amber-950/20">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <Clock className="h-5 w-5 text-amber-600" />
+                <div>
+                  <h3 className="font-semibold">Awaiting Review</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Submitted for review to {(enquiry as any).approver_name || 'approver'}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Review Comments Banner */}
+        {(enquiry.status === 'approved' || enquiry.status === 'declined') && (enquiry as any).review_comments && (
+          <Card className={enquiry.status === 'approved' ? 'border-green-500/50 bg-green-50/50 dark:bg-green-950/20' : 'border-red-500/50 bg-red-50/50 dark:bg-red-950/20'}>
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <MessageSquare className={cn("h-5 w-5 mt-0.5", enquiry.status === 'approved' ? "text-green-600" : "text-red-600")} />
+                <div>
+                  <h3 className="font-semibold flex items-center gap-2">
+                    Review Comments
+                    <Badge className={enquiry.status === 'approved' ? 'bg-green-600' : 'bg-red-600'}>
+                      {enquiry.status === 'approved' ? 'Approved' : 'Declined'}
+                    </Badge>
+                  </h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    By {(enquiry as any).approver_name} on {(enquiry as any).reviewed_at ? format(new Date((enquiry as any).reviewed_at), 'dd MMM yyyy HH:mm') : ''}
+                  </p>
+                  <p className="mt-2 text-sm">{(enquiry as any).review_comments}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Status Flow */}
         <Card>
