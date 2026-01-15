@@ -1922,39 +1922,50 @@ const QuotationSystemNew = () => {
                             />
                           </TableCell>
                           <TableCell>
-                            <Select
-                              value={route.resource_no}
-                              onValueChange={(v) => {
-                                const newRoutes = [...routings];
-                                newRoutes[idx].resource_no = v;
-                                setRoutings(newRoutes);
-                              }}
-                            >
-                              <SelectTrigger className={`w-48 ${isSubconResource(route.resource_no) ? 'border-amber-400 bg-amber-50' : ''}`}>
-                                <SelectValue placeholder="Select..." />
-                              </SelectTrigger>
-                              <SelectContent className="max-h-[300px]">
-                                {/* Regular site resources */}
-                                {siteResources.map(r => (
-                                  <SelectItem key={r.id} value={r.resource_no}>
-                                    {r.resource_no}
-                                  </SelectItem>
-                                ))}
-                                {/* Virtual subcon resources (if any subcons exist) */}
-                                {subconResources.length > 0 && (
-                                  <>
-                                    <div className="px-2 py-1.5 text-xs font-semibold text-amber-600 bg-amber-50 border-t">
-                                      Subcon Operations
-                                    </div>
-                                    {subconResources.map(r => (
-                                      <SelectItem key={r.id} value={r.resource_no} className="text-amber-700">
-                                        🔗 {r.resource_no}
-                                      </SelectItem>
-                                    ))}
-                                  </>
-                                )}
-                              </SelectContent>
-                            </Select>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <div>
+                                  <Select
+                                    value={route.resource_no}
+                                    onValueChange={(v) => {
+                                      const newRoutes = [...routings];
+                                      newRoutes[idx].resource_no = v;
+                                      setRoutings(newRoutes);
+                                    }}
+                                  >
+                                    <SelectTrigger className={`w-48 ${isSubconResource(route.resource_no) ? 'border-amber-400 bg-amber-50' : ''}`}>
+                                      <SelectValue placeholder="Select..." />
+                                    </SelectTrigger>
+                                    <SelectContent className="max-h-[300px]">
+                                      {/* Regular site resources */}
+                                      {siteResources.map(r => (
+                                        <SelectItem key={r.id} value={r.resource_no}>
+                                          {r.resource_no}
+                                        </SelectItem>
+                                      ))}
+                                      {/* Virtual subcon resources (if any subcons exist) */}
+                                      {subconResources.length > 0 && (
+                                        <>
+                                          <div className="px-2 py-1.5 text-xs font-semibold text-amber-600 bg-amber-50 border-t">
+                                            Subcon Operations
+                                          </div>
+                                          {subconResources.map(r => (
+                                            <SelectItem key={r.id} value={r.resource_no} className="text-amber-700">
+                                              🔗 {r.resource_no}
+                                            </SelectItem>
+                                          ))}
+                                        </>
+                                      )}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </TooltipTrigger>
+                              {route.resource_no && (
+                                <TooltipContent side="bottom" className="max-w-md">
+                                  {route.resource_no}
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
                           </TableCell>
                           <TableCell>
                             <Tooltip>
