@@ -490,23 +490,34 @@ const QuotationSystemNew = () => {
 
                 {/* Volume quantities */}
                 <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <Label>Volume Quantities & Target Margins</Label>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-sm">
-                        <p>Define up to 3 volume tiers for pricing. <strong>Left input:</strong> Quantity per volume. <strong>Right input:</strong> Target margin percentage for that volume. Higher volumes typically have lower margins.</p>
-                      </TooltipContent>
-                    </Tooltip>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Label>Volume Quantities & Target Margins</Label>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-sm">
+                          <p>Define volume tiers for pricing. <strong>Blue box:</strong> Quantity per volume. <strong>Amber box:</strong> Target margin percentage. Higher volumes typically have lower margins.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setVolumes([...volumes, { quantity: 0, margin: 30 }])}
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add Volume
+                    </Button>
                   </div>
                   <p className="text-sm text-muted-foreground">
                     Enter different order quantities and their corresponding margin targets. The system will calculate unit prices based on total costs and desired margins.
                   </p>
-                  <div className="grid gap-4 md:grid-cols-3">
+                  <div className="flex flex-wrap gap-4">
                     {volumes.map((vol, idx) => (
-                      <div key={idx} className="flex gap-2">
+                      <div key={idx} className="flex items-center gap-2 p-3 border rounded-lg bg-muted/30">
+                        <span className="text-sm font-medium text-muted-foreground w-12">Vol {idx + 1}</span>
                         <div className="flex-1">
                           <Input
                             type="number"
@@ -516,10 +527,11 @@ const QuotationSystemNew = () => {
                               newVols[idx].quantity = parseInt(e.target.value) || 0;
                               setVolumes(newVols);
                             }}
-                            placeholder={`Vol ${idx + 1} Qty`}
+                            placeholder="Qty"
+                            className="w-24 border-primary/50 bg-primary/5 focus:border-primary"
                           />
                         </div>
-                        <div className="w-24">
+                        <div className="relative">
                           <Input
                             type="number"
                             value={vol.margin}
@@ -528,9 +540,25 @@ const QuotationSystemNew = () => {
                               newVols[idx].margin = parseFloat(e.target.value) || 0;
                               setVolumes(newVols);
                             }}
-                            placeholder="Margin %"
+                            placeholder="Margin"
+                            className="w-20 pr-7 border-amber-500/50 bg-amber-500/5 focus:border-amber-500"
                           />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-sm text-amber-600 font-medium">%</span>
                         </div>
+                        {volumes.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => {
+                              const newVols = volumes.filter((_, i) => i !== idx);
+                              setVolumes(newVols);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     ))}
                   </div>
