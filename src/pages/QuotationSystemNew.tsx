@@ -11,7 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuotationResources, useQuotationSettings } from '@/hooks/useQuotationSystem';
 import { supabase } from '@/integrations/supabase/client';
@@ -345,10 +347,26 @@ const QuotationSystemNew = () => {
           <TabsContent value="header">
             <Card>
               <CardHeader>
-                <CardTitle>Part & Customer Details</CardTitle>
-                <CardDescription>Enter the basic quotation information</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  Part & Customer Details
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-sm">
+                      <p>Enter the basic information about the quotation including customer details, part identification, and compliance requirements.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </CardTitle>
+                <CardDescription>Enter the basic quotation information from the customer RFQ</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                <Alert className="bg-muted/50 border-primary/20">
+                  <Info className="h-4 w-4 text-primary" />
+                  <AlertDescription className="text-sm text-muted-foreground">
+                    <strong>Required fields:</strong> Enquiry No, Customer, and Part Number are mandatory. Material and Subcon markups are applied automatically to calculate total costs.
+                  </AlertDescription>
+                </Alert>
                 <div className="grid gap-4 md:grid-cols-4">
                   <div className="space-y-2">
                     <Label>Enquiry No. *</Label>
@@ -471,8 +489,21 @@ const QuotationSystemNew = () => {
                 </div>
 
                 {/* Volume quantities */}
-                <div className="space-y-2">
-                  <Label>Volume Quantities</Label>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Label>Volume Quantities & Target Margins</Label>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-sm">
+                        <p>Define up to 3 volume tiers for pricing. <strong>Left input:</strong> Quantity per volume. <strong>Right input:</strong> Target margin percentage for that volume. Higher volumes typically have lower margins.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Enter different order quantities and their corresponding margin targets. The system will calculate unit prices based on total costs and desired margins.
+                  </p>
                   <div className="grid gap-4 md:grid-cols-3">
                     {volumes.map((vol, idx) => (
                       <div key={idx} className="flex gap-2">
@@ -513,14 +544,30 @@ const QuotationSystemNew = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>BOM / Materials</CardTitle>
-                  <CardDescription>Enter material components</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    BOM / Materials
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-sm">
+                        <p>List all raw materials, components, and consumables required to manufacture this part. The markup percentage from the Header tab is applied to calculate final material costs.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
+                  <CardDescription>Enter material components and their costs</CardDescription>
                 </div>
                 <Button onClick={addMaterialLine} size="sm">
                   <Plus className="h-4 w-4 mr-1" /> Add Line
                 </Button>
               </CardHeader>
               <CardContent>
+                <Alert className="bg-muted/50 border-primary/20 mb-4">
+                  <Info className="h-4 w-4 text-primary" />
+                  <AlertDescription className="text-sm text-muted-foreground">
+                    Enter vendor details, part numbers, and standard costs. <strong>Qty/Unit</strong> = how many of this material are needed per finished part. <strong>Std Cost</strong> = cost per unit of material. Total is calculated with the {header.material_markup}% markup applied.
+                  </AlertDescription>
+                </Alert>
                 <div className="border rounded-lg overflow-auto">
                   <Table>
                     <TableHeader>
@@ -649,7 +696,17 @@ const QuotationSystemNew = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Subcontractor Operations</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    Subcontractor Operations
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-sm">
+                        <p>List all external processes performed by subcontractors (e.g., plating, heat treatment, grinding). The markup percentage from the Header tab is applied to calculate final subcon costs.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
                   <CardDescription>Enter subcon processes and costs</CardDescription>
                 </div>
                 <Button onClick={addSubconLine} size="sm">
@@ -657,6 +714,12 @@ const QuotationSystemNew = () => {
                 </Button>
               </CardHeader>
               <CardContent>
+                <Alert className="bg-muted/50 border-primary/20 mb-4">
+                  <Info className="h-4 w-4 text-primary" />
+                  <AlertDescription className="text-sm text-muted-foreground">
+                    Enter each outsourced operation with vendor details and quoted cost. <strong>Cert Req.</strong> indicates if certification documentation is needed from the subcontractor. Total includes the {header.subcon_markup}% markup.
+                  </AlertDescription>
+                </Alert>
                 <div className="border rounded-lg overflow-auto">
                   <Table>
                     <TableHeader>
@@ -761,14 +824,30 @@ const QuotationSystemNew = () => {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                  <CardTitle>Routing Operations</CardTitle>
-                  <CardDescription>Define the manufacturing routing</CardDescription>
+                  <CardTitle className="flex items-center gap-2">
+                    Routing Operations
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-sm">
+                        <p>Define the sequence of manufacturing operations. Each operation uses a resource (machine/workstation) with an associated cost per minute. The system calculates costs based on setup and run times.</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
+                  <CardDescription>Define the manufacturing routing sequence</CardDescription>
                 </div>
                 <Button onClick={addRoutingLine} size="sm">
                   <Plus className="h-4 w-4 mr-1" /> Add Operation
                 </Button>
               </CardHeader>
               <CardContent>
+                <Alert className="bg-muted/50 border-primary/20 mb-4">
+                  <Info className="h-4 w-4 text-primary" />
+                  <AlertDescription className="text-sm text-muted-foreground">
+                    <strong>Op No:</strong> Operation sequence (10, 20, 30...). <strong>Resource:</strong> Machine/workstation from settings. <strong>Setup:</strong> One-time setup minutes per batch. <strong>Run:</strong> Minutes per part. Cost is calculated as (Setup + Run) × Resource Rate.
+                  </AlertDescription>
+                </Alert>
                 <div className="border rounded-lg overflow-auto">
                   <Table>
                     <TableHeader>
@@ -897,10 +976,26 @@ const QuotationSystemNew = () => {
           <TabsContent value="pricing">
             <Card>
               <CardHeader>
-                <CardTitle>Volume Pricing & Cost Breakdown</CardTitle>
-                <CardDescription>Review calculated costs and margins for each volume</CardDescription>
+                <CardTitle className="flex items-center gap-2">
+                  Volume Pricing & Cost Breakdown
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-sm">
+                      <p>This tab shows the calculated costs and pricing for each volume tier. Unit prices are derived from total costs divided by quantity, then adjusted to achieve the target margin.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </CardTitle>
+                <CardDescription>Review calculated costs and margins for each volume tier</CardDescription>
               </CardHeader>
               <CardContent>
+                <Alert className="bg-muted/50 border-primary/20 mb-4">
+                  <Info className="h-4 w-4 text-primary" />
+                  <AlertDescription className="text-sm text-muted-foreground">
+                    <strong>Formula:</strong> Total Cost = Labour + Materials + Subcon. <strong>Unit Price</strong> = Cost per Unit ÷ (1 - Margin%). Higher volumes reduce per-unit costs due to setup amortization.
+                  </AlertDescription>
+                </Alert>
                 <div className="border rounded-lg overflow-auto">
                   <Table>
                     <TableHeader>
