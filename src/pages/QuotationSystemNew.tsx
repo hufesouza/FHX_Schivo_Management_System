@@ -14,10 +14,13 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuotationResources, useQuotationSettings } from '@/hooks/useQuotationSystem';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+type CalculationExplainer = 'hours' | 'costPerHour' | 'labour' | 'material' | 'subcon' | 'totalCost' | 'unitPrice' | 'margin' | null;
 
 interface MaterialLine {
   line_number: number;
@@ -88,8 +91,10 @@ const QuotationSystemNew = () => {
   const [quotationId, setQuotationId] = useState<string | null>(editId || null);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [subconVendors, setSubconVendors] = useState<SubconVendor[]>([]);
+  const [explainerOpen, setExplainerOpen] = useState<CalculationExplainer>(null);
 
   const tabOrder = ['header', 'materials', 'subcon', 'routings', 'pricing'];
+
 
   // Fetch customers and subcon vendors lists
   useEffect(() => {
@@ -1562,14 +1567,54 @@ const QuotationSystemNew = () => {
                     <TableHeader>
                       <TableRow className="bg-muted/50">
                         <TableHead>Qty</TableHead>
-                        <TableHead className="text-right">Hours</TableHead>
-                        <TableHead className="text-right">Cost/Hr (€)</TableHead>
-                        <TableHead className="text-right">Labour (€)</TableHead>
-                        <TableHead className="text-right">Material (€)</TableHead>
-                        <TableHead className="text-right">Subcon (€)</TableHead>
-                        <TableHead className="text-right">Total Cost (€)</TableHead>
-                        <TableHead className="text-right">Unit Price ({currencySymbols[currency]})</TableHead>
-                        <TableHead className="text-right">Margin</TableHead>
+                        <TableHead 
+                          className="text-right cursor-pointer hover:bg-muted transition-colors"
+                          onClick={() => setExplainerOpen('hours')}
+                        >
+                          <span className="underline decoration-dotted">Hours</span>
+                        </TableHead>
+                        <TableHead 
+                          className="text-right cursor-pointer hover:bg-muted transition-colors"
+                          onClick={() => setExplainerOpen('costPerHour')}
+                        >
+                          <span className="underline decoration-dotted">Cost/Hr (€)</span>
+                        </TableHead>
+                        <TableHead 
+                          className="text-right cursor-pointer hover:bg-muted transition-colors"
+                          onClick={() => setExplainerOpen('labour')}
+                        >
+                          <span className="underline decoration-dotted">Labour (€)</span>
+                        </TableHead>
+                        <TableHead 
+                          className="text-right cursor-pointer hover:bg-muted transition-colors"
+                          onClick={() => setExplainerOpen('material')}
+                        >
+                          <span className="underline decoration-dotted">Material (€)</span>
+                        </TableHead>
+                        <TableHead 
+                          className="text-right cursor-pointer hover:bg-muted transition-colors"
+                          onClick={() => setExplainerOpen('subcon')}
+                        >
+                          <span className="underline decoration-dotted">Subcon (€)</span>
+                        </TableHead>
+                        <TableHead 
+                          className="text-right cursor-pointer hover:bg-muted transition-colors"
+                          onClick={() => setExplainerOpen('totalCost')}
+                        >
+                          <span className="underline decoration-dotted">Total Cost (€)</span>
+                        </TableHead>
+                        <TableHead 
+                          className="text-right cursor-pointer hover:bg-muted transition-colors"
+                          onClick={() => setExplainerOpen('unitPrice')}
+                        >
+                          <span className="underline decoration-dotted">Unit Price ({currencySymbols[currency]})</span>
+                        </TableHead>
+                        <TableHead 
+                          className="text-right cursor-pointer hover:bg-muted transition-colors"
+                          onClick={() => setExplainerOpen('margin')}
+                        >
+                          <span className="underline decoration-dotted">Margin</span>
+                        </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1625,6 +1670,165 @@ const QuotationSystemNew = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Calculation Explainer Dialog */}
+          <Dialog open={explainerOpen !== null} onOpenChange={(open) => !open && setExplainerOpen(null)}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Calculator className="h-5 w-5" />
+                  {explainerOpen === 'hours' && 'Hours Calculation'}
+                  {explainerOpen === 'costPerHour' && 'Cost per Hour'}
+                  {explainerOpen === 'labour' && 'Labour Cost Calculation'}
+                  {explainerOpen === 'material' && 'Material Cost Calculation'}
+                  {explainerOpen === 'subcon' && 'Subcon Cost Calculation'}
+                  {explainerOpen === 'totalCost' && 'Total Cost Calculation'}
+                  {explainerOpen === 'unitPrice' && 'Unit Price Calculation'}
+                  {explainerOpen === 'margin' && 'Margin Explanation'}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {explainerOpen === 'hours' && (
+                  <>
+                    <DialogDescription>
+                      Total hours required to produce the batch at each volume tier.
+                    </DialogDescription>
+                    <div className="bg-muted p-4 rounded-lg space-y-2">
+                      <p className="font-mono text-sm">Hours = (Setup Time + Run Time × Quantity) ÷ 60</p>
+                      <div className="border-t pt-2 mt-2">
+                        <p className="text-sm"><strong>Current Values:</strong></p>
+                        <ul className="text-sm space-y-1 mt-1">
+                          <li>• Total Setup Time: <strong>{totals.totalSetupTime.toFixed(1)} min</strong></li>
+                          <li>• Run Time per Part: <strong>{totals.totalRunTime.toFixed(1)} min</strong></li>
+                        </ul>
+                      </div>
+                    </div>
+                  </>
+                )}
+                {explainerOpen === 'costPerHour' && (
+                  <>
+                    <DialogDescription>
+                      The hourly cost rate used for labour calculations.
+                    </DialogDescription>
+                    <div className="bg-muted p-4 rounded-lg space-y-2">
+                      <p className="text-sm">This value is set in the <strong>Quotation System Settings</strong> page.</p>
+                      <div className="border-t pt-2 mt-2">
+                        <p className="text-sm"><strong>Current Value:</strong></p>
+                        <p className="text-lg font-bold">€{totals.costPerHour.toFixed(2)}/hr</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+                {explainerOpen === 'labour' && (
+                  <>
+                    <DialogDescription>
+                      Total labour cost based on hours worked at the hourly rate.
+                    </DialogDescription>
+                    <div className="bg-muted p-4 rounded-lg space-y-2">
+                      <p className="font-mono text-sm">Labour Cost = Hours × Cost per Hour</p>
+                      <div className="border-t pt-2 mt-2">
+                        <p className="text-sm"><strong>Components:</strong></p>
+                        <ul className="text-sm space-y-1 mt-1">
+                          <li>• Hours: Calculated from routings</li>
+                          <li>• Cost/Hr: <strong>€{totals.costPerHour.toFixed(2)}</strong></li>
+                        </ul>
+                      </div>
+                    </div>
+                  </>
+                )}
+                {explainerOpen === 'material' && (
+                  <>
+                    <DialogDescription>
+                      Total material cost including markup, multiplied by quantity.
+                    </DialogDescription>
+                    <div className="bg-muted p-4 rounded-lg space-y-2">
+                      <p className="font-mono text-sm">Material = (Sum of Material Costs × (1 + Markup%)) × Qty</p>
+                      <div className="border-t pt-2 mt-2">
+                        <p className="text-sm"><strong>Current Values:</strong></p>
+                        <ul className="text-sm space-y-1 mt-1">
+                          <li>• Base Material Cost: <strong>€{(totals.totalMaterialCost / (1 + header.material_markup / 100)).toFixed(2)}</strong>/unit</li>
+                          <li>• Material Markup: <strong>{header.material_markup}%</strong></li>
+                          <li>• With Markup: <strong>€{totals.totalMaterialCost.toFixed(2)}</strong>/unit</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </>
+                )}
+                {explainerOpen === 'subcon' && (
+                  <>
+                    <DialogDescription>
+                      Total subcontractor cost including markup, multiplied by quantity.
+                    </DialogDescription>
+                    <div className="bg-muted p-4 rounded-lg space-y-2">
+                      <p className="font-mono text-sm">Subcon = (Sum of Subcon Costs × (1 + Markup%)) × Qty</p>
+                      <div className="border-t pt-2 mt-2">
+                        <p className="text-sm"><strong>Current Values:</strong></p>
+                        <ul className="text-sm space-y-1 mt-1">
+                          <li>• Base Subcon Cost: <strong>€{(totals.totalSubconCost / (1 + header.subcon_markup / 100)).toFixed(2)}</strong>/unit</li>
+                          <li>• Subcon Markup: <strong>{header.subcon_markup}%</strong></li>
+                          <li>• With Markup: <strong>€{totals.totalSubconCost.toFixed(2)}</strong>/unit</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </>
+                )}
+                {explainerOpen === 'totalCost' && (
+                  <>
+                    <DialogDescription>
+                      Sum of all cost components for the batch.
+                    </DialogDescription>
+                    <div className="bg-muted p-4 rounded-lg space-y-2">
+                      <p className="font-mono text-sm">Total Cost = Labour + Material + Subcon</p>
+                      <div className="border-t pt-2 mt-2">
+                        <p className="text-sm"><strong>Components:</strong></p>
+                        <ul className="text-sm space-y-1 mt-1">
+                          <li>• Labour: Hours × Cost/Hr</li>
+                          <li>• Material: Material cost per unit × Quantity</li>
+                          <li>• Subcon: Subcon cost per unit × Quantity</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </>
+                )}
+                {explainerOpen === 'unitPrice' && (
+                  <>
+                    <DialogDescription>
+                      Selling price per unit after applying the target margin.
+                    </DialogDescription>
+                    <div className="bg-muted p-4 rounded-lg space-y-2">
+                      <p className="font-mono text-sm">Unit Price = (Total Cost ÷ Quantity) ÷ (1 - Margin%)</p>
+                      <div className="border-t pt-2 mt-2">
+                        <p className="text-sm"><strong>Example:</strong></p>
+                        <p className="text-sm">If cost per unit is €100 and margin is 35%:</p>
+                        <p className="font-mono text-sm mt-1">€100 ÷ (1 - 0.35) = €100 ÷ 0.65 = <strong>€153.85</strong></p>
+                      </div>
+                      {currency !== 'EUR' && (
+                        <div className="border-t pt-2 mt-2">
+                          <p className="text-sm"><strong>Currency Conversion:</strong></p>
+                          <p className="text-sm">1 EUR = {exchangeRate.toFixed(4)} {currency}</p>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+                {explainerOpen === 'margin' && (
+                  <>
+                    <DialogDescription>
+                      Target profit margin as a percentage of the selling price.
+                    </DialogDescription>
+                    <div className="bg-muted p-4 rounded-lg space-y-2">
+                      <p className="font-mono text-sm">Margin% = (Unit Price - Cost per Unit) ÷ Unit Price × 100</p>
+                      <div className="border-t pt-2 mt-2">
+                        <p className="text-sm"><strong>Note:</strong></p>
+                        <p className="text-sm">You can edit the margin for each volume tier. The unit price will automatically recalculate based on your desired margin.</p>
+                        <p className="text-sm mt-2">Default margins are set in the Settings page.</p>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
         </Tabs>
       </div>
     </AppLayout>
