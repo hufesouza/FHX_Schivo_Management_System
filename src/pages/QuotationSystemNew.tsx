@@ -36,10 +36,12 @@ interface MaterialLine {
 
 interface SubconLine {
   line_number: number;
+  subcon_id: number; // Groups rows for the same subcon type
   vendor_no: string;
   vendor_name: string;
   part_number: string;
   process_description: string;
+  quantity: number;
   std_cost_est: number;
   certification_required: boolean;
 }
@@ -102,10 +104,22 @@ const QuotationSystemNew = () => {
     { line_number: 1, vendor_no: '', vendor_name: '', part_number: '', material_description: '', mat_category: '', uom: 'Each', qty_per_unit: 1, qa_inspection_required: false, std_cost_est: 0, certification_required: '', purchaser: '' }
   ]);
 
-  // Subcon state
-  const [subcons, setSubcons] = useState<SubconLine[]>([
-    { line_number: 1, vendor_no: '', vendor_name: '', part_number: '', process_description: '', std_cost_est: 0, certification_required: false }
-  ]);
+  // Subcon state - generate initial lines based on volumes
+  const generateSubconLines = (subconId: number, vendorNo: string, vendorName: string, processDesc: string, costs: number[], certReq: boolean): SubconLine[] => {
+    return volumes.map((vol, idx) => ({
+      line_number: (subconId - 1) * volumes.length + idx + 1,
+      subcon_id: subconId,
+      vendor_no: vendorNo,
+      vendor_name: vendorName,
+      part_number: `${header.part_number}${header.revision}SCL${subconId}`,
+      process_description: processDesc,
+      quantity: vol.quantity,
+      std_cost_est: costs[idx] || 0,
+      certification_required: certReq
+    }));
+  };
+
+  const [subcons, setSubcons] = useState<SubconLine[]>([]);
 
   // Routing state
   const [routings, setRoutings] = useState<RoutingLine[]>([
@@ -139,11 +153,34 @@ const QuotationSystemNew = () => {
   };
 
   const addSubconLine = () => {
-    setSubcons([...subcons, {
-      line_number: subcons.length + 1,
-      vendor_no: '', vendor_name: '', part_number: '', process_description: '',
-      std_cost_est: 0, certification_required: false
-    }]);
+    const maxSubconId = subcons.length > 0 ? Math.max(...subcons.map(s => s.subcon_id)) : 0;
+    const newSubconId = maxSubconId + 1;
+    const newLines: SubconLine[] = volumes.map((vol, idx) => ({
+      line_number: subcons.length + idx + 1,
+      subcon_id: newSubconId,
+      vendor_no: '',
+      vendor_name: '',
+      part_number: `${header.part_number}${header.revision}SCL${newSubconId}`,
+      process_description: '',
+      quantity: vol.quantity,
+      std_cost_est: 0,
+      certification_required: false
+    }));
+    setSubcons([...subcons, ...newLines]);
+  };
+
+  const removeSubconGroup = (subconId: number) => {
+    setSubcons(subcons.filter(s => s.subcon_id !== subconId));
+  };
+
+  // Get unique subcon types for display
+  const getUniqueSubconTypes = () => {
+    const subconIds = [...new Set(subcons.map(s => s.subcon_id))];
+    return subconIds.map(id => {
+      const firstLine = subcons.find(s => s.subcon_id === id);
+      const lines = subcons.filter(s => s.subcon_id === id);
+      return { subconId: id, firstLine, lines };
+    });
   };
 
   const addRoutingLine = () => {
@@ -170,9 +207,17 @@ const QuotationSystemNew = () => {
     return (line.setup_time + line.run_time) * costPerMin;
   };
 
+  // Calculate subcon cost for a specific quantity
+  const getSubconCostForQuantity = (quantity: number): number => {
+    const matchingSubcons = subcons.filter(s => s.quantity === quantity);
+    return matchingSubcons.reduce((sum, s) => sum + s.std_cost_est, 0);
+  };
+
   const calculateTotals = () => {
     const totalMaterialCost = materials.reduce((sum, m) => sum + (m.std_cost_est * m.qty_per_unit), 0);
-    const totalSubconCost = subcons.reduce((sum, s) => sum + s.std_cost_est, 0);
+    // For display, show the sum of all subcon costs (first quantity tier)
+    const firstQty = volumes[0]?.quantity || 0;
+    const totalSubconCost = getSubconCostForQuantity(firstQty);
     const totalSetupTime = routings.reduce((sum, r) => sum + r.setup_time, 0);
     const totalRunTime = routings.reduce((sum, r) => sum + r.run_time, 0);
     const totalRoutingCost = routings.reduce((sum, r) => sum + calculateRoutingCost(r), 0);
@@ -257,10 +302,16 @@ const QuotationSystemNew = () => {
         if (materialError) throw materialError;
       }
 
-      // Insert subcons
+      // Insert subcons - update part numbers with current header values
       const subconInserts = subcons.filter(s => s.vendor_no || s.process_description).map(s => ({
         quotation_id: currentQuotationId,
-        ...s,
+        line_number: s.line_number,
+        vendor_no: s.vendor_no,
+        vendor_name: s.vendor_name,
+        part_number: `${header.part_number}${header.revision}SCL${s.subcon_id}`,
+        process_description: s.process_description,
+        std_cost_est: s.std_cost_est,
+        certification_required: s.certification_required,
         total_subcon: s.std_cost_est * (1 + header.subcon_markup / 100)
       }));
 
@@ -291,7 +342,9 @@ const QuotationSystemNew = () => {
         const hours = (totals.totalSetupTime + totals.totalRunTime * v.quantity) / 60;
         const labourCost = hours * costPerHour;
         const materialCost = totals.totalMaterialCost * v.quantity;
-        const subconCost = totals.totalSubconCost * v.quantity;
+        // Get subcon cost specific to this quantity tier
+        const subconCostPerUnit = getSubconCostForQuantity(v.quantity) * (1 + header.subcon_markup / 100);
+        const subconCost = subconCostPerUnit * v.quantity;
         const totalCost = labourCost + materialCost + subconCost;
         const unitPrice = totalCost / v.quantity / (1 - v.margin / 100);
 
@@ -799,113 +852,154 @@ const QuotationSystemNew = () => {
                         <HelpCircle className="h-4 w-4 text-muted-foreground" />
                       </TooltipTrigger>
                       <TooltipContent className="max-w-sm">
-                        <p>List all external processes performed by subcontractors (e.g., plating, heat treatment, grinding). The markup percentage from the Header tab is applied to calculate final subcon costs.</p>
+                        <p>List all external processes performed by subcontractors. Each subcon type has separate pricing per quantity tier from the Header. Part numbers are auto-generated.</p>
                       </TooltipContent>
                     </Tooltip>
                   </CardTitle>
-                  <CardDescription>Enter subcon processes and costs</CardDescription>
+                  <CardDescription>Enter subcon processes with volume-based pricing</CardDescription>
                 </div>
                 <Button onClick={addSubconLine} size="sm">
-                  <Plus className="h-4 w-4 mr-1" /> Add Line
+                  <Plus className="h-4 w-4 mr-1" /> Add Subcon Type
                 </Button>
               </CardHeader>
               <CardContent>
                 <Alert className="bg-muted/50 border-primary/20 mb-4">
                   <Info className="h-4 w-4 text-primary" />
                   <AlertDescription className="text-sm text-muted-foreground">
-                    Enter each outsourced operation with vendor details and quoted cost. <strong>Cert Req.</strong> indicates if certification documentation is needed from the subcontractor. Total includes the {header.subcon_markup}% markup.
+                    <strong>Part Number format:</strong> Auto-generated as [Part Number][Revision]SCL[#]. Each subcon type shows pricing for all quantity tiers ({volumes.map(v => v.quantity).join(', ')} units). Total includes {header.subcon_markup}% markup.
                   </AlertDescription>
                 </Alert>
-                <div className="border rounded-lg overflow-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">#</TableHead>
-                        <TableHead>Vendor No.</TableHead>
-                        <TableHead>Vendor Name</TableHead>
-                        <TableHead>Part Number</TableHead>
-                        <TableHead>Process Description</TableHead>
-                        <TableHead className="text-right">Std Cost (€)</TableHead>
-                        <TableHead className="text-center">Cert Req.</TableHead>
-                        <TableHead className="text-right">Total (€)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {subcons.map((sub, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell>{sub.line_number}</TableCell>
-                          <TableCell>
+
+                {subcons.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Truck className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No subcontractor operations added yet.</p>
+                    <Button onClick={addSubconLine} variant="outline" className="mt-4">
+                      <Plus className="h-4 w-4 mr-1" /> Add First Subcon Type
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {getUniqueSubconTypes().map(({ subconId, firstLine, lines }) => (
+                      <div key={subconId} className="border rounded-lg p-4 bg-card">
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">SCL{subconId}</Badge>
+                            <span className="text-sm text-muted-foreground">
+                              PN: {header.part_number}{header.revision}SCL{subconId}
+                            </span>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeSubconGroup(subconId)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-4 mb-4">
+                          <div className="space-y-2">
+                            <Label>Vendor No.</Label>
                             <Input
-                              value={sub.vendor_no}
+                              value={firstLine?.vendor_no || ''}
                               onChange={(e) => {
-                                const newSubs = [...subcons];
-                                newSubs[idx].vendor_no = e.target.value;
+                                const newSubs = subcons.map(s =>
+                                  s.subcon_id === subconId ? { ...s, vendor_no: e.target.value } : s
+                                );
                                 setSubcons(newSubs);
                               }}
-                              className="w-24"
+                              placeholder="e.g., V001"
                             />
-                          </TableCell>
-                          <TableCell>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Vendor Name</Label>
                             <Input
-                              value={sub.vendor_name}
+                              value={firstLine?.vendor_name || ''}
                               onChange={(e) => {
-                                const newSubs = [...subcons];
-                                newSubs[idx].vendor_name = e.target.value;
+                                const newSubs = subcons.map(s =>
+                                  s.subcon_id === subconId ? { ...s, vendor_name: e.target.value } : s
+                                );
                                 setSubcons(newSubs);
                               }}
+                              placeholder="Vendor name"
                             />
-                          </TableCell>
-                          <TableCell>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Process Description</Label>
                             <Input
-                              value={sub.part_number}
+                              value={firstLine?.process_description || ''}
                               onChange={(e) => {
-                                const newSubs = [...subcons];
-                                newSubs[idx].part_number = e.target.value;
+                                const newSubs = subcons.map(s =>
+                                  s.subcon_id === subconId ? { ...s, process_description: e.target.value } : s
+                                );
                                 setSubcons(newSubs);
                               }}
+                              placeholder="e.g., Anodize, Plate"
                             />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              value={sub.process_description}
-                              onChange={(e) => {
-                                const newSubs = [...subcons];
-                                newSubs[idx].process_description = e.target.value;
-                                setSubcons(newSubs);
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={sub.std_cost_est}
-                              onChange={(e) => {
-                                const newSubs = [...subcons];
-                                newSubs[idx].std_cost_est = parseFloat(e.target.value) || 0;
-                                setSubcons(newSubs);
-                              }}
-                              className="w-24 text-right"
-                            />
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <Switch
-                              checked={sub.certification_required}
-                              onCheckedChange={(c) => {
-                                const newSubs = [...subcons];
-                                newSubs[idx].certification_required = c;
-                                setSubcons(newSubs);
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            €{(sub.std_cost_est * (1 + header.subcon_markup / 100)).toFixed(2)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Cert Required</Label>
+                            <div className="flex items-center h-10">
+                              <Switch
+                                checked={firstLine?.certification_required || false}
+                                onCheckedChange={(c) => {
+                                  const newSubs = subcons.map(s =>
+                                    s.subcon_id === subconId ? { ...s, certification_required: c } : s
+                                  );
+                                  setSubcons(newSubs);
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="border rounded-lg overflow-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Quantity</TableHead>
+                                <TableHead className="text-right">Cost per Unit (€)</TableHead>
+                                <TableHead className="text-right">Total with Markup (€)</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {lines.map((line, idx) => (
+                                <TableRow key={line.line_number}>
+                                  <TableCell>
+                                    <Badge variant="secondary">{line.quantity} units</Badge>
+                                  </TableCell>
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      value={line.std_cost_est}
+                                      onChange={(e) => {
+                                        const newSubs = [...subcons];
+                                        const subIdx = newSubs.findIndex(s => s.line_number === line.line_number);
+                                        if (subIdx >= 0) {
+                                          newSubs[subIdx].std_cost_est = parseFloat(e.target.value) || 0;
+                                          setSubcons(newSubs);
+                                        }
+                                      }}
+                                      className="w-32 text-right"
+                                      placeholder="0.00"
+                                    />
+                                  </TableCell>
+                                  <TableCell className="text-right font-medium">
+                                    €{(line.std_cost_est * (1 + header.subcon_markup / 100)).toFixed(2)}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="mt-4 p-4 border rounded-lg bg-muted/30 flex items-center gap-4">
                   <div className="space-y-2">
                     <Label>Subcon Markup (%)</Label>
