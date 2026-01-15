@@ -2121,7 +2121,7 @@ const QuotationSystemNew = () => {
                     </TableHeader>
                     <TableBody>
                       {volumes.map((vol, idx) => {
-                        const hours = (totals.totalSetupTime + totals.totalRunTime * vol.quantity) / 60;
+                        const hours = ((((totals.totalSetupTime / vol.quantity) + totals.totalRunTime) * vol.quantity) / 60);
                         const labourCost = hours * totals.costPerHour;
                         const materialCost = totals.totalMaterialCost * vol.quantity;
                         const subconCost = totals.totalSubconCost * vol.quantity;
