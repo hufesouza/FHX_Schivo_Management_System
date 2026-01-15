@@ -2258,7 +2258,7 @@ const QuotationSystemNew = () => {
                       <div className="border-t pt-3 mt-2">
                         <p className="text-sm font-medium mb-2">Select Operations to Include:</p>
                         <div className="max-h-48 overflow-y-auto space-y-2">
-                          {routings.map((r) => {
+                          {routings.filter(r => r.setup_time > 0).map((r) => {
                             const costPerMin = getResourceCost(r.resource_no);
                             const setupCostForOp = r.setup_time * costPerMin;
                             return (
