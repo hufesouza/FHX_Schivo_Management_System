@@ -22,7 +22,7 @@ import { useQuotationResources, useQuotationSettings } from '@/hooks/useQuotatio
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-type CalculationExplainer = 'routingCost' | 'material' | 'subcon' | 'totalCost' | 'costPerPart' | 'unitPrice' | 'margin' | null;
+type CalculationExplainer = 'setupCost' | 'routingCost' | 'material' | 'subcon' | 'totalCost' | 'costPerPart' | 'unitPrice' | 'margin' | null;
 
 interface MaterialLine {
   line_number: number;
@@ -804,13 +804,15 @@ const QuotationSystemNew = () => {
       // Insert volume pricing
       const costPerHour = getSettingValue('cost_per_hour') || 55;
       const volumeInserts = volumes.map(v => {
+        // Setup cost = (Setup Time × Resource Rate) / Qty
+        const setupCost = (totals.totalSetupTime / 60 * costPerHour) / v.quantity;
         // Routing cost = totalRoutingCost × quantity
         const routingCost = totals.totalRoutingCost * v.quantity;
         const materialCost = totals.totalMaterialCost * v.quantity;
         // Get subcon cost specific to this quantity tier
         const subconCostPerUnit = getSubconCostForQuantity(v.quantity) * (1 + header.subcon_markup / 100);
         const subconCost = subconCostPerUnit * v.quantity;
-        const totalCost = routingCost + materialCost + subconCost;
+        const totalCost = setupCost + routingCost + materialCost + subconCost;
         const unitPrice = totalCost / v.quantity / (1 - v.margin / 100);
 
         return {
@@ -2070,6 +2072,12 @@ const QuotationSystemNew = () => {
                         <TableHead>Qty</TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
+                          onClick={() => setExplainerOpen('setupCost')}
+                        >
+                          <span className="underline decoration-dotted">Setup (€)</span>
+                        </TableHead>
+                        <TableHead 
+                          className="text-right cursor-pointer hover:bg-muted transition-colors"
                           onClick={() => setExplainerOpen('routingCost')}
                         >
                           <span className="underline decoration-dotted">Routing (€)</span>
@@ -2114,16 +2122,18 @@ const QuotationSystemNew = () => {
                     </TableHeader>
                     <TableBody>
                       {volumes.map((vol, idx) => {
+                        const setupCost = (totals.totalSetupTime / 60 * totals.costPerHour) / vol.quantity;
                         const routingCost = totals.totalRoutingCost * vol.quantity;
                         const materialCost = totals.totalMaterialCost * vol.quantity;
                         const subconCost = totals.totalSubconCost * vol.quantity;
-                        const totalCost = routingCost + materialCost + subconCost;
+                        const totalCost = setupCost + routingCost + materialCost + subconCost;
                         const unitPriceEur = totalCost / vol.quantity / (1 - vol.margin / 100);
                         const unitPriceConverted = unitPriceEur * exchangeRate;
 
                         return (
                           <TableRow key={idx}>
                             <TableCell className="font-medium">{vol.quantity}</TableCell>
+                            <TableCell className="text-right">€{setupCost.toFixed(2)}</TableCell>
                             <TableCell className="text-right">€{routingCost.toFixed(2)}</TableCell>
                             <TableCell className="text-right">€{materialCost.toFixed(2)}</TableCell>
                             <TableCell className="text-right">€{subconCost.toFixed(2)}</TableCell>
@@ -2170,6 +2180,7 @@ const QuotationSystemNew = () => {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <Calculator className="h-5 w-5" />
+                  {explainerOpen === 'setupCost' && 'Setup Cost Calculation'}
                   {explainerOpen === 'routingCost' && 'Routing Cost Calculation'}
                   {explainerOpen === 'material' && 'Material Cost Calculation'}
                   {explainerOpen === 'subcon' && 'Subcon Cost Calculation'}
@@ -2180,6 +2191,23 @@ const QuotationSystemNew = () => {
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
+                {explainerOpen === 'setupCost' && (
+                  <>
+                    <DialogDescription>
+                      Setup cost amortized across the quantity.
+                    </DialogDescription>
+                    <div className="bg-muted p-4 rounded-lg space-y-2">
+                      <p className="font-mono text-sm">Setup = (Setup Time × Resource Rate) ÷ Qty</p>
+                      <div className="border-t pt-2 mt-2">
+                        <p className="text-sm"><strong>Current Values:</strong></p>
+                        <ul className="text-sm space-y-1 mt-1">
+                          <li>• Total Setup Time: <strong>{totals.totalSetupTime.toFixed(1)} min</strong></li>
+                          <li>• Resource Rate: <strong>€{totals.costPerHour.toFixed(2)}/hr</strong></li>
+                        </ul>
+                      </div>
+                    </div>
+                  </>
+                )}
                 {explainerOpen === 'routingCost' && (
                   <>
                     <DialogDescription>
