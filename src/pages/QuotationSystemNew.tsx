@@ -1262,7 +1262,20 @@ const QuotationSystemNew = () => {
                               <Badge className="bg-primary">${unitPrice.toFixed(2)}</Badge>
                             </TableCell>
                             <TableCell className="text-right">
-                              <Badge variant="outline">{vol.margin}%</Badge>
+                              <div className="flex items-center justify-end gap-1">
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  value={vol.margin}
+                                  onChange={(e) => {
+                                    const newVols = [...volumes];
+                                    newVols[idx].margin = parseFloat(e.target.value) || 0;
+                                    setVolumes(newVols);
+                                  }}
+                                  className="w-16 text-right border-amber-500/50 bg-amber-500/5 focus:border-amber-500"
+                                />
+                                <span className="text-sm text-amber-600 font-medium">%</span>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
