@@ -1957,14 +1957,24 @@ const QuotationSystemNew = () => {
                             </Select>
                           </TableCell>
                           <TableCell>
-                            <Input
-                              value={route.operation_details}
-                              onChange={(e) => {
-                                const newRoutes = [...routings];
-                                newRoutes[idx].operation_details = e.target.value;
-                                setRoutings(newRoutes);
-                              }}
-                            />
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Input
+                                  value={route.operation_details}
+                                  onChange={(e) => {
+                                    const newRoutes = [...routings];
+                                    newRoutes[idx].operation_details = e.target.value;
+                                    setRoutings(newRoutes);
+                                  }}
+                                  className="truncate"
+                                />
+                              </TooltipTrigger>
+                              {route.operation_details && (
+                                <TooltipContent side="bottom" className="max-w-md whitespace-pre-wrap">
+                                  {route.operation_details}
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
                           </TableCell>
                           <TableCell>
                             <Input
