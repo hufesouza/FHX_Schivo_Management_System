@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Save, Search, Plus, Settings, DollarSign, Percent, Truck, Trash2, Package } from 'lucide-react';
+import { Loader2, Save, Search, Plus, Settings, DollarSign, Percent, Truck, Trash2, Package, Users } from 'lucide-react';
 import { useQuotationResources, useQuotationSettings } from '@/hooks/useQuotationSystem';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
@@ -22,6 +22,13 @@ interface SubconVendor {
 }
 
 interface MaterialSupplier {
+  id: string;
+  bp_code: string;
+  bp_name: string;
+  is_active: boolean;
+}
+
+interface Customer {
   id: string;
   bp_code: string;
   bp_name: string;
@@ -50,6 +57,13 @@ const QuotationSystemSettings = () => {
   const [supplierSearchTerm, setSupplierSearchTerm] = useState('');
   const [newSupplier, setNewSupplier] = useState({ bp_code: '', bp_name: '' });
   const [isAddSupplierDialogOpen, setIsAddSupplierDialogOpen] = useState(false);
+
+  // Customer state
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customersLoading, setCustomersLoading] = useState(true);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [newCustomer, setNewCustomer] = useState({ bp_code: '', bp_name: '' });
+  const [isAddCustomerDialogOpen, setIsAddCustomerDialogOpen] = useState(false);
 
   const fetchVendors = useCallback(async () => {
     try {
@@ -85,10 +99,28 @@ const QuotationSystemSettings = () => {
     }
   }, []);
 
+  const fetchCustomers = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('quotation_customers')
+        .select('*')
+        .order('bp_name');
+
+      if (error) throw error;
+      setCustomers(data || []);
+    } catch (error) {
+      console.error('Error fetching customers:', error);
+      toast.error('Failed to load customers');
+    } finally {
+      setCustomersLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchVendors();
     fetchSuppliers();
-  }, [fetchVendors, fetchSuppliers]);
+    fetchCustomers();
+  }, [fetchVendors, fetchSuppliers, fetchCustomers]);
 
   const filteredResources = resources.filter(r => 
     r.resource_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -103,6 +135,11 @@ const QuotationSystemSettings = () => {
   const filteredSuppliers = suppliers.filter(s => 
     s.bp_name.toLowerCase().includes(supplierSearchTerm.toLowerCase()) ||
     s.bp_code.toLowerCase().includes(supplierSearchTerm.toLowerCase())
+  );
+
+  const filteredCustomers = customers.filter(c => 
+    c.bp_name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+    c.bp_code.toLowerCase().includes(customerSearchTerm.toLowerCase())
   );
 
   const handleSaveEdit = async (id: string) => {
@@ -223,11 +260,63 @@ const QuotationSystemSettings = () => {
     }
   };
 
+  const handleAddCustomer = async () => {
+    if (!newCustomer.bp_code || !newCustomer.bp_name) {
+      toast.error('Please fill in both BP Code and BP Name');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('quotation_customers')
+        .insert(newCustomer);
+
+      if (error) throw error;
+      toast.success('Customer added');
+      setNewCustomer({ bp_code: '', bp_name: '' });
+      setIsAddCustomerDialogOpen(false);
+      fetchCustomers();
+    } catch (error) {
+      console.error('Error adding customer:', error);
+      toast.error('Failed to add customer');
+    }
+  };
+
+  const handleToggleCustomerActive = async (id: string, isActive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('quotation_customers')
+        .update({ is_active: isActive })
+        .eq('id', id);
+
+      if (error) throw error;
+      fetchCustomers();
+    } catch (error) {
+      console.error('Error updating customer:', error);
+      toast.error('Failed to update customer');
+    }
+  };
+
+  const handleDeleteCustomer = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('quotation_customers')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      toast.success('Customer deleted');
+      fetchCustomers();
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      toast.error('Failed to delete customer');
+    }
+  };
+
   const formatSettingName = (key: string) => {
     return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  if (resourcesLoading || settingsLoading || vendorsLoading || suppliersLoading) {
+  if (resourcesLoading || settingsLoading || vendorsLoading || suppliersLoading || customersLoading) {
     return (
       <AppLayout title="Quotation Settings" subtitle="Resource Ratings & System Configuration" showBackButton backTo="/npi/quotation-system">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -241,7 +330,7 @@ const QuotationSystemSettings = () => {
     <AppLayout title="Quotation Settings" subtitle="Resource Ratings & System Configuration" showBackButton backTo="/npi/quotation-system">
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="resources" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+          <TabsList className="grid w-full max-w-3xl grid-cols-5">
             <TabsTrigger value="resources" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Resources
@@ -253,6 +342,10 @@ const QuotationSystemSettings = () => {
             <TabsTrigger value="suppliers" className="flex items-center gap-2">
               <Package className="h-4 w-4" />
               Suppliers
+            </TabsTrigger>
+            <TabsTrigger value="customers" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Customers
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
@@ -615,6 +708,113 @@ const QuotationSystemSettings = () => {
 
                 <p className="text-sm text-muted-foreground mt-4">
                   Showing {filteredSuppliers.length} of {suppliers.length} suppliers
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="customers">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Customers</CardTitle>
+                    <CardDescription>
+                      Manage customer accounts for quotations
+                    </CardDescription>
+                  </div>
+                  <Dialog open={isAddCustomerDialogOpen} onOpenChange={setIsAddCustomerDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Customer
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add New Customer</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label>BP Code</Label>
+                          <Input
+                            value={newCustomer.bp_code}
+                            onChange={(e) => setNewCustomer({ ...newCustomer, bp_code: e.target.value })}
+                            placeholder="e.g., CA0001"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>BP Name</Label>
+                          <Input
+                            value={newCustomer.bp_name}
+                            onChange={(e) => setNewCustomer({ ...newCustomer, bp_name: e.target.value })}
+                            placeholder="e.g., Acme Corporation"
+                          />
+                        </div>
+                        <Button onClick={handleAddCustomer} className="w-full">
+                          Add Customer
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search customers..."
+                      value={customerSearchTerm}
+                      onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+
+                <div className="border rounded-lg max-h-[600px] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background">
+                      <TableRow>
+                        <TableHead>BP Code</TableHead>
+                        <TableHead>BP Name</TableHead>
+                        <TableHead className="text-center">Active</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredCustomers.map((customer) => (
+                        <TableRow key={customer.id}>
+                          <TableCell className="font-mono text-sm">
+                            {customer.bp_code}
+                          </TableCell>
+                          <TableCell>
+                            {customer.bp_name}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Switch
+                              checked={customer.is_active}
+                              onCheckedChange={(checked) => handleToggleCustomerActive(customer.id, checked)}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteCustomer(customer.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <p className="text-sm text-muted-foreground mt-4">
+                  Showing {filteredCustomers.length} of {customers.length} customers
                 </p>
               </CardContent>
             </Card>
