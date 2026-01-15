@@ -1,0 +1,270 @@
+import { useState } from 'react';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Loader2, Save, Search, Plus, Settings, DollarSign, Percent } from 'lucide-react';
+import { useQuotationResources, useQuotationSettings } from '@/hooks/useQuotationSystem';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+
+const QuotationSystemSettings = () => {
+  const { resources, loading: resourcesLoading, updateResource, addResource } = useQuotationResources();
+  const { settings, loading: settingsLoading, updateSetting } = useQuotationSettings();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState<number>(0);
+  const [newResource, setNewResource] = useState({ resource_no: '', resource_description: '', cost_per_minute: 0 });
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+
+  const filteredResources = resources.filter(r => 
+    r.resource_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    r.resource_description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const handleSaveEdit = async (id: string) => {
+    await updateResource(id, { cost_per_minute: editValue });
+    setEditingId(null);
+  };
+
+  const handleAddResource = async () => {
+    if (!newResource.resource_no || !newResource.resource_description) {
+      return;
+    }
+    await addResource(newResource);
+    setNewResource({ resource_no: '', resource_description: '', cost_per_minute: 0 });
+    setIsAddDialogOpen(false);
+  };
+
+  const formatSettingName = (key: string) => {
+    return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  if (resourcesLoading || settingsLoading) {
+    return (
+      <AppLayout title="Quotation Settings" subtitle="Resource Ratings & System Configuration" showBackButton backTo="/npi/quotation-system">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  return (
+    <AppLayout title="Quotation Settings" subtitle="Resource Ratings & System Configuration" showBackButton backTo="/npi/quotation-system">
+      <div className="container mx-auto px-4 py-8">
+        <Tabs defaultValue="resources" className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="resources" className="flex items-center gap-2">
+              <DollarSign className="h-4 w-4" />
+              Resource Ratings
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="flex items-center gap-2">
+              <Settings className="h-4 w-4" />
+              General Settings
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="resources">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Resource Cost Ratings</CardTitle>
+                    <CardDescription>
+                      Manage the cost per minute for each manufacturing resource
+                    </CardDescription>
+                  </div>
+                  <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Resource
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add New Resource</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label>Resource Code</Label>
+                          <Input
+                            value={newResource.resource_no}
+                            onChange={(e) => setNewResource({ ...newResource, resource_no: e.target.value })}
+                            placeholder="e.g., Doosan5100-2"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Description</Label>
+                          <Input
+                            value={newResource.resource_description}
+                            onChange={(e) => setNewResource({ ...newResource, resource_description: e.target.value })}
+                            placeholder="e.g., Doosan NHP 5100 Machine 2"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Cost per Minute (€)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={newResource.cost_per_minute}
+                            onChange={(e) => setNewResource({ ...newResource, cost_per_minute: parseFloat(e.target.value) || 0 })}
+                          />
+                        </div>
+                        <Button onClick={handleAddResource} className="w-full">
+                          Add Resource
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search resources..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+
+                <div className="border rounded-lg max-h-[600px] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background">
+                      <TableRow>
+                        <TableHead>Resource Code</TableHead>
+                        <TableHead>Description</TableHead>
+                        <TableHead className="text-right">Cost/Min (€)</TableHead>
+                        <TableHead className="text-center">Active</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredResources.map((resource) => (
+                        <TableRow key={resource.id}>
+                          <TableCell className="font-mono text-sm">
+                            {resource.resource_no}
+                          </TableCell>
+                          <TableCell className="max-w-[300px] truncate">
+                            {resource.resource_description}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {editingId === resource.id ? (
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={editValue}
+                                onChange={(e) => setEditValue(parseFloat(e.target.value) || 0)}
+                                className="w-24 ml-auto"
+                                autoFocus
+                              />
+                            ) : (
+                              <Badge variant={resource.cost_per_minute > 0 ? 'default' : 'secondary'}>
+                                €{resource.cost_per_minute.toFixed(2)}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Switch
+                              checked={resource.is_active}
+                              onCheckedChange={(checked) => updateResource(resource.id, { is_active: checked })}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {editingId === resource.id ? (
+                              <div className="flex gap-2 justify-end">
+                                <Button size="sm" onClick={() => handleSaveEdit(resource.id)}>
+                                  <Save className="h-3 w-3" />
+                                </Button>
+                                <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>
+                                  Cancel
+                                </Button>
+                              </div>
+                            ) : (
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingId(resource.id);
+                                  setEditValue(resource.cost_per_minute);
+                                }}
+                              >
+                                Edit
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <p className="text-sm text-muted-foreground mt-4">
+                  Showing {filteredResources.length} of {resources.length} resources
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <Card>
+              <CardHeader>
+                <CardTitle>General Quotation Settings</CardTitle>
+                <CardDescription>
+                  Configure default values for quotation calculations
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-6 md:grid-cols-2">
+                  {settings.map((setting) => (
+                    <div key={setting.id} className="space-y-2">
+                      <Label className="flex items-center gap-2">
+                        {setting.setting_key.includes('margin') ? (
+                          <Percent className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <DollarSign className="h-4 w-4 text-muted-foreground" />
+                        )}
+                        {formatSettingName(setting.setting_key)}
+                      </Label>
+                      <div className="flex gap-2">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          defaultValue={setting.setting_value}
+                          onBlur={(e) => {
+                            const newValue = parseFloat(e.target.value);
+                            if (newValue !== setting.setting_value) {
+                              updateSetting(setting.id, newValue);
+                            }
+                          }}
+                          className="flex-1"
+                        />
+                        <span className="flex items-center text-muted-foreground text-sm">
+                          {setting.setting_key.includes('margin') || setting.setting_key.includes('markup') ? '%' : '€'}
+                        </span>
+                      </div>
+                      {setting.description && (
+                        <p className="text-xs text-muted-foreground">{setting.description}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </AppLayout>
+  );
+};
+
+export default QuotationSystemSettings;

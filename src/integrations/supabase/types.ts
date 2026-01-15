@@ -2102,6 +2102,309 @@ export type Database = {
           },
         ]
       }
+      quotation_materials: {
+        Row: {
+          certification_required: string | null
+          created_at: string
+          description_for_qa: string | null
+          id: string
+          line_number: number
+          mat_category: string | null
+          material_description: string | null
+          part_number: string | null
+          purchaser: string | null
+          qa_inspection_required: boolean | null
+          qty_per_unit: number | null
+          quotation_id: string
+          std_cost_est: number | null
+          total_material: number | null
+          uom: string | null
+          vendor_name: string | null
+          vendor_no: string | null
+        }
+        Insert: {
+          certification_required?: string | null
+          created_at?: string
+          description_for_qa?: string | null
+          id?: string
+          line_number: number
+          mat_category?: string | null
+          material_description?: string | null
+          part_number?: string | null
+          purchaser?: string | null
+          qa_inspection_required?: boolean | null
+          qty_per_unit?: number | null
+          quotation_id: string
+          std_cost_est?: number | null
+          total_material?: number | null
+          uom?: string | null
+          vendor_name?: string | null
+          vendor_no?: string | null
+        }
+        Update: {
+          certification_required?: string | null
+          created_at?: string
+          description_for_qa?: string | null
+          id?: string
+          line_number?: number
+          mat_category?: string | null
+          material_description?: string | null
+          part_number?: string | null
+          purchaser?: string | null
+          qa_inspection_required?: boolean | null
+          qty_per_unit?: number | null
+          quotation_id?: string
+          std_cost_est?: number | null
+          total_material?: number | null
+          uom?: string | null
+          vendor_name?: string | null
+          vendor_no?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_materials_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "system_quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotation_resources: {
+        Row: {
+          cost_per_minute: number
+          created_at: string
+          id: string
+          is_active: boolean | null
+          resource_description: string
+          resource_no: string
+          updated_at: string
+        }
+        Insert: {
+          cost_per_minute?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          resource_description: string
+          resource_no: string
+          updated_at?: string
+        }
+        Update: {
+          cost_per_minute?: number
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          resource_description?: string
+          resource_no?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      quotation_routings: {
+        Row: {
+          cost: number | null
+          created_at: string
+          id: string
+          op_no: number
+          operation_details: string | null
+          part_number: string | null
+          quotation_id: string
+          resource_id: string | null
+          resource_no: string | null
+          run_time: number | null
+          setup_time: number | null
+          subcon_processing_time: number | null
+          sublevel_bom: boolean | null
+        }
+        Insert: {
+          cost?: number | null
+          created_at?: string
+          id?: string
+          op_no: number
+          operation_details?: string | null
+          part_number?: string | null
+          quotation_id: string
+          resource_id?: string | null
+          resource_no?: string | null
+          run_time?: number | null
+          setup_time?: number | null
+          subcon_processing_time?: number | null
+          sublevel_bom?: boolean | null
+        }
+        Update: {
+          cost?: number | null
+          created_at?: string
+          id?: string
+          op_no?: number
+          operation_details?: string | null
+          part_number?: string | null
+          quotation_id?: string
+          resource_id?: string | null
+          resource_no?: string | null
+          run_time?: number | null
+          setup_time?: number | null
+          subcon_processing_time?: number | null
+          sublevel_bom?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_routings_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "system_quotations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "quotation_routings_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "quotation_resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotation_subcons: {
+        Row: {
+          certification_required: boolean | null
+          created_at: string
+          id: string
+          line_number: number
+          part_number: string | null
+          process_description: string | null
+          quotation_id: string
+          std_cost_est: number | null
+          total_subcon: number | null
+          vendor_name: string | null
+          vendor_no: string | null
+        }
+        Insert: {
+          certification_required?: boolean | null
+          created_at?: string
+          id?: string
+          line_number: number
+          part_number?: string | null
+          process_description?: string | null
+          quotation_id: string
+          std_cost_est?: number | null
+          total_subcon?: number | null
+          vendor_name?: string | null
+          vendor_no?: string | null
+        }
+        Update: {
+          certification_required?: boolean | null
+          created_at?: string
+          id?: string
+          line_number?: number
+          part_number?: string | null
+          process_description?: string | null
+          quotation_id?: string
+          std_cost_est?: number | null
+          total_subcon?: number | null
+          vendor_name?: string | null
+          vendor_no?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_subcons_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "system_quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quotation_system_settings: {
+        Row: {
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      quotation_volume_pricing: {
+        Row: {
+          carriage: number | null
+          cost_per_hour: number | null
+          cost_per_unit: number | null
+          created_at: string
+          hours: number | null
+          id: string
+          labour_cost: number | null
+          margin: number | null
+          material_cost: number | null
+          misc: number | null
+          quantity: number
+          quotation_id: string
+          subcon_cost: number | null
+          tooling_cost: number | null
+          total_price: number | null
+          unit_price_quoted: number | null
+        }
+        Insert: {
+          carriage?: number | null
+          cost_per_hour?: number | null
+          cost_per_unit?: number | null
+          created_at?: string
+          hours?: number | null
+          id?: string
+          labour_cost?: number | null
+          margin?: number | null
+          material_cost?: number | null
+          misc?: number | null
+          quantity: number
+          quotation_id: string
+          subcon_cost?: number | null
+          tooling_cost?: number | null
+          total_price?: number | null
+          unit_price_quoted?: number | null
+        }
+        Update: {
+          carriage?: number | null
+          cost_per_hour?: number | null
+          cost_per_unit?: number | null
+          created_at?: string
+          hours?: number | null
+          id?: string
+          labour_cost?: number | null
+          margin?: number | null
+          material_cost?: number | null
+          misc?: number | null
+          quantity?: number
+          quotation_id?: string
+          subcon_cost?: number | null
+          tooling_cost?: number | null
+          total_price?: number | null
+          unit_price_quoted?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_volume_pricing_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "system_quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotations: {
         Row: {
           ai_interpretation: Json | null
@@ -2267,6 +2570,96 @@ export type Database = {
           resource_name?: string
           updated_at?: string
           working_hours_per_day?: number
+        }
+        Relationships: []
+      }
+      system_quotations: {
+        Row: {
+          batch_traceable: boolean | null
+          blue_review_required: boolean | null
+          created_at: string
+          created_by: string
+          customer: string
+          customer_code: string | null
+          description: string | null
+          enquiry_no: string
+          id: string
+          manufacture_type: string | null
+          material_markup: number | null
+          notes: string | null
+          part_number: string
+          qty_per: number | null
+          quoted_by: string | null
+          revision: string | null
+          rohs_compliant: boolean | null
+          serial_traceable: boolean | null
+          status: string | null
+          subcon_markup: number | null
+          updated_at: string
+          vol_1: number | null
+          vol_2: number | null
+          vol_3: number | null
+          vol_4: number | null
+          vol_5: number | null
+          won_volume: number | null
+        }
+        Insert: {
+          batch_traceable?: boolean | null
+          blue_review_required?: boolean | null
+          created_at?: string
+          created_by: string
+          customer: string
+          customer_code?: string | null
+          description?: string | null
+          enquiry_no: string
+          id?: string
+          manufacture_type?: string | null
+          material_markup?: number | null
+          notes?: string | null
+          part_number: string
+          qty_per?: number | null
+          quoted_by?: string | null
+          revision?: string | null
+          rohs_compliant?: boolean | null
+          serial_traceable?: boolean | null
+          status?: string | null
+          subcon_markup?: number | null
+          updated_at?: string
+          vol_1?: number | null
+          vol_2?: number | null
+          vol_3?: number | null
+          vol_4?: number | null
+          vol_5?: number | null
+          won_volume?: number | null
+        }
+        Update: {
+          batch_traceable?: boolean | null
+          blue_review_required?: boolean | null
+          created_at?: string
+          created_by?: string
+          customer?: string
+          customer_code?: string | null
+          description?: string | null
+          enquiry_no?: string
+          id?: string
+          manufacture_type?: string | null
+          material_markup?: number | null
+          notes?: string | null
+          part_number?: string
+          qty_per?: number | null
+          quoted_by?: string | null
+          revision?: string | null
+          rohs_compliant?: boolean | null
+          serial_traceable?: boolean | null
+          status?: string | null
+          subcon_markup?: number | null
+          updated_at?: string
+          vol_1?: number | null
+          vol_2?: number | null
+          vol_3?: number | null
+          vol_4?: number | null
+          vol_5?: number | null
+          won_volume?: number | null
         }
         Relationships: []
       }
