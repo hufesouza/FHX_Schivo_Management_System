@@ -320,6 +320,30 @@ const QuotationSystemNew = () => {
 
   const [subcons, setSubcons] = useState<SubconLine[]>([]);
 
+  // Generate virtual subcon resources from subcon lines (available only in this quotation)
+  const subconResources = useMemo(() => {
+    const subconIds = [...new Set(subcons.map(s => s.subcon_id))];
+    return subconIds.map(id => {
+      const firstLine = subcons.find(s => s.subcon_id === id);
+      const partNumber = `${header.part_number}Rev${header.revision}SCL${id}`;
+      return {
+        id: `subcon-${id}`,
+        resource_no: partNumber,
+        resource_description: `Subcon: ${firstLine?.process_description || 'External Process'}`,
+        cost_per_minute: 0, // Subcon cost is handled separately
+        is_active: true,
+        site: site,
+        is_subcon: true,
+        subcon_id: id,
+      };
+    });
+  }, [subcons, header.part_number, header.revision, site]);
+
+  // Combined resources: site resources + virtual subcon resources
+  const allAvailableResources = useMemo(() => {
+    return [...siteResources, ...subconResources];
+  }, [siteResources, subconResources]);
+
   // Routing state
   const [routings, setRoutings] = useState<RoutingLine[]>([
     { op_no: 10, sublevel_bom: false, part_number: '', resource_no: 'ManuEng', operation_details: 'REVIEW PROCESS, METHOD & FILL IN BLUE REVIEW', subcon_processing_time: 0, setup_time: 0.1, run_time: 0 },
@@ -583,8 +607,18 @@ const QuotationSystemNew = () => {
   };
 
   const getResourceCost = (resourceNo: string): number => {
+    // Check if it's a subcon resource (cost is 0, actual cost handled separately)
+    const subconResource = subconResources.find(r => r.resource_no === resourceNo);
+    if (subconResource) {
+      return 0; // Subcon cost is calculated from subcon lines, not here
+    }
     const resource = siteResources.find(r => r.resource_no === resourceNo);
     return resource?.cost_per_minute || 0;
+  };
+
+  // Check if a resource is a subcon resource
+  const isSubconResource = (resourceNo: string): boolean => {
+    return subconResources.some(r => r.resource_no === resourceNo);
   };
 
   const calculateRoutingCost = (line: RoutingLine): number => {
@@ -1758,15 +1792,29 @@ const QuotationSystemNew = () => {
                                 setRoutings(newRoutes);
                               }}
                             >
-                              <SelectTrigger className="w-40">
+                              <SelectTrigger className={`w-48 ${isSubconResource(route.resource_no) ? 'border-amber-400 bg-amber-50' : ''}`}>
                                 <SelectValue placeholder="Select..." />
                               </SelectTrigger>
                               <SelectContent className="max-h-[300px]">
+                                {/* Regular site resources */}
                                 {siteResources.map(r => (
                                   <SelectItem key={r.id} value={r.resource_no}>
                                     {r.resource_no}
                                   </SelectItem>
                                 ))}
+                                {/* Virtual subcon resources (if any subcons exist) */}
+                                {subconResources.length > 0 && (
+                                  <>
+                                    <div className="px-2 py-1.5 text-xs font-semibold text-amber-600 bg-amber-50 border-t">
+                                      Subcon Operations
+                                    </div>
+                                    {subconResources.map(r => (
+                                      <SelectItem key={r.id} value={r.resource_no} className="text-amber-700">
+                                        🔗 {r.resource_no}
+                                      </SelectItem>
+                                    ))}
+                                  </>
+                                )}
                               </SelectContent>
                             </Select>
                           </TableCell>
