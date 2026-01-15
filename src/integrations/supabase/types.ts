@@ -2268,6 +2268,7 @@ export type Database = {
           cost: number | null
           created_at: string
           id: string
+          include_setup_calc: boolean
           op_no: number
           operation_details: string | null
           override_cost: number | null
@@ -2284,6 +2285,7 @@ export type Database = {
           cost?: number | null
           created_at?: string
           id?: string
+          include_setup_calc?: boolean
           op_no: number
           operation_details?: string | null
           override_cost?: number | null
@@ -2300,6 +2302,7 @@ export type Database = {
           cost?: number | null
           created_at?: string
           id?: string
+          include_setup_calc?: boolean
           op_no?: number
           operation_details?: string | null
           override_cost?: number | null
