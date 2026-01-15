@@ -8,12 +8,19 @@ import {
   DollarSign,
   TrendingUp,
   Package,
-  Loader2
+  Loader2,
+  Info
 } from 'lucide-react';
 import { EnquiryPart } from '@/hooks/useQuotationEnquiries';
 import { SystemQuotation, QuotationVolumePricing } from '@/hooks/useQuotationSystem';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface EnquirySummaryProps {
   enquiryNo: string;
@@ -102,6 +109,8 @@ export function EnquirySummary({
     let totalValue = 0;
     let totalCost = 0;
     let quotedPartsCount = 0;
+    const valueBreakdown: { partNumber: string; quantity: number; unitPrice: number; totalPrice: number }[] = [];
+    const costBreakdown: { partNumber: string; quantity: number; costPerUnit: number; totalCost: number }[] = [];
 
     const partDetails = parts.map(part => {
       const quotation = quotations.find(q => q.enquiry_part_id === part.id);
@@ -112,20 +121,37 @@ export function EnquirySummary({
         const cost = pricing?.totalCost || 0;
         const margin = pricing?.margin || 0;
         const unitPrice = pricing?.unitPriceQuoted || 0;
-        const costPerUnit = pricing?.totalCost && pricing?.volumePricing[0]?.quantity 
-          ? pricing.totalCost / pricing.volumePricing[0].quantity 
+        const qty = pricing?.volumePricing[0]?.quantity || 1;
+        const costPerUnit = pricing?.totalCost && qty 
+          ? pricing.totalCost / qty
           : 0;
         totalValue += value;
         totalCost += cost;
+        
+        // Store breakdown info
+        valueBreakdown.push({
+          partNumber: part.part_number,
+          quantity: qty,
+          unitPrice,
+          totalPrice: value
+        });
+        costBreakdown.push({
+          partNumber: part.part_number,
+          quantity: qty,
+          costPerUnit,
+          totalCost: cost
+        });
+        
         return {
           ...part,
           quotation,
           unitPrice,
           cost: costPerUnit,
-          margin
+          margin,
+          quantity: qty
         };
       }
-      return { ...part, quotation: null, unitPrice: 0, cost: 0, margin: 0 };
+      return { ...part, quotation: null, unitPrice: 0, cost: 0, margin: 0, quantity: 0 };
     });
 
     const averageMargin = totalValue > 0 ? ((totalValue - totalCost) / totalValue) * 100 : 0;
@@ -136,7 +162,9 @@ export function EnquirySummary({
       totalCost,
       averageMargin,
       quotedPartsCount,
-      allQuoted: quotedPartsCount === parts.length && parts.length > 0
+      allQuoted: quotedPartsCount === parts.length && parts.length > 0,
+      valueBreakdown,
+      costBreakdown
     };
   }, [parts, quotations, quotationPricing]);
 
@@ -190,36 +218,129 @@ export function EnquirySummary({
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 text-center">
-            <Package className="h-5 w-5 mx-auto mb-1 text-blue-600" />
-            <div className="text-2xl font-bold text-blue-600">
-              {summary.quotedPartsCount}/{parts.length}
+        <TooltipProvider>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3 text-center">
+              <Package className="h-5 w-5 mx-auto mb-1 text-blue-600" />
+              <div className="text-2xl font-bold text-blue-600">
+                {summary.quotedPartsCount}/{parts.length}
+              </div>
+              <div className="text-xs text-muted-foreground">Parts Quoted</div>
             </div>
-            <div className="text-xs text-muted-foreground">Parts Quoted</div>
+            
+            {/* Total Value with Tooltip */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-3 text-center cursor-help relative group">
+                  <Info className="h-3 w-3 absolute top-2 right-2 text-green-600/50 group-hover:text-green-600" />
+                  <DollarSign className="h-5 w-5 mx-auto mb-1 text-green-600" />
+                  <div className="text-2xl font-bold text-green-600">
+                    €{summary.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Total Value</div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs p-3">
+                <div className="space-y-2">
+                  <p className="font-semibold text-sm">Total Value Breakdown</p>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Sum of (Unit Price × Quantity) for each part
+                  </p>
+                  <div className="space-y-1 text-xs">
+                    {summary.valueBreakdown.map((item, idx) => (
+                      <div key={idx} className="flex justify-between gap-4">
+                        <span className="font-mono">{item.partNumber}</span>
+                        <span className="text-muted-foreground">
+                          €{item.unitPrice.toFixed(2)} × {item.quantity} = €{item.totalPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="border-t pt-1 mt-1 flex justify-between font-semibold">
+                      <span>Total</span>
+                      <span>€{summary.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+            
+            {/* Total Cost with Tooltip */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3 text-center cursor-help relative group">
+                  <Info className="h-3 w-3 absolute top-2 right-2 text-amber-600/50 group-hover:text-amber-600" />
+                  <DollarSign className="h-5 w-5 mx-auto mb-1 text-amber-600" />
+                  <div className="text-2xl font-bold text-amber-600">
+                    €{summary.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="text-xs text-muted-foreground">Total Cost</div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs p-3">
+                <div className="space-y-2">
+                  <p className="font-semibold text-sm">Total Cost Breakdown</p>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Sum of (Cost per Unit × Quantity) for each part
+                  </p>
+                  <div className="space-y-1 text-xs">
+                    {summary.costBreakdown.map((item, idx) => (
+                      <div key={idx} className="flex justify-between gap-4">
+                        <span className="font-mono">{item.partNumber}</span>
+                        <span className="text-muted-foreground">
+                          €{item.costPerUnit.toFixed(2)} × {item.quantity} = €{item.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    ))}
+                    <div className="border-t pt-1 mt-1 flex justify-between font-semibold">
+                      <span>Total</span>
+                      <span>€{summary.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+            
+            {/* Avg Margin with Tooltip */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-3 text-center cursor-help relative group">
+                  <Info className="h-3 w-3 absolute top-2 right-2 text-purple-600/50 group-hover:text-purple-600" />
+                  <TrendingUp className="h-5 w-5 mx-auto mb-1 text-purple-600" />
+                  <div className="text-2xl font-bold text-purple-600">
+                    {summary.averageMargin.toFixed(1)}%
+                  </div>
+                  <div className="text-xs text-muted-foreground">Avg Margin</div>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-xs p-3">
+                <div className="space-y-2">
+                  <p className="font-semibold text-sm">Average Margin Calculation</p>
+                  <p className="text-xs text-muted-foreground">
+                    (Total Value - Total Cost) / Total Value × 100
+                  </p>
+                  <div className="text-xs space-y-1 pt-1">
+                    <div className="flex justify-between">
+                      <span>Total Value:</span>
+                      <span className="font-mono">€{summary.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Cost:</span>
+                      <span className="font-mono">€{summary.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Profit:</span>
+                      <span className="font-mono">€{(summary.totalValue - summary.totalCost).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="border-t pt-1 mt-1 flex justify-between font-semibold">
+                      <span>Margin:</span>
+                      <span>{summary.averageMargin.toFixed(1)}%</span>
+                    </div>
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
           </div>
-          <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-3 text-center">
-            <DollarSign className="h-5 w-5 mx-auto mb-1 text-green-600" />
-            <div className="text-2xl font-bold text-green-600">
-              €{summary.totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-            <div className="text-xs text-muted-foreground">Total Value</div>
-          </div>
-          <div className="bg-amber-50 dark:bg-amber-950/30 rounded-lg p-3 text-center">
-            <DollarSign className="h-5 w-5 mx-auto mb-1 text-amber-600" />
-            <div className="text-2xl font-bold text-amber-600">
-              €{summary.totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
-            <div className="text-xs text-muted-foreground">Total Cost</div>
-          </div>
-          <div className="bg-purple-50 dark:bg-purple-950/30 rounded-lg p-3 text-center">
-            <TrendingUp className="h-5 w-5 mx-auto mb-1 text-purple-600" />
-            <div className="text-2xl font-bold text-purple-600">
-              {summary.averageMargin.toFixed(1)}%
-            </div>
-            <div className="text-xs text-muted-foreground">Avg Margin</div>
-          </div>
-        </div>
+        </TooltipProvider>
 
         {/* Parts Detail Table */}
         <div className="border rounded-lg overflow-auto">
