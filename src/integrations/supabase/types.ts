@@ -2263,6 +2263,33 @@ export type Database = {
           },
         ]
       }
+      quotation_subcon_vendors: {
+        Row: {
+          bp_code: string
+          bp_name: string
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          bp_code: string
+          bp_name: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          bp_code?: string
+          bp_name?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       quotation_subcons: {
         Row: {
           certification_required: boolean | null
