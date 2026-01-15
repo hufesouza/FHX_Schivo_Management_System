@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/hooks/useAuth';
@@ -66,6 +66,10 @@ const QuotationSystemNew = () => {
   const { resources, loading: resourcesLoading } = useQuotationResources();
   const { settings, getSettingValue, loading: settingsLoading } = useQuotationSettings();
   const [saving, setSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState('header');
+  const [quotationId, setQuotationId] = useState<string | null>(null);
+
+  const tabOrder = ['header', 'materials', 'subcon', 'routings', 'pricing'];
 
   // Header state
   const [header, setHeader] = useState({
@@ -186,37 +190,62 @@ const QuotationSystemNew = () => {
 
   const totals = calculateTotals();
 
-  const handleSave = async () => {
+  const handleSave = async (showSuccessToast = true, navigateAfter = true): Promise<boolean> => {
     if (!user) {
       toast.error('You must be logged in');
-      return;
+      return false;
     }
 
     if (!header.enquiry_no || !header.customer || !header.part_number) {
       toast.error('Please fill in required fields (Enquiry No, Customer, Part Number)');
-      return;
+      return false;
     }
 
     setSaving(true);
     try {
-      // Create quotation header
-      const { data: quotation, error: quotationError } = await supabase
-        .from('system_quotations')
-        .insert({
-          ...header,
-          vol_1: volumes[0]?.quantity || null,
-          vol_2: volumes[1]?.quantity || null,
-          vol_3: volumes[2]?.quantity || null,
-          created_by: user.id
-        })
-        .select()
-        .single();
+      let currentQuotationId = quotationId;
 
-      if (quotationError) throw quotationError;
+      if (currentQuotationId) {
+        // Update existing quotation
+        const { error: updateError } = await supabase
+          .from('system_quotations')
+          .update({
+            ...header,
+            vol_1: volumes[0]?.quantity || null,
+            vol_2: volumes[1]?.quantity || null,
+            vol_3: volumes[2]?.quantity || null,
+          })
+          .eq('id', currentQuotationId);
+
+        if (updateError) throw updateError;
+
+        // Delete existing related data to re-insert
+        await supabase.from('quotation_materials').delete().eq('quotation_id', currentQuotationId);
+        await supabase.from('quotation_subcons').delete().eq('quotation_id', currentQuotationId);
+        await supabase.from('quotation_routings').delete().eq('quotation_id', currentQuotationId);
+        await supabase.from('quotation_volume_pricing').delete().eq('quotation_id', currentQuotationId);
+      } else {
+        // Create quotation header
+        const { data: quotation, error: quotationError } = await supabase
+          .from('system_quotations')
+          .insert({
+            ...header,
+            vol_1: volumes[0]?.quantity || null,
+            vol_2: volumes[1]?.quantity || null,
+            vol_3: volumes[2]?.quantity || null,
+            created_by: user.id
+          })
+          .select()
+          .single();
+
+        if (quotationError) throw quotationError;
+        currentQuotationId = quotation.id;
+        setQuotationId(quotation.id);
+      }
 
       // Insert materials
       const materialInserts = materials.filter(m => m.vendor_no || m.material_description).map(m => ({
-        quotation_id: quotation.id,
+        quotation_id: currentQuotationId,
         ...m,
         total_material: m.std_cost_est * m.qty_per_unit * (1 + header.material_markup / 100)
       }));
@@ -230,7 +259,7 @@ const QuotationSystemNew = () => {
 
       // Insert subcons
       const subconInserts = subcons.filter(s => s.vendor_no || s.process_description).map(s => ({
-        quotation_id: quotation.id,
+        quotation_id: currentQuotationId,
         ...s,
         total_subcon: s.std_cost_est * (1 + header.subcon_markup / 100)
       }));
@@ -244,7 +273,7 @@ const QuotationSystemNew = () => {
 
       // Insert routings
       const routingInserts = routings.filter(r => r.resource_no || r.operation_details).map(r => ({
-        quotation_id: quotation.id,
+        quotation_id: currentQuotationId,
         ...r,
         cost: calculateRoutingCost(r)
       }));
@@ -267,7 +296,7 @@ const QuotationSystemNew = () => {
         const unitPrice = totalCost / v.quantity / (1 - v.margin / 100);
 
         return {
-          quotation_id: quotation.id,
+          quotation_id: currentQuotationId,
           quantity: v.quantity,
           hours,
           cost_per_hour: costPerHour,
@@ -289,14 +318,35 @@ const QuotationSystemNew = () => {
         .insert(volumeInserts);
       if (volumeError) throw volumeError;
 
-      toast.success('Quotation saved successfully');
-      navigate('/npi/quotation-system/list');
+      if (showSuccessToast) {
+        toast.success('Quotation saved successfully');
+      }
+      if (navigateAfter) {
+        navigate('/npi/quotation-system/list');
+      }
+      return true;
     } catch (error) {
       console.error('Error saving quotation:', error);
       toast.error('Failed to save quotation');
+      return false;
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleNext = async () => {
+    const currentIndex = tabOrder.indexOf(activeTab);
+    if (currentIndex < tabOrder.length - 1) {
+      const saved = await handleSave(false, false);
+      if (saved) {
+        toast.success('Progress saved');
+        setActiveTab(tabOrder[currentIndex + 1]);
+      }
+    }
+  };
+
+  const handleFinalSave = async () => {
+    await handleSave(true, true);
   };
 
   if (resourcesLoading || settingsLoading) {
@@ -313,13 +363,13 @@ const QuotationSystemNew = () => {
     <AppLayout title="New Quotation" subtitle="WD-FRM-0018 Quotation/Routing Sheet" showBackButton backTo="/npi/quotation-system">
       <div className="container mx-auto px-4 py-6">
         <div className="flex justify-end mb-4">
-          <Button onClick={handleSave} disabled={saving}>
+          <Button onClick={handleFinalSave} disabled={saving}>
             {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
             Save Quotation
           </Button>
         </div>
 
-        <Tabs defaultValue="header" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList className="grid w-full grid-cols-5 max-w-2xl">
             <TabsTrigger value="header" className="flex items-center gap-1 text-xs">
               <FileText className="h-3 w-3" />
@@ -563,6 +613,13 @@ const QuotationSystemNew = () => {
                     ))}
                   </div>
                 </div>
+                <div className="mt-6 flex justify-end">
+                  <Button onClick={handleNext} disabled={saving}>
+                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Next: Materials
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -710,10 +767,15 @@ const QuotationSystemNew = () => {
                     </TableBody>
                   </Table>
                 </div>
-                <div className="mt-4 flex justify-end">
+                <div className="mt-4 flex justify-between items-center">
                   <Badge variant="secondary" className="text-lg px-4 py-2">
                     Total Material (with {header.material_markup}% markup): €{totals.totalMaterialCost.toFixed(2)}
                   </Badge>
+                  <Button onClick={handleNext} disabled={saving}>
+                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Next: Subcon
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -838,10 +900,15 @@ const QuotationSystemNew = () => {
                     </TableBody>
                   </Table>
                 </div>
-                <div className="mt-4 flex justify-end">
+                <div className="mt-4 flex justify-between items-center">
                   <Badge variant="secondary" className="text-lg px-4 py-2">
                     Total Subcon (with {header.subcon_markup}% markup): €{totals.totalSubconCost.toFixed(2)}
                   </Badge>
+                  <Button onClick={handleNext} disabled={saving}>
+                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Next: Routings
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -985,16 +1052,23 @@ const QuotationSystemNew = () => {
                     </TableBody>
                   </Table>
                 </div>
-                <div className="mt-4 flex justify-end gap-4">
-                  <Badge variant="outline" className="px-4 py-2">
-                    Total Setup: {totals.totalSetupTime.toFixed(1)} min
-                  </Badge>
-                  <Badge variant="outline" className="px-4 py-2">
-                    Total Run: {totals.totalRunTime.toFixed(1)} min
-                  </Badge>
-                  <Badge variant="secondary" className="text-lg px-4 py-2">
-                    Total Routing Cost: €{totals.totalRoutingCost.toFixed(2)}
-                  </Badge>
+                <div className="mt-4 flex justify-between items-center">
+                  <div className="flex gap-4">
+                    <Badge variant="outline" className="px-4 py-2">
+                      Total Setup: {totals.totalSetupTime.toFixed(1)} min
+                    </Badge>
+                    <Badge variant="outline" className="px-4 py-2">
+                      Total Run: {totals.totalRunTime.toFixed(1)} min
+                    </Badge>
+                    <Badge variant="secondary" className="text-lg px-4 py-2">
+                      Total Routing Cost: €{totals.totalRoutingCost.toFixed(2)}
+                    </Badge>
+                  </div>
+                  <Button onClick={handleNext} disabled={saving}>
+                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Next: Pricing
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
