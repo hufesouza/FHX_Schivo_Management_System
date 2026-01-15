@@ -397,6 +397,9 @@ const QuotationSystemNew = () => {
         if (quotationError) throw quotationError;
         
         if (quotation) {
+          // Set site first so filtering works correctly
+          setSite((quotation as any).site || 'waterford');
+          
           setHeader({
             enquiry_no: quotation.enquiry_no || '',
             customer: quotation.customer || '',
@@ -638,6 +641,7 @@ const QuotationSystemNew = () => {
           .from('system_quotations')
           .update({
             ...header,
+            site,
             customer_code: getCustomerCode(header.customer),
             vol_1: volumes[0]?.quantity || null,
             vol_2: volumes[1]?.quantity || null,
@@ -658,6 +662,7 @@ const QuotationSystemNew = () => {
           .from('system_quotations')
           .insert({
             ...header,
+            site,
             customer_code: getCustomerCode(header.customer),
             vol_1: volumes[0]?.quantity || null,
             vol_2: volumes[1]?.quantity || null,
