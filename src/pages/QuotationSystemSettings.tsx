@@ -8,13 +8,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Save, Search, Plus, Settings, DollarSign, Percent, Truck, Trash2 } from 'lucide-react';
+import { Loader2, Save, Search, Plus, Settings, DollarSign, Percent, Truck, Trash2, Package } from 'lucide-react';
 import { useQuotationResources, useQuotationSettings } from '@/hooks/useQuotationSystem';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 interface SubconVendor {
+  id: string;
+  bp_code: string;
+  bp_name: string;
+  is_active: boolean;
+}
+
+interface MaterialSupplier {
   id: string;
   bp_code: string;
   bp_name: string;
@@ -37,6 +44,13 @@ const QuotationSystemSettings = () => {
   const [newVendor, setNewVendor] = useState({ bp_code: '', bp_name: '' });
   const [isAddVendorDialogOpen, setIsAddVendorDialogOpen] = useState(false);
 
+  // Material Supplier state
+  const [suppliers, setSuppliers] = useState<MaterialSupplier[]>([]);
+  const [suppliersLoading, setSuppliersLoading] = useState(true);
+  const [supplierSearchTerm, setSupplierSearchTerm] = useState('');
+  const [newSupplier, setNewSupplier] = useState({ bp_code: '', bp_name: '' });
+  const [isAddSupplierDialogOpen, setIsAddSupplierDialogOpen] = useState(false);
+
   const fetchVendors = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -54,9 +68,27 @@ const QuotationSystemSettings = () => {
     }
   }, []);
 
+  const fetchSuppliers = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('quotation_material_suppliers')
+        .select('*')
+        .order('bp_name');
+
+      if (error) throw error;
+      setSuppliers(data || []);
+    } catch (error) {
+      console.error('Error fetching suppliers:', error);
+      toast.error('Failed to load material suppliers');
+    } finally {
+      setSuppliersLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchVendors();
-  }, [fetchVendors]);
+    fetchSuppliers();
+  }, [fetchVendors, fetchSuppliers]);
 
   const filteredResources = resources.filter(r => 
     r.resource_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -66,6 +98,11 @@ const QuotationSystemSettings = () => {
   const filteredVendors = vendors.filter(v => 
     v.bp_name.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
     v.bp_code.toLowerCase().includes(vendorSearchTerm.toLowerCase())
+  );
+
+  const filteredSuppliers = suppliers.filter(s => 
+    s.bp_name.toLowerCase().includes(supplierSearchTerm.toLowerCase()) ||
+    s.bp_code.toLowerCase().includes(supplierSearchTerm.toLowerCase())
   );
 
   const handleSaveEdit = async (id: string) => {
@@ -134,11 +171,63 @@ const QuotationSystemSettings = () => {
     }
   };
 
+  const handleAddSupplier = async () => {
+    if (!newSupplier.bp_code || !newSupplier.bp_name) {
+      toast.error('Please fill in both BP Code and BP Name');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('quotation_material_suppliers')
+        .insert(newSupplier);
+
+      if (error) throw error;
+      toast.success('Supplier added');
+      setNewSupplier({ bp_code: '', bp_name: '' });
+      setIsAddSupplierDialogOpen(false);
+      fetchSuppliers();
+    } catch (error) {
+      console.error('Error adding supplier:', error);
+      toast.error('Failed to add supplier');
+    }
+  };
+
+  const handleToggleSupplierActive = async (id: string, isActive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('quotation_material_suppliers')
+        .update({ is_active: isActive })
+        .eq('id', id);
+
+      if (error) throw error;
+      fetchSuppliers();
+    } catch (error) {
+      console.error('Error updating supplier:', error);
+      toast.error('Failed to update supplier');
+    }
+  };
+
+  const handleDeleteSupplier = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('quotation_material_suppliers')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      toast.success('Supplier deleted');
+      fetchSuppliers();
+    } catch (error) {
+      console.error('Error deleting supplier:', error);
+      toast.error('Failed to delete supplier');
+    }
+  };
+
   const formatSettingName = (key: string) => {
     return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  if (resourcesLoading || settingsLoading || vendorsLoading) {
+  if (resourcesLoading || settingsLoading || vendorsLoading || suppliersLoading) {
     return (
       <AppLayout title="Quotation Settings" subtitle="Resource Ratings & System Configuration" showBackButton backTo="/npi/quotation-system">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -152,7 +241,7 @@ const QuotationSystemSettings = () => {
     <AppLayout title="Quotation Settings" subtitle="Resource Ratings & System Configuration" showBackButton backTo="/npi/quotation-system">
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="resources" className="space-y-6">
-          <TabsList className="grid w-full max-w-lg grid-cols-3">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4">
             <TabsTrigger value="resources" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
               Resources
@@ -160,6 +249,10 @@ const QuotationSystemSettings = () => {
             <TabsTrigger value="vendors" className="flex items-center gap-2">
               <Truck className="h-4 w-4" />
               Vendors
+            </TabsTrigger>
+            <TabsTrigger value="suppliers" className="flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Suppliers
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
@@ -415,6 +508,113 @@ const QuotationSystemSettings = () => {
 
                 <p className="text-sm text-muted-foreground mt-4">
                   Showing {filteredVendors.length} of {vendors.length} vendors
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="suppliers">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Material Suppliers</CardTitle>
+                    <CardDescription>
+                      Manage material suppliers for raw materials and components
+                    </CardDescription>
+                  </div>
+                  <Dialog open={isAddSupplierDialogOpen} onOpenChange={setIsAddSupplierDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Supplier
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add New Supplier</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label>BP Code</Label>
+                          <Input
+                            value={newSupplier.bp_code}
+                            onChange={(e) => setNewSupplier({ ...newSupplier, bp_code: e.target.value })}
+                            placeholder="e.g., SA0001"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>BP Name</Label>
+                          <Input
+                            value={newSupplier.bp_name}
+                            onChange={(e) => setNewSupplier({ ...newSupplier, bp_name: e.target.value })}
+                            placeholder="e.g., Abbey Seals"
+                          />
+                        </div>
+                        <Button onClick={handleAddSupplier} className="w-full">
+                          Add Supplier
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search suppliers..."
+                      value={supplierSearchTerm}
+                      onChange={(e) => setSupplierSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+
+                <div className="border rounded-lg max-h-[600px] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background">
+                      <TableRow>
+                        <TableHead>BP Code</TableHead>
+                        <TableHead>BP Name</TableHead>
+                        <TableHead className="text-center">Active</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredSuppliers.map((supplier) => (
+                        <TableRow key={supplier.id}>
+                          <TableCell className="font-mono text-sm">
+                            {supplier.bp_code}
+                          </TableCell>
+                          <TableCell>
+                            {supplier.bp_name}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Switch
+                              checked={supplier.is_active}
+                              onCheckedChange={(checked) => handleToggleSupplierActive(supplier.id, checked)}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteSupplier(supplier.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <p className="text-sm text-muted-foreground mt-4">
+                  Showing {filteredSuppliers.length} of {suppliers.length} suppliers
                 </p>
               </CardContent>
             </Card>
