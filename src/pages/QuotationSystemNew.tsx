@@ -92,6 +92,7 @@ const QuotationSystemNew = () => {
     serial_traceable: false,
     material_markup: 20,
     subcon_markup: 20,
+    status: 'draft',
   });
 
   // Currency state
@@ -230,6 +231,7 @@ const QuotationSystemNew = () => {
             serial_traceable: quotation.serial_traceable || false,
             material_markup: quotation.material_markup || 20,
             subcon_markup: quotation.subcon_markup || 20,
+            status: quotation.status || 'draft',
           });
         }
 
@@ -710,8 +712,23 @@ const QuotationSystemNew = () => {
                       placeholder="Your name"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label>Status</Label>
+                    <Select value={header.status} onValueChange={(v) => setHeader({ ...header, status: v })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="in_review">In Review</SelectItem>
+                        <SelectItem value="submitted">Submitted</SelectItem>
+                        <SelectItem value="won">Won</SelectItem>
+                        <SelectItem value="lost">Lost</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-
+                
                 <div className="grid gap-4 md:grid-cols-4">
                   <div className="space-y-2">
                     <Label>Part Number *</Label>
