@@ -804,7 +804,8 @@ const QuotationSystemNew = () => {
       // Insert volume pricing
       const costPerHour = getSettingValue('cost_per_hour') || 55;
       const volumeInserts = volumes.map(v => {
-        const hours = (totals.totalSetupTime + totals.totalRunTime * v.quantity) / 60;
+        // hours = ((totalSetupTime / qty) + runTime) per unit, converted to hours
+        const hours = ((totals.totalSetupTime / v.quantity) + totals.totalRunTime) / 60;
         const labourCost = hours * costPerHour;
         const materialCost = totals.totalMaterialCost * v.quantity;
         // Get subcon cost specific to this quantity tier
