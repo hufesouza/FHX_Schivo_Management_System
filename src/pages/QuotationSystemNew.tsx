@@ -981,17 +981,14 @@ const QuotationSystemNew = () => {
         if (routingError) throw routingError;
       }
 
-      // Insert volume pricing
+      // Insert volume pricing - MUST match display calculation exactly
       const costPerHour = getSettingValue('cost_per_hour') || 55;
       const volumeInserts = volumes.map(v => {
-        // Setup cost = totalSetupCost / Qty (uses resource rates from settings)
-        const setupCost = totals.totalSetupCost / v.quantity;
-        // Routing cost = totalRoutingCost × quantity
+        // Match the display calculation from the Pricing tab exactly:
+        const setupCost = totals.totalSetupCost; // Full setup cost (not divided by qty)
         const routingCost = totals.totalRoutingCost * v.quantity;
         const materialCost = totals.totalMaterialCost * v.quantity;
-        // Get subcon cost specific to this quantity tier
-        const subconCostPerUnit = getSubconCostForQuantity(v.quantity) * (1 + header.subcon_markup / 100);
-        const subconCost = subconCostPerUnit * v.quantity;
+        const subconCost = totals.totalSubconCost * v.quantity; // Use totals.totalSubconCost like display
         const totalCost = setupCost + routingCost + materialCost + subconCost;
         const unitPrice = totalCost / v.quantity / (1 - v.margin / 100);
 
@@ -1000,7 +997,7 @@ const QuotationSystemNew = () => {
           quantity: v.quantity,
           hours: (totals.totalSetupTime + totals.totalRunTime * v.quantity) / 60,
           cost_per_hour: costPerHour,
-          labour_cost: routingCost,
+          labour_cost: routingCost + setupCost, // Include setup in labour for this qty tier
           material_cost: materialCost,
           subcon_cost: subconCost,
           tooling_cost: 0,

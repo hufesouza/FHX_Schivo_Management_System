@@ -342,66 +342,92 @@ export function EnquirySummary({
           </div>
         </TooltipProvider>
 
-        {/* Parts Detail Table */}
-        <div className="border rounded-lg overflow-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[60px]">#</TableHead>
-                <TableHead>Part Number</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Rev</TableHead>
-                <TableHead className="text-right">Unit Price</TableHead>
-                <TableHead className="text-right">Cost</TableHead>
-                <TableHead className="text-right">Margin</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {summary.partDetails.map((part) => (
-                <TableRow key={part.id}>
-                  <TableCell className="font-mono text-muted-foreground">
-                    {part.line_number}
-                  </TableCell>
-                  <TableCell className="font-mono font-medium">
-                    {part.part_number}
-                  </TableCell>
-                  <TableCell className="max-w-[200px] truncate">
-                    {part.description || '-'}
-                  </TableCell>
-                  <TableCell>{part.revision || '-'}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {part.quotation ? `€${part.unitPrice.toFixed(2)}` : '-'}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-muted-foreground">
-                    {part.quotation ? `€${part.cost.toFixed(2)}` : '-'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {part.quotation ? (
-                      <Badge 
-                        variant="outline" 
-                        className={part.margin >= 20 ? 'text-green-600' : part.margin >= 10 ? 'text-amber-600' : 'text-red-600'}
-                      >
-                        {part.margin.toFixed(1)}%
-                      </Badge>
-                    ) : '-'}
-                  </TableCell>
-                  <TableCell>
-                    {part.quotation ? (
-                      <Badge className="bg-green-600">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Quoted
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-muted-foreground">
-                        Pending
-                      </Badge>
+        {/* Parts Detail Table with Volume Breakdown */}
+        <div className="space-y-4">
+          {summary.partDetails.map((part) => {
+            const pricing = part.quotation ? quotationPricing.get(part.quotation.id) : null;
+            const volumePricing = pricing?.volumePricing || [];
+            
+            return (
+              <div key={part.id} className="border rounded-lg overflow-hidden">
+                {/* Part Header */}
+                <div className="bg-muted/50 px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="font-mono text-sm text-muted-foreground">#{part.line_number}</span>
+                    <span className="font-mono font-semibold">{part.part_number}</span>
+                    {part.revision && (
+                      <Badge variant="outline" className="text-xs">Rev {part.revision}</Badge>
                     )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </div>
+                  {part.quotation ? (
+                    <Badge className="bg-green-600">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Quoted
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-muted-foreground">
+                      Pending
+                    </Badge>
+                  )}
+                </div>
+                
+                {part.description && (
+                  <div className="px-4 py-2 text-sm text-muted-foreground border-b">
+                    {part.description}
+                  </div>
+                )}
+                
+                {/* Volume Pricing Table */}
+                {volumePricing.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[80px]">Qty</TableHead>
+                        <TableHead className="text-right">Unit Price</TableHead>
+                        <TableHead className="text-right">Cost/Unit</TableHead>
+                        <TableHead className="text-right">Total Value</TableHead>
+                        <TableHead className="text-right">Total Cost</TableHead>
+                        <TableHead className="text-right">Margin</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {volumePricing
+                        .sort((a, b) => a.quantity - b.quantity)
+                        .map((vp, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="font-mono font-medium">{vp.quantity}</TableCell>
+                            <TableCell className="text-right font-mono">
+                              €{vp.unit_price_quoted.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-muted-foreground">
+                              €{vp.cost_per_unit.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-green-600">
+                              €{vp.total_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-muted-foreground">
+                              €{(vp.cost_per_unit * vp.quantity).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Badge 
+                                variant="outline" 
+                                className={vp.margin >= 20 ? 'text-green-600' : vp.margin >= 10 ? 'text-amber-600' : 'text-red-600'}
+                              >
+                                {vp.margin.toFixed(1)}%
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                  <div className="px-4 py-4 text-sm text-muted-foreground text-center">
+                    No pricing data available
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         {/* Notes */}
