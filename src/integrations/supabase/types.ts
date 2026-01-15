@@ -2689,6 +2689,7 @@ export type Database = {
           revision: string | null
           rohs_compliant: boolean | null
           serial_traceable: boolean | null
+          site: string
           status: string | null
           subcon_markup: number | null
           updated_at: string
@@ -2718,6 +2719,7 @@ export type Database = {
           revision?: string | null
           rohs_compliant?: boolean | null
           serial_traceable?: boolean | null
+          site?: string
           status?: string | null
           subcon_markup?: number | null
           updated_at?: string
@@ -2747,6 +2749,7 @@ export type Database = {
           revision?: string | null
           rohs_compliant?: boolean | null
           serial_traceable?: boolean | null
+          site?: string
           status?: string | null
           subcon_markup?: number | null
           updated_at?: string
