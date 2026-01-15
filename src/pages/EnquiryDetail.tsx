@@ -47,6 +47,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { EnquirySummary } from '@/components/quotation-control/EnquirySummary';
 import { SubmitForReviewDialog } from '@/components/quotation-control/SubmitForReviewDialog';
 import { ReviewApprovalDialog } from '@/components/quotation-control/ReviewApprovalDialog';
+import { SystemQuotationCompareDialog } from '@/components/quotation-system/SystemQuotationCompareDialog';
 
 const statusConfig: Record<EnquiryStatus, { label: string; icon: React.ElementType; color: string }> = {
   open: { label: 'Open', icon: FileText, color: 'bg-slate-500' },
@@ -991,18 +992,26 @@ const EnquiryDetail = () => {
 
         {/* Quotation Summary - Show when all parts are quoted */}
         {allPartsQuoted && (
-          <EnquirySummary
-            enquiryNo={enquiry.enquiry_no}
-            customerName={enquiry.customer_name}
-            salesRep={salesRep}
-            parts={parts}
-            quotations={partQuotations}
-            notes={notes}
-            onSummaryCalculated={(total, margin) => {
-              setSummaryTotalValue(total);
-              setSummaryAverageMargin(margin);
-            }}
-          />
+          <>
+            <div className="flex justify-end gap-2">
+              <SystemQuotationCompareDialog 
+                quotations={partQuotations} 
+                currentQuotation={partQuotations[0]}
+              />
+            </div>
+            <EnquirySummary
+              enquiryNo={enquiry.enquiry_no}
+              customerName={enquiry.customer_name}
+              salesRep={salesRep}
+              parts={parts}
+              quotations={partQuotations}
+              notes={notes}
+              onSummaryCalculated={(total, margin) => {
+                setSummaryTotalValue(total);
+                setSummaryAverageMargin(margin);
+              }}
+            />
+          </>
         )}
 
         {/* Submit for Review / Review Actions */}
