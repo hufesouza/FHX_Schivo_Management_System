@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,22 +8,64 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, Save, Search, Plus, Settings, DollarSign, Percent } from 'lucide-react';
+import { Loader2, Save, Search, Plus, Settings, DollarSign, Percent, Truck, Trash2 } from 'lucide-react';
 import { useQuotationResources, useQuotationSettings } from '@/hooks/useQuotationSystem';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+interface SubconVendor {
+  id: string;
+  bp_code: string;
+  bp_name: string;
+  is_active: boolean;
+}
 
 const QuotationSystemSettings = () => {
   const { resources, loading: resourcesLoading, updateResource, addResource } = useQuotationResources();
   const { settings, loading: settingsLoading, updateSetting } = useQuotationSettings();
   const [searchTerm, setSearchTerm] = useState('');
+  const [vendorSearchTerm, setVendorSearchTerm] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<number>(0);
   const [newResource, setNewResource] = useState({ resource_no: '', resource_description: '', cost_per_minute: 0 });
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  
+  // Vendor state
+  const [vendors, setVendors] = useState<SubconVendor[]>([]);
+  const [vendorsLoading, setVendorsLoading] = useState(true);
+  const [newVendor, setNewVendor] = useState({ bp_code: '', bp_name: '' });
+  const [isAddVendorDialogOpen, setIsAddVendorDialogOpen] = useState(false);
+
+  const fetchVendors = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('quotation_subcon_vendors')
+        .select('*')
+        .order('bp_name');
+
+      if (error) throw error;
+      setVendors(data || []);
+    } catch (error) {
+      console.error('Error fetching vendors:', error);
+      toast.error('Failed to load vendors');
+    } finally {
+      setVendorsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchVendors();
+  }, [fetchVendors]);
 
   const filteredResources = resources.filter(r => 
     r.resource_no.toLowerCase().includes(searchTerm.toLowerCase()) ||
     r.resource_description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredVendors = vendors.filter(v => 
+    v.bp_name.toLowerCase().includes(vendorSearchTerm.toLowerCase()) ||
+    v.bp_code.toLowerCase().includes(vendorSearchTerm.toLowerCase())
   );
 
   const handleSaveEdit = async (id: string) => {
@@ -40,11 +82,63 @@ const QuotationSystemSettings = () => {
     setIsAddDialogOpen(false);
   };
 
+  const handleAddVendor = async () => {
+    if (!newVendor.bp_code || !newVendor.bp_name) {
+      toast.error('Please fill in both BP Code and BP Name');
+      return;
+    }
+    try {
+      const { error } = await supabase
+        .from('quotation_subcon_vendors')
+        .insert(newVendor);
+
+      if (error) throw error;
+      toast.success('Vendor added');
+      setNewVendor({ bp_code: '', bp_name: '' });
+      setIsAddVendorDialogOpen(false);
+      fetchVendors();
+    } catch (error) {
+      console.error('Error adding vendor:', error);
+      toast.error('Failed to add vendor');
+    }
+  };
+
+  const handleToggleVendorActive = async (id: string, isActive: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('quotation_subcon_vendors')
+        .update({ is_active: isActive })
+        .eq('id', id);
+
+      if (error) throw error;
+      fetchVendors();
+    } catch (error) {
+      console.error('Error updating vendor:', error);
+      toast.error('Failed to update vendor');
+    }
+  };
+
+  const handleDeleteVendor = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('quotation_subcon_vendors')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      toast.success('Vendor deleted');
+      fetchVendors();
+    } catch (error) {
+      console.error('Error deleting vendor:', error);
+      toast.error('Failed to delete vendor');
+    }
+  };
+
   const formatSettingName = (key: string) => {
     return key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };
 
-  if (resourcesLoading || settingsLoading) {
+  if (resourcesLoading || settingsLoading || vendorsLoading) {
     return (
       <AppLayout title="Quotation Settings" subtitle="Resource Ratings & System Configuration" showBackButton backTo="/npi/quotation-system">
         <div className="flex items-center justify-center min-h-[400px]">
@@ -58,14 +152,18 @@ const QuotationSystemSettings = () => {
     <AppLayout title="Quotation Settings" subtitle="Resource Ratings & System Configuration" showBackButton backTo="/npi/quotation-system">
       <div className="container mx-auto px-4 py-8">
         <Tabs defaultValue="resources" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
+          <TabsList className="grid w-full max-w-lg grid-cols-3">
             <TabsTrigger value="resources" className="flex items-center gap-2">
               <DollarSign className="h-4 w-4" />
-              Resource Ratings
+              Resources
+            </TabsTrigger>
+            <TabsTrigger value="vendors" className="flex items-center gap-2">
+              <Truck className="h-4 w-4" />
+              Vendors
             </TabsTrigger>
             <TabsTrigger value="settings" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
-              General Settings
+              Settings
             </TabsTrigger>
           </TabsList>
 
@@ -210,6 +308,113 @@ const QuotationSystemSettings = () => {
 
                 <p className="text-sm text-muted-foreground mt-4">
                   Showing {filteredResources.length} of {resources.length} resources
+                </p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="vendors">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Subcon Vendors</CardTitle>
+                    <CardDescription>
+                      Manage subcontractor vendors for outsourced processes
+                    </CardDescription>
+                  </div>
+                  <Dialog open={isAddVendorDialogOpen} onOpenChange={setIsAddVendorDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Vendor
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add New Vendor</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label>BP Code</Label>
+                          <Input
+                            value={newVendor.bp_code}
+                            onChange={(e) => setNewVendor({ ...newVendor, bp_code: e.target.value })}
+                            placeholder="e.g., SA0001"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>BP Name</Label>
+                          <Input
+                            value={newVendor.bp_name}
+                            onChange={(e) => setNewVendor({ ...newVendor, bp_name: e.target.value })}
+                            placeholder="e.g., Acme Coatings Ltd."
+                          />
+                        </div>
+                        <Button onClick={handleAddVendor} className="w-full">
+                          Add Vendor
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-4">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search vendors..."
+                      value={vendorSearchTerm}
+                      onChange={(e) => setVendorSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                </div>
+
+                <div className="border rounded-lg max-h-[600px] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-background">
+                      <TableRow>
+                        <TableHead>BP Code</TableHead>
+                        <TableHead>BP Name</TableHead>
+                        <TableHead className="text-center">Active</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredVendors.map((vendor) => (
+                        <TableRow key={vendor.id}>
+                          <TableCell className="font-mono text-sm">
+                            {vendor.bp_code}
+                          </TableCell>
+                          <TableCell>
+                            {vendor.bp_name}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Switch
+                              checked={vendor.is_active}
+                              onCheckedChange={(checked) => handleToggleVendorActive(vendor.id, checked)}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button 
+                              size="sm" 
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleDeleteVendor(vendor.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                <p className="text-sm text-muted-foreground mt-4">
+                  Showing {filteredVendors.length} of {vendors.length} vendors
                 </p>
               </CardContent>
             </Card>
