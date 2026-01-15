@@ -2200,7 +2200,7 @@ const QuotationSystemNew = () => {
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
                           onClick={() => setExplainerOpen('setupCost')}
                         >
-                          <span className="underline decoration-dotted">Set up per part (€)</span>
+                          <span className="underline decoration-dotted">Setup (€)</span>
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
@@ -2254,7 +2254,7 @@ const QuotationSystemNew = () => {
                     </TableHeader>
                     <TableBody>
                       {volumes.map((vol, idx) => {
-                        const setupCost = totals.totalSetupCost / vol.quantity;
+                        const setupCost = totals.totalSetupCost;
                         const routingCost = totals.totalRoutingCost * vol.quantity;
                         const materialCost = totals.totalMaterialCost * vol.quantity;
                         const subconCost = totals.totalSubconCost * vol.quantity;
