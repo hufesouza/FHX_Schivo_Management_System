@@ -2392,13 +2392,13 @@ const QuotationSystemNew = () => {
                         return (
                           <TableRow key={idx}>
                             <TableCell className="font-medium">{vol.quantity}</TableCell>
-                            <TableCell className="text-right">€{setupPerPart.toFixed(4)}</TableCell>
-                            <TableCell className="text-right">€{routingPerPart.toFixed(4)}</TableCell>
-                            <TableCell className="text-right">€{materialPerPart.toFixed(4)}</TableCell>
-                            <TableCell className="text-right">€{subconPerPart.toFixed(4)}</TableCell>
-                            <TableCell className="text-right font-medium">€{totalCostPerPart.toFixed(4)}</TableCell>
+                            <TableCell className="text-right">€{setupPerPart.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">€{routingPerPart.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">€{materialPerPart.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">€{subconPerPart.toFixed(2)}</TableCell>
+                            <TableCell className="text-right font-medium">€{totalCostPerPart.toFixed(2)}</TableCell>
                             <TableCell className="text-right">
-                              <Badge className="bg-primary">{currencySymbols[currency]}{unitPriceConverted.toFixed(4)}</Badge>
+                              <Badge className="bg-primary">{currencySymbols[currency]}{unitPriceConverted.toFixed(2)}</Badge>
                             </TableCell>
                             <TableCell className="text-right">
                               <Badge variant="outline" className="border-green-500 text-green-600">€{ratePerHour.toFixed(2)}</Badge>
