@@ -557,7 +557,7 @@ const EnquiryList = () => {
         {/* Export Quotation Dialog */}
         {selectedEnquiryForExport && (
           <ExportSystemQuotationPDF
-            enquiryId={selectedEnquiryForExport}
+            enquiryNo={selectedEnquiryForExport}
             open={exportQuotationOpen}
             onOpenChange={(open) => {
               setExportQuotationOpen(open);
@@ -569,7 +569,7 @@ const EnquiryList = () => {
         {/* Export Breakdown Dialog */}
         {selectedEnquiryForExport && (
           <ExportBreakdownPDF
-            enquiryId={selectedEnquiryForExport}
+            enquiryNo={selectedEnquiryForExport}
             open={exportBreakdownOpen}
             onOpenChange={(open) => {
               setExportBreakdownOpen(open);
@@ -581,7 +581,7 @@ const EnquiryList = () => {
         {/* Compare Quotations Dialog */}
         {selectedEnquiryForExport && (
           <SystemQuotationCompareDialog
-            enquiryId={selectedEnquiryForExport}
+            enquiryNo={selectedEnquiryForExport}
             open={compareDialogOpen}
             onOpenChange={(open) => {
               setCompareDialogOpen(open);
