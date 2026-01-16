@@ -16,11 +16,9 @@ import {
   Loader2, 
   Search, 
   Plus, 
-  Eye, 
   FileText, 
   CheckCircle, 
   Clock, 
-  XCircle, 
   Send,
   ThumbsUp,
   ThumbsDown,
@@ -279,22 +277,80 @@ const EnquiryList = () => {
                         <TableCell>{getStatusBadge(enquiry.status)}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
+                            {/* Make export actions visible per-enquiry (desktop) */}
+                            <div className="hidden md:flex items-center gap-1">
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedEnquiryForExport(enquiry.id);
+                                      setExportQuotationOpen(true);
+                                    }}
+                                    aria-label="Export quotation"
+                                  >
+                                    <Download className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Export quotation</TooltipContent>
+                              </Tooltip>
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedEnquiryForExport(enquiry.id);
+                                      setExportBreakdownOpen(true);
+                                    }}
+                                    aria-label="Export breakdown"
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Export breakdown</TooltipContent>
+                              </Tooltip>
+
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setSelectedEnquiryForExport(enquiry.id);
+                                      setCompareDialogOpen(true);
+                                    }}
+                                    aria-label="Compare quotations"
+                                  >
+                                    <GitCompare className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Compare quotations</TooltipContent>
+                              </Tooltip>
+                            </div>
+
+                            {/* Overflow menu (mobile) */}
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button 
-                                  variant="ghost" 
+                                <Button
+                                  variant="ghost"
                                   size="sm"
+                                  className="md:hidden"
                                   onClick={(e) => e.stopPropagation()}
+                                  aria-label="More actions"
                                 >
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                <DropdownMenuItem
-                                  onClick={() => navigate(`/npi/quotation-system/enquiry/${enquiry.id}`)}
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Details
+                                <DropdownMenuItem onClick={() => navigate(`/npi/quotation-system/enquiry/${enquiry.id}`)}>
+                                  <ChevronRight className="h-4 w-4 mr-2" />
+                                  View details
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -304,7 +360,7 @@ const EnquiryList = () => {
                                   }}
                                 >
                                   <Download className="h-4 w-4 mr-2" />
-                                  Export Quotation
+                                  Export quotation
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => {
@@ -313,7 +369,7 @@ const EnquiryList = () => {
                                   }}
                                 >
                                   <FileText className="h-4 w-4 mr-2" />
-                                  Export Breakdown
+                                  Export breakdown
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
@@ -323,17 +379,19 @@ const EnquiryList = () => {
                                   }}
                                 >
                                   <GitCompare className="h-4 w-4 mr-2" />
-                                  Compare Quotations
+                                  Compare quotations
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
-                            <Button 
-                              variant="ghost" 
+
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 navigate(`/npi/quotation-system/enquiry/${enquiry.id}`);
                               }}
+                              aria-label="Open enquiry"
                             >
                               <ChevronRight className="h-4 w-4" />
                             </Button>
