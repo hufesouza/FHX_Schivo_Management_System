@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw, AlertTriangle, Check, Pencil, X, CheckCircle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -112,6 +113,8 @@ const QuotationSystemNew = () => {
   const [subconVendorPopoverOpen, setSubconVendorPopoverOpen] = useState<number | null>(null);
   // Initialize with only non-development operations included (e.g., op_no 20 = Saw)
   const [setupIncludedOps, setSetupIncludedOps] = useState<Set<number>>(new Set([20]));
+  // Exclude subcon from margin calculation when subcon cost warning is triggered
+  const [excludeSubconFromMargin, setExcludeSubconFromMargin] = useState(false);
 
   const tabOrder = ['header', 'materials', 'subcon', 'routings', 'pricing'];
 
@@ -2330,8 +2333,17 @@ const QuotationSystemNew = () => {
                 }) && (
                   <Alert variant="destructive" className="mb-4">
                     <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      <strong>Warning:</strong> Subcon cost exceeds 40% of Setup + Routing cost. Please review your subcontracting costs.
+                    <AlertDescription className="flex items-center justify-between">
+                      <span>
+                        <strong>Warning:</strong> Subcon cost exceeds 40% of Setup + Routing cost. Please review your subcontracting costs.
+                      </span>
+                      <label className="flex items-center gap-2 ml-4 cursor-pointer">
+                        <Checkbox
+                          checked={excludeSubconFromMargin}
+                          onCheckedChange={(checked) => setExcludeSubconFromMargin(checked === true)}
+                        />
+                        <span className="text-sm font-medium whitespace-nowrap">Exclude subcon from margin</span>
+                      </label>
                     </AlertDescription>
                   </Alert>
                 )}
@@ -2396,9 +2408,23 @@ const QuotationSystemNew = () => {
                         const setupPerPart = totals.totalSetupCost / vol.quantity;
                         const routingPerPart = totals.totalRoutingCost;
                         const materialPerPart = totals.totalMaterialCost;
-                        const subconPerPart = totals.totalSubconCost;
+                        // When excluding subcon from margin, use raw subcon cost (without markup)
+                        const rawSubconPerPart = excludeSubconFromMargin 
+                          ? (totals.totalSubconCost / (1 + header.subcon_markup / 100))
+                          : totals.totalSubconCost;
+                        const subconPerPart = excludeSubconFromMargin ? rawSubconPerPart : totals.totalSubconCost;
                         const totalCostPerPart = setupPerPart + routingPerPart + materialPerPart + subconPerPart;
-                        const unitPriceEur = totalCostPerPart / (1 - vol.margin / 100);
+                        
+                        // Calculate unit price based on margin calculation method
+                        let unitPriceEur: number;
+                        if (excludeSubconFromMargin) {
+                          // Apply margin only to cost without subcon, then add raw subcon
+                          const costWithoutSubcon = setupPerPart + routingPerPart + materialPerPart;
+                          unitPriceEur = (costWithoutSubcon / (1 - vol.margin / 100)) + rawSubconPerPart;
+                        } else {
+                          unitPriceEur = totalCostPerPart / (1 - vol.margin / 100);
+                        }
+                        
                         const unitPriceConverted = unitPriceEur * exchangeRate;
                         // Calculate rate per hour: Price per Part × (60 / Minutes per Part)
                         const timePerPartMins = totals.totalRunTime;
@@ -2406,7 +2432,7 @@ const QuotationSystemNew = () => {
                         
                         // Check if subcon cost exceeds 40% of setup+routing cost
                         const setupPlusRouting = setupPerPart + routingPerPart;
-                        const subconExceedsThreshold = setupPlusRouting > 0 && subconPerPart > (setupPlusRouting * 0.4);
+                        const subconExceedsThreshold = setupPlusRouting > 0 && totals.totalSubconCost > (setupPlusRouting * 0.4);
 
                         return (
                           <TableRow key={idx} className={subconExceedsThreshold ? "bg-red-50" : ""}>
