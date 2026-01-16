@@ -2408,11 +2408,14 @@ const QuotationSystemNew = () => {
                         const setupPerPart = totals.totalSetupCost / vol.quantity;
                         const routingPerPart = totals.totalRoutingCost;
                         const materialPerPart = totals.totalMaterialCost;
+                        // Get quantity-specific subcon cost with markup
+                        const qtySubconCostRaw = getSubconCostForQuantity(vol.quantity);
+                        const qtySubconCostWithMarkup = qtySubconCostRaw * (1 + header.subcon_markup / 100);
                         // When excluding subcon from margin, use raw subcon cost (without markup)
                         const rawSubconPerPart = excludeSubconFromMargin 
-                          ? (totals.totalSubconCost / (1 + header.subcon_markup / 100))
-                          : totals.totalSubconCost;
-                        const subconPerPart = excludeSubconFromMargin ? rawSubconPerPart : totals.totalSubconCost;
+                          ? qtySubconCostRaw
+                          : qtySubconCostWithMarkup;
+                        const subconPerPart = rawSubconPerPart;
                         const totalCostPerPart = setupPerPart + routingPerPart + materialPerPart + subconPerPart;
                         
                         // Calculate unit price based on margin calculation method
@@ -2432,7 +2435,7 @@ const QuotationSystemNew = () => {
                         
                         // Check if subcon cost exceeds 40% of setup+routing cost
                         const setupPlusRouting = setupPerPart + routingPerPart;
-                        const subconExceedsThreshold = setupPlusRouting > 0 && totals.totalSubconCost > (setupPlusRouting * 0.4);
+                        const subconExceedsThreshold = setupPlusRouting > 0 && subconPerPart > (setupPlusRouting * 0.4);
 
                         return (
                           <TableRow key={idx} className={subconExceedsThreshold ? "bg-red-50" : ""}>
