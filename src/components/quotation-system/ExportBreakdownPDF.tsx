@@ -39,13 +39,14 @@ export function ExportBreakdownPDF({ enquiryId, open, onOpenChange }: ExportBrea
     const fetchQuotations = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
+        const result = await (supabase as any)
           .from('system_quotations')
           .select('*')
           .eq('enquiry_id', enquiryId)
           .order('created_at', { ascending: false });
         
-        if (error) throw error;
+        if (result.error) throw result.error;
+        const data = result.data as SystemQuotation[];
         setQuotations(data || []);
         if (data && data.length > 0) {
           setSelectedQuotationId(data[0].id);
@@ -67,16 +68,16 @@ export function ExportBreakdownPDF({ enquiryId, open, onOpenChange }: ExportBrea
     
     const fetchAllData = async () => {
       const [pricingRes, materialsRes, routingRes, subconsRes] = await Promise.all([
-        supabase.from('quotation_volume_pricing').select('*').eq('quotation_id', selectedQuotationId).order('quantity'),
-        supabase.from('quotation_materials').select('*').eq('quotation_id', selectedQuotationId).order('line_number'),
-        supabase.from('quotation_routing').select('*').eq('quotation_id', selectedQuotationId).order('op_no'),
-        supabase.from('quotation_subcons').select('*').eq('quotation_id', selectedQuotationId).order('line_number'),
+        supabase.from('quotation_volume_pricing').select('*').eq('quotation_id', selectedQuotationId).order('quantity') as unknown as { data: QuotationVolumePricing[] | null; error: Error | null },
+        supabase.from('quotation_materials').select('*').eq('quotation_id', selectedQuotationId).order('line_number') as unknown as { data: QuotationMaterial[] | null; error: Error | null },
+        (supabase as any).from('quotation_routing').select('*').eq('quotation_id', selectedQuotationId).order('op_no') as unknown as { data: QuotationRouting[] | null; error: Error | null },
+        (supabase as any).from('quotation_subcons').select('*').eq('quotation_id', selectedQuotationId).order('line_number') as unknown as { data: QuotationSubcon[] | null; error: Error | null },
       ]);
       
-      setVolumePricing((pricingRes.data || []) as QuotationVolumePricing[]);
-      setMaterials((materialsRes.data || []) as QuotationMaterial[]);
-      setRouting((routingRes.data || []) as QuotationRouting[]);
-      setSubcons((subconsRes.data || []) as QuotationSubcon[]);
+      setVolumePricing(pricingRes.data || []);
+      setMaterials(materialsRes.data || []);
+      setRouting(routingRes.data || []);
+      setSubcons(subconsRes.data || []);
     };
     
     fetchAllData();

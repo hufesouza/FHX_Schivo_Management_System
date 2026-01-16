@@ -46,13 +46,14 @@ export function SystemQuotationCompareDialog({ enquiryId, open, onOpenChange }: 
     const fetchQuotations = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
+        const result = await (supabase as any)
           .from('system_quotations')
           .select('*')
           .eq('enquiry_id', enquiryId)
           .order('created_at', { ascending: false });
         
-        if (error) throw error;
+        if (result.error) throw result.error;
+        const data = result.data as SystemQuotation[];
         setQuotations(data || []);
         if (data && data.length >= 2) {
           setLeftQuotationId(data[0].id);
@@ -79,17 +80,17 @@ export function SystemQuotationCompareDialog({ enquiryId, open, onOpenChange }: 
         return;
       }
       
-      const { data, error } = await supabase
+      const result = await (supabase as any)
         .from('quotation_volume_pricing')
         .select('*')
         .eq('quotation_id', quotationId)
         .order('quantity');
       
-      if (error) {
-        console.error('Error fetching volume pricing:', error);
+      if (result.error) {
+        console.error('Error fetching volume pricing:', result.error);
         return;
       }
-      setter(data || []);
+      setter((result.data || []) as QuotationVolumePricing[]);
     };
     
     fetchPricing(leftQuotationId, setLeftPricing);

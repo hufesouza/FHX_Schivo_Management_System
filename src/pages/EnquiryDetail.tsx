@@ -995,8 +995,9 @@ const EnquiryDetail = () => {
           <>
             <div className="flex justify-end gap-2">
               <SystemQuotationCompareDialog 
-                quotations={partQuotations} 
-                currentQuotation={partQuotations[0]}
+                enquiryId={id!}
+                open={false}
+                onOpenChange={() => {}}
               />
             </div>
             <EnquirySummary
