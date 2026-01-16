@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
@@ -12,17 +14,75 @@ import {
 } from '@/hooks/useQuotationSystem';
 import { format } from 'date-fns';
 import schivoLogo from '@/assets/schivo-logo-quotation.png';
+import { supabase } from '@/integrations/supabase/client';
 
-interface ExportBreakdownPDFProps {
-  quotation: SystemQuotation;
-  volumePricing: QuotationVolumePricing[];
-  materials: QuotationMaterial[];
-  routing: QuotationRouting[];
-  subcons: QuotationSubcon[];
+export interface ExportBreakdownPDFProps {
+  enquiryId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export function ExportBreakdownPDF({ quotation, volumePricing, materials, routing, subcons }: ExportBreakdownPDFProps) {
+export function ExportBreakdownPDF({ enquiryId, open, onOpenChange }: ExportBreakdownPDFProps) {
+  const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [quotations, setQuotations] = useState<SystemQuotation[]>([]);
+  const [selectedQuotationId, setSelectedQuotationId] = useState<string>('');
+  const [volumePricing, setVolumePricing] = useState<QuotationVolumePricing[]>([]);
+  const [materials, setMaterials] = useState<QuotationMaterial[]>([]);
+  const [routing, setRouting] = useState<QuotationRouting[]>([]);
+  const [subcons, setSubcons] = useState<QuotationSubcon[]>([]);
+
+  // Fetch quotations for this enquiry
+  useEffect(() => {
+    if (!open || !enquiryId) return;
+    
+    const fetchQuotations = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('system_quotations')
+          .select('*')
+          .eq('enquiry_id', enquiryId)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        setQuotations(data || []);
+        if (data && data.length > 0) {
+          setSelectedQuotationId(data[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching quotations:', error);
+        toast.error('Failed to load quotations');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchQuotations();
+  }, [enquiryId, open]);
+
+  // Fetch all data when quotation selected
+  useEffect(() => {
+    if (!selectedQuotationId) return;
+    
+    const fetchAllData = async () => {
+      const [pricingRes, materialsRes, routingRes, subconsRes] = await Promise.all([
+        supabase.from('quotation_volume_pricing').select('*').eq('quotation_id', selectedQuotationId).order('quantity'),
+        supabase.from('quotation_materials').select('*').eq('quotation_id', selectedQuotationId).order('line_number'),
+        supabase.from('quotation_routing').select('*').eq('quotation_id', selectedQuotationId).order('op_no'),
+        supabase.from('quotation_subcons').select('*').eq('quotation_id', selectedQuotationId).order('line_number'),
+      ]);
+      
+      setVolumePricing((pricingRes.data || []) as QuotationVolumePricing[]);
+      setMaterials((materialsRes.data || []) as QuotationMaterial[]);
+      setRouting((routingRes.data || []) as QuotationRouting[]);
+      setSubcons((subconsRes.data || []) as QuotationSubcon[]);
+    };
+    
+    fetchAllData();
+  }, [selectedQuotationId]);
+
+  const selectedQuotation = quotations.find(q => q.id === selectedQuotationId);
 
   const formatCurrency = (value: number | null | undefined): string => {
     if (value === null || value === undefined) return '-';
@@ -30,6 +90,11 @@ export function ExportBreakdownPDF({ quotation, volumePricing, materials, routin
   };
 
   const generatePDF = async () => {
+    if (!selectedQuotation) {
+      toast.error('No quotation selected');
+      return;
+    }
+    
     setExporting(true);
     
     try {
@@ -74,15 +139,15 @@ export function ExportBreakdownPDF({ quotation, volumePricing, materials, routin
       
       // Quotation details
       page.drawText('Enquiry No:', { x: margin, y, size: 9, font: helveticaBold, color: schivoOrange });
-      page.drawText(quotation.enquiry_no, { x: margin + 70, y, size: 9, font: helvetica, color: black });
+      page.drawText(selectedQuotation.enquiry_no, { x: margin + 70, y, size: 9, font: helvetica, color: black });
       page.drawText('Customer:', { x: margin + 200, y, size: 9, font: helveticaBold, color: schivoOrange });
-      page.drawText(quotation.customer, { x: margin + 260, y, size: 9, font: helvetica, color: black });
+      page.drawText(selectedQuotation.customer, { x: margin + 260, y, size: 9, font: helvetica, color: black });
       y -= 14;
       
       page.drawText('Part Number:', { x: margin, y, size: 9, font: helveticaBold, color: schivoOrange });
-      page.drawText(quotation.part_number || 'N/A', { x: margin + 70, y, size: 9, font: helvetica, color: black });
+      page.drawText(selectedQuotation.part_number || 'N/A', { x: margin + 70, y, size: 9, font: helvetica, color: black });
       page.drawText('Description:', { x: margin + 200, y, size: 9, font: helveticaBold, color: schivoOrange });
-      page.drawText((quotation.description || 'N/A').substring(0, 40), { x: margin + 260, y, size: 9, font: helvetica, color: black });
+      page.drawText((selectedQuotation.description || 'N/A').substring(0, 40), { x: margin + 260, y, size: 9, font: helvetica, color: black });
       y -= 25;
       
       // Materials Section
@@ -90,7 +155,6 @@ export function ExportBreakdownPDF({ quotation, volumePricing, materials, routin
       y -= 15;
       
       if (materials.length > 0) {
-        // Material table header
         const matColWidths = [150, 100, 60, 80, 80, 80];
         const matHeaders = ['Description', 'Vendor', 'Qty/Unit', 'Unit Cost', 'Total', 'Category'];
         let xPos = margin;
@@ -274,13 +338,14 @@ export function ExportBreakdownPDF({ quotation, volumePricing, materials, routin
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${quotation.enquiry_no}_${quotation.part_number || 'Part'}_Breakdown_${format(new Date(), 'yyyyMMdd')}.pdf`;
+      link.download = `${selectedQuotation.enquiry_no}_${selectedQuotation.part_number || 'Part'}_Breakdown_${format(new Date(), 'yyyyMMdd')}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
       toast.success('Breakdown PDF exported successfully');
+      onOpenChange(false);
     } catch (error) {
       console.error('Error exporting PDF:', error);
       toast.error('Failed to export PDF');
@@ -290,18 +355,64 @@ export function ExportBreakdownPDF({ quotation, volumePricing, materials, routin
   };
 
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={generatePDF}
-      disabled={exporting}
-    >
-      {exporting ? (
-        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-      ) : (
-        <Table2 className="h-4 w-4 mr-2" />
-      )}
-      Export Breakdown
-    </Button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Export Cost Breakdown</DialogTitle>
+          <DialogDescription>
+            Select a quotation to export cost breakdown
+          </DialogDescription>
+        </DialogHeader>
+        
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : quotations.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No quotations found for this enquiry
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Select Quotation</label>
+              <Select value={selectedQuotationId} onValueChange={setSelectedQuotationId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select quotation" />
+                </SelectTrigger>
+                <SelectContent>
+                  {quotations.map(q => (
+                    <SelectItem key={q.id} value={q.id}>
+                      {q.part_number || 'N/A'} - {q.description?.substring(0, 30) || 'No description'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {selectedQuotation && (
+              <div className="text-sm text-muted-foreground space-y-1 p-3 bg-muted rounded-md">
+                <p><strong>Customer:</strong> {selectedQuotation.customer}</p>
+                <p><strong>Part:</strong> {selectedQuotation.part_number || 'N/A'}</p>
+                <p><strong>Materials:</strong> {materials.length} | <strong>Routing:</strong> {routing.length} | <strong>Subcons:</strong> {subcons.length}</p>
+              </div>
+            )}
+            
+            <Button 
+              className="w-full"
+              onClick={generatePDF}
+              disabled={exporting || !selectedQuotation}
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Table2 className="h-4 w-4 mr-2" />
+              )}
+              Export Breakdown
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

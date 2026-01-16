@@ -27,8 +27,15 @@ import {
   Trophy,
   TrendingDown,
   ChevronRight,
-  Check
+  Check,
+  MoreHorizontal,
+  Download,
+  GitCompare
 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { ExportSystemQuotationPDF } from '@/components/quotation-system/ExportSystemQuotationPDF';
+import { ExportBreakdownPDF } from '@/components/quotation-system/ExportBreakdownPDF';
+import { SystemQuotationCompareDialog } from '@/components/quotation-system/SystemQuotationCompareDialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useQuotationEnquiries, EnquiryStatus } from '@/hooks/useQuotationEnquiries';
 import { useAuth } from '@/hooks/useAuth';
@@ -75,6 +82,12 @@ const EnquiryList = () => {
   const [customerSearchOpen, setCustomerSearchOpen] = useState(false);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  
+  // Export/Compare state
+  const [selectedEnquiryForExport, setSelectedEnquiryForExport] = useState<string | null>(null);
+  const [exportQuotationOpen, setExportQuotationOpen] = useState(false);
+  const [exportBreakdownOpen, setExportBreakdownOpen] = useState(false);
+  const [compareDialogOpen, setCompareDialogOpen] = useState(false);
 
   const fetchCustomers = async (search: string) => {
     if (search.length < 2) {
@@ -265,21 +278,66 @@ const EnquiryList = () => {
                         </TableCell>
                         <TableCell>{getStatusBadge(enquiry.status)}</TableCell>
                         <TableCell className="text-right">
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                variant="ghost" 
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/npi/quotation-system/enquiry/${enquiry.id}`);
-                                }}
-                              >
-                                <ChevronRight className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>View Details</TooltipContent>
-                          </Tooltip>
+                          <div className="flex items-center justify-end gap-1">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <MoreHorizontal className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenuItem
+                                  onClick={() => navigate(`/npi/quotation-system/enquiry/${enquiry.id}`)}
+                                >
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedEnquiryForExport(enquiry.id);
+                                    setExportQuotationOpen(true);
+                                  }}
+                                >
+                                  <Download className="h-4 w-4 mr-2" />
+                                  Export Quotation
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedEnquiryForExport(enquiry.id);
+                                    setExportBreakdownOpen(true);
+                                  }}
+                                >
+                                  <FileText className="h-4 w-4 mr-2" />
+                                  Export Breakdown
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedEnquiryForExport(enquiry.id);
+                                    setCompareDialogOpen(true);
+                                  }}
+                                >
+                                  <GitCompare className="h-4 w-4 mr-2" />
+                                  Compare Quotations
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/npi/quotation-system/enquiry/${enquiry.id}`);
+                              }}
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -437,6 +495,42 @@ const EnquiryList = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Export Quotation Dialog */}
+        {selectedEnquiryForExport && (
+          <ExportSystemQuotationPDF
+            enquiryId={selectedEnquiryForExport}
+            open={exportQuotationOpen}
+            onOpenChange={(open) => {
+              setExportQuotationOpen(open);
+              if (!open) setSelectedEnquiryForExport(null);
+            }}
+          />
+        )}
+
+        {/* Export Breakdown Dialog */}
+        {selectedEnquiryForExport && (
+          <ExportBreakdownPDF
+            enquiryId={selectedEnquiryForExport}
+            open={exportBreakdownOpen}
+            onOpenChange={(open) => {
+              setExportBreakdownOpen(open);
+              if (!open) setSelectedEnquiryForExport(null);
+            }}
+          />
+        )}
+
+        {/* Compare Quotations Dialog */}
+        {selectedEnquiryForExport && (
+          <SystemQuotationCompareDialog
+            enquiryId={selectedEnquiryForExport}
+            open={compareDialogOpen}
+            onOpenChange={(open) => {
+              setCompareDialogOpen(open);
+              if (!open) setSelectedEnquiryForExport(null);
+            }}
+          />
+        )}
       </div>
     </AppLayout>
   );

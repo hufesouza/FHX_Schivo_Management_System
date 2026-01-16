@@ -1,16 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileDown, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { SystemQuotation, QuotationVolumePricing } from '@/hooks/useQuotationSystem';
 import { format } from 'date-fns';
 import schivoLogo from '@/assets/schivo-logo-quotation.png';
+import { supabase } from '@/integrations/supabase/client';
 
-interface ExportSystemQuotationPDFProps {
-  quotation: SystemQuotation;
-  volumePricing: QuotationVolumePricing[];
-  variant?: 'default' | 'outline';
+export interface ExportSystemQuotationPDFProps {
+  enquiryId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 // Default notes and conditions matching WD-FRM-0040
@@ -34,8 +37,64 @@ export const DEFAULT_CONDITIONS = {
   paymentTerms: '30 Days end of month',
 };
 
-export function ExportSystemQuotationPDF({ quotation, volumePricing, variant = 'outline' }: ExportSystemQuotationPDFProps) {
+export function ExportSystemQuotationPDF({ enquiryId, open, onOpenChange }: ExportSystemQuotationPDFProps) {
+  const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [quotations, setQuotations] = useState<SystemQuotation[]>([]);
+  const [selectedQuotationId, setSelectedQuotationId] = useState<string>('');
+  const [volumePricing, setVolumePricing] = useState<QuotationVolumePricing[]>([]);
+
+  // Fetch quotations for this enquiry
+  useEffect(() => {
+    if (!open || !enquiryId) return;
+    
+    const fetchQuotations = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('system_quotations')
+          .select('*')
+          .eq('enquiry_id', enquiryId)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        setQuotations(data || []);
+        if (data && data.length > 0) {
+          setSelectedQuotationId(data[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching quotations:', error);
+        toast.error('Failed to load quotations');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchQuotations();
+  }, [enquiryId, open]);
+
+  // Fetch volume pricing when quotation selected
+  useEffect(() => {
+    if (!selectedQuotationId) return;
+    
+    const fetchPricing = async () => {
+      const { data, error } = await supabase
+        .from('quotation_volume_pricing')
+        .select('*')
+        .eq('quotation_id', selectedQuotationId)
+        .order('quantity');
+      
+      if (error) {
+        console.error('Error fetching pricing:', error);
+        return;
+      }
+      setVolumePricing(data || []);
+    };
+    
+    fetchPricing();
+  }, [selectedQuotationId]);
+
+  const selectedQuotation = quotations.find(q => q.id === selectedQuotationId);
 
   const formatCurrency = (value: number | null | undefined, currency: string = 'EUR'): string => {
     if (value === null || value === undefined) return '-';
@@ -44,6 +103,11 @@ export function ExportSystemQuotationPDF({ quotation, volumePricing, variant = '
   };
 
   const generatePDF = async () => {
+    if (!selectedQuotation || volumePricing.length === 0) {
+      toast.error('No quotation data to export');
+      return;
+    }
+    
     setExporting(true);
     
     try {
@@ -110,31 +174,31 @@ export function ExportSystemQuotationPDF({ quotation, volumePricing, variant = '
       // To/From section
       y -= 30;
       page.drawText('To:', { x: margin, y: y, size: 9, font: helveticaBold, color: schivoOrange });
-      page.drawText(quotation.customer, { x: margin + 60, y: y, size: 9, font: helvetica, color: black });
+      page.drawText(selectedQuotation.customer, { x: margin + 60, y: y, size: 9, font: helvetica, color: black });
       page.drawText('From:', { x: width / 2, y: y, size: 9, font: helveticaBold, color: schivoOrange });
       page.drawText('Schivo Medical', { x: width / 2 + 60, y: y, size: 9, font: helvetica, color: black });
       
       y -= 14;
       page.drawText('Company:', { x: margin, y: y, size: 9, font: helveticaBold, color: schivoOrange });
-      page.drawText(quotation.customer, { x: margin + 60, y: y, size: 9, font: helvetica, color: black });
+      page.drawText(selectedQuotation.customer, { x: margin + 60, y: y, size: 9, font: helvetica, color: black });
       page.drawText('Date:', { x: width / 2, y: y, size: 9, font: helveticaBold, color: schivoOrange });
-      page.drawText(format(new Date(quotation.created_at), 'dd-MMM-yy'), { x: width / 2 + 60, y: y, size: 9, font: helvetica, color: black });
+      page.drawText(format(new Date(selectedQuotation.created_at), 'dd-MMM-yy'), { x: width / 2 + 60, y: y, size: 9, font: helvetica, color: black });
       
       y -= 14;
       page.drawText('Schivo Ref:', { x: margin, y: y, size: 9, font: helveticaBold, color: schivoOrange });
-      page.drawText(quotation.enquiry_no, { x: margin + 60, y: y, size: 9, font: helvetica, color: black });
+      page.drawText(selectedQuotation.enquiry_no, { x: margin + 60, y: y, size: 9, font: helvetica, color: black });
       page.drawText('Part Number:', { x: width / 2, y: y, size: 9, font: helveticaBold, color: schivoOrange });
-      page.drawText(quotation.part_number || 'N/A', { x: width / 2 + 60, y: y, size: 9, font: helvetica, color: black });
+      page.drawText(selectedQuotation.part_number || 'N/A', { x: width / 2 + 60, y: y, size: 9, font: helvetica, color: black });
       
       // Part Details
       y -= 20;
       page.drawText('Part Description:', { x: margin, y: y, size: 9, font: helveticaBold, color: schivoOrange });
-      page.drawText(quotation.description || 'N/A', { x: margin + 100, y: y, size: 9, font: helvetica, color: black });
+      page.drawText(selectedQuotation.description || 'N/A', { x: margin + 100, y: y, size: 9, font: helvetica, color: black });
       
       // Table
       y -= 30;
       const tableWidth = width - 2 * margin;
-      const colWidths = [50, 80, 80, 80, 80, 70]; // Qty, Unit Price, Cost/Unit, Total, Margin
+      const colWidths = [50, 80, 80, 80, 80, 70];
       
       // Table Header with orange background
       const headerHeight = 22;
@@ -284,13 +348,14 @@ export function ExportSystemQuotationPDF({ quotation, volumePricing, variant = '
       
       const link = document.createElement('a');
       link.href = url;
-      link.download = `${quotation.enquiry_no.replace(/\s+/g, '_')}_${quotation.part_number || 'Quotation'}.pdf`;
+      link.download = `${selectedQuotation.enquiry_no.replace(/\s+/g, '_')}_${selectedQuotation.part_number || 'Quotation'}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
       toast.success('PDF exported successfully');
+      onOpenChange(false);
     } catch (error) {
       console.error('PDF generation error:', error);
       toast.error('Failed to generate PDF: ' + (error as Error).message);
@@ -300,18 +365,64 @@ export function ExportSystemQuotationPDF({ quotation, volumePricing, variant = '
   };
 
   return (
-    <Button 
-      variant={variant}
-      size="sm" 
-      onClick={generatePDF}
-      disabled={exporting || volumePricing.length === 0}
-    >
-      {exporting ? (
-        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-      ) : (
-        <FileDown className="h-4 w-4 mr-2" />
-      )}
-      Export PDF
-    </Button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
+        <DialogHeader>
+          <DialogTitle>Export Quotation PDF</DialogTitle>
+          <DialogDescription>
+            Select a quotation to export as PDF
+          </DialogDescription>
+        </DialogHeader>
+        
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : quotations.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No quotations found for this enquiry
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Select Quotation</label>
+              <Select value={selectedQuotationId} onValueChange={setSelectedQuotationId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select quotation" />
+                </SelectTrigger>
+                <SelectContent>
+                  {quotations.map(q => (
+                    <SelectItem key={q.id} value={q.id}>
+                      {q.part_number || 'N/A'} - {q.description?.substring(0, 30) || 'No description'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {selectedQuotation && (
+              <div className="text-sm text-muted-foreground space-y-1 p-3 bg-muted rounded-md">
+                <p><strong>Customer:</strong> {selectedQuotation.customer}</p>
+                <p><strong>Part:</strong> {selectedQuotation.part_number || 'N/A'}</p>
+                <p><strong>Pricing Tiers:</strong> {volumePricing.length}</p>
+              </div>
+            )}
+            
+            <Button 
+              className="w-full"
+              onClick={generatePDF}
+              disabled={exporting || volumePricing.length === 0}
+            >
+              {exporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <FileDown className="h-4 w-4 mr-2" />
+              )}
+              Export PDF
+            </Button>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
