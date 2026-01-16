@@ -384,7 +384,7 @@ export function ExportSystemQuotationPDF({ enquiryNo, open, onOpenChange }: Expo
     }
   };
 
-  // Generate PDF with ALL quotations in the enquiry - consolidated in one document
+  // Generate PDF with ALL quotations in the enquiry - consolidated in one document (Portrait format)
   const generateAllPDF = async () => {
     if (quotations.length === 0) {
       toast.error('No quotations to export');
@@ -399,8 +399,8 @@ export function ExportSystemQuotationPDF({ enquiryNo, open, onOpenChange }: Expo
       const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
       
       const margin = 40;
-      const pageWidth = 842; // A4 Landscape for more columns
-      const pageHeight = 595;
+      const pageWidth = 595; // A4 Portrait
+      const pageHeight = 842;
       
       const schivoOrange = rgb(0.82, 0.50, 0.12);
       const schivoGray = rgb(0.392, 0.431, 0.412);
@@ -435,73 +435,83 @@ export function ExportSystemQuotationPDF({ enquiryNo, open, onOpenChange }: Expo
       
       // Logo
       if (logoImage) {
-        const logoDims = logoImage.scale(0.25);
+        const logoDims = logoImage.scale(0.3);
         page.drawImage(logoImage, {
           x: margin,
           y: y - logoDims.height,
           width: logoDims.width,
           height: logoDims.height,
         });
-        y -= logoDims.height + 5;
+        y -= logoDims.height + 10;
       } else {
-        page.drawText('Schivo', { x: margin, y: y - 20, size: 20, font: helveticaBold, color: schivoGray });
-        y -= 25;
+        page.drawText('Schivo', { x: margin, y: y - 20, size: 24, font: helveticaBold, color: schivoGray });
+        y -= 30;
       }
       
       // Header
       page.drawText('WD-FRM-0040', { x: pageWidth - margin - 80, y: pageHeight - margin, size: 8, font: helvetica, color: black });
       page.drawText('Version: 0', { x: pageWidth - margin - 80, y: pageHeight - margin - 10, size: 8, font: helvetica, color: black });
       
-      y -= 5;
-      page.drawText('SCHIVO Medical Limited, Unit 1-4, IDA Industrial Park, Cork Road, Waterford.', { x: margin, y: y, size: 8, font: helvetica, color: schivoGray });
+      // Company Address
+      y -= 10;
+      page.drawText('SCHIVO Medical Limited, Unit 1-4, IDA Industrial Park, Cork Road, Waterford.', { x: margin, y: y, size: 9, font: helvetica, color: schivoGray });
       
-      y -= 12;
-      page.drawRectangle({ x: margin, y: y, width: pageWidth - 2 * margin, height: 2, color: schivoOrange });
+      // Orange accent line
+      y -= 15;
+      page.drawRectangle({ x: margin, y: y, width: pageWidth - 2 * margin, height: 3, color: schivoOrange });
       
-      y -= 20;
-      page.drawText('Sales Quotation', { x: margin, y: y, size: 16, font: helveticaBold, color: schivoOrange });
+      // Title
+      y -= 25;
+      page.drawText('Sales Quotation', { x: margin, y: y, size: 18, font: helveticaBold, color: schivoOrange });
       page.drawText('Tel: +353 (0)51 372010', { x: pageWidth - margin - 120, y: y, size: 9, font: helvetica, color: black });
       
-      y -= 20;
+      // To/From section
+      y -= 30;
       page.drawText('To:', { x: margin, y: y, size: 9, font: helveticaBold, color: schivoOrange });
-      page.drawText(customer, { x: margin + 50, y: y, size: 9, font: helvetica, color: black });
-      page.drawText('From:', { x: 300, y: y, size: 9, font: helveticaBold, color: schivoOrange });
-      page.drawText('Schivo Medical', { x: 350, y: y, size: 9, font: helvetica, color: black });
-      page.drawText('Date:', { x: 500, y: y, size: 9, font: helveticaBold, color: schivoOrange });
-      page.drawText(format(new Date(), 'dd-MMM-yy'), { x: 540, y: y, size: 9, font: helvetica, color: black });
+      page.drawText(customer, { x: margin + 60, y: y, size: 9, font: helvetica, color: black });
+      page.drawText('From:', { x: pageWidth / 2, y: y, size: 9, font: helveticaBold, color: schivoOrange });
+      page.drawText('Schivo Medical', { x: pageWidth / 2 + 60, y: y, size: 9, font: helvetica, color: black });
       
       y -= 14;
       page.drawText('Schivo Ref:', { x: margin, y: y, size: 9, font: helveticaBold, color: schivoOrange });
       page.drawText(enquiry, { x: margin + 60, y: y, size: 9, font: helvetica, color: black });
-      page.drawText('Parts Quoted:', { x: 300, y: y, size: 9, font: helveticaBold, color: schivoOrange });
-      page.drawText(String(quotations.length), { x: 380, y: y, size: 9, font: helvetica, color: black });
+      page.drawText('Date:', { x: pageWidth / 2, y: y, size: 9, font: helveticaBold, color: schivoOrange });
+      page.drawText(format(new Date(), 'dd-MMM-yy'), { x: pageWidth / 2 + 60, y: y, size: 9, font: helvetica, color: black });
+      
+      y -= 14;
+      page.drawText('Parts Quoted:', { x: margin, y: y, size: 9, font: helveticaBold, color: schivoOrange });
+      page.drawText(String(quotations.length), { x: margin + 80, y: y, size: 9, font: helvetica, color: black });
       
       // Table header - Part Number, Description, then quantities
-      y -= 25;
+      y -= 30;
       const tableWidth = pageWidth - 2 * margin;
       const partNumWidth = 90;
-      const descWidth = 120;
-      const qtyColWidth = Math.min(70, (tableWidth - partNumWidth - descWidth) / Math.max(quantities.length, 1));
+      const descWidth = 130;
+      const qtyColWidth = Math.min(80, (tableWidth - partNumWidth - descWidth) / Math.max(quantities.length, 1));
       
-      const headerHeight = 20;
+      const headerHeight = 22;
       page.drawRectangle({ x: margin, y: y - headerHeight, width: tableWidth, height: headerHeight, color: schivoOrange });
       
-      let xPos = margin + 3;
-      page.drawText('Part Number', { x: xPos, y: y - 14, size: 7, font: helveticaBold, color: rgb(1, 1, 1) });
+      let xPos = margin + 5;
+      page.drawText('Part Number', { x: xPos, y: y - 15, size: 8, font: helveticaBold, color: rgb(1, 1, 1) });
       xPos += partNumWidth;
-      page.drawText('Description', { x: xPos, y: y - 14, size: 7, font: helveticaBold, color: rgb(1, 1, 1) });
+      page.drawText('Description', { x: xPos, y: y - 15, size: 8, font: helveticaBold, color: rgb(1, 1, 1) });
       xPos += descWidth;
       
       // Quantity headers
       quantities.forEach(qty => {
         const qtyText = `Qty ${qty.toLocaleString()}`;
-        page.drawText(qtyText, { x: xPos, y: y - 14, size: 6, font: helveticaBold, color: rgb(1, 1, 1) });
+        page.drawText(qtyText, { x: xPos, y: y - 15, size: 7, font: helveticaBold, color: rgb(1, 1, 1) });
         xPos += qtyColWidth;
       });
       
       y -= headerHeight;
-      const rowHeight = 14;
+      const rowHeight = 16;
       let rowIndex = 0;
+      
+      // Calculate totals for each quantity
+      const totals: Record<number, number> = {};
+      quantities.forEach(qty => { totals[qty] = 0; });
       
       // Add a row for each quotation (part)
       for (const quotation of quotations) {
@@ -509,7 +519,7 @@ export function ExportSystemQuotationPDF({ enquiryNo, open, onOpenChange }: Expo
         if (pricing.length === 0) continue;
         
         // Check if we need a new page
-        if (y < margin + 60) {
+        if (y < margin + 80) {
           // Add footer to current page
           page.drawRectangle({ x: margin, y: margin + 10, width: pageWidth - 2 * margin, height: 2, color: schivoOrange });
           page.drawText('WD-TMP-0003c', { x: margin, y: margin, size: 7, font: helvetica, color: schivoGray });
@@ -525,13 +535,13 @@ export function ExportSystemQuotationPDF({ enquiryNo, open, onOpenChange }: Expo
           
           // Redraw table header
           page.drawRectangle({ x: margin, y: y - headerHeight, width: tableWidth, height: headerHeight, color: schivoOrange });
-          xPos = margin + 3;
-          page.drawText('Part Number', { x: xPos, y: y - 14, size: 7, font: helveticaBold, color: rgb(1, 1, 1) });
+          xPos = margin + 5;
+          page.drawText('Part Number', { x: xPos, y: y - 15, size: 8, font: helveticaBold, color: rgb(1, 1, 1) });
           xPos += partNumWidth;
-          page.drawText('Description', { x: xPos, y: y - 14, size: 7, font: helveticaBold, color: rgb(1, 1, 1) });
+          page.drawText('Description', { x: xPos, y: y - 15, size: 8, font: helveticaBold, color: rgb(1, 1, 1) });
           xPos += descWidth;
           quantities.forEach(qty => {
-            page.drawText(`Qty ${qty.toLocaleString()}`, { x: xPos, y: y - 14, size: 6, font: helveticaBold, color: rgb(1, 1, 1) });
+            page.drawText(`Qty ${qty.toLocaleString()}`, { x: xPos, y: y - 15, size: 7, font: helveticaBold, color: rgb(1, 1, 1) });
             xPos += qtyColWidth;
           });
           y -= headerHeight;
@@ -544,32 +554,54 @@ export function ExportSystemQuotationPDF({ enquiryNo, open, onOpenChange }: Expo
           page.drawRectangle({ x: margin, y: y, width: tableWidth, height: rowHeight, color: lightGray });
         }
         
-        xPos = margin + 3;
+        xPos = margin + 5;
         
         // Part Number
-        const partNum = (quotation.part_number || 'N/A').substring(0, 14);
-        page.drawText(partNum, { x: xPos, y: y + 3, size: 7, font: helveticaBold, color: black });
+        const partNum = (quotation.part_number || 'N/A').substring(0, 12);
+        page.drawText(partNum, { x: xPos, y: y + 4, size: 8, font: helvetica, color: black });
         xPos += partNumWidth;
         
         // Description (truncated)
-        const desc = (quotation.description || '').substring(0, 20);
-        page.drawText(desc, { x: xPos, y: y + 3, size: 6, font: helvetica, color: black });
+        const desc = (quotation.description || '').substring(0, 18);
+        page.drawText(desc, { x: xPos, y: y + 4, size: 7, font: helvetica, color: black });
         xPos += descWidth;
         
         // Prices for each quantity
         quantities.forEach(qty => {
           const vp = pricing.find(p => p.quantity === qty);
-          const priceText = vp?.unit_price_quoted ? formatCurrency(vp.unit_price_quoted) : '-';
-          page.drawText(priceText, { x: xPos, y: y + 3, size: 6, font: helvetica, color: black });
+          if (vp?.unit_price_quoted) {
+            const price = vp.unit_price_quoted;
+            // Add to totals (price * quantity for total value at this qty)
+            totals[qty] += price * qty;
+            const priceText = formatCurrency(price);
+            page.drawText(priceText, { x: xPos, y: y + 4, size: 7, font: helvetica, color: black });
+          } else {
+            page.drawText('-', { x: xPos, y: y + 4, size: 7, font: helvetica, color: black });
+          }
           xPos += qtyColWidth;
         });
         
         rowIndex++;
       }
       
+      // Add totals row
+      y -= rowHeight + 4;
+      page.drawRectangle({ x: margin, y: y, width: tableWidth, height: rowHeight + 2, color: schivoOrange });
+      
+      xPos = margin + 5;
+      page.drawText('TOTAL VALUE:', { x: xPos, y: y + 4, size: 8, font: helveticaBold, color: rgb(1, 1, 1) });
+      xPos += partNumWidth + descWidth;
+      
+      quantities.forEach(qty => {
+        const totalText = formatCurrency(totals[qty]);
+        page.drawText(totalText, { x: xPos, y: y + 4, size: 7, font: helveticaBold, color: rgb(1, 1, 1) });
+        xPos += qtyColWidth;
+      });
+      
       // Footer on last quotation page
       page.drawRectangle({ x: margin, y: margin + 10, width: pageWidth - 2 * margin, height: 2, color: schivoOrange });
       page.drawText('WD-TMP-0003c', { x: margin, y: margin, size: 7, font: helvetica, color: schivoGray });
+      page.drawText('1 of 2', { x: pageWidth - margin - 30, y: margin, size: 7, font: helvetica, color: schivoGray });
       
       // Notes page
       const notesPage = pdfDoc.addPage([595, 842]); // Portrait for notes
@@ -628,6 +660,7 @@ export function ExportSystemQuotationPDF({ enquiryNo, open, onOpenChange }: Expo
       
       notesPage.drawRectangle({ x: margin, y: margin + 10, width: 595 - 2 * margin, height: 2, color: schivoOrange });
       notesPage.drawText('WD-TMP-0003c', { x: margin, y: margin, size: 7, font: helvetica, color: schivoGray });
+      notesPage.drawText('2 of 2', { x: 595 - margin - 30, y: margin, size: 7, font: helvetica, color: schivoGray });
       
       // Save and download
       const pdfBytes = await pdfDoc.save();
