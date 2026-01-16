@@ -25,12 +25,21 @@ export interface ExportBreakdownPDFProps {
 export function ExportBreakdownPDF({ enquiryNo, open, onOpenChange }: ExportBreakdownPDFProps) {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingAll, setExportingAll] = useState(false);
   const [quotations, setQuotations] = useState<SystemQuotation[]>([]);
   const [selectedQuotationId, setSelectedQuotationId] = useState<string>('');
   const [volumePricing, setVolumePricing] = useState<QuotationVolumePricing[]>([]);
   const [materials, setMaterials] = useState<QuotationMaterial[]>([]);
   const [routing, setRouting] = useState<QuotationRouting[]>([]);
   const [subcons, setSubcons] = useState<QuotationSubcon[]>([]);
+  
+  // All data for all quotations
+  const [allQuotationData, setAllQuotationData] = useState<Record<string, {
+    volumePricing: QuotationVolumePricing[];
+    materials: QuotationMaterial[];
+    routing: QuotationRouting[];
+    subcons: QuotationSubcon[];
+  }>>({});
 
   // Fetch quotations for this enquiry
   useEffect(() => {
@@ -50,6 +59,32 @@ export function ExportBreakdownPDF({ enquiryNo, open, onOpenChange }: ExportBrea
         setQuotations(data || []);
         if (data && data.length > 0) {
           setSelectedQuotationId(data[0].id);
+          
+          // Fetch all data for all quotations
+          const allDataPromises = data.map(async (q) => {
+            const [pricingRes, materialsRes, routingRes, subconsRes] = await Promise.all([
+              supabase.from('quotation_volume_pricing').select('*').eq('quotation_id', q.id).order('quantity') as unknown as { data: QuotationVolumePricing[] | null; error: Error | null },
+              supabase.from('quotation_materials').select('*').eq('quotation_id', q.id).order('line_number') as unknown as { data: QuotationMaterial[] | null; error: Error | null },
+              (supabase as any).from('quotation_routing').select('*').eq('quotation_id', q.id).order('op_no') as unknown as { data: QuotationRouting[] | null; error: Error | null },
+              (supabase as any).from('quotation_subcons').select('*').eq('quotation_id', q.id).order('line_number') as unknown as { data: QuotationSubcon[] | null; error: Error | null },
+            ]);
+            return {
+              id: q.id,
+              data: {
+                volumePricing: pricingRes.data || [],
+                materials: materialsRes.data || [],
+                routing: routingRes.data || [],
+                subcons: subconsRes.data || [],
+              }
+            };
+          });
+          
+          const allDataResults = await Promise.all(allDataPromises);
+          const dataMap: typeof allQuotationData = {};
+          allDataResults.forEach(({ id, data: qData }) => {
+            dataMap[id] = qData;
+          });
+          setAllQuotationData(dataMap);
         }
       } catch (error) {
         console.error('Error fetching quotations:', error);
@@ -355,13 +390,269 @@ export function ExportBreakdownPDF({ enquiryNo, open, onOpenChange }: ExportBrea
     }
   };
 
+  // Generate consolidated PDF with all quotations
+  const generateAllPDF = async () => {
+    if (quotations.length === 0) {
+      toast.error('No quotations to export');
+      return;
+    }
+    
+    setExportingAll(true);
+    
+    try {
+      const pdfDoc = await PDFDocument.create();
+      const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+      
+      const pageWidth = 595; // A4 Portrait
+      const pageHeight = 842;
+      const margin = 40;
+      
+      const black = rgb(0, 0, 0);
+      const gray = rgb(0.4, 0.4, 0.4);
+      const lightGray = rgb(0.95, 0.95, 0.95);
+      const schivoOrange = rgb(0.82, 0.50, 0.12);
+      const schivoGray = rgb(0.392, 0.431, 0.412);
+      
+      // Embed logo once
+      let logoImage: any = null;
+      try {
+        const logoResponse = await fetch(schivoLogo);
+        const logoBytes = await logoResponse.arrayBuffer();
+        logoImage = await pdfDoc.embedPng(logoBytes);
+      } catch (logoError) {
+        console.warn('Could not embed logo:', logoError);
+      }
+      
+      const customer = quotations[0]?.customer || 'Customer';
+      const enquiry = quotations[0]?.enquiry_no || enquiryNo;
+      
+      let pageNum = 1;
+      
+      // Create one section per quotation
+      for (let qIdx = 0; qIdx < quotations.length; qIdx++) {
+        const quotation = quotations[qIdx];
+        const qData = allQuotationData[quotation.id] || { volumePricing: [], materials: [], routing: [], subcons: [] };
+        
+        let page = pdfDoc.addPage([pageWidth, pageHeight]);
+        let y = pageHeight - margin;
+        
+        // Logo
+        if (logoImage) {
+          const logoDims = logoImage.scale(0.25);
+          page.drawImage(logoImage, {
+            x: margin,
+            y: y - logoDims.height,
+            width: logoDims.width,
+            height: logoDims.height,
+          });
+          y -= logoDims.height + 5;
+        }
+        
+        // Header
+        page.drawText('WD-FRM-0040', { x: pageWidth - margin - 80, y: pageHeight - margin, size: 8, font: helvetica, color: black });
+        page.drawText(`Part ${qIdx + 1} of ${quotations.length}`, { x: pageWidth - margin - 80, y: pageHeight - margin - 10, size: 8, font: helvetica, color: gray });
+        
+        y -= 5;
+        page.drawText('SCHIVO Medical Limited, Unit 1-4, IDA Industrial Park, Cork Road, Waterford.', { x: margin, y: y, size: 8, font: helvetica, color: schivoGray });
+        
+        y -= 12;
+        page.drawRectangle({ x: margin, y: y, width: pageWidth - 2 * margin, height: 2, color: schivoOrange });
+        
+        y -= 20;
+        page.drawText('Cost Breakdown Report', { x: margin, y: y, size: 16, font: helveticaBold, color: schivoOrange });
+        page.drawText(`Generated: ${format(new Date(), 'dd-MMM-yyyy')}`, { x: pageWidth - margin - 120, y: y, size: 9, font: helvetica, color: gray });
+        
+        y -= 25;
+        page.drawText('Enquiry:', { x: margin, y: y, size: 9, font: helveticaBold, color: schivoOrange });
+        page.drawText(enquiry, { x: margin + 50, y: y, size: 9, font: helvetica, color: black });
+        page.drawText('Customer:', { x: pageWidth / 2, y: y, size: 9, font: helveticaBold, color: schivoOrange });
+        page.drawText(customer, { x: pageWidth / 2 + 60, y: y, size: 9, font: helvetica, color: black });
+        
+        y -= 14;
+        page.drawText('Part No:', { x: margin, y: y, size: 9, font: helveticaBold, color: schivoOrange });
+        page.drawText(quotation.part_number || 'N/A', { x: margin + 50, y: y, size: 9, font: helvetica, color: black });
+        
+        y -= 14;
+        page.drawText('Description:', { x: margin, y: y, size: 9, font: helveticaBold, color: schivoOrange });
+        page.drawText((quotation.description || 'N/A').substring(0, 50), { x: margin + 70, y: y, size: 9, font: helvetica, color: black });
+        
+        y -= 25;
+        
+        // Volume Pricing Summary Table
+        page.drawText('Volume Pricing Summary', { x: margin, y: y, size: 11, font: helveticaBold, color: schivoOrange });
+        y -= 15;
+        
+        if (qData.volumePricing.length > 0) {
+          const vpColWidths = [50, 70, 70, 70, 70, 70, 50];
+          const vpHeaders = ['Qty', 'Labour', 'Material', 'Subcon', 'Cost/Unit', 'Unit Price', 'Margin'];
+          let xPos = margin;
+          
+          page.drawRectangle({ x: margin, y: y - 14, width: pageWidth - 2 * margin, height: 16, color: schivoOrange });
+          vpHeaders.forEach((header, i) => {
+            page.drawText(header, { x: xPos + 2, y: y - 10, size: 7, font: helveticaBold, color: rgb(1, 1, 1) });
+            xPos += vpColWidths[i];
+          });
+          y -= 16;
+          
+          qData.volumePricing.forEach((vp, idx) => {
+            y -= 14;
+            
+            if (idx % 2 === 0) {
+              page.drawRectangle({ x: margin, y: y, width: pageWidth - 2 * margin, height: 14, color: lightGray });
+            }
+            
+            xPos = margin;
+            page.drawText(String(vp.quantity || 0), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += vpColWidths[0];
+            page.drawText(formatCurrency(vp.labour_cost), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += vpColWidths[1];
+            page.drawText(formatCurrency(vp.material_cost), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += vpColWidths[2];
+            page.drawText(formatCurrency(vp.subcon_cost), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += vpColWidths[3];
+            page.drawText(formatCurrency(vp.cost_per_unit), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += vpColWidths[4];
+            page.drawText(formatCurrency(vp.unit_price_quoted), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += vpColWidths[5];
+            page.drawText(`${(vp.margin || 0).toFixed(1)}%`, { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+          });
+        } else {
+          page.drawText('No pricing data', { x: margin, y: y, size: 8, font: helvetica, color: gray });
+          y -= 14;
+        }
+        
+        y -= 25;
+        
+        // Materials Section
+        if (qData.materials.length > 0) {
+          page.drawText('Materials', { x: margin, y: y, size: 11, font: helveticaBold, color: schivoOrange });
+          y -= 15;
+          
+          const matColWidths = [140, 80, 50, 70, 70, 70];
+          const matHeaders = ['Description', 'Vendor', 'Qty', 'Unit Cost', 'Total', 'Category'];
+          let xPos = margin;
+          
+          page.drawRectangle({ x: margin, y: y - 14, width: pageWidth - 2 * margin, height: 16, color: schivoOrange });
+          matHeaders.forEach((header, i) => {
+            page.drawText(header, { x: xPos + 2, y: y - 10, size: 7, font: helveticaBold, color: rgb(1, 1, 1) });
+            xPos += matColWidths[i];
+          });
+          y -= 16;
+          
+          qData.materials.forEach((mat, idx) => {
+            if (y < margin + 60) {
+              // Add footer and new page
+              page.drawRectangle({ x: margin, y: margin, width: pageWidth - 2 * margin, height: 2, color: schivoOrange });
+              page.drawText('CONFIDENTIAL - Internal Use Only', { x: margin, y: margin - 12, size: 7, font: helvetica, color: schivoGray });
+              page.drawText(`Page ${pageNum}`, { x: pageWidth - margin - 40, y: margin - 12, size: 7, font: helvetica, color: schivoGray });
+              pageNum++;
+              
+              page = pdfDoc.addPage([pageWidth, pageHeight]);
+              y = pageHeight - margin;
+              page.drawText(`${quotation.part_number || 'Part'} - Materials (continued)`, { x: margin, y: y, size: 11, font: helveticaBold, color: schivoOrange });
+              y -= 20;
+            }
+            
+            y -= 14;
+            if (idx % 2 === 0) {
+              page.drawRectangle({ x: margin, y: y, width: pageWidth - 2 * margin, height: 14, color: lightGray });
+            }
+            
+            xPos = margin;
+            page.drawText((mat.material_description || '-').substring(0, 22), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += matColWidths[0];
+            page.drawText((mat.vendor_name || '-').substring(0, 12), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += matColWidths[1];
+            page.drawText(String(mat.qty_per_unit || 0), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += matColWidths[2];
+            page.drawText(formatCurrency(mat.std_cost_est), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += matColWidths[3];
+            page.drawText(formatCurrency(mat.total_material), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += matColWidths[4];
+            page.drawText((mat.mat_category || '-').substring(0, 10), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+          });
+          
+          y -= 20;
+        }
+        
+        // Routing Section
+        if (qData.routing.length > 0 && y > margin + 100) {
+          page.drawText('Routing', { x: margin, y: y, size: 11, font: helveticaBold, color: schivoOrange });
+          y -= 15;
+          
+          const routeColWidths = [35, 70, 140, 50, 50, 50, 60];
+          const routeHeaders = ['Op', 'Resource', 'Operation', 'Setup', 'Run', 'Subcon', 'Cost'];
+          let xPos = margin;
+          
+          page.drawRectangle({ x: margin, y: y - 14, width: pageWidth - 2 * margin, height: 16, color: schivoOrange });
+          routeHeaders.forEach((header, i) => {
+            page.drawText(header, { x: xPos + 2, y: y - 10, size: 7, font: helveticaBold, color: rgb(1, 1, 1) });
+            xPos += routeColWidths[i];
+          });
+          y -= 16;
+          
+          qData.routing.forEach((route, idx) => {
+            if (y < margin + 40) return; // Skip if not enough space
+            
+            y -= 14;
+            if (idx % 2 === 0) {
+              page.drawRectangle({ x: margin, y: y, width: pageWidth - 2 * margin, height: 14, color: lightGray });
+            }
+            
+            xPos = margin;
+            page.drawText(String(route.op_no), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += routeColWidths[0];
+            page.drawText((route.resource_no || '-').substring(0, 10), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += routeColWidths[1];
+            page.drawText((route.operation_details || '-').substring(0, 22), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += routeColWidths[2];
+            page.drawText(`${route.setup_time || 0}m`, { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += routeColWidths[3];
+            page.drawText(`${route.run_time || 0}m`, { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += routeColWidths[4];
+            page.drawText(`${route.subcon_processing_time || 0}m`, { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+            xPos += routeColWidths[5];
+            page.drawText(formatCurrency(route.cost), { x: xPos + 2, y: y + 3, size: 7, font: helvetica, color: black });
+          });
+        }
+        
+        // Footer
+        page.drawRectangle({ x: margin, y: margin, width: pageWidth - 2 * margin, height: 2, color: schivoOrange });
+        page.drawText('CONFIDENTIAL - Internal Use Only', { x: margin, y: margin - 12, size: 7, font: helvetica, color: schivoGray });
+        page.drawText(`Page ${pageNum}`, { x: pageWidth - margin - 40, y: margin - 12, size: 7, font: helvetica, color: schivoGray });
+        pageNum++;
+      }
+      
+      // Download PDF
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([pdfBytes as BlobPart], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${enquiryNo.replace(/\s+/g, '_')}_All_Breakdowns_${format(new Date(), 'yyyyMMdd')}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast.success(`Exported breakdowns for ${quotations.length} parts`);
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast.error('Failed to export PDF');
+    } finally {
+      setExportingAll(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Export Cost Breakdown</DialogTitle>
           <DialogDescription>
-            Select a quotation to export cost breakdown
+            Export breakdown for a single part or all parts in this enquiry
           </DialogDescription>
         </DialogHeader>
         
@@ -375,6 +666,34 @@ export function ExportBreakdownPDF({ enquiryNo, open, onOpenChange }: ExportBrea
           </div>
         ) : (
           <div className="space-y-4">
+            {/* Export All Button */}
+            {quotations.length > 1 && (
+              <Button 
+                className="w-full"
+                variant="default"
+                onClick={generateAllPDF}
+                disabled={exportingAll}
+              >
+                {exportingAll ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Table2 className="h-4 w-4 mr-2" />
+                )}
+                Export All Breakdowns ({quotations.length} parts)
+              </Button>
+            )}
+            
+            {quotations.length > 1 && (
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or export single part</span>
+                </div>
+              </div>
+            )}
+            
             <div className="space-y-2">
               <label className="text-sm font-medium">Select Quotation</label>
               <Select value={selectedQuotationId} onValueChange={setSelectedQuotationId}>
@@ -401,6 +720,7 @@ export function ExportBreakdownPDF({ enquiryNo, open, onOpenChange }: ExportBrea
             
             <Button 
               className="w-full"
+              variant="outline"
               onClick={generatePDF}
               disabled={exporting || !selectedQuotation}
             >
@@ -409,7 +729,7 @@ export function ExportBreakdownPDF({ enquiryNo, open, onOpenChange }: ExportBrea
               ) : (
                 <Table2 className="h-4 w-4 mr-2" />
               )}
-              Export Breakdown
+              Export Single Breakdown
             </Button>
           </div>
         )}
