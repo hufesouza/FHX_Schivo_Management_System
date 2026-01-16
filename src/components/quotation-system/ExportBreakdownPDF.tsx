@@ -327,7 +327,7 @@ export function ExportBreakdownPDF({ enquiryNo, open, onOpenChange }: ExportBrea
       y -= 15;
       
       const vpColWidths = [60, 80, 80, 80, 80, 80, 60];
-      const vpHeaders = ['Qty', 'Labour', 'Material', 'Subcon', 'Total Cost', 'Unit Price', 'Margin'];
+      const vpHeaders = ['Qty', 'Routing', 'Material', 'Subcon', 'Total Cost', 'Unit Price', 'Margin'];
       let xPos = margin;
       
       page.drawRectangle({ x: margin, y: y - 12, width: 520, height: 14, color: schivoOrange });
@@ -485,7 +485,7 @@ export function ExportBreakdownPDF({ enquiryNo, open, onOpenChange }: ExportBrea
         
         if (qData.volumePricing.length > 0) {
           const vpColWidths = [50, 70, 70, 70, 70, 70, 50];
-          const vpHeaders = ['Qty', 'Labour', 'Material', 'Subcon', 'Cost/Unit', 'Unit Price', 'Margin'];
+          const vpHeaders = ['Qty', 'Routing', 'Material', 'Subcon', 'Cost/Unit', 'Unit Price', 'Margin'];
           let xPos = margin;
           
           page.drawRectangle({ x: margin, y: y - 14, width: pageWidth - 2 * margin, height: 16, color: schivoOrange });
