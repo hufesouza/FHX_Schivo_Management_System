@@ -1196,11 +1196,20 @@ const EnquiryDetail = () => {
           <div className="p-4 overflow-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
             {previewDrawing && (
               previewDrawing.url.toLowerCase().endsWith('.pdf') ? (
-                <iframe 
-                  src={previewDrawing.url} 
-                  className="w-full h-[70vh] border rounded-lg"
-                  title="Drawing Preview"
-                />
+                <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                  <FileText className="h-16 w-16 text-muted-foreground" />
+                  <p className="text-lg font-medium">PDF Document</p>
+                  <p className="text-sm text-muted-foreground text-center max-w-md">
+                    {previewDrawing.fileName}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    PDF preview is not available in-app. Click below to view the document.
+                  </p>
+                  <Button onClick={() => window.open(previewDrawing.url, '_blank')}>
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Open PDF
+                  </Button>
+                </div>
               ) : (
                 <img 
                   src={previewDrawing.url} 
