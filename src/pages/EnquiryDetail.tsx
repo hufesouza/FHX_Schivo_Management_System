@@ -48,6 +48,7 @@ import { EnquirySummary } from '@/components/quotation-control/EnquirySummary';
 import { SubmitForReviewDialog } from '@/components/quotation-control/SubmitForReviewDialog';
 import { ReviewApprovalDialog } from '@/components/quotation-control/ReviewApprovalDialog';
 import { SystemQuotationCompareDialog } from '@/components/quotation-system/SystemQuotationCompareDialog';
+import { DrawingPreviewDialog } from '@/components/drawings/DrawingPreviewDialog';
 
 const statusConfig: Record<EnquiryStatus, { label: string; icon: React.ElementType; color: string }> = {
   open: { label: 'Open', icon: FileText, color: 'bg-slate-500' },
@@ -1182,54 +1183,12 @@ const EnquiryDetail = () => {
       </div>
 
       {/* Drawing Preview Dialog */}
-      <Dialog open={!!previewDrawing} onOpenChange={(open) => !open && setPreviewDrawing(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
-          <DialogHeader className="p-4 pb-0">
-            <DialogTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              {previewDrawing?.fileName}
-            </DialogTitle>
-            <DialogDescription>
-              Drawing preview
-            </DialogDescription>
-          </DialogHeader>
-          <div className="p-4 overflow-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
-            {previewDrawing && (
-              previewDrawing.url.toLowerCase().endsWith('.pdf') ? (
-                <div className="flex flex-col items-center justify-center py-12 space-y-4">
-                  <FileText className="h-16 w-16 text-muted-foreground" />
-                  <p className="text-lg font-medium">PDF Document</p>
-                  <p className="text-sm text-muted-foreground text-center max-w-md">
-                    {previewDrawing.fileName}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    PDF preview is not available in-app. Click below to view the document.
-                  </p>
-                  <Button onClick={() => window.open(previewDrawing.url, '_blank')}>
-                    <ExternalLink className="h-4 w-4 mr-2" />
-                    Open PDF
-                  </Button>
-                </div>
-              ) : (
-                <img 
-                  src={previewDrawing.url} 
-                  alt="Drawing Preview" 
-                  className="w-full h-auto rounded-lg border"
-                />
-              )
-            )}
-          </div>
-          <div className="p-4 pt-0 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => window.open(previewDrawing?.url, '_blank')}>
-              <ExternalLink className="h-4 w-4 mr-2" />
-              Open in New Tab
-            </Button>
-            <Button variant="secondary" onClick={() => setPreviewDrawing(null)}>
-              Close
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <DrawingPreviewDialog
+        open={!!previewDrawing}
+        url={previewDrawing?.url ?? null}
+        fileName={previewDrawing?.fileName}
+        onOpenChange={(open) => !open && setPreviewDrawing(null)}
+      />
     </AppLayout>
   );
 };
