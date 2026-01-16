@@ -993,13 +993,6 @@ const EnquiryDetail = () => {
         {/* Quotation Summary - Show when all parts are quoted */}
         {allPartsQuoted && (
           <>
-            <div className="flex justify-end gap-2">
-              <SystemQuotationCompareDialog 
-                enquiryId={id!}
-                open={false}
-                onOpenChange={() => {}}
-              />
-            </div>
             <EnquirySummary
               enquiryNo={enquiry.enquiry_no}
               customerName={enquiry.customer_name}

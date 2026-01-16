@@ -11,7 +11,7 @@ import schivoLogo from '@/assets/schivo-logo-quotation.png';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface ExportSystemQuotationPDFProps {
-  enquiryId: string;
+  enquiryNo: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -37,7 +37,7 @@ export const DEFAULT_CONDITIONS = {
   paymentTerms: '30 Days end of month',
 };
 
-export function ExportSystemQuotationPDF({ enquiryId, open, onOpenChange }: ExportSystemQuotationPDFProps) {
+export function ExportSystemQuotationPDF({ enquiryNo, open, onOpenChange }: ExportSystemQuotationPDFProps) {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [quotations, setQuotations] = useState<SystemQuotation[]>([]);
@@ -46,17 +46,17 @@ export function ExportSystemQuotationPDF({ enquiryId, open, onOpenChange }: Expo
 
   // Fetch quotations for this enquiry
   useEffect(() => {
-    if (!open || !enquiryId) return;
-    
+    if (!open || !enquiryNo) return;
+
     const fetchQuotations = async () => {
       setLoading(true);
       try {
         const result = await (supabase as any)
           .from('system_quotations')
           .select('*')
-          .eq('enquiry_id', enquiryId)
+          .eq('enquiry_no', enquiryNo)
           .order('created_at', { ascending: false });
-        
+
         if (result.error) throw result.error;
         const data = result.data as SystemQuotation[];
         setQuotations(data || []);
@@ -70,9 +70,9 @@ export function ExportSystemQuotationPDF({ enquiryId, open, onOpenChange }: Expo
         setLoading(false);
       }
     };
-    
+
     fetchQuotations();
-  }, [enquiryId, open]);
+  }, [enquiryNo, open]);
 
   // Fetch volume pricing when quotation selected
   useEffect(() => {

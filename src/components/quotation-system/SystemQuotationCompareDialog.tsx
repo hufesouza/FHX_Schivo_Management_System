@@ -13,7 +13,7 @@ import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface SystemQuotationCompareDialogProps {
-  enquiryId: string;
+  enquiryNo: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }

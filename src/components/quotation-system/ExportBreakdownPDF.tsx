@@ -17,12 +17,12 @@ import schivoLogo from '@/assets/schivo-logo-quotation.png';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface ExportBreakdownPDFProps {
-  enquiryId: string;
+  enquiryNo: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function ExportBreakdownPDF({ enquiryId, open, onOpenChange }: ExportBreakdownPDFProps) {
+export function ExportBreakdownPDF({ enquiryNo, open, onOpenChange }: ExportBreakdownPDFProps) {
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [quotations, setQuotations] = useState<SystemQuotation[]>([]);
@@ -34,17 +34,17 @@ export function ExportBreakdownPDF({ enquiryId, open, onOpenChange }: ExportBrea
 
   // Fetch quotations for this enquiry
   useEffect(() => {
-    if (!open || !enquiryId) return;
-    
+    if (!open || !enquiryNo) return;
+
     const fetchQuotations = async () => {
       setLoading(true);
       try {
         const result = await (supabase as any)
           .from('system_quotations')
           .select('*')
-          .eq('enquiry_id', enquiryId)
+          .eq('enquiry_no', enquiryNo)
           .order('created_at', { ascending: false });
-        
+
         if (result.error) throw result.error;
         const data = result.data as SystemQuotation[];
         setQuotations(data || []);
@@ -58,9 +58,9 @@ export function ExportBreakdownPDF({ enquiryId, open, onOpenChange }: ExportBrea
         setLoading(false);
       }
     };
-    
+
     fetchQuotations();
-  }, [enquiryId, open]);
+  }, [enquiryNo, open]);
 
   // Fetch all data when quotation selected
   useEffect(() => {
