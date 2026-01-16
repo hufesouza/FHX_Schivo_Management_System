@@ -2316,7 +2316,7 @@ const QuotationSystemNew = () => {
                 <Alert className="bg-muted/50 border-primary/20 mb-4">
                   <Info className="h-4 w-4 text-primary" />
                   <AlertDescription className="text-sm text-muted-foreground">
-                    <strong>Formula:</strong> Total Cost = Labour + Materials + Subcon. <strong>Unit Price</strong> = Cost per Unit ÷ (1 - Margin%). 
+                    <strong>All values shown per part.</strong> Unit Price = Cost/Part ÷ (1 - Margin%). 
                     {currency !== 'EUR' && <span className="ml-2"><strong>Currency:</strong> {currency} (1 EUR = {exchangeRate.toFixed(4)} {currency})</span>}
                   </AlertDescription>
                 </Alert>
@@ -2329,37 +2329,31 @@ const QuotationSystemNew = () => {
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
                           onClick={() => setExplainerOpen('setupCost')}
                         >
-                          <span className="underline decoration-dotted">Setup (€)</span>
+                          <span className="underline decoration-dotted">Setup/Part (€)</span>
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
                           onClick={() => setExplainerOpen('routingCost')}
                         >
-                          <span className="underline decoration-dotted">Routing (€)</span>
+                          <span className="underline decoration-dotted">Routing/Part (€)</span>
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
                           onClick={() => setExplainerOpen('material')}
                         >
-                          <span className="underline decoration-dotted">Material (€)</span>
+                          <span className="underline decoration-dotted">Material/Part (€)</span>
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
                           onClick={() => setExplainerOpen('subcon')}
                         >
-                          <span className="underline decoration-dotted">Subcon (€)</span>
-                        </TableHead>
-                        <TableHead 
-                          className="text-right cursor-pointer hover:bg-muted transition-colors"
-                          onClick={() => setExplainerOpen('totalCost')}
-                        >
-                          <span className="underline decoration-dotted">Total Cost (€)</span>
+                          <span className="underline decoration-dotted">Subcon/Part (€)</span>
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
                           onClick={() => setExplainerOpen('costPerPart')}
                         >
-                          <span className="underline decoration-dotted">Cost/Part (€)</span>
+                          <span className="underline decoration-dotted">Total Cost/Part (€)</span>
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
@@ -2383,29 +2377,28 @@ const QuotationSystemNew = () => {
                     </TableHeader>
                     <TableBody>
                       {volumes.map((vol, idx) => {
-                        const setupCost = totals.totalSetupCost;
-                        const routingCost = totals.totalRoutingCost * vol.quantity;
-                        const materialCost = totals.totalMaterialCost * vol.quantity;
-                        const subconCost = totals.totalSubconCost * vol.quantity;
-                        const totalCost = setupCost + routingCost + materialCost + subconCost;
-                        const unitPriceEur = totalCost / vol.quantity / (1 - vol.margin / 100);
+                        // Calculate per-part values
+                        const setupPerPart = totals.totalSetupCost / vol.quantity;
+                        const routingPerPart = totals.totalRoutingCost;
+                        const materialPerPart = totals.totalMaterialCost;
+                        const subconPerPart = totals.totalSubconCost;
+                        const totalCostPerPart = setupPerPart + routingPerPart + materialPerPart + subconPerPart;
+                        const unitPriceEur = totalCostPerPart / (1 - vol.margin / 100);
                         const unitPriceConverted = unitPriceEur * exchangeRate;
                         // Calculate rate per hour: Price per Part × (60 / Minutes per Part)
-                        // Minutes per Part (for this metric) = Total Run Time
                         const timePerPartMins = totals.totalRunTime;
                         const ratePerHour = timePerPartMins > 0 ? unitPriceEur * (60 / timePerPartMins) : 0;
 
                         return (
                           <TableRow key={idx}>
                             <TableCell className="font-medium">{vol.quantity}</TableCell>
-                            <TableCell className="text-right">€{setupCost.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">€{routingCost.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">€{materialCost.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">€{subconCost.toFixed(2)}</TableCell>
-                            <TableCell className="text-right font-medium">€{totalCost.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">€{(totalCost / vol.quantity).toFixed(2)}</TableCell>
+                            <TableCell className="text-right">€{setupPerPart.toFixed(4)}</TableCell>
+                            <TableCell className="text-right">€{routingPerPart.toFixed(4)}</TableCell>
+                            <TableCell className="text-right">€{materialPerPart.toFixed(4)}</TableCell>
+                            <TableCell className="text-right">€{subconPerPart.toFixed(4)}</TableCell>
+                            <TableCell className="text-right font-medium">€{totalCostPerPart.toFixed(4)}</TableCell>
                             <TableCell className="text-right">
-                              <Badge className="bg-primary">{currencySymbols[currency]}{unitPriceConverted.toFixed(2)}</Badge>
+                              <Badge className="bg-primary">{currencySymbols[currency]}{unitPriceConverted.toFixed(4)}</Badge>
                             </TableCell>
                             <TableCell className="text-right">
                               <Badge variant="outline" className="border-green-500 text-green-600">€{ratePerHour.toFixed(2)}</Badge>
