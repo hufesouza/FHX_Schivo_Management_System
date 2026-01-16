@@ -30,7 +30,7 @@ interface ComparisonRow {
   rightMargin: number;
 }
 
-export function SystemQuotationCompareDialog({ enquiryId, open, onOpenChange }: SystemQuotationCompareDialogProps) {
+export function SystemQuotationCompareDialog({ enquiryNo, open, onOpenChange }: SystemQuotationCompareDialogProps) {
   const [loading, setLoading] = useState(false);
   const [quotations, setQuotations] = useState<SystemQuotation[]>([]);
   const [leftQuotationId, setLeftQuotationId] = useState<string>('');
@@ -41,7 +41,7 @@ export function SystemQuotationCompareDialog({ enquiryId, open, onOpenChange }: 
 
   // Fetch quotations for this enquiry
   useEffect(() => {
-    if (!open || !enquiryId) return;
+    if (!open || !enquiryNo) return;
     
     const fetchQuotations = async () => {
       setLoading(true);
@@ -49,7 +49,7 @@ export function SystemQuotationCompareDialog({ enquiryId, open, onOpenChange }: 
         const result = await (supabase as any)
           .from('system_quotations')
           .select('*')
-          .eq('enquiry_id', enquiryId)
+          .eq('enquiry_no', enquiryNo)
           .order('created_at', { ascending: false });
         
         if (result.error) throw result.error;
@@ -70,7 +70,7 @@ export function SystemQuotationCompareDialog({ enquiryId, open, onOpenChange }: 
     };
     
     fetchQuotations();
-  }, [enquiryId, open]);
+  }, [enquiryNo, open]);
 
   // Fetch volume pricing when quotation selected
   useEffect(() => {
