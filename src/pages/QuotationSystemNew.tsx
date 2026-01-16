@@ -2320,6 +2320,21 @@ const QuotationSystemNew = () => {
                     {currency !== 'EUR' && <span className="ml-2"><strong>Currency:</strong> {currency} (1 EUR = {exchangeRate.toFixed(4)} {currency})</span>}
                   </AlertDescription>
                 </Alert>
+                {/* Warning for high subcon costs */}
+                {volumes.some(vol => {
+                  const setupPerPart = totals.totalSetupCost / vol.quantity;
+                  const routingPerPart = totals.totalRoutingCost;
+                  const subconPerPart = totals.totalSubconCost;
+                  const setupPlusRouting = setupPerPart + routingPerPart;
+                  return setupPlusRouting > 0 && subconPerPart > (setupPlusRouting * 0.4);
+                }) && (
+                  <Alert variant="destructive" className="mb-4">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Warning:</strong> Subcon cost exceeds 40% of Setup + Routing cost. Please review your subcontracting costs.
+                    </AlertDescription>
+                  </Alert>
+                )}
                 <div className="border rounded-lg overflow-auto">
                   <Table>
                     <TableHeader>
@@ -2388,14 +2403,21 @@ const QuotationSystemNew = () => {
                         // Calculate rate per hour: Price per Part × (60 / Minutes per Part)
                         const timePerPartMins = totals.totalRunTime;
                         const ratePerHour = timePerPartMins > 0 ? unitPriceEur * (60 / timePerPartMins) : 0;
+                        
+                        // Check if subcon cost exceeds 40% of setup+routing cost
+                        const setupPlusRouting = setupPerPart + routingPerPart;
+                        const subconExceedsThreshold = setupPlusRouting > 0 && subconPerPart > (setupPlusRouting * 0.4);
 
                         return (
-                          <TableRow key={idx}>
+                          <TableRow key={idx} className={subconExceedsThreshold ? "bg-red-50" : ""}>
                             <TableCell className="font-medium">{vol.quantity}</TableCell>
                             <TableCell className="text-right">€{setupPerPart.toFixed(2)}</TableCell>
                             <TableCell className="text-right">€{routingPerPart.toFixed(2)}</TableCell>
                             <TableCell className="text-right">€{materialPerPart.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">€{subconPerPart.toFixed(2)}</TableCell>
+                            <TableCell className={`text-right ${subconExceedsThreshold ? "text-red-600 font-bold" : ""}`}>
+                              €{subconPerPart.toFixed(2)}
+                              {subconExceedsThreshold && <AlertTriangle className="inline-block ml-1 h-4 w-4 text-red-600" />}
+                            </TableCell>
                             <TableCell className="text-right font-medium">€{totalCostPerPart.toFixed(2)}</TableCell>
                             <TableCell className="text-right">
                               <Badge className="bg-primary">{currencySymbols[currency]}{unitPriceConverted.toFixed(2)}</Badge>
