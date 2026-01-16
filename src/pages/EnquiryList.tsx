@@ -286,7 +286,7 @@ const EnquiryList = () => {
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setSelectedEnquiryForExport(enquiry.id);
+                                      setSelectedEnquiryForExport(enquiry.enquiry_no);
                                       setExportQuotationOpen(true);
                                     }}
                                     aria-label="Export quotation"
@@ -304,7 +304,7 @@ const EnquiryList = () => {
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setSelectedEnquiryForExport(enquiry.id);
+                                      setSelectedEnquiryForExport(enquiry.enquiry_no);
                                       setExportBreakdownOpen(true);
                                     }}
                                     aria-label="Export breakdown"
@@ -322,7 +322,7 @@ const EnquiryList = () => {
                                     size="sm"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      setSelectedEnquiryForExport(enquiry.id);
+                                      setSelectedEnquiryForExport(enquiry.enquiry_no);
                                       setCompareDialogOpen(true);
                                     }}
                                     aria-label="Compare quotations"
@@ -355,7 +355,7 @@ const EnquiryList = () => {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   onClick={() => {
-                                    setSelectedEnquiryForExport(enquiry.id);
+                                    setSelectedEnquiryForExport(enquiry.enquiry_no);
                                     setExportQuotationOpen(true);
                                   }}
                                 >
@@ -364,7 +364,7 @@ const EnquiryList = () => {
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   onClick={() => {
-                                    setSelectedEnquiryForExport(enquiry.id);
+                                    setSelectedEnquiryForExport(enquiry.enquiry_no);
                                     setExportBreakdownOpen(true);
                                   }}
                                 >
@@ -374,7 +374,7 @@ const EnquiryList = () => {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   onClick={() => {
-                                    setSelectedEnquiryForExport(enquiry.id);
+                                    setSelectedEnquiryForExport(enquiry.enquiry_no);
                                     setCompareDialogOpen(true);
                                   }}
                                 >
