@@ -118,6 +118,9 @@ const EnquiryDetail = () => {
   
   // Review task for current user
   const [reviewTask, setReviewTask] = useState<{ id: string } | null>(null);
+  
+  // Drawing preview
+  const [previewDrawing, setPreviewDrawing] = useState<{ url: string; fileName: string } | null>(null);
 
   // Get quotations for this enquiry's parts
   const partQuotations = useMemo(() => {
@@ -885,10 +888,18 @@ const EnquiryDetail = () => {
                           <TableCell>
                             {part.drawing_url ? (
                               <div className="flex items-center gap-2">
-                                <Badge variant="outline" className="text-xs">
-                                  <FileText className="h-3 w-3 mr-1" />
-                                  {part.drawing_file_name?.slice(0, 15)}...
-                                </Badge>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="h-7 text-xs"
+                                  onClick={() => setPreviewDrawing({ 
+                                    url: part.drawing_url!, 
+                                    fileName: part.drawing_file_name || 'Drawing' 
+                                  })}
+                                >
+                                  <Eye className="h-3 w-3 mr-1" />
+                                  {part.drawing_file_name?.slice(0, 12)}...
+                                </Button>
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button 
@@ -900,7 +911,7 @@ const EnquiryDetail = () => {
                                       <ExternalLink className="h-3 w-3" />
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent>View Drawing</TooltipContent>
+                                  <TooltipContent>Open in new tab</TooltipContent>
                                 </Tooltip>
                               </div>
                             ) : (
@@ -1169,6 +1180,47 @@ const EnquiryDetail = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Drawing Preview Dialog */}
+      <Dialog open={!!previewDrawing} onOpenChange={(open) => !open && setPreviewDrawing(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] p-0">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              {previewDrawing?.fileName}
+            </DialogTitle>
+            <DialogDescription>
+              Drawing preview
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-4 overflow-auto" style={{ maxHeight: 'calc(90vh - 120px)' }}>
+            {previewDrawing && (
+              previewDrawing.url.toLowerCase().endsWith('.pdf') ? (
+                <iframe 
+                  src={previewDrawing.url} 
+                  className="w-full h-[70vh] border rounded-lg"
+                  title="Drawing Preview"
+                />
+              ) : (
+                <img 
+                  src={previewDrawing.url} 
+                  alt="Drawing Preview" 
+                  className="w-full h-auto rounded-lg border"
+                />
+              )
+            )}
+          </div>
+          <div className="p-4 pt-0 flex justify-end gap-2">
+            <Button variant="outline" onClick={() => window.open(previewDrawing?.url, '_blank')}>
+              <ExternalLink className="h-4 w-4 mr-2" />
+              Open in New Tab
+            </Button>
+            <Button variant="secondary" onClick={() => setPreviewDrawing(null)}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };
