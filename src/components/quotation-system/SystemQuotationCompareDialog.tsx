@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -12,9 +12,10 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 
-interface SystemQuotationCompareDialogProps {
-  quotations: SystemQuotation[];
-  currentQuotation?: SystemQuotation;
+export interface SystemQuotationCompareDialogProps {
+  enquiryId: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
 interface ComparisonRow {
@@ -29,13 +30,46 @@ interface ComparisonRow {
   rightMargin: number;
 }
 
-export function SystemQuotationCompareDialog({ quotations, currentQuotation }: SystemQuotationCompareDialogProps) {
-  const [open, setOpen] = useState(false);
+export function SystemQuotationCompareDialog({ enquiryId, open, onOpenChange }: SystemQuotationCompareDialogProps) {
+  const [loading, setLoading] = useState(false);
+  const [quotations, setQuotations] = useState<SystemQuotation[]>([]);
   const [leftQuotationId, setLeftQuotationId] = useState<string>('');
   const [rightQuotationId, setRightQuotationId] = useState<string>('');
   const [exporting, setExporting] = useState(false);
   const [leftPricing, setLeftPricing] = useState<QuotationVolumePricing[]>([]);
   const [rightPricing, setRightPricing] = useState<QuotationVolumePricing[]>([]);
+
+  // Fetch quotations for this enquiry
+  useEffect(() => {
+    if (!open || !enquiryId) return;
+    
+    const fetchQuotations = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from('system_quotations')
+          .select('*')
+          .eq('enquiry_id', enquiryId)
+          .order('created_at', { ascending: false });
+        
+        if (error) throw error;
+        setQuotations(data || []);
+        if (data && data.length >= 2) {
+          setLeftQuotationId(data[0].id);
+          setRightQuotationId(data[1].id);
+        } else if (data && data.length === 1) {
+          setLeftQuotationId(data[0].id);
+        }
+      } catch (error) {
+        console.error('Error fetching quotations:', error);
+        toast.error('Failed to load quotations');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchQuotations();
+  }, [enquiryId, open]);
 
   // Fetch volume pricing when quotation selected
   useEffect(() => {
@@ -61,23 +95,6 @@ export function SystemQuotationCompareDialog({ quotations, currentQuotation }: S
     fetchPricing(leftQuotationId, setLeftPricing);
     fetchPricing(rightQuotationId, setRightPricing);
   }, [leftQuotationId, rightQuotationId]);
-
-  // Auto-select related quotations when dialog opens
-  useEffect(() => {
-    if (currentQuotation && open && quotations.length >= 2) {
-      // Try to find quotations for same part with different enquiry numbers
-      const samePartQuotations = quotations.filter(q => 
-        q.part_number === currentQuotation.part_number
-      );
-      
-      if (samePartQuotations.length >= 2) {
-        setLeftQuotationId(samePartQuotations[0].id);
-        setRightQuotationId(samePartQuotations[1].id);
-      } else {
-        setLeftQuotationId(currentQuotation.id);
-      }
-    }
-  }, [currentQuotation, quotations, open]);
 
   const leftQuotation = quotations.find(q => q.id === leftQuotationId);
   const rightQuotation = quotations.find(q => q.id === rightQuotationId);
@@ -164,9 +181,9 @@ export function SystemQuotationCompareDialog({ quotations, currentQuotation }: S
       // Quotation details
       page.drawText('Comparing:', { x: margin, y, size: 10, font: helveticaBold, color: black });
       y -= 15;
-      page.drawText(`Left: ${leftQuotation.enquiry_no} - ${leftQuotation.part_number || 'N/A'}`, { x: margin + 10, y, size: 9, font: helvetica, color: black });
+      page.drawText(`Left: ${leftQuotation.part_number || 'N/A'} - ${leftQuotation.description?.substring(0, 30) || ''}`, { x: margin + 10, y, size: 9, font: helvetica, color: black });
       y -= 12;
-      page.drawText(`Right: ${rightQuotation.enquiry_no} - ${rightQuotation.part_number || 'N/A'}`, { x: margin + 10, y, size: 9, font: helvetica, color: black });
+      page.drawText(`Right: ${rightQuotation.part_number || 'N/A'} - ${rightQuotation.description?.substring(0, 30) || ''}`, { x: margin + 10, y, size: 9, font: helvetica, color: black });
       y -= 25;
       
       // Table
@@ -175,7 +192,7 @@ export function SystemQuotationCompareDialog({ quotations, currentQuotation }: S
       
       const colWidths = [60, 100, 100, 100, 80, 100, 100];
       const colX = [margin, margin + 60, margin + 160, margin + 260, margin + 360, margin + 440, margin + 540];
-      const headers = ['Qty', leftQuotation.enquiry_no.substring(0, 12), rightQuotation.enquiry_no.substring(0, 12), 'Difference', '%', 'Left Cost', 'Right Cost'];
+      const headers = ['Qty', (leftQuotation.part_number || 'Left').substring(0, 12), (rightQuotation.part_number || 'Right').substring(0, 12), 'Difference', '%', 'Left Cost', 'Right Cost'];
       
       page.drawRectangle({ x: margin, y: y - 12, width: 640, height: 14, color: schivoOrange });
       headers.forEach((header, i) => {
@@ -208,7 +225,7 @@ export function SystemQuotationCompareDialog({ quotations, currentQuotation }: S
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Comparison_${leftQuotation.enquiry_no}_vs_${rightQuotation.enquiry_no}_${format(new Date(), 'yyyyMMdd')}.pdf`;
+      link.download = `Comparison_${leftQuotation.part_number || 'Part'}_vs_${rightQuotation.part_number || 'Part'}_${format(new Date(), 'yyyyMMdd')}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -224,19 +241,13 @@ export function SystemQuotationCompareDialog({ quotations, currentQuotation }: S
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          <GitCompare className="h-4 w-4 mr-2" />
-          Compare
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <GitCompare className="h-5 w-5" />
-              Quotation Comparison
+              Compare Quotations
             </div>
             {leftQuotation && rightQuotation && comparisonData.length > 0 && (
               <Button
@@ -254,113 +265,129 @@ export function SystemQuotationCompareDialog({ quotations, currentQuotation }: S
               </Button>
             )}
           </DialogTitle>
+          <DialogDescription>
+            Compare pricing between different quotations in this enquiry
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Quotation Selectors */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Left Quotation</label>
-              <Select value={leftQuotationId} onValueChange={setLeftQuotationId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select quotation" />
-                </SelectTrigger>
-                <SelectContent>
-                  {quotations.map(q => (
-                    <SelectItem key={q.id} value={q.id}>
-                      {q.enquiry_no} - {q.part_number || 'N/A'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Right Quotation</label>
-              <Select value={rightQuotationId} onValueChange={setRightQuotationId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select quotation" />
-                </SelectTrigger>
-                <SelectContent>
-                  {quotations.map(q => (
-                    <SelectItem key={q.id} value={q.id}>
-                      {q.enquiry_no} - {q.part_number || 'N/A'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-
-          {/* Summary Cards */}
-          {leftQuotation && rightQuotation && (
+        ) : quotations.length < 2 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            {quotations.length === 0 
+              ? 'No quotations found for this enquiry'
+              : 'At least 2 quotations are required to compare'
+            }
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {/* Quotation Selectors */}
             <div className="grid grid-cols-2 gap-4">
-              <Card>
-                <CardContent className="p-4">
-                  <div className="text-sm text-muted-foreground mb-1">{leftQuotation.enquiry_no}</div>
-                  <div className="font-semibold">{leftQuotation.part_number || 'N/A'}</div>
-                  <div className="text-xs text-muted-foreground">{leftQuotation.customer}</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardContent className="p-4">
-                  <div className="text-sm text-muted-foreground mb-1">{rightQuotation.enquiry_no}</div>
-                  <div className="font-semibold">{rightQuotation.part_number || 'N/A'}</div>
-                  <div className="text-xs text-muted-foreground">{rightQuotation.customer}</div>
-                </CardContent>
-              </Card>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Left Quotation</label>
+                <Select value={leftQuotationId} onValueChange={setLeftQuotationId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select quotation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {quotations.map(q => (
+                      <SelectItem key={q.id} value={q.id}>
+                        {q.part_number || 'N/A'} - {q.description?.substring(0, 20) || 'No description'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Right Quotation</label>
+                <Select value={rightQuotationId} onValueChange={setRightQuotationId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select quotation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {quotations.map(q => (
+                      <SelectItem key={q.id} value={q.id}>
+                        {q.part_number || 'N/A'} - {q.description?.substring(0, 20) || 'No description'}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-          )}
 
-          {/* Comparison Table */}
-          {comparisonData.length > 0 ? (
-            <ScrollArea className="h-[350px] border rounded-lg">
-              <Table>
-                <TableHeader className="sticky top-0 bg-background">
-                  <TableRow>
-                    <TableHead>Qty</TableHead>
-                    <TableHead className="text-right">{leftQuotation?.enquiry_no}</TableHead>
-                    <TableHead className="text-right">{rightQuotation?.enquiry_no}</TableHead>
-                    <TableHead className="text-right">Difference</TableHead>
-                    <TableHead className="text-right">%</TableHead>
-                    <TableHead className="text-right">Left Margin</TableHead>
-                    <TableHead className="text-right">Right Margin</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {comparisonData.map((item, idx) => (
-                    <TableRow key={idx}>
-                      <TableCell className="font-medium">{item.quantity.toLocaleString()}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(item.leftPrice)}</TableCell>
-                      <TableCell className="text-right">{formatCurrency(item.rightPrice)}</TableCell>
-                      <TableCell className={`text-right font-semibold ${getDifferenceColor(item.difference)}`}>
-                        <div className="flex items-center justify-end gap-1">
-                          {getDifferenceIcon(item.difference)}
-                          {formatCurrency(Math.abs(item.difference))}
-                        </div>
-                      </TableCell>
-                      <TableCell className={`text-right ${getDifferenceColor(item.difference)}`}>
-                        {formatPercent(item.percentChange)}
-                      </TableCell>
-                      <TableCell className="text-right text-muted-foreground">
-                        {item.leftMargin.toFixed(1)}%
-                      </TableCell>
-                      <TableCell className="text-right text-muted-foreground">
-                        {item.rightMargin.toFixed(1)}%
-                      </TableCell>
+            {/* Summary Cards */}
+            {leftQuotation && rightQuotation && (
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-sm text-muted-foreground mb-1">Left</div>
+                    <div className="font-semibold">{leftQuotation.part_number || 'N/A'}</div>
+                    <div className="text-xs text-muted-foreground">{leftQuotation.description?.substring(0, 50)}</div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="text-sm text-muted-foreground mb-1">Right</div>
+                    <div className="font-semibold">{rightQuotation.part_number || 'N/A'}</div>
+                    <div className="text-xs text-muted-foreground">{rightQuotation.description?.substring(0, 50)}</div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Comparison Table */}
+            {comparisonData.length > 0 ? (
+              <ScrollArea className="h-[350px] border rounded-lg">
+                <Table>
+                  <TableHeader className="sticky top-0 bg-background">
+                    <TableRow>
+                      <TableHead>Qty</TableHead>
+                      <TableHead className="text-right">{leftQuotation?.part_number || 'Left'}</TableHead>
+                      <TableHead className="text-right">{rightQuotation?.part_number || 'Right'}</TableHead>
+                      <TableHead className="text-right">Difference</TableHead>
+                      <TableHead className="text-right">%</TableHead>
+                      <TableHead className="text-right">Left Margin</TableHead>
+                      <TableHead className="text-right">Right Margin</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              {leftQuotationId && rightQuotationId 
-                ? 'No matching quantities found for comparison'
-                : 'Select two quotations to compare'
-              }
-            </div>
-          )}
-        </div>
+                  </TableHeader>
+                  <TableBody>
+                    {comparisonData.map((item, idx) => (
+                      <TableRow key={idx}>
+                        <TableCell className="font-medium">{item.quantity.toLocaleString()}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.leftPrice)}</TableCell>
+                        <TableCell className="text-right">{formatCurrency(item.rightPrice)}</TableCell>
+                        <TableCell className={`text-right font-semibold ${getDifferenceColor(item.difference)}`}>
+                          <div className="flex items-center justify-end gap-1">
+                            {getDifferenceIcon(item.difference)}
+                            {formatCurrency(Math.abs(item.difference))}
+                          </div>
+                        </TableCell>
+                        <TableCell className={`text-right ${getDifferenceColor(item.difference)}`}>
+                          {formatPercent(item.percentChange)}
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground">
+                          {item.leftMargin.toFixed(1)}%
+                        </TableCell>
+                        <TableCell className="text-right text-muted-foreground">
+                          {item.rightMargin.toFixed(1)}%
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                {leftQuotationId && rightQuotationId 
+                  ? 'No matching quantities found for comparison'
+                  : 'Select two quotations to compare'
+                }
+              </div>
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
