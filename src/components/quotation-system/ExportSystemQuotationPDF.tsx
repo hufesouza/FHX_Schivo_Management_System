@@ -51,13 +51,14 @@ export function ExportSystemQuotationPDF({ enquiryId, open, onOpenChange }: Expo
     const fetchQuotations = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
+        const result = await (supabase as any)
           .from('system_quotations')
           .select('*')
           .eq('enquiry_id', enquiryId)
           .order('created_at', { ascending: false });
         
-        if (error) throw error;
+        if (result.error) throw result.error;
+        const data = result.data as SystemQuotation[];
         setQuotations(data || []);
         if (data && data.length > 0) {
           setSelectedQuotationId(data[0].id);
@@ -78,17 +79,17 @@ export function ExportSystemQuotationPDF({ enquiryId, open, onOpenChange }: Expo
     if (!selectedQuotationId) return;
     
     const fetchPricing = async () => {
-      const { data, error } = await supabase
+      const result = await (supabase as any)
         .from('quotation_volume_pricing')
         .select('*')
         .eq('quotation_id', selectedQuotationId)
         .order('quantity');
       
-      if (error) {
-        console.error('Error fetching pricing:', error);
+      if (result.error) {
+        console.error('Error fetching pricing:', result.error);
         return;
       }
-      setVolumePricing(data || []);
+      setVolumePricing((result.data || []) as QuotationVolumePricing[]);
     };
     
     fetchPricing();
