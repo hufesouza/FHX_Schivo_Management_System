@@ -461,22 +461,8 @@ const QuotationSystemNew = () => {
     markup: 0,
     notes: ''
   });
-  const [newSecondaryOpDialogOpen, setNewSecondaryOpDialogOpen] = useState(false);
-  const [newSecondaryOpName, setNewSecondaryOpName] = useState('');
-  
-  const defaultSecondaryOperations = [
-    'Deburring',
-    'Washing',
-    'QA Inspection',
-    'Packaging',
-    'Heat Treatment',
-    'Anodizing',
-    'Painting',
-    'Assembly',
-    'Marking',
-    'Testing'
-  ];
 
+  // Secondary operations use resources from the database
   // Fetch tool library
   useEffect(() => {
     const fetchToolLibrary = async () => {
@@ -3607,51 +3593,21 @@ const QuotationSystemNew = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>Operation</Label>
-                      <div className="flex gap-2">
-                        <Select
-                          value={secondaryOpForm.operation}
-                          onValueChange={(v) => setSecondaryOpForm(prev => ({ ...prev, operation: v }))}
-                        >
-                          <SelectTrigger className="flex-1">
-                            <SelectValue placeholder="Select operation..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {defaultSecondaryOperations.map(op => (
-                              <SelectItem key={op} value={op}>{op}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Dialog open={newSecondaryOpDialogOpen} onOpenChange={setNewSecondaryOpDialogOpen}>
-                          <DialogTrigger asChild>
-                            <Button variant="outline" size="sm">New</Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Add New Operation Type</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                              <div className="space-y-2">
-                                <Label>Operation Name</Label>
-                                <Input
-                                  value={newSecondaryOpName}
-                                  onChange={(e) => setNewSecondaryOpName(e.target.value)}
-                                  placeholder="e.g., Laser Marking"
-                                />
-                              </div>
-                            </div>
-                            <DialogFooter>
-                              <Button variant="outline" onClick={() => setNewSecondaryOpDialogOpen(false)}>Cancel</Button>
-                              <Button onClick={() => {
-                                if (newSecondaryOpName.trim()) {
-                                  setSecondaryOpForm(prev => ({ ...prev, operation: newSecondaryOpName.trim() }));
-                                  setNewSecondaryOpName('');
-                                  setNewSecondaryOpDialogOpen(false);
-                                }
-                              }}>Add</Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                      </div>
+                      <Select
+                        value={secondaryOpForm.operation}
+                        onValueChange={(v) => setSecondaryOpForm(prev => ({ ...prev, operation: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select resource..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {resources.filter(r => r.is_active).map(r => (
+                            <SelectItem key={r.id} value={r.resource_description}>
+                              {r.resource_no} - {r.resource_description}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     
                     <div className="space-y-2">
