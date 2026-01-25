@@ -1791,14 +1791,16 @@ const QuotationSystemNew = () => {
                     
                     if (!hasVolumes || (partLength === 0 && cutOff === 0)) return null;
                     
+                    const uom = materials[0]?.uom || 'Metre';
+                    
                     return (
                       <div className="mt-4 p-3 bg-muted/50 border rounded-lg">
-                        <h5 className="text-xs font-semibold text-foreground mb-2">Calculated Material Required (meters)</h5>
+                        <h5 className="text-xs font-semibold text-foreground mb-2">Calculated Material Required ({uom})</h5>
                         <div className="flex flex-wrap gap-4">
                           {volumes.map((vol, idx) => vol.quantity > 0 && (
                             <div key={idx} className="text-sm">
                               <span className="text-muted-foreground">Vol {idx + 1} ({vol.quantity.toLocaleString()} pcs):</span>{' '}
-                              <span className="font-medium">{(((lengthCm + cutOffCm) / 100) * vol.quantity * (1 + overhead)).toFixed(2)}m</span>
+                              <span className="font-medium">{(((lengthCm + cutOffCm) / 100) * vol.quantity * (1 + overhead)).toFixed(2)} {uom}</span>
                             </div>
                           ))}
                         </div>
@@ -2049,7 +2051,7 @@ const QuotationSystemNew = () => {
                                                     <span className="text-xs text-muted-foreground ml-1">({vol.quantity.toLocaleString()} pcs)</span>
                                                   </div>
                                                   <div className="flex items-center gap-2">
-                                                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Qty to Buy:</Label>
+                                                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Qty to Buy ({mat.uom}):</Label>
                                                     <Input
                                                       type="number"
                                                       step="0.01"
