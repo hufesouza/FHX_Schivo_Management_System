@@ -3179,7 +3179,7 @@ const QuotationSystemNew = () => {
                   <Info className="h-4 w-4 text-primary" />
                   <AlertDescription className="text-sm text-muted-foreground">
                     <strong>Op No:</strong> Operation sequence. <strong>Resource:</strong> Machine/workstation. <strong>Setup:</strong> One-time setup minutes per batch. <strong>Run:</strong> Minutes per part. 
-                    <strong className="ml-1">Inc. Cost:</strong> Select to include or exclude this operation's cost from the quotation.
+                    <strong className="ml-1">Inc.:</strong> Check to include this operation in the cost calculation.
                   </AlertDescription>
                 </Alert>
                 <div className="border rounded-lg overflow-auto">
@@ -3192,14 +3192,14 @@ const QuotationSystemNew = () => {
                         <TableHead>Operation Details</TableHead>
                         <TableHead className="text-right">Subcon Time</TableHead>
                         <TableHead className="text-right">Setup (min)</TableHead>
-                        <TableHead className="text-center w-24">
+                        <TableHead className="text-center w-16">
                           <Tooltip>
                             <TooltipTrigger className="flex items-center gap-1 justify-center">
-                              Inc. Cost
+                              Inc.
                               <HelpCircle className="h-3 w-3" />
                             </TooltipTrigger>
                             <TooltipContent className="max-w-xs">
-                              <p>Choose whether to include or exclude this operation's cost from the quotation calculation.</p>
+                              <p>Check to include this operation in the cost calculation.</p>
                             </TooltipContent>
                           </Tooltip>
                         </TableHead>
@@ -3399,12 +3399,12 @@ const QuotationSystemNew = () => {
                               />
                             </TableCell>
                             <TableCell className="text-center">
-                              <Select
-                                value={isIncluded ? 'include' : 'exclude'}
-                                onValueChange={(v) => {
+                              <Checkbox
+                                checked={isIncluded}
+                                onCheckedChange={(checked) => {
                                   setSetupIncludedOps(prev => {
                                     const newSet = new Set(prev);
-                                    if (v === 'include') {
+                                    if (checked) {
                                       newSet.add(route.op_no);
                                     } else {
                                       newSet.delete(route.op_no);
@@ -3412,23 +3412,7 @@ const QuotationSystemNew = () => {
                                     return newSet;
                                   });
                                 }}
-                              >
-                                <SelectTrigger className={`w-24 h-8 text-xs ${isIncluded ? 'border-green-400 bg-green-50 text-green-700' : 'border-red-300 bg-red-50 text-red-600'}`}>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="include" className="text-green-700">
-                                    <span className="flex items-center gap-1">
-                                      <Check className="h-3 w-3" /> Include
-                                    </span>
-                                  </SelectItem>
-                                  <SelectItem value="exclude" className="text-red-600">
-                                    <span className="flex items-center gap-1">
-                                      <X className="h-3 w-3" /> Exclude
-                                    </span>
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
+                              />
                             </TableCell>
                             <TableCell className="text-right">
                               <span className={`font-medium ${isIncluded ? 'text-primary' : 'text-muted-foreground line-through'}`}>
