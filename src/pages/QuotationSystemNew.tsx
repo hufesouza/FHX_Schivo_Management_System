@@ -1075,16 +1075,14 @@ const QuotationSystemNew = () => {
       if (!setupIncludedOps.has(r.op_no)) return sum;
       return sum + r.setup_time;
     }, 0);
-    // totalRoutingCost uses cost per detail from production planning (if set), 
-    // otherwise falls back to run_time × resource rate
+    // totalRoutingCost = production cost per detail + selected routing costs
     const productionCostPerDetail = productionCalculations[0]?.costPerDetail || 0;
-    const totalRoutingCost = productionCostPerDetail > 0 
-      ? productionCostPerDetail 
-      : routings.reduce((sum, r) => {
-          if (!setupIncludedOps.has(r.op_no)) return sum;
-          const costPerMin = getResourceCost(r.resource_no);
-          return sum + (r.run_time * costPerMin);
-        }, 0);
+    const selectedRoutingCost = routings.reduce((sum, r) => {
+      if (!setupIncludedOps.has(r.op_no)) return sum;
+      const costPerMin = getResourceCost(r.resource_no);
+      return sum + (r.run_time * costPerMin);
+    }, 0);
+    const totalRoutingCost = productionCostPerDetail + selectedRoutingCost;
     const costPerHour = getSettingValue('cost_per_hour') || 55;
 
     return {
