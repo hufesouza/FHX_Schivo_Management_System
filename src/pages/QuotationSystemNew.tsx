@@ -1682,87 +1682,23 @@ const QuotationSystemNew = () => {
                 </Button>
               </CardHeader>
               <CardContent>
-                {/* Material dimensions section */}
-                <div className="border rounded-lg p-4 bg-muted/30 mb-4">
-                  <div className="flex flex-wrap items-end gap-6">
-                    <div className="flex items-center gap-4">
-                      <Label className="text-sm font-medium whitespace-nowrap">Measurement units</Label>
-                      <RadioGroup
-                        value={materialUnits}
-                        onValueChange={(v) => setMaterialUnits(v as 'metric' | 'imperial')}
-                        className="flex items-center gap-4"
-                      >
-                        <div className="flex items-center gap-2">
-                          <RadioGroupItem value="imperial" id="imperial" />
-                          <Label htmlFor="imperial" className="font-normal cursor-pointer">Imperial</Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <RadioGroupItem value="metric" id="metric" />
-                          <Label htmlFor="metric" className="font-normal cursor-pointer">Metric</Label>
-                        </div>
-                      </RadioGroup>
-                    </div>
-
+                {/* Measurement units toggle */}
+                <div className="flex items-center gap-4 mb-4">
+                  <Label className="text-sm font-medium whitespace-nowrap">Measurement units</Label>
+                  <RadioGroup
+                    value={materialUnits}
+                    onValueChange={(v) => setMaterialUnits(v as 'metric' | 'imperial')}
+                    className="flex items-center gap-4"
+                  >
                     <div className="flex items-center gap-2">
-                      <Label className="text-sm whitespace-nowrap">Length</Label>
-                      <Input
-                        type="number"
-                        value={materials[0]?.length || 0}
-                        onChange={(e) => {
-                          const newMats = [...materials];
-                          if (newMats[0]) newMats[0].length = parseFloat(e.target.value) || 0;
-                          setMaterials(newMats);
-                        }}
-                        className="w-24"
-                      />
-                      <span className="text-sm text-muted-foreground">{materialUnits === 'metric' ? 'mm' : 'in'}</span>
+                      <RadioGroupItem value="imperial" id="imperial" />
+                      <Label htmlFor="imperial" className="font-normal cursor-pointer">Imperial</Label>
                     </div>
-
                     <div className="flex items-center gap-2">
-                      <Label className="text-sm whitespace-nowrap">Diameter</Label>
-                      <Input
-                        type="number"
-                        value={materials[0]?.diameter || 0}
-                        onChange={(e) => {
-                          const newMats = [...materials];
-                          if (newMats[0]) newMats[0].diameter = parseFloat(e.target.value) || 0;
-                          setMaterials(newMats);
-                        }}
-                        className="w-24"
-                      />
-                      <span className="text-sm text-muted-foreground">{materialUnits === 'metric' ? 'mm' : 'in'}</span>
+                      <RadioGroupItem value="metric" id="metric" />
+                      <Label htmlFor="metric" className="font-normal cursor-pointer">Metric</Label>
                     </div>
-
-                    <div className="flex items-center gap-2">
-                      <Label className="text-sm whitespace-nowrap">Cut off</Label>
-                      <Input
-                        type="number"
-                        value={materials[0]?.cut_off || 0}
-                        onChange={(e) => {
-                          const newMats = [...materials];
-                          if (newMats[0]) newMats[0].cut_off = parseFloat(e.target.value) || 0;
-                          setMaterials(newMats);
-                        }}
-                        className="w-24"
-                      />
-                      <span className="text-sm text-muted-foreground">{materialUnits === 'metric' ? 'mm' : 'in'}</span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <Label className="text-sm whitespace-nowrap">Overhead</Label>
-                      <Input
-                        type="number"
-                        value={materials[0]?.overhead || 0}
-                        onChange={(e) => {
-                          const newMats = [...materials];
-                          if (newMats[0]) newMats[0].overhead = parseFloat(e.target.value) || 0;
-                          setMaterials(newMats);
-                        }}
-                        className="w-20"
-                      />
-                      <span className="text-sm text-muted-foreground">%</span>
-                    </div>
-                  </div>
+                  </RadioGroup>
                 </div>
 
                 <Alert className="bg-muted/50 border-primary/20 mb-4">
@@ -1780,6 +1716,10 @@ const QuotationSystemNew = () => {
                         <TableHead>Vendor Name</TableHead>
                         <TableHead>Part Number</TableHead>
                         <TableHead>Description</TableHead>
+                        <TableHead className="text-center">Length ({materialUnits === 'metric' ? 'mm' : 'in'})</TableHead>
+                        <TableHead className="text-center">Diameter ({materialUnits === 'metric' ? 'mm' : 'in'})</TableHead>
+                        <TableHead className="text-center">Cut off ({materialUnits === 'metric' ? 'mm' : 'in'})</TableHead>
+                        <TableHead className="text-center">Overhead (%)</TableHead>
                         <TableHead>UOM</TableHead>
                         <TableHead className="text-right">Qty/Unit</TableHead>
                         <TableHead className="text-right">Std Cost (€)</TableHead>
@@ -1880,6 +1820,58 @@ const QuotationSystemNew = () => {
                                 newMats[idx].material_description = e.target.value;
                                 setMaterials(newMats);
                               }}
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={mat.length}
+                              onChange={(e) => {
+                                const newMats = [...materials];
+                                newMats[idx].length = parseFloat(e.target.value) || 0;
+                                setMaterials(newMats);
+                              }}
+                              className="w-20 text-center"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={mat.diameter}
+                              onChange={(e) => {
+                                const newMats = [...materials];
+                                newMats[idx].diameter = parseFloat(e.target.value) || 0;
+                                setMaterials(newMats);
+                              }}
+                              className="w-20 text-center"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={mat.cut_off}
+                              onChange={(e) => {
+                                const newMats = [...materials];
+                                newMats[idx].cut_off = parseFloat(e.target.value) || 0;
+                                setMaterials(newMats);
+                              }}
+                              className="w-20 text-center"
+                            />
+                          </TableCell>
+                          <TableCell>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              value={mat.overhead}
+                              onChange={(e) => {
+                                const newMats = [...materials];
+                                newMats[idx].overhead = parseFloat(e.target.value) || 0;
+                                setMaterials(newMats);
+                              }}
+                              className="w-20 text-center"
                             />
                           </TableCell>
                           <TableCell>
