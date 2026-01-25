@@ -2966,6 +2966,77 @@ export type Database = {
         }
         Relationships: []
       }
+      quotation_tool_library: {
+        Row: {
+          created_at: string
+          default_price: number | null
+          id: string
+          is_active: boolean | null
+          site: string | null
+          tool_name: string
+        }
+        Insert: {
+          created_at?: string
+          default_price?: number | null
+          id?: string
+          is_active?: boolean | null
+          site?: string | null
+          tool_name: string
+        }
+        Update: {
+          created_at?: string
+          default_price?: number | null
+          id?: string
+          is_active?: boolean | null
+          site?: string | null
+          tool_name?: string
+        }
+        Relationships: []
+      }
+      quotation_tools: {
+        Row: {
+          created_at: string
+          id: string
+          line_number: number
+          markup: number | null
+          price: number | null
+          quantity: number | null
+          quotation_id: string
+          tool_name: string | null
+          total: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          line_number?: number
+          markup?: number | null
+          price?: number | null
+          quantity?: number | null
+          quotation_id: string
+          tool_name?: string | null
+          total?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          line_number?: number
+          markup?: number | null
+          price?: number | null
+          quantity?: number | null
+          quotation_id?: string
+          tool_name?: string | null
+          total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_tools_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "system_quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotation_volume_pricing: {
         Row: {
           carriage: number | null
