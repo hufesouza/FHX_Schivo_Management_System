@@ -1075,12 +1075,16 @@ const QuotationSystemNew = () => {
       if (!setupIncludedOps.has(r.op_no)) return sum;
       return sum + r.setup_time;
     }, 0);
-    // totalRoutingCost is run_time × resource rate (only for included operations)
-    const totalRoutingCost = routings.reduce((sum, r) => {
-      if (!setupIncludedOps.has(r.op_no)) return sum;
-      const costPerMin = getResourceCost(r.resource_no);
-      return sum + (r.run_time * costPerMin);
-    }, 0);
+    // totalRoutingCost uses cost per detail from production planning (if set), 
+    // otherwise falls back to run_time × resource rate
+    const productionCostPerDetail = productionCalculations[0]?.costPerDetail || 0;
+    const totalRoutingCost = productionCostPerDetail > 0 
+      ? productionCostPerDetail 
+      : routings.reduce((sum, r) => {
+          if (!setupIncludedOps.has(r.op_no)) return sum;
+          const costPerMin = getResourceCost(r.resource_no);
+          return sum + (r.run_time * costPerMin);
+        }, 0);
     const costPerHour = getSettingValue('cost_per_hour') || 55;
 
     return {
@@ -3481,6 +3485,11 @@ const QuotationSystemNew = () => {
                     <Badge variant="outline" className="px-3 py-1.5">
                       Run Time: {totals.totalRunTime.toFixed(1)} min
                     </Badge>
+                    {productionCalculations[0]?.costPerDetail > 0 && (
+                      <Badge variant="secondary" className="px-3 py-1.5 border-primary">
+                        Cost/Detail (Production): €{productionCalculations[0].costPerDetail.toFixed(2)}
+                      </Badge>
+                    )}
                     <Badge variant="secondary" className="text-lg px-4 py-2">
                       Run Cost: €{totals.totalRoutingCost.toFixed(2)}
                     </Badge>
