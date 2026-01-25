@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-type Site = 'waterford' | 'mexico';
+type Site = 'waterford';
 
 interface SubconVendor {
   id: string;
@@ -800,32 +800,10 @@ const SiteSettingsTabs = ({ site, siteLabel }: SiteSettingsTabsProps) => {
 };
 
 const QuotationSystemSettings = () => {
-  const [activeSite, setActiveSite] = useState<Site>('waterford');
-
   return (
     <AppLayout title="Quotation Settings" subtitle="Resource Ratings & System Configuration" showBackButton backTo="/npi/quotation-system">
       <div className="container mx-auto px-4 py-8">
-        {/* Parent Site Tabs */}
-        <Tabs value={activeSite} onValueChange={(v) => setActiveSite(v as Site)} className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="waterford" className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              Schivo Waterford
-            </TabsTrigger>
-            <TabsTrigger value="mexico" className="flex items-center gap-2">
-              <MapPin className="h-4 w-4" />
-              Schivo Mexico
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="waterford">
-            <SiteSettingsTabs site="waterford" siteLabel="Schivo Waterford" />
-          </TabsContent>
-
-          <TabsContent value="mexico">
-            <SiteSettingsTabs site="mexico" siteLabel="Schivo Mexico" />
-          </TabsContent>
-        </Tabs>
+        <SiteSettingsTabs site="waterford" siteLabel="Schivo Waterford" />
       </div>
     </AppLayout>
   );
