@@ -1807,182 +1807,225 @@ const QuotationSystemNew = () => {
                 {/* Material / Supplier Details Section */}
                 <div className="border rounded-lg p-4 mb-4">
                   <h4 className="text-sm font-semibold text-foreground mb-3">Material / Supplier Details</h4>
-                  <Alert className="bg-muted/50 border-primary/20 mb-4">
-                    <Info className="h-4 w-4 text-primary" />
-                    <AlertDescription className="text-sm text-muted-foreground">
-                      Enter vendor details, part numbers, and standard costs. <strong>Qty to Buy</strong> = how many of this material are needed per finished part. <strong>Std Cost</strong> = cost per unit of material. Total is calculated with the {header.material_markup}% markup applied.
-                    </AlertDescription>
-                  </Alert>
-                  <div className="border rounded-lg overflow-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">#</TableHead>
-                        <TableHead>Vendor No.</TableHead>
-                        <TableHead>Vendor Name</TableHead>
-                        <TableHead>Part Number</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>UOM</TableHead>
-                        <TableHead className="text-right">Qty to Buy</TableHead>
-                        <TableHead className="text-right">Std Cost (€)</TableHead>
-                        <TableHead className="text-right">Total (€)</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {materials.map((mat, idx) => (
-                        <TableRow key={idx}>
-                          <TableCell>{mat.line_number}</TableCell>
-                          <TableCell>
-                            <Input
-                              value={getMaterialSupplierCode(mat.vendor_name)}
-                              readOnly
-                              className={`w-24 bg-muted ${mat.vendor_name && !isKnownMaterialSupplier(mat.vendor_name) ? 'text-amber-600' : ''}`}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Popover open={materialVendorPopoverOpen === idx} onOpenChange={(open) => setMaterialVendorPopoverOpen(open ? idx : null)}>
-                              <PopoverTrigger asChild>
-                                <div className="relative">
+                  {(() => {
+                    const partLength = materials[0]?.length || 0;
+                    const cutOff = materials[0]?.cut_off || 0;
+                    const overhead = (materials[0]?.overhead || 0) / 100;
+                    
+                    // Convert to cm if metric (mm), or convert inches to cm if imperial
+                    const lengthCm = materialUnits === 'metric' ? partLength / 10 : partLength * 2.54;
+                    const cutOffCm = materialUnits === 'metric' ? cutOff / 10 : cutOff * 2.54;
+                    
+                    // Calculate meters needed per volume
+                    const getMetersForVolume = (qty: number) => {
+                      if (partLength === 0 && cutOff === 0) return 0;
+                      return ((lengthCm + cutOffCm) / 100) * qty * (1 + overhead);
+                    };
+                    
+                    const activeVolumes = volumes.filter(v => v.quantity > 0);
+                    
+                    return (
+                      <>
+                        <Alert className="bg-muted/50 border-primary/20 mb-4">
+                          <Info className="h-4 w-4 text-primary" />
+                          <AlertDescription className="text-sm text-muted-foreground">
+                            Enter vendor details, part numbers, and standard costs. <strong>Qty to Buy</strong> is auto-calculated from Part Details for each volume tier. <strong>Total</strong> = Qty to Buy × Std Cost × (1 + {header.material_markup}% markup).
+                          </AlertDescription>
+                        </Alert>
+                        <div className="border rounded-lg overflow-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="w-12">#</TableHead>
+                              <TableHead>Vendor No.</TableHead>
+                              <TableHead>Vendor Name</TableHead>
+                              <TableHead>Part Number</TableHead>
+                              <TableHead>Description</TableHead>
+                              <TableHead>UOM</TableHead>
+                              <TableHead className="text-right">Std Cost (€)</TableHead>
+                              {activeVolumes.length > 0 ? (
+                                activeVolumes.map((vol, idx) => (
+                                  <TableHead key={idx} className="text-right bg-muted/30">
+                                    <div className="text-xs">Vol {volumes.indexOf(vol) + 1} ({vol.quantity.toLocaleString()})</div>
+                                    <div className="text-xs text-muted-foreground">Qty / Total €</div>
+                                  </TableHead>
+                                ))
+                              ) : (
+                                <TableHead className="text-right">Qty to Buy</TableHead>
+                              )}
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {materials.map((mat, idx) => (
+                              <TableRow key={idx}>
+                                <TableCell>{mat.line_number}</TableCell>
+                                <TableCell>
                                   <Input
-                                    value={mat.vendor_name}
+                                    value={getMaterialSupplierCode(mat.vendor_name)}
+                                    readOnly
+                                    className={`w-24 bg-muted ${mat.vendor_name && !isKnownMaterialSupplier(mat.vendor_name) ? 'text-amber-600' : ''}`}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Popover open={materialVendorPopoverOpen === idx} onOpenChange={(open) => setMaterialVendorPopoverOpen(open ? idx : null)}>
+                                    <PopoverTrigger asChild>
+                                      <div className="relative">
+                                        <Input
+                                          value={mat.vendor_name}
+                                          onChange={(e) => {
+                                            const newMats = [...materials];
+                                            newMats[idx].vendor_name = e.target.value;
+                                            setMaterials(newMats);
+                                            if (e.target.value) setMaterialVendorPopoverOpen(idx);
+                                          }}
+                                          onFocus={() => setMaterialVendorPopoverOpen(idx)}
+                                          placeholder="Search..."
+                                          className={mat.vendor_name && !isKnownMaterialSupplier(mat.vendor_name) ? 'border-amber-300 pr-8' : ''}
+                                        />
+                                        {mat.vendor_name && isKnownMaterialSupplier(mat.vendor_name) && (
+                                          <Check className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+                                        )}
+                                        {mat.vendor_name && !isKnownMaterialSupplier(mat.vendor_name) && (
+                                          <AlertTriangle className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500" />
+                                        )}
+                                      </div>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[280px] p-0" align="start">
+                                      <Command>
+                                        <CommandInput 
+                                          placeholder="Search suppliers..." 
+                                          value={mat.vendor_name}
+                                          onValueChange={(value) => {
+                                            const newMats = [...materials];
+                                            newMats[idx].vendor_name = value;
+                                            setMaterials(newMats);
+                                          }}
+                                        />
+                                        <CommandList>
+                                          <CommandEmpty>
+                                            <div className="py-2 px-4 text-sm text-muted-foreground">
+                                              No supplier found.
+                                            </div>
+                                          </CommandEmpty>
+                                          <CommandGroup>
+                                            {getFilteredMaterialSuppliers(mat.vendor_name).slice(0, 8).map((supplier) => (
+                                              <CommandItem
+                                                key={supplier.id}
+                                                value={supplier.bp_name}
+                                                onSelect={() => {
+                                                  const newMats = [...materials];
+                                                  newMats[idx].vendor_name = supplier.bp_name;
+                                                  setMaterials(newMats);
+                                                  setMaterialVendorPopoverOpen(null);
+                                                }}
+                                              >
+                                                <div className="flex justify-between w-full">
+                                                  <span className="truncate">{supplier.bp_name}</span>
+                                                  <span className="text-muted-foreground text-xs ml-2">{supplier.bp_code}</span>
+                                                </div>
+                                              </CommandItem>
+                                            ))}
+                                          </CommandGroup>
+                                        </CommandList>
+                                      </Command>
+                                    </PopoverContent>
+                                  </Popover>
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    value={mat.part_number}
                                     onChange={(e) => {
                                       const newMats = [...materials];
-                                      newMats[idx].vendor_name = e.target.value;
+                                      newMats[idx].part_number = e.target.value;
                                       setMaterials(newMats);
-                                      if (e.target.value) setMaterialVendorPopoverOpen(idx);
                                     }}
-                                    onFocus={() => setMaterialVendorPopoverOpen(idx)}
-                                    placeholder="Search..."
-                                    className={mat.vendor_name && !isKnownMaterialSupplier(mat.vendor_name) ? 'border-amber-300 pr-8' : ''}
+                                    className="w-32"
                                   />
-                                  {mat.vendor_name && isKnownMaterialSupplier(mat.vendor_name) && (
-                                    <Check className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
-                                  )}
-                                  {mat.vendor_name && !isKnownMaterialSupplier(mat.vendor_name) && (
-                                    <AlertTriangle className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-500" />
-                                  )}
-                                </div>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-[280px] p-0" align="start">
-                                <Command>
-                                  <CommandInput 
-                                    placeholder="Search suppliers..." 
-                                    value={mat.vendor_name}
-                                    onValueChange={(value) => {
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    value={mat.material_description}
+                                    onChange={(e) => {
                                       const newMats = [...materials];
-                                      newMats[idx].vendor_name = value;
+                                      newMats[idx].material_description = e.target.value;
                                       setMaterials(newMats);
                                     }}
                                   />
-                                  <CommandList>
-                                    <CommandEmpty>
-                                      <div className="py-2 px-4 text-sm text-muted-foreground">
-                                        No supplier found.
-                                      </div>
-                                    </CommandEmpty>
-                                    <CommandGroup>
-                                      {getFilteredMaterialSuppliers(mat.vendor_name).slice(0, 8).map((supplier) => (
-                                        <CommandItem
-                                          key={supplier.id}
-                                          value={supplier.bp_name}
-                                          onSelect={() => {
-                                            const newMats = [...materials];
-                                            newMats[idx].vendor_name = supplier.bp_name;
-                                            setMaterials(newMats);
-                                            setMaterialVendorPopoverOpen(null);
-                                          }}
-                                        >
-                                          <div className="flex justify-between w-full">
-                                            <span className="truncate">{supplier.bp_name}</span>
-                                            <span className="text-muted-foreground text-xs ml-2">{supplier.bp_code}</span>
-                                          </div>
-                                        </CommandItem>
-                                      ))}
-                                    </CommandGroup>
-                                  </CommandList>
-                                </Command>
-                              </PopoverContent>
-                            </Popover>
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              value={mat.part_number}
-                              onChange={(e) => {
-                                const newMats = [...materials];
-                                newMats[idx].part_number = e.target.value;
-                                setMaterials(newMats);
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              value={mat.material_description}
-                              onChange={(e) => {
-                                const newMats = [...materials];
-                                newMats[idx].material_description = e.target.value;
-                                setMaterials(newMats);
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Select
-                              value={mat.uom}
-                              onValueChange={(v) => {
-                                const newMats = [...materials];
-                                newMats[idx].uom = v;
-                                setMaterials(newMats);
-                              }}
-                            >
-                              <SelectTrigger className="w-20">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="Billet">Billet</SelectItem>
-                                <SelectItem value="Each">Each</SelectItem>
-                                <SelectItem value="Inch">Inch</SelectItem>
-                                <SelectItem value="Metre">Metre</SelectItem>
-                                <SelectItem value="MM">MM</SelectItem>
-                                <SelectItem value="Plate">Plate</SelectItem>
-                                <SelectItem value="cc">cc</SelectItem>
-                                <SelectItem value="Feet">Feet</SelectItem>
-                                <SelectItem value="ML">ML</SelectItem>
-                              </SelectContent>
-                            </Select>
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={mat.qty_per_unit}
-                              onChange={(e) => {
-                                const newMats = [...materials];
-                                newMats[idx].qty_per_unit = parseFloat(e.target.value) || 0;
-                                setMaterials(newMats);
-                              }}
-                              className="w-20 text-right"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              step="0.01"
-                              value={mat.std_cost_est}
-                              onChange={(e) => {
-                                const newMats = [...materials];
-                                newMats[idx].std_cost_est = parseFloat(e.target.value) || 0;
-                                setMaterials(newMats);
-                              }}
-                              className="w-24 text-right"
-                            />
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            €{((mat.std_cost_est * mat.qty_per_unit) * (1 + header.material_markup / 100)).toFixed(2)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                    </Table>
-                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  <Select 
+                                    value={mat.uom} 
+                                    onValueChange={(v) => {
+                                      const newMats = [...materials];
+                                      newMats[idx].uom = v;
+                                      setMaterials(newMats);
+                                    }}
+                                  >
+                                    <SelectTrigger className="w-24">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="kg">kg</SelectItem>
+                                      <SelectItem value="Bar">Bar</SelectItem>
+                                      <SelectItem value="Billet">Billet</SelectItem>
+                                      <SelectItem value="Each">Each</SelectItem>
+                                      <SelectItem value="Inch">Inch</SelectItem>
+                                      <SelectItem value="Metre">Metre</SelectItem>
+                                      <SelectItem value="MM">MM</SelectItem>
+                                      <SelectItem value="Plate">Plate</SelectItem>
+                                      <SelectItem value="cc">cc</SelectItem>
+                                      <SelectItem value="Feet">Feet</SelectItem>
+                                      <SelectItem value="ML">ML</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={mat.std_cost_est}
+                                    onChange={(e) => {
+                                      const newMats = [...materials];
+                                      newMats[idx].std_cost_est = parseFloat(e.target.value) || 0;
+                                      setMaterials(newMats);
+                                    }}
+                                    className="w-24 text-right"
+                                  />
+                                </TableCell>
+                                {activeVolumes.length > 0 ? (
+                                  activeVolumes.map((vol, volIdx) => {
+                                    const qtyToBuy = getMetersForVolume(vol.quantity);
+                                    const totalCost = qtyToBuy * mat.std_cost_est * (1 + header.material_markup / 100);
+                                    return (
+                                      <TableCell key={volIdx} className="text-right bg-muted/20">
+                                        <div className="text-sm font-medium">{qtyToBuy.toFixed(2)}</div>
+                                        <div className="text-xs text-muted-foreground">€{totalCost.toFixed(2)}</div>
+                                      </TableCell>
+                                    );
+                                  })
+                                ) : (
+                                  <TableCell>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      value={mat.qty_per_unit}
+                                      onChange={(e) => {
+                                        const newMats = [...materials];
+                                        newMats[idx].qty_per_unit = parseFloat(e.target.value) || 0;
+                                        setMaterials(newMats);
+                                      }}
+                                      className="w-20 text-right"
+                                    />
+                                  </TableCell>
+                                )}
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                          </Table>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
                 <div className="mt-4 p-4 border rounded-lg bg-muted/30 flex items-center gap-4">
                   <div className="space-y-2">
