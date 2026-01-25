@@ -1770,6 +1770,38 @@ const QuotationSystemNew = () => {
                       <span className="text-sm text-muted-foreground">%</span>
                     </div>
                   </div>
+                  
+                  {/* Material Calculation Display */}
+                  {(() => {
+                    const partLength = materials[0]?.length || 0;
+                    const cutOff = materials[0]?.cut_off || 0;
+                    const overhead = (materials[0]?.overhead || 0) / 100;
+                    
+                    // Convert to cm if metric (mm), or convert inches to cm if imperial
+                    const lengthCm = materialUnits === 'metric' ? partLength / 10 : partLength * 2.54;
+                    const cutOffCm = materialUnits === 'metric' ? cutOff / 10 : cutOff * 2.54;
+                    
+                    const hasVolumes = volumes.some(v => v.quantity > 0);
+                    
+                    if (!hasVolumes || (partLength === 0 && cutOff === 0)) return null;
+                    
+                    return (
+                      <div className="mt-4 p-3 bg-muted/50 border rounded-lg">
+                        <h5 className="text-xs font-semibold text-foreground mb-2">Calculated Material Required (meters)</h5>
+                        <div className="flex flex-wrap gap-4">
+                          {volumes.map((vol, idx) => vol.quantity > 0 && (
+                            <div key={idx} className="text-sm">
+                              <span className="text-muted-foreground">Vol {idx + 1} ({vol.quantity.toLocaleString()} pcs):</span>{' '}
+                              <span className="font-medium">{(((lengthCm + cutOffCm) / 100) * vol.quantity * (1 + overhead)).toFixed(2)}m</span>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-2">
+                          Formula: ((Length + Cut off) / 1000) × Qty × (1 + Overhead%)
+                        </p>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Material / Supplier Details Section */}
