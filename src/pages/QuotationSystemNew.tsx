@@ -1782,16 +1782,30 @@ const QuotationSystemNew = () => {
                     const partLength = materials[0]?.length || 0;
                     const cutOff = materials[0]?.cut_off || 0;
                     const overhead = (materials[0]?.overhead || 0) / 100;
+                    const uom = materials[0]?.uom || 'Metre';
                     
                     // Convert to cm if metric (mm), or convert inches to cm if imperial
                     const lengthCm = materialUnits === 'metric' ? partLength / 10 : partLength * 2.54;
                     const cutOffCm = materialUnits === 'metric' ? cutOff / 10 : cutOff * 2.54;
                     
+                    // Calculate base meters value
+                    const getMetersValue = (qty: number) => ((lengthCm + cutOffCm) / 100) * qty * (1 + overhead);
+                    
+                    // Convert meters to the selected UOM
+                    const convertToUom = (meters: number, qty: number): number => {
+                      switch (uom) {
+                        case 'MM': return meters * 1000; // meters to mm
+                        case 'Inch': return meters / 0.0254; // meters to inches
+                        case 'Each': return qty; // just quantity
+                        case 'Plate': return qty; // just quantity
+                        case 'Metre': 
+                        default: return meters;
+                      }
+                    };
+                    
                     const hasVolumes = volumes.some(v => v.quantity > 0);
                     
                     if (!hasVolumes || (partLength === 0 && cutOff === 0)) return null;
-                    
-                    const uom = materials[0]?.uom || 'Metre';
                     
                     return (
                       <div className="mt-4 p-3 bg-muted/50 border rounded-lg">
@@ -1800,12 +1814,12 @@ const QuotationSystemNew = () => {
                           {volumes.map((vol, idx) => vol.quantity > 0 && (
                             <div key={idx} className="text-sm">
                               <span className="text-muted-foreground">Vol {idx + 1} ({vol.quantity.toLocaleString()} pcs):</span>{' '}
-                              <span className="font-medium">{(((lengthCm + cutOffCm) / 100) * vol.quantity * (1 + overhead)).toFixed(2)} {uom}</span>
+                              <span className="font-medium">{convertToUom(getMetersValue(vol.quantity), vol.quantity).toFixed(2)} {uom}</span>
                             </div>
                           ))}
                         </div>
                         <p className="text-xs text-muted-foreground mt-2">
-                          Formula: ((Length + Cut off) / 1000) × Qty × (1 + Overhead%)
+                          Formula: ((Length + Cut off) / 1000) × Qty × (1 + Overhead%) {uom !== 'Metre' && `→ converted to ${uom}`}
                         </p>
                       </div>
                     );
@@ -1824,10 +1838,23 @@ const QuotationSystemNew = () => {
                     const lengthCm = materialUnits === 'metric' ? partLength / 10 : partLength * 2.54;
                     const cutOffCm = materialUnits === 'metric' ? cutOff / 10 : cutOff * 2.54;
                     
-                    // Calculate meters needed per volume
-                    const getMetersForVolume = (qty: number) => {
+                    // Calculate base meters value
+                    const getBaseMeters = (qty: number) => {
                       if (partLength === 0 && cutOff === 0) return 0;
                       return ((lengthCm + cutOffCm) / 100) * qty * (1 + overhead);
+                    };
+                    
+                    // Convert meters to material's UOM
+                    const getQtyInUom = (qty: number, uom: string): number => {
+                      const meters = getBaseMeters(qty);
+                      switch (uom) {
+                        case 'MM': return meters * 1000; // meters to mm
+                        case 'Inch': return meters / 0.0254; // meters to inches
+                        case 'Each': return qty; // just quantity
+                        case 'Plate': return qty; // just quantity
+                        case 'Metre': 
+                        default: return meters;
+                      }
                     };
                     
                     const activeVolumes = volumes.filter(v => v.quantity > 0);
@@ -1865,13 +1892,13 @@ const QuotationSystemNew = () => {
                               };
                               
                               // Get effective qty for a volume (override or calculated)
-                              const getEffectiveQty = (volIndex: number, volQty: number): number => {
+                              const getEffectiveQty = (volIndex: number, volQty: number, uom: string): number => {
                                 const key = getQtyKey(volIndex);
                                 const override = mat[key] as number | null | undefined;
                                 if (override !== null && override !== undefined && override > 0) {
                                   return override;
                                 }
-                                return getMetersForVolume(volQty);
+                                return getQtyInUom(volQty, uom);
                               };
                               
                               return (
@@ -2038,10 +2065,10 @@ const QuotationSystemNew = () => {
                                           <div className="grid gap-2">
                                             {activeVolumes.map((vol, volIdx) => {
                                               const originalVolIndex = volumes.indexOf(vol);
-                                              const calculatedQty = getMetersForVolume(vol.quantity);
+                                              const calculatedQty = getQtyInUom(vol.quantity, mat.uom);
                                               const key = getQtyKey(originalVolIndex);
                                               const currentOverride = mat[key] as number | null | undefined;
-                                              const effectiveQty = getEffectiveQty(originalVolIndex, vol.quantity);
+                                              const effectiveQty = getEffectiveQty(originalVolIndex, vol.quantity, mat.uom);
                                               const totalCost = effectiveQty * mat.std_cost_est * (1 + header.material_markup / 100);
                                               
                                               return (
