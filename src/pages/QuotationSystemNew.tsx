@@ -1075,8 +1075,9 @@ const QuotationSystemNew = () => {
       if (!setupIncludedOps.has(r.op_no)) return sum;
       return sum + r.setup_time;
     }, 0);
-    // totalRoutingCost is run_time × resource rate (setup handled separately)
+    // totalRoutingCost is run_time × resource rate (only for included operations)
     const totalRoutingCost = routings.reduce((sum, r) => {
+      if (!setupIncludedOps.has(r.op_no)) return sum;
       const costPerMin = getResourceCost(r.resource_no);
       return sum + (r.run_time * costPerMin);
     }, 0);
@@ -3433,10 +3434,14 @@ const QuotationSystemNew = () => {
                               />
                             </TableCell>
                             <TableCell className="text-right text-muted-foreground">
-                              €{costPerMin.toFixed(2)}
+                              <span className={isIncluded ? '' : 'line-through'}>
+                                €{costPerMin.toFixed(2)}
+                              </span>
                             </TableCell>
                             <TableCell className="text-right">
-                              <span className="font-medium">€{runCostForOp.toFixed(2)}</span>
+                              <span className={`font-medium ${isIncluded ? '' : 'text-muted-foreground line-through'}`}>
+                                €{runCostForOp.toFixed(2)}
+                              </span>
                             </TableCell>
                             <TableCell>
                               <Button
