@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw, AlertTriangle, Check, Pencil, X, CheckCircle, Upload, Eye, FileUp, Wrench } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw, AlertTriangle, Check, Pencil, X, CheckCircle, Upload, Eye, FileUp, Wrench, Factory } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -149,7 +149,7 @@ const QuotationSystemNew = () => {
   const [drawingPreviewOpen, setDrawingPreviewOpen] = useState(false);
   const drawingInputRef = useRef<HTMLInputElement>(null);
 
-  const tabOrder = ['header', 'materials', 'tools', 'subcon', 'routings', 'pricing'];
+  const tabOrder = ['header', 'materials', 'tools', 'subcon', 'production', 'routings', 'pricing'];
 
 
   // Fetch customers, subcon vendors, and material suppliers lists
@@ -364,7 +364,58 @@ const QuotationSystemNew = () => {
 
   const [subcons, setSubcons] = useState<SubconLine[]>([]);
 
-  // Tools state
+  // Production Planning state
+  const [productionPlanning, setProductionPlanning] = useState({
+    cycle_time_per_piece: 0, // seconds
+    production_hours_per_day: 18,
+    production_effectiveness: 85, // percentage
+    hourly_rate: 0,
+    programming_hours: undefined as number | undefined,
+    programming_rate: undefined as number | undefined,
+    setup_hours: undefined as number | undefined,
+    setup_rate: undefined as number | undefined,
+    production_profit_percent: undefined as number | undefined,
+    production_sales_commission_percent: undefined as number | undefined,
+  });
+
+  // Production Planning calculated values
+  const productionCalculations = useMemo(() => {
+    const cycleTimeSeconds = productionPlanning.cycle_time_per_piece || 0;
+    const hoursPerDay = productionPlanning.production_hours_per_day || 18;
+    const effectiveness = productionPlanning.production_effectiveness || 85;
+    const hourlyRate = productionPlanning.hourly_rate || 0;
+
+    // Programming cost = hours × rate
+    const programmingCost = (productionPlanning.programming_hours || 0) * (productionPlanning.programming_rate || 0);
+    // Setup cost = hours × rate
+    const setupCost = (productionPlanning.setup_hours || 0) * (productionPlanning.setup_rate || 0);
+
+    // Calculate per-volume metrics
+    return volumes.map(vol => {
+      const quantity = vol.quantity || 0;
+      
+      // Time needed = (Quantity × Cycle time per piece × (1 + (100 - Effectiveness) / 100)) / 3600 / hours per day
+      const effectivenessFactor = 1 + (100 - effectiveness) / 100;
+      const totalSeconds = quantity * cycleTimeSeconds * effectivenessFactor;
+      const timeNeededDays = totalSeconds / 3600 / hoursPerDay;
+
+      // Cost per detail = (Cycle time / 3600) × Hourly rate × effectiveness factor
+      const costPerDetail = (cycleTimeSeconds / 3600) * hourlyRate * effectivenessFactor;
+
+      // Total cost = Quantity × Cost per detail
+      const totalCost = quantity * costPerDetail;
+
+      return {
+        quantity,
+        timeNeededDays,
+        costPerDetail,
+        totalCost,
+        programmingCost,
+        setupCost,
+      };
+    });
+  }, [productionPlanning, volumes]);
+
   const [tools, setTools] = useState<ToolLine[]>([]);
   const [toolLibrary, setToolLibrary] = useState<{id: string; tool_name: string; default_price: number}[]>([]);
   const [newToolDialogOpen, setNewToolDialogOpen] = useState(false);
@@ -720,6 +771,20 @@ const QuotationSystemNew = () => {
             material_markup: quotation.material_markup || 20,
             subcon_markup: quotation.subcon_markup || 20,
             status: quotation.status || 'draft',
+          });
+
+          // Load production planning data
+          setProductionPlanning({
+            cycle_time_per_piece: (quotation as any).cycle_time_per_piece || 0,
+            production_hours_per_day: (quotation as any).production_hours_per_day || 18,
+            production_effectiveness: (quotation as any).production_effectiveness || 85,
+            hourly_rate: (quotation as any).hourly_rate || 0,
+            programming_hours: (quotation as any).programming_hours ?? undefined,
+            programming_rate: (quotation as any).programming_rate ?? undefined,
+            setup_hours: (quotation as any).setup_hours ?? undefined,
+            setup_rate: (quotation as any).setup_rate ?? undefined,
+            production_profit_percent: (quotation as any).production_profit_percent ?? undefined,
+            production_sales_commission_percent: (quotation as any).production_sales_commission_percent ?? undefined,
           });
         }
 
@@ -1095,6 +1160,17 @@ const QuotationSystemNew = () => {
             vol_1: volumes[0]?.quantity || null,
             vol_2: volumes[1]?.quantity || null,
             vol_3: volumes[2]?.quantity || null,
+            // Production planning fields
+            cycle_time_per_piece: productionPlanning.cycle_time_per_piece || 0,
+            production_hours_per_day: productionPlanning.production_hours_per_day || 18,
+            production_effectiveness: productionPlanning.production_effectiveness || 85,
+            hourly_rate: productionPlanning.hourly_rate || 0,
+            programming_hours: productionPlanning.programming_hours ?? null,
+            programming_rate: productionPlanning.programming_rate ?? null,
+            setup_hours: productionPlanning.setup_hours ?? null,
+            setup_rate: productionPlanning.setup_rate ?? null,
+            production_profit_percent: productionPlanning.production_profit_percent ?? null,
+            production_sales_commission_percent: productionPlanning.production_sales_commission_percent ?? null,
           })
           .eq('id', currentQuotationId);
 
@@ -1143,7 +1219,18 @@ const QuotationSystemNew = () => {
             vol_2: volumes[1]?.quantity || null,
             vol_3: volumes[2]?.quantity || null,
             enquiry_part_id: enquiryPartId,
-            created_by: user.id
+            created_by: user.id,
+            // Production planning fields
+            cycle_time_per_piece: productionPlanning.cycle_time_per_piece || 0,
+            production_hours_per_day: productionPlanning.production_hours_per_day || 18,
+            production_effectiveness: productionPlanning.production_effectiveness || 85,
+            hourly_rate: productionPlanning.hourly_rate || 0,
+            programming_hours: productionPlanning.programming_hours ?? null,
+            programming_rate: productionPlanning.programming_rate ?? null,
+            setup_hours: productionPlanning.setup_hours ?? null,
+            setup_rate: productionPlanning.setup_rate ?? null,
+            production_profit_percent: productionPlanning.production_profit_percent ?? null,
+            production_sales_commission_percent: productionPlanning.production_sales_commission_percent ?? null,
           })
           .select()
           .single();
@@ -1383,7 +1470,7 @@ const QuotationSystemNew = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 max-w-3xl">
+          <TabsList className="grid w-full grid-cols-7 max-w-4xl">
             <TabsTrigger value="header" className="flex items-center gap-1 text-xs">
               <FileText className="h-3 w-3" />
               Header
@@ -1399,6 +1486,10 @@ const QuotationSystemNew = () => {
             <TabsTrigger value="subcon" className="flex items-center gap-1 text-xs">
               <Truck className="h-3 w-3" />
               Subcon
+            </TabsTrigger>
+            <TabsTrigger value="production" className="flex items-center gap-1 text-xs">
+              <Factory className="h-3 w-3" />
+              Production
             </TabsTrigger>
             <TabsTrigger value="routings" className="flex items-center gap-1 text-xs">
               <ListOrdered className="h-3 w-3" />
@@ -2805,6 +2896,203 @@ const QuotationSystemNew = () => {
                     Total Subcon (with {header.subcon_markup}% markup): €{totals.totalSubconCost.toFixed(2)}
                   </Badge>
                 </div>
+                <div className="mt-4 flex justify-between items-center">
+                  <Button variant="outline" onClick={handleBack}>
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Back
+                  </Button>
+                  <Button onClick={handleNext} disabled={saving}>
+                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Next: Production
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Production Planning Tab */}
+          <TabsContent value="production">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  Production Planning
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-sm">
+                      <p>Enter production parameters to calculate manufacturing time and costs. Total cost = (Quantity × Cycle time × (1 + (100 - Effectiveness) / 100)) × Hourly rate / 3600</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </CardTitle>
+                <CardDescription>Configure production parameters and calculate manufacturing costs</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Alert className="bg-muted/50 border-primary/20 mb-6">
+                  <Info className="h-4 w-4 text-primary" />
+                  <AlertDescription className="text-sm text-muted-foreground">
+                    <strong>Formula:</strong> Total cost = (Quantity × Time per piece × (1 + (100 - Effectiveness) / 100) × Hourly rate) / 3600
+                  </AlertDescription>
+                </Alert>
+
+                <div className="space-y-6">
+                  {/* Row 1: Main production parameters */}
+                  <div className="grid gap-4 md:grid-cols-4">
+                    <div className="space-y-2">
+                      <Label>Cycle time per piece (sec)</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={productionPlanning.cycle_time_per_piece || ''}
+                        onChange={(e) => setProductionPlanning(prev => ({ ...prev, cycle_time_per_piece: parseFloat(e.target.value) || 0 }))}
+                        placeholder="360"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Production hours per day</Label>
+                      <Input
+                        type="number"
+                        value={productionPlanning.production_hours_per_day || ''}
+                        onChange={(e) => setProductionPlanning(prev => ({ ...prev, production_hours_per_day: parseFloat(e.target.value) || 18 }))}
+                        placeholder="18"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Production effectiveness (%)</Label>
+                      <Input
+                        type="number"
+                        value={productionPlanning.production_effectiveness || ''}
+                        onChange={(e) => setProductionPlanning(prev => ({ ...prev, production_effectiveness: parseFloat(e.target.value) || 85 }))}
+                        placeholder="85"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Hourly rate (€/hour)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={productionPlanning.hourly_rate || ''}
+                        onChange={(e) => setProductionPlanning(prev => ({ ...prev, hourly_rate: parseFloat(e.target.value) || 0 }))}
+                        placeholder="65"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Row 2: Programming and Setup costs */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="border rounded-lg p-4 bg-muted/30">
+                      <Label className="font-medium mb-3 block">Programming cost</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={productionPlanning.programming_hours ?? ''}
+                          onChange={(e) => setProductionPlanning(prev => ({ ...prev, programming_hours: e.target.value === '' ? undefined : parseFloat(e.target.value) }))}
+                          className="w-20"
+                          placeholder="hrs"
+                        />
+                        <span className="text-muted-foreground">×</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={productionPlanning.programming_rate ?? ''}
+                          onChange={(e) => setProductionPlanning(prev => ({ ...prev, programming_rate: e.target.value === '' ? undefined : parseFloat(e.target.value) }))}
+                          className="w-24"
+                          placeholder="€/hr"
+                        />
+                        <span className="text-muted-foreground">=</span>
+                        <Badge variant="secondary" className="text-base">
+                          €{((productionPlanning.programming_hours || 0) * (productionPlanning.programming_rate || 0)).toFixed(2)}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="border rounded-lg p-4 bg-muted/30">
+                      <Label className="font-medium mb-3 block">Setup cost</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={productionPlanning.setup_hours ?? ''}
+                          onChange={(e) => setProductionPlanning(prev => ({ ...prev, setup_hours: e.target.value === '' ? undefined : parseFloat(e.target.value) }))}
+                          className="w-20"
+                          placeholder="hrs"
+                        />
+                        <span className="text-muted-foreground">×</span>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={productionPlanning.setup_rate ?? ''}
+                          onChange={(e) => setProductionPlanning(prev => ({ ...prev, setup_rate: e.target.value === '' ? undefined : parseFloat(e.target.value) }))}
+                          className="w-24"
+                          placeholder="€/hr"
+                        />
+                        <span className="text-muted-foreground">=</span>
+                        <Badge variant="secondary" className="text-base">
+                          €{((productionPlanning.setup_hours || 0) * (productionPlanning.setup_rate || 0)).toFixed(2)}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Row 3: Profit and commission */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Production profit %</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={productionPlanning.production_profit_percent ?? ''}
+                        onChange={(e) => setProductionPlanning(prev => ({ ...prev, production_profit_percent: e.target.value === '' ? undefined : parseFloat(e.target.value) }))}
+                        placeholder="0"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Production sales commission %</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={productionPlanning.production_sales_commission_percent ?? ''}
+                        onChange={(e) => setProductionPlanning(prev => ({ ...prev, production_sales_commission_percent: e.target.value === '' ? undefined : parseFloat(e.target.value) }))}
+                        placeholder="0"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Calculated Results per Volume */}
+                  <div className="border rounded-lg p-4 bg-card">
+                    <h4 className="text-sm font-semibold mb-4">Calculated Results per Volume</h4>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Volume</TableHead>
+                          <TableHead className="text-right">Time to Produce</TableHead>
+                          <TableHead className="text-right">Cost per Detail</TableHead>
+                          <TableHead className="text-right">Total Cost</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {productionCalculations.map((calc, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>
+                              <Badge variant="outline">{calc.quantity.toLocaleString()} pcs</Badge>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {calc.timeNeededDays.toFixed(1)} days
+                            </TableCell>
+                            <TableCell className="text-right font-medium text-primary">
+                              €{calc.costPerDetail.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-bold">
+                              €{calc.totalCost.toFixed(2)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
                 <div className="mt-4 flex justify-between items-center">
                   <Button variant="outline" onClick={handleBack}>
                     <ChevronLeft className="h-4 w-4 mr-1" />

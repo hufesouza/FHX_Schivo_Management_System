@@ -3294,20 +3294,30 @@ export type Database = {
           created_by: string
           customer: string
           customer_code: string | null
+          cycle_time_per_piece: number | null
           description: string | null
           enquiry_no: string
           enquiry_part_id: string | null
+          hourly_rate: number | null
           id: string
           is_template: boolean | null
           manufacture_type: string | null
           material_markup: number | null
           notes: string | null
           part_number: string
+          production_effectiveness: number | null
+          production_hours_per_day: number | null
+          production_profit_percent: number | null
+          production_sales_commission_percent: number | null
+          programming_hours: number | null
+          programming_rate: number | null
           qty_per: number | null
           quoted_by: string | null
           revision: string | null
           rohs_compliant: boolean | null
           serial_traceable: boolean | null
+          setup_hours: number | null
+          setup_rate: number | null
           site: string
           status: string | null
           subcon_markup: number | null
@@ -3327,20 +3337,30 @@ export type Database = {
           created_by: string
           customer: string
           customer_code?: string | null
+          cycle_time_per_piece?: number | null
           description?: string | null
           enquiry_no: string
           enquiry_part_id?: string | null
+          hourly_rate?: number | null
           id?: string
           is_template?: boolean | null
           manufacture_type?: string | null
           material_markup?: number | null
           notes?: string | null
           part_number: string
+          production_effectiveness?: number | null
+          production_hours_per_day?: number | null
+          production_profit_percent?: number | null
+          production_sales_commission_percent?: number | null
+          programming_hours?: number | null
+          programming_rate?: number | null
           qty_per?: number | null
           quoted_by?: string | null
           revision?: string | null
           rohs_compliant?: boolean | null
           serial_traceable?: boolean | null
+          setup_hours?: number | null
+          setup_rate?: number | null
           site?: string
           status?: string | null
           subcon_markup?: number | null
@@ -3360,20 +3380,30 @@ export type Database = {
           created_by?: string
           customer?: string
           customer_code?: string | null
+          cycle_time_per_piece?: number | null
           description?: string | null
           enquiry_no?: string
           enquiry_part_id?: string | null
+          hourly_rate?: number | null
           id?: string
           is_template?: boolean | null
           manufacture_type?: string | null
           material_markup?: number | null
           notes?: string | null
           part_number?: string
+          production_effectiveness?: number | null
+          production_hours_per_day?: number | null
+          production_profit_percent?: number | null
+          production_sales_commission_percent?: number | null
+          programming_hours?: number | null
+          programming_rate?: number | null
           qty_per?: number | null
           quoted_by?: string | null
           revision?: string | null
           rohs_compliant?: boolean | null
           serial_traceable?: boolean | null
+          setup_hours?: number | null
+          setup_rate?: number | null
           site?: string
           status?: string | null
           subcon_markup?: number | null
