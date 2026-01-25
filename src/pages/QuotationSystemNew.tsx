@@ -1682,8 +1682,9 @@ const QuotationSystemNew = () => {
                 </Button>
               </CardHeader>
               <CardContent>
-                {/* Part Dimensions Section */}
+                {/* Part Details Section */}
                 <div className="border rounded-lg p-4 bg-muted/30 mb-4">
+                  <h4 className="text-sm font-semibold text-foreground mb-3">Part Details</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Row 1: Units toggle and Length/Diameter */}
                     <div className="flex items-center gap-4">
