@@ -153,7 +153,7 @@ const QuotationSystemNew = () => {
   // Drag and drop state for routing
   const [draggedRoutingIdx, setDraggedRoutingIdx] = useState<number | null>(null);
 
-  const tabOrder = ['header', 'materials', 'tools', 'subcon', 'production', 'routings', 'pricing'];
+  const tabOrder = ['header', 'materials', 'tools', 'subcon', 'production', 'pricing']; // 'routings' hidden for now
 
 
   // Fetch customers, subcon vendors, and material suppliers lists
@@ -1525,10 +1525,12 @@ const QuotationSystemNew = () => {
               <Factory className="h-3 w-3" />
               Production
             </TabsTrigger>
+            {/* Routings tab hidden for now
             <TabsTrigger value="routings" className="flex items-center gap-1 text-xs">
               <ListOrdered className="h-3 w-3" />
               Routings
             </TabsTrigger>
+            */}
             <TabsTrigger value="pricing" className="flex items-center gap-1 text-xs">
               <Calculator className="h-3 w-3" />
               Pricing
