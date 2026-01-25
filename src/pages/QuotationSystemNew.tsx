@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw, AlertTriangle, Check, Pencil, X, CheckCircle, Upload, Eye, FileUp, Wrench, Factory } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw, AlertTriangle, Check, Pencil, X, CheckCircle, Upload, Eye, FileUp, Wrench, Factory, GripVertical } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -149,6 +149,9 @@ const QuotationSystemNew = () => {
   const [extractingFromDrawing, setExtractingFromDrawing] = useState(false);
   const [drawingPreviewOpen, setDrawingPreviewOpen] = useState(false);
   const drawingInputRef = useRef<HTMLInputElement>(null);
+
+  // Drag and drop state for routing
+  const [draggedRoutingIdx, setDraggedRoutingIdx] = useState<number | null>(null);
 
   const tabOrder = ['header', 'materials', 'tools', 'subcon', 'production', 'routings', 'pricing'];
 
@@ -3183,6 +3186,7 @@ const QuotationSystemNew = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-8"></TableHead>
                         <TableHead className="w-16">Op No</TableHead>
                         <TableHead>Resource</TableHead>
                         <TableHead>Operation Details</TableHead>
@@ -3219,7 +3223,50 @@ const QuotationSystemNew = () => {
                                                       route.resource_no.toLowerCase().includes('program');
                         
                         return (
-                          <TableRow key={idx} className={!isIncluded ? 'bg-muted/30' : ''}>
+                          <TableRow 
+                            key={idx} 
+                            className={`${!isIncluded ? 'bg-muted/30' : ''} ${draggedRoutingIdx === idx ? 'opacity-50 bg-primary/10' : ''}`}
+                            draggable
+                            onDragStart={(e) => {
+                              setDraggedRoutingIdx(idx);
+                              e.dataTransfer.effectAllowed = 'move';
+                            }}
+                            onDragEnd={() => setDraggedRoutingIdx(null)}
+                            onDragOver={(e) => {
+                              e.preventDefault();
+                              e.dataTransfer.dropEffect = 'move';
+                            }}
+                            onDrop={(e) => {
+                              e.preventDefault();
+                              if (draggedRoutingIdx === null || draggedRoutingIdx === idx) return;
+                              
+                              const newRoutings = [...routings];
+                              const [draggedItem] = newRoutings.splice(draggedRoutingIdx, 1);
+                              newRoutings.splice(idx, 0, draggedItem);
+                              
+                              // Renumber op_no based on new order (10, 20, 30, ...)
+                              const renumbered = newRoutings.map((r, i) => ({
+                                ...r,
+                                op_no: (i + 1) * 10
+                              }));
+                              
+                              // Update setupIncludedOps with new op_nos
+                              const newIncludedOps = new Set<number>();
+                              renumbered.forEach((r, i) => {
+                                const oldOp = newRoutings[i].op_no;
+                                if (setupIncludedOps.has(routings.find(orig => orig === newRoutings[i])?.op_no || oldOp)) {
+                                  newIncludedOps.add(r.op_no);
+                                }
+                              });
+                              
+                              setRoutings(renumbered);
+                              setSetupIncludedOps(newIncludedOps);
+                              setDraggedRoutingIdx(null);
+                            }}
+                          >
+                            <TableCell className="cursor-grab active:cursor-grabbing">
+                              <GripVertical className="h-4 w-4 text-muted-foreground" />
+                            </TableCell>
                             <TableCell>
                               <Input
                                 type="number"
