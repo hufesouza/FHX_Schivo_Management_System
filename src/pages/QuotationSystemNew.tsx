@@ -153,7 +153,7 @@ const QuotationSystemNew = () => {
   // Drag and drop state for routing
   const [draggedRoutingIdx, setDraggedRoutingIdx] = useState<number | null>(null);
 
-  const tabOrder = ['header', 'materials', 'tools', 'subcon', 'production', 'pricing']; // 'routings' hidden for now
+  const tabOrder = ['header', 'materials', 'tools', 'subcon', 'production', 'secondary', 'pricing']; // 'routings' hidden for now
 
 
   // Fetch customers, subcon vendors, and material suppliers lists
@@ -1519,6 +1519,10 @@ const QuotationSystemNew = () => {
               Routings
             </TabsTrigger>
             */}
+            <TabsTrigger value="secondary" className="flex items-center gap-1 text-xs">
+              <Wrench className="h-3 w-3" />
+              Secondary Ops
+            </TabsTrigger>
             <TabsTrigger value="pricing" className="flex items-center gap-1 text-xs">
               <Calculator className="h-3 w-3" />
               Pricing
@@ -3482,6 +3486,52 @@ const QuotationSystemNew = () => {
                       Run Cost: €{totals.totalRoutingCost.toFixed(2)}
                     </Badge>
                   </div>
+                  <Button onClick={handleNext} disabled={saving}>
+                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Next: Pricing
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Secondary Operations Tab */}
+          <TabsContent value="secondary">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  Secondary Operations
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-sm">
+                      <p>Define secondary operations like deburring, washing, inspection, and other post-machining processes with their associated costs.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </CardTitle>
+                <CardDescription>Add secondary operations and post-processing costs</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription className="text-sm text-muted-foreground">
+                    <strong>Secondary Operations:</strong> Define post-machining processes like deburring, washing, QA inspection, packaging, etc. with their time and cost per part.
+                  </AlertDescription>
+                </Alert>
+                
+                <div className="text-center py-12 text-muted-foreground">
+                  <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">Secondary Operations</p>
+                  <p className="text-sm">This section is under development.</p>
+                </div>
+
+                <div className="flex justify-between items-center pt-4">
+                  <Button variant="outline" onClick={handleBack}>
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Back
+                  </Button>
                   <Button onClick={handleNext} disabled={saving}>
                     {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                     Next: Pricing
