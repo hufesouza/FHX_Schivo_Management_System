@@ -1772,13 +1772,16 @@ const QuotationSystemNew = () => {
                   </div>
                 </div>
 
-                <Alert className="bg-muted/50 border-primary/20 mb-4">
-                  <Info className="h-4 w-4 text-primary" />
-                  <AlertDescription className="text-sm text-muted-foreground">
-                    Enter vendor details, part numbers, and standard costs. <strong>Qty/Unit</strong> = how many of this material are needed per finished part. <strong>Std Cost</strong> = cost per unit of material. Total is calculated with the {header.material_markup}% markup applied.
-                  </AlertDescription>
-                </Alert>
-                <div className="border rounded-lg overflow-auto">
+                {/* Material / Supplier Details Section */}
+                <div className="border rounded-lg p-4 mb-4">
+                  <h4 className="text-sm font-semibold text-foreground mb-3">Material / Supplier Details</h4>
+                  <Alert className="bg-muted/50 border-primary/20 mb-4">
+                    <Info className="h-4 w-4 text-primary" />
+                    <AlertDescription className="text-sm text-muted-foreground">
+                      Enter vendor details, part numbers, and standard costs. <strong>Qty/Unit</strong> = how many of this material are needed per finished part. <strong>Std Cost</strong> = cost per unit of material. Total is calculated with the {header.material_markup}% markup applied.
+                    </AlertDescription>
+                  </Alert>
+                  <div className="border rounded-lg overflow-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -1946,7 +1949,8 @@ const QuotationSystemNew = () => {
                         </TableRow>
                       ))}
                     </TableBody>
-                  </Table>
+                    </Table>
+                  </div>
                 </div>
                 <div className="mt-4 p-4 border rounded-lg bg-muted/30 flex items-center gap-4">
                   <div className="space-y-2">
