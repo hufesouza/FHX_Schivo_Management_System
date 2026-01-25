@@ -59,11 +59,11 @@ interface ToolLine {
   price: number;
   markup: number;
   // Per-volume quantities
-  qty_vol_1: number;
-  qty_vol_2: number;
-  qty_vol_3: number;
-  qty_vol_4: number;
-  qty_vol_5: number;
+  qty_vol_1?: number;
+  qty_vol_2?: number;
+  qty_vol_3?: number;
+  qty_vol_4?: number;
+  qty_vol_5?: number;
 }
 
 interface SubconLine {
@@ -410,13 +410,8 @@ const QuotationSystemNew = () => {
       line_number: tools.length + 1,
       tool_name: selectedTool?.tool_name || '',
       price: selectedTool?.default_price || 0,
-      markup: 0,
-      qty_vol_1: 0,
-      qty_vol_2: 0,
-      qty_vol_3: 0,
-      qty_vol_4: 0,
-      qty_vol_5: 0
-    }]);
+      markup: 0
+    } as ToolLine]);
   };
 
   const removeToolLine = (lineNumber: number) => {
@@ -850,11 +845,11 @@ const QuotationSystemNew = () => {
             tool_name: t.tool_name || '',
             price: t.price || 0,
             markup: t.markup || 0,
-            qty_vol_1: (t as any).qty_vol_1 || 0,
-            qty_vol_2: (t as any).qty_vol_2 || 0,
-            qty_vol_3: (t as any).qty_vol_3 || 0,
-            qty_vol_4: (t as any).qty_vol_4 || 0,
-            qty_vol_5: (t as any).qty_vol_5 || 0
+            qty_vol_1: (t as any).qty_vol_1,
+            qty_vol_2: (t as any).qty_vol_2,
+            qty_vol_3: (t as any).qty_vol_3,
+            qty_vol_4: (t as any).qty_vol_4,
+            qty_vol_5: (t as any).qty_vol_5
           })));
         }
 
@@ -2473,13 +2468,15 @@ const QuotationSystemNew = () => {
                                     <TableCell key={volIdx} className="text-center">
                                       <Input
                                         type="number"
-                                        value={tool[qtyKey] as number || 0}
+                                        value={tool[qtyKey] as number || ''}
                                         onChange={(e) => {
                                           const newTools = [...tools];
-                                          (newTools[idx] as any)[qtyKey] = parseInt(e.target.value) || 0;
+                                          const val = e.target.value;
+                                          (newTools[idx] as any)[qtyKey] = val === '' ? undefined : (parseInt(val) || undefined);
                                           setTools(newTools);
                                         }}
                                         className="w-16 text-right mx-auto"
+                                        placeholder="0"
                                       />
                                     </TableCell>
                                   );
