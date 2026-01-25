@@ -56,9 +56,14 @@ interface ToolLine {
   id?: string;
   line_number: number;
   tool_name: string;
-  quantity: number;
   price: number;
   markup: number;
+  // Per-volume quantities
+  qty_vol_1: number;
+  qty_vol_2: number;
+  qty_vol_3: number;
+  qty_vol_4: number;
+  qty_vol_5: number;
 }
 
 interface SubconLine {
@@ -382,23 +387,35 @@ const QuotationSystemNew = () => {
     fetchToolLibrary();
   }, []);
 
-  // Calculate total tools cost
-  const calculateToolTotal = (tool: ToolLine): number => {
-    return tool.quantity * tool.price * (1 + tool.markup / 100);
+  // Calculate tool cost for a specific volume tier
+  const calculateToolTotalForVolume = (tool: ToolLine, volumeIndex: number): number => {
+    const qtyKey = `qty_vol_${volumeIndex + 1}` as keyof ToolLine;
+    const qty = (tool[qtyKey] as number) || 0;
+    return qty * tool.price * (1 + tool.markup / 100);
   };
 
+  // Get total tools cost for the first active volume (for display in summary)
   const totalToolsCost = useMemo(() => {
-    return tools.reduce((sum, t) => sum + calculateToolTotal(t), 0);
+    return tools.reduce((sum, t) => sum + calculateToolTotalForVolume(t, 0), 0);
   }, [tools]);
+
+  // Get total tools cost for a specific volume tier
+  const getTotalToolsCostForVolume = (volumeIndex: number): number => {
+    return tools.reduce((sum, t) => sum + calculateToolTotalForVolume(t, volumeIndex), 0);
+  };
 
   const addToolLine = (selectedToolName?: string) => {
     const selectedTool = selectedToolName ? toolLibrary.find(t => t.tool_name === selectedToolName) : undefined;
     setTools([...tools, {
       line_number: tools.length + 1,
       tool_name: selectedTool?.tool_name || '',
-      quantity: 1,
       price: selectedTool?.default_price || 0,
-      markup: 0
+      markup: 0,
+      qty_vol_1: 0,
+      qty_vol_2: 0,
+      qty_vol_3: 0,
+      qty_vol_4: 0,
+      qty_vol_5: 0
     }]);
   };
 
@@ -831,9 +848,13 @@ const QuotationSystemNew = () => {
             id: t.id,
             line_number: t.line_number,
             tool_name: t.tool_name || '',
-            quantity: t.quantity || 1,
             price: t.price || 0,
-            markup: t.markup || 0
+            markup: t.markup || 0,
+            qty_vol_1: (t as any).qty_vol_1 || 0,
+            qty_vol_2: (t as any).qty_vol_2 || 0,
+            qty_vol_3: (t as any).qty_vol_3 || 0,
+            qty_vol_4: (t as any).qty_vol_4 || 0,
+            qty_vol_5: (t as any).qty_vol_5 || 0
           })));
         }
 
@@ -983,6 +1004,9 @@ const QuotationSystemNew = () => {
   };
 
   const totals = calculateTotals();
+
+  // Active volumes (those with qty > 0) - used across multiple tabs
+  const activeVolumes = useMemo(() => volumes.filter(v => v.quantity > 0), [volumes]);
 
   // Handle finishing the quote - saves and updates part status to 'quoted'
   const handleFinishQuote = async () => {
@@ -1225,15 +1249,20 @@ const QuotationSystemNew = () => {
         .insert(volumeInserts);
       if (volumeError) throw volumeError;
 
-      // Insert tools
+      // Insert tools with per-volume quantities
       const toolInserts = tools.filter(t => t.tool_name).map(t => ({
         quotation_id: currentQuotationId,
         line_number: t.line_number,
         tool_name: t.tool_name,
-        quantity: t.quantity,
+        quantity: t.qty_vol_1, // Legacy field, use vol1 as default
         price: t.price,
         markup: t.markup,
-        total: calculateToolTotal(t)
+        total: calculateToolTotalForVolume(t, 0),
+        qty_vol_1: t.qty_vol_1,
+        qty_vol_2: t.qty_vol_2,
+        qty_vol_3: t.qty_vol_3,
+        qty_vol_4: t.qty_vol_4,
+        qty_vol_5: t.qty_vol_5
       }));
 
       if (toolInserts.length > 0) {
@@ -2357,111 +2386,161 @@ const QuotationSystemNew = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[300px]">Tool</TableHead>
-                          <TableHead className="w-[100px]">Quantity</TableHead>
-                          <TableHead className="w-[120px]">Price (€)</TableHead>
-                          <TableHead className="w-[100px]">Markup (%)</TableHead>
-                          <TableHead className="w-[120px] text-right">Total (€)</TableHead>
-                          <TableHead className="w-[60px]"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {tools.map((tool, idx) => (
-                          <TableRow key={idx}>
-                            <TableCell>
-                              <Select
-                                value={tool.tool_name}
-                                onValueChange={(v) => {
-                                  const selectedTool = toolLibrary.find(t => t.tool_name === v);
-                                  const newTools = [...tools];
-                                  newTools[idx].tool_name = v;
-                                  if (selectedTool && newTools[idx].price === 0) {
-                                    newTools[idx].price = selectedTool.default_price;
-                                  }
-                                  setTools(newTools);
-                                }}
-                              >
-                                <SelectTrigger className="w-full">
-                                  <SelectValue placeholder="Select tool" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {toolLibrary.map((t) => (
-                                    <SelectItem key={t.id} value={t.tool_name}>
-                                      {t.tool_name}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                value={tool.quantity}
-                                onChange={(e) => {
-                                  const newTools = [...tools];
-                                  newTools[idx].quantity = parseInt(e.target.value) || 0;
-                                  setTools(newTools);
-                                }}
-                                className="w-20 text-right"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={tool.price}
-                                onChange={(e) => {
-                                  const newTools = [...tools];
-                                  newTools[idx].price = parseFloat(e.target.value) || 0;
-                                  setTools(newTools);
-                                }}
-                                className="w-24 text-right"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                value={tool.markup}
-                                onChange={(e) => {
-                                  const newTools = [...tools];
-                                  newTools[idx].markup = parseFloat(e.target.value) || 0;
-                                  setTools(newTools);
-                                }}
-                                className="w-20 text-right"
-                              />
-                            </TableCell>
-                            <TableCell className="text-right font-medium">
-                              €{calculateToolTotal(tool).toFixed(2)}
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeToolLine(tool.line_number)}
-                                className="h-8 w-8 text-destructive hover:text-destructive"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </TableCell>
+                  <div className="space-y-4">
+                    {/* Active volumes info */}
+                    {activeVolumes.length > 0 && (
+                      <Alert className="bg-muted/50 border-primary/20">
+                        <Info className="h-4 w-4 text-primary" />
+                        <AlertDescription className="text-sm text-muted-foreground">
+                          Enter tool quantities for each volume tier. Different volumes may require different tool quantities.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[250px]">Tool</TableHead>
+                            <TableHead className="w-[100px]">Price (€)</TableHead>
+                            <TableHead className="w-[80px]">Markup (%)</TableHead>
+                            {activeVolumes.map((vol, volIdx) => (
+                              <TableHead key={volIdx} className="w-[80px] text-center">
+                                Qty<br/><span className="text-xs font-normal text-muted-foreground">({vol.quantity.toLocaleString()})</span>
+                              </TableHead>
+                            ))}
+                            <TableHead className="w-[100px] text-right">Total Vol1 (€)</TableHead>
+                            <TableHead className="w-[50px]"></TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {tools.map((tool, idx) => (
+                            <React.Fragment key={idx}>
+                              <TableRow>
+                                <TableCell>
+                                  <Select
+                                    value={tool.tool_name}
+                                    onValueChange={(v) => {
+                                      const selectedTool = toolLibrary.find(t => t.tool_name === v);
+                                      const newTools = [...tools];
+                                      newTools[idx].tool_name = v;
+                                      if (selectedTool && newTools[idx].price === 0) {
+                                        newTools[idx].price = selectedTool.default_price;
+                                      }
+                                      setTools(newTools);
+                                    }}
+                                  >
+                                    <SelectTrigger className="w-full">
+                                      <SelectValue placeholder="Select tool" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      {toolLibrary.map((t) => (
+                                        <SelectItem key={t.id} value={t.tool_name}>
+                                          {t.tool_name}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    value={tool.price}
+                                    onChange={(e) => {
+                                      const newTools = [...tools];
+                                      newTools[idx].price = parseFloat(e.target.value) || 0;
+                                      setTools(newTools);
+                                    }}
+                                    className="w-24 text-right"
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Input
+                                    type="number"
+                                    value={tool.markup}
+                                    onChange={(e) => {
+                                      const newTools = [...tools];
+                                      newTools[idx].markup = parseFloat(e.target.value) || 0;
+                                      setTools(newTools);
+                                    }}
+                                    className="w-16 text-right"
+                                  />
+                                </TableCell>
+                                {activeVolumes.map((vol, volIdx) => {
+                                  const originalVolIndex = volumes.indexOf(vol);
+                                  const qtyKey = `qty_vol_${originalVolIndex + 1}` as keyof ToolLine;
+                                  return (
+                                    <TableCell key={volIdx} className="text-center">
+                                      <Input
+                                        type="number"
+                                        value={tool[qtyKey] as number || 0}
+                                        onChange={(e) => {
+                                          const newTools = [...tools];
+                                          (newTools[idx] as any)[qtyKey] = parseInt(e.target.value) || 0;
+                                          setTools(newTools);
+                                        }}
+                                        className="w-16 text-right mx-auto"
+                                      />
+                                    </TableCell>
+                                  );
+                                })}
+                                <TableCell className="text-right font-medium">
+                                  €{calculateToolTotalForVolume(tool, 0).toFixed(2)}
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => removeToolLine(tool.line_number)}
+                                    className="h-8 w-8 text-destructive hover:text-destructive"
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                              {/* Volume breakdown row */}
+                              {activeVolumes.length > 1 && (
+                                <TableRow className="bg-muted/30">
+                                  <TableCell colSpan={3 + activeVolumes.length + 2} className="py-2">
+                                    <div className="pl-6 flex gap-4 items-center flex-wrap">
+                                      <span className="text-xs font-medium text-muted-foreground">Cost per volume:</span>
+                                      {activeVolumes.map((vol, volIdx) => {
+                                        const originalVolIndex = volumes.indexOf(vol);
+                                        const totalForVol = calculateToolTotalForVolume(tool, originalVolIndex);
+                                        return (
+                                          <Badge key={volIdx} variant="outline" className="text-xs">
+                                            Vol {originalVolIndex + 1} ({vol.quantity.toLocaleString()}): €{totalForVol.toFixed(2)}
+                                          </Badge>
+                                        );
+                                      })}
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              )}
+                            </React.Fragment>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
                   </div>
                 )}
 
                 <div className="mt-4 p-4 border rounded-lg bg-muted/30">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between flex-wrap gap-4">
                     <p className="text-sm text-muted-foreground">
-                      Total tools cost = Σ(Qty × Price × (1 + Markup/100))
+                      Total tools cost = Σ(Qty × Price × (1 + Markup/100)) per volume
                     </p>
-                    <Badge variant="secondary" className="text-lg px-4 py-2">
-                      Total Tools: €{totalToolsCost.toFixed(2)}
-                    </Badge>
+                    <div className="flex gap-2 flex-wrap">
+                      {activeVolumes.map((vol, volIdx) => {
+                        const originalVolIndex = volumes.indexOf(vol);
+                        const totalForVol = getTotalToolsCostForVolume(originalVolIndex);
+                        return (
+                          <Badge key={volIdx} variant={volIdx === 0 ? "secondary" : "outline"} className={volIdx === 0 ? "text-lg px-4 py-2" : "px-3 py-1"}>
+                            Vol {originalVolIndex + 1}: €{totalForVol.toFixed(2)}
+                          </Badge>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 

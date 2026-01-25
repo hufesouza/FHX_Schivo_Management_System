@@ -3000,6 +3000,11 @@ export type Database = {
           line_number: number
           markup: number | null
           price: number | null
+          qty_vol_1: number | null
+          qty_vol_2: number | null
+          qty_vol_3: number | null
+          qty_vol_4: number | null
+          qty_vol_5: number | null
           quantity: number | null
           quotation_id: string
           tool_name: string | null
@@ -3011,6 +3016,11 @@ export type Database = {
           line_number?: number
           markup?: number | null
           price?: number | null
+          qty_vol_1?: number | null
+          qty_vol_2?: number | null
+          qty_vol_3?: number | null
+          qty_vol_4?: number | null
+          qty_vol_5?: number | null
           quantity?: number | null
           quotation_id: string
           tool_name?: string | null
@@ -3022,6 +3032,11 @@ export type Database = {
           line_number?: number
           markup?: number | null
           price?: number | null
+          qty_vol_1?: number | null
+          qty_vol_2?: number | null
+          qty_vol_3?: number | null
+          qty_vol_4?: number | null
+          qty_vol_5?: number | null
           quantity?: number | null
           quotation_id?: string
           tool_name?: string | null
