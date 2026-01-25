@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw, AlertTriangle, Check, Pencil, X, CheckCircle, Upload, Eye, FileUp } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw, AlertTriangle, Check, Pencil, X, CheckCircle, Upload, Eye, FileUp, Wrench } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -50,6 +50,15 @@ interface MaterialLine {
   qty_vol_3?: number | null;
   qty_vol_4?: number | null;
   qty_vol_5?: number | null;
+}
+
+interface ToolLine {
+  id?: string;
+  line_number: number;
+  tool_name: string;
+  quantity: number;
+  price: number;
+  markup: number;
 }
 
 interface SubconLine {
@@ -135,7 +144,7 @@ const QuotationSystemNew = () => {
   const [drawingPreviewOpen, setDrawingPreviewOpen] = useState(false);
   const drawingInputRef = useRef<HTMLInputElement>(null);
 
-  const tabOrder = ['header', 'materials', 'subcon', 'routings', 'pricing'];
+  const tabOrder = ['header', 'materials', 'tools', 'subcon', 'routings', 'pricing'];
 
 
   // Fetch customers, subcon vendors, and material suppliers lists
@@ -349,6 +358,80 @@ const QuotationSystemNew = () => {
   };
 
   const [subcons, setSubcons] = useState<SubconLine[]>([]);
+
+  // Tools state
+  const [tools, setTools] = useState<ToolLine[]>([]);
+  const [toolLibrary, setToolLibrary] = useState<{id: string; tool_name: string; default_price: number}[]>([]);
+  const [newToolDialogOpen, setNewToolDialogOpen] = useState(false);
+  const [newToolName, setNewToolName] = useState('');
+  const [newToolPrice, setNewToolPrice] = useState(0);
+
+  // Fetch tool library
+  useEffect(() => {
+    const fetchToolLibrary = async () => {
+      const { data, error } = await supabase
+        .from('quotation_tool_library')
+        .select('*')
+        .eq('is_active', true)
+        .order('tool_name');
+      
+      if (!error && data) {
+        setToolLibrary(data);
+      }
+    };
+    fetchToolLibrary();
+  }, []);
+
+  // Calculate total tools cost
+  const calculateToolTotal = (tool: ToolLine): number => {
+    return tool.quantity * tool.price * (1 + tool.markup / 100);
+  };
+
+  const totalToolsCost = useMemo(() => {
+    return tools.reduce((sum, t) => sum + calculateToolTotal(t), 0);
+  }, [tools]);
+
+  const addToolLine = (selectedToolName?: string) => {
+    const selectedTool = selectedToolName ? toolLibrary.find(t => t.tool_name === selectedToolName) : undefined;
+    setTools([...tools, {
+      line_number: tools.length + 1,
+      tool_name: selectedTool?.tool_name || '',
+      quantity: 1,
+      price: selectedTool?.default_price || 0,
+      markup: 0
+    }]);
+  };
+
+  const removeToolLine = (lineNumber: number) => {
+    setTools(tools.filter(t => t.line_number !== lineNumber).map((t, idx) => ({ ...t, line_number: idx + 1 })));
+  };
+
+  const addNewToolToLibrary = async () => {
+    if (!newToolName.trim()) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('quotation_tool_library')
+        .insert({ tool_name: newToolName.trim(), default_price: newToolPrice, site: site })
+        .select()
+        .single();
+      
+      if (error) throw error;
+      
+      if (data) {
+        setToolLibrary([...toolLibrary, data]);
+        // Add this new tool to the current quote
+        addToolLine(data.tool_name);
+        setNewToolDialogOpen(false);
+        setNewToolName('');
+        setNewToolPrice(0);
+        toast.success('Tool added to library');
+      }
+    } catch (error) {
+      console.error('Error adding tool to library:', error);
+      toast.error('Failed to add tool');
+    }
+  };
 
   // Generate virtual subcon resources from subcon lines (available only in this quotation)
   const subconResources = useMemo(() => {
@@ -736,6 +819,24 @@ const QuotationSystemNew = () => {
           ));
         }
 
+        // Load tools
+        const { data: toolsData } = await supabase
+          .from('quotation_tools')
+          .select('*')
+          .eq('quotation_id', idToLoad)
+          .order('line_number', { ascending: true });
+        
+        if (toolsData && toolsData.length > 0) {
+          setTools(toolsData.map(t => ({
+            id: t.id,
+            line_number: t.line_number,
+            tool_name: t.tool_name || '',
+            quantity: t.quantity || 1,
+            price: t.price || 0,
+            markup: t.markup || 0
+          })));
+        }
+
       } catch (error) {
         console.error('Error loading quotation:', error);
         toast.error('Failed to load quotation');
@@ -960,6 +1061,7 @@ const QuotationSystemNew = () => {
       subcons: any[];
       routings: any[];
       volumes: any[];
+      tools: any[];
     } | null = null;
 
     try {
@@ -980,11 +1082,12 @@ const QuotationSystemNew = () => {
         if (updateError) throw updateError;
 
         // Backup current related rows BEFORE deleting anything
-        const [mRes, sRes, rRes, vRes] = await Promise.all([
+        const [mRes, sRes, rRes, vRes, tRes] = await Promise.all([
           supabase.from('quotation_materials').select('*').eq('quotation_id', currentQuotationId),
           supabase.from('quotation_subcons').select('*').eq('quotation_id', currentQuotationId),
           supabase.from('quotation_routings').select('*').eq('quotation_id', currentQuotationId),
           supabase.from('quotation_volume_pricing').select('*').eq('quotation_id', currentQuotationId),
+          supabase.from('quotation_tools').select('*').eq('quotation_id', currentQuotationId),
         ]);
 
         backup = {
@@ -992,20 +1095,23 @@ const QuotationSystemNew = () => {
           subcons: sRes.data ?? [],
           routings: rRes.data ?? [],
           volumes: vRes.data ?? [],
+          tools: tRes.data ?? [],
         };
 
         // Delete existing related data to re-insert
-        const [dm, ds, dr, dv] = await Promise.all([
+        const [dm, ds, dr, dv, dt] = await Promise.all([
           supabase.from('quotation_materials').delete().eq('quotation_id', currentQuotationId),
           supabase.from('quotation_subcons').delete().eq('quotation_id', currentQuotationId),
           supabase.from('quotation_routings').delete().eq('quotation_id', currentQuotationId),
           supabase.from('quotation_volume_pricing').delete().eq('quotation_id', currentQuotationId),
+          supabase.from('quotation_tools').delete().eq('quotation_id', currentQuotationId),
         ]);
 
         if (dm.error) throw dm.error;
         if (ds.error) throw ds.error;
         if (dr.error) throw dr.error;
         if (dv.error) throw dv.error;
+        if (dt.error) throw dt.error;
       } else {
         // Create quotation header
         const { data: quotation, error: quotationError } = await supabase
@@ -1119,6 +1225,24 @@ const QuotationSystemNew = () => {
         .insert(volumeInserts);
       if (volumeError) throw volumeError;
 
+      // Insert tools
+      const toolInserts = tools.filter(t => t.tool_name).map(t => ({
+        quotation_id: currentQuotationId,
+        line_number: t.line_number,
+        tool_name: t.tool_name,
+        quantity: t.quantity,
+        price: t.price,
+        markup: t.markup,
+        total: calculateToolTotal(t)
+      }));
+
+      if (toolInserts.length > 0) {
+        const { error: toolError } = await supabase
+          .from('quotation_tools')
+          .insert(toolInserts);
+        if (toolError) throw toolError;
+      }
+
       if (showSuccessToast) {
         toast.success('Quotation saved successfully');
       }
@@ -1137,6 +1261,7 @@ const QuotationSystemNew = () => {
             supabase.from('quotation_subcons').delete().eq('quotation_id', currentQuotationId),
             supabase.from('quotation_routings').delete().eq('quotation_id', currentQuotationId),
             supabase.from('quotation_volume_pricing').delete().eq('quotation_id', currentQuotationId),
+            supabase.from('quotation_tools').delete().eq('quotation_id', currentQuotationId),
           ]);
 
           if (backup.materials.length > 0) {
@@ -1165,6 +1290,13 @@ const QuotationSystemNew = () => {
               .from('quotation_volume_pricing')
               .insert(backup.volumes);
             if (restoreVolumesError) throw restoreVolumesError;
+          }
+
+          if (backup.tools.length > 0) {
+            const { error: restoreToolsError } = await supabase
+              .from('quotation_tools')
+              .insert(backup.tools);
+            if (restoreToolsError) throw restoreToolsError;
           }
 
           toast.error('Save failed — previous data was restored');
@@ -1227,7 +1359,7 @@ const QuotationSystemNew = () => {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5 max-w-2xl">
+          <TabsList className="grid w-full grid-cols-6 max-w-3xl">
             <TabsTrigger value="header" className="flex items-center gap-1 text-xs">
               <FileText className="h-3 w-3" />
               Header
@@ -1235,6 +1367,10 @@ const QuotationSystemNew = () => {
             <TabsTrigger value="materials" className="flex items-center gap-1 text-xs">
               <Package className="h-3 w-3" />
               Materials
+            </TabsTrigger>
+            <TabsTrigger value="tools" className="flex items-center gap-1 text-xs">
+              <Wrench className="h-3 w-3" />
+              Tools
             </TabsTrigger>
             <TabsTrigger value="subcon" className="flex items-center gap-1 text-xs">
               <Truck className="h-3 w-3" />
@@ -2133,6 +2269,202 @@ const QuotationSystemNew = () => {
                     Total Material (with {header.material_markup}% markup): €{totals.totalMaterialCost.toFixed(2)}
                   </Badge>
                 </div>
+                <div className="mt-4 flex justify-between items-center">
+                  <Button variant="outline" onClick={handleBack}>
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Back
+                  </Button>
+                  <Button onClick={handleNext} disabled={saving}>
+                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Next: Tools
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Tools Tab */}
+          <TabsContent value="tools">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    Tools
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-sm">
+                        <p>Add tooling costs for this quotation. Select from the library or create new tools. Total cost = Σ(Qty × Price × (1 + Markup/100))</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardTitle>
+                  <CardDescription>Enter tooling costs and quantities</CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Dialog open={newToolDialogOpen} onOpenChange={setNewToolDialogOpen}>
+                    <Button variant="outline" size="sm" onClick={() => setNewToolDialogOpen(true)}>
+                      <Plus className="h-4 w-4 mr-1" /> New Tool
+                    </Button>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Add New Tool to Library</DialogTitle>
+                        <DialogDescription>Create a new tool that will be saved to the library for future use.</DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                          <Label>Tool Name</Label>
+                          <Input
+                            value={newToolName}
+                            onChange={(e) => setNewToolName(e.target.value)}
+                            placeholder="e.g., End Mill 10mm"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Default Price (€)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={newToolPrice}
+                            onChange={(e) => setNewToolPrice(parseFloat(e.target.value) || 0)}
+                            placeholder="0.00"
+                          />
+                        </div>
+                        <Button onClick={addNewToolToLibrary} className="w-full">
+                          Add to Library
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                  <Button onClick={() => addToolLine()} size="sm">
+                    <Plus className="h-4 w-4 mr-1" /> Add Line
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {tools.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>No tools added yet.</p>
+                    <div className="flex justify-center gap-2 mt-4">
+                      <Button onClick={() => setNewToolDialogOpen(true)} variant="outline">
+                        <Plus className="h-4 w-4 mr-1" /> Create New Tool
+                      </Button>
+                      <Button onClick={() => addToolLine()} variant="outline">
+                        <Plus className="h-4 w-4 mr-1" /> Add From Library
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[300px]">Tool</TableHead>
+                          <TableHead className="w-[100px]">Quantity</TableHead>
+                          <TableHead className="w-[120px]">Price (€)</TableHead>
+                          <TableHead className="w-[100px]">Markup (%)</TableHead>
+                          <TableHead className="w-[120px] text-right">Total (€)</TableHead>
+                          <TableHead className="w-[60px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {tools.map((tool, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell>
+                              <Select
+                                value={tool.tool_name}
+                                onValueChange={(v) => {
+                                  const selectedTool = toolLibrary.find(t => t.tool_name === v);
+                                  const newTools = [...tools];
+                                  newTools[idx].tool_name = v;
+                                  if (selectedTool && newTools[idx].price === 0) {
+                                    newTools[idx].price = selectedTool.default_price;
+                                  }
+                                  setTools(newTools);
+                                }}
+                              >
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Select tool" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {toolLibrary.map((t) => (
+                                    <SelectItem key={t.id} value={t.tool_name}>
+                                      {t.tool_name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={tool.quantity}
+                                onChange={(e) => {
+                                  const newTools = [...tools];
+                                  newTools[idx].quantity = parseInt(e.target.value) || 0;
+                                  setTools(newTools);
+                                }}
+                                className="w-20 text-right"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                value={tool.price}
+                                onChange={(e) => {
+                                  const newTools = [...tools];
+                                  newTools[idx].price = parseFloat(e.target.value) || 0;
+                                  setTools(newTools);
+                                }}
+                                className="w-24 text-right"
+                              />
+                            </TableCell>
+                            <TableCell>
+                              <Input
+                                type="number"
+                                value={tool.markup}
+                                onChange={(e) => {
+                                  const newTools = [...tools];
+                                  newTools[idx].markup = parseFloat(e.target.value) || 0;
+                                  setTools(newTools);
+                                }}
+                                className="w-20 text-right"
+                              />
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              €{calculateToolTotal(tool).toFixed(2)}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => removeToolLine(tool.line_number)}
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                <div className="mt-4 p-4 border rounded-lg bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm text-muted-foreground">
+                      Total tools cost = Σ(Qty × Price × (1 + Markup/100))
+                    </p>
+                    <Badge variant="secondary" className="text-lg px-4 py-2">
+                      Total Tools: €{totalToolsCost.toFixed(2)}
+                    </Badge>
+                  </div>
+                </div>
+
                 <div className="mt-4 flex justify-between items-center">
                   <Button variant="outline" onClick={handleBack}>
                     <ChevronLeft className="h-4 w-4 mr-1" />
