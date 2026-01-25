@@ -394,13 +394,16 @@ const QuotationSystemNew = () => {
     return volumes.map(vol => {
       const quantity = vol.quantity || 0;
       
-      // Time needed = (Quantity × Cycle time per piece × (100 / Effectiveness)) / 3600 / hours per day
-      // Effectiveness factor: 85% means you're only 85% effective, so you need 100/85 = 1.176x the time
-      const effectivenessFactor = 100 / effectiveness;
-      const totalSeconds = quantity * cycleTimeSeconds * effectivenessFactor;
-      const timeNeededDays = totalSeconds / 3600 / hoursPerDay;
+      // Correct formula:
+      // 1) Effective production seconds per day = hours/day × 3600 × (effectiveness / 100)
+      // 2) Pieces per day = effective seconds per day / cycle time per piece
+      // 3) Days needed = ceil(quantity / pieces per day)
+      const effectiveSecondsPerDay = hoursPerDay * 3600 * (effectiveness / 100);
+      const piecesPerDay = cycleTimeSeconds > 0 ? effectiveSecondsPerDay / cycleTimeSeconds : 0;
+      const timeNeededDays = piecesPerDay > 0 ? Math.ceil(quantity / piecesPerDay) : 0;
 
-      // Cost per detail = (Cycle time / 3600) × Hourly rate × effectiveness factor
+      // Cost per detail = (Cycle time / 3600) × Hourly rate × (100 / effectiveness)
+      const effectivenessFactor = 100 / effectiveness;
       const costPerDetail = (cycleTimeSeconds / 3600) * hourlyRate * effectivenessFactor;
 
       // Total cost = Quantity × Cost per detail
