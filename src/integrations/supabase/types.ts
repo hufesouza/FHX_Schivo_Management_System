@@ -2619,15 +2619,24 @@ export type Database = {
         Row: {
           certification_required: string | null
           created_at: string
+          cut_off: number | null
           description_for_qa: string | null
+          diameter: number | null
           id: string
+          length: number | null
           line_number: number
           mat_category: string | null
           material_description: string | null
+          overhead: number | null
           part_number: string | null
           purchaser: string | null
           qa_inspection_required: boolean | null
           qty_per_unit: number | null
+          qty_vol_1: number | null
+          qty_vol_2: number | null
+          qty_vol_3: number | null
+          qty_vol_4: number | null
+          qty_vol_5: number | null
           quotation_id: string
           std_cost_est: number | null
           total_material: number | null
@@ -2638,15 +2647,24 @@ export type Database = {
         Insert: {
           certification_required?: string | null
           created_at?: string
+          cut_off?: number | null
           description_for_qa?: string | null
+          diameter?: number | null
           id?: string
+          length?: number | null
           line_number: number
           mat_category?: string | null
           material_description?: string | null
+          overhead?: number | null
           part_number?: string | null
           purchaser?: string | null
           qa_inspection_required?: boolean | null
           qty_per_unit?: number | null
+          qty_vol_1?: number | null
+          qty_vol_2?: number | null
+          qty_vol_3?: number | null
+          qty_vol_4?: number | null
+          qty_vol_5?: number | null
           quotation_id: string
           std_cost_est?: number | null
           total_material?: number | null
@@ -2657,15 +2675,24 @@ export type Database = {
         Update: {
           certification_required?: string | null
           created_at?: string
+          cut_off?: number | null
           description_for_qa?: string | null
+          diameter?: number | null
           id?: string
+          length?: number | null
           line_number?: number
           mat_category?: string | null
           material_description?: string | null
+          overhead?: number | null
           part_number?: string | null
           purchaser?: string | null
           qa_inspection_required?: boolean | null
           qty_per_unit?: number | null
+          qty_vol_1?: number | null
+          qty_vol_2?: number | null
+          qty_vol_3?: number | null
+          qty_vol_4?: number | null
+          qty_vol_5?: number | null
           quotation_id?: string
           std_cost_est?: number | null
           total_material?: number | null
