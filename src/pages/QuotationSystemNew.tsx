@@ -385,6 +385,14 @@ const QuotationSystemNew = () => {
     const effectiveness = productionPlanning.production_effectiveness || 85;
     const hourlyRate = productionPlanning.hourly_rate || 0;
 
+    console.log('Production Planning Debug:', {
+      cycleTimeSeconds,
+      hoursPerDay,
+      effectiveness,
+      hourlyRate,
+      rawHourlyRate: productionPlanning.hourly_rate
+    });
+
     // Programming cost = hours × rate
     const programmingCost = (productionPlanning.programming_hours || 0) * (productionPlanning.programming_rate || 0);
     // Setup cost = hours × rate
