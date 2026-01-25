@@ -443,21 +443,28 @@ const QuotationSystemNew = () => {
   // Secondary Operations state
   interface SecondaryOp {
     id: string;
+    resource_id: string;
     operation: string;
     cost_type: 'per_piece' | 'per_run' | 'total';
-    quantity_per_run: number;
-    cost: number;
-    lead_time: string;
+    qty_per_run: number;
+    time_per_run: number; // minutes
+    time_per_piece: number; // minutes
+    total_time: number; // minutes
+    cost_per_minute: number;
+    calculated_cost: number;
     markup: number;
     notes: string;
   }
   const [secondaryOps, setSecondaryOps] = useState<SecondaryOp[]>([]);
-  const [secondaryOpForm, setSecondaryOpForm] = useState<Omit<SecondaryOp, 'id'>>({
+  const [secondaryOpForm, setSecondaryOpForm] = useState<Omit<SecondaryOp, 'id' | 'calculated_cost'>>({
+    resource_id: '',
     operation: '',
     cost_type: 'per_run',
-    quantity_per_run: 0,
-    cost: 0,
-    lead_time: '',
+    qty_per_run: 1,
+    time_per_run: 0,
+    time_per_piece: 0,
+    total_time: 0,
+    cost_per_minute: 0,
     markup: 0,
     notes: ''
   });
@@ -3546,8 +3553,9 @@ const QuotationSystemNew = () => {
                           <TableHead>Operation</TableHead>
                           <TableHead>Cost Type</TableHead>
                           <TableHead className="text-right">Qty/Run</TableHead>
-                          <TableHead className="text-right">Cost (€)</TableHead>
-                          <TableHead>Lead Time</TableHead>
+                          <TableHead className="text-right">Time</TableHead>
+                          <TableHead className="text-right">Rate</TableHead>
+                          <TableHead className="text-right">Cost</TableHead>
                           <TableHead className="text-right">Markup %</TableHead>
                           <TableHead>Notes</TableHead>
                           <TableHead className="w-10"></TableHead>
@@ -3562,9 +3570,16 @@ const QuotationSystemNew = () => {
                                 {op.cost_type === 'per_piece' ? 'Per Piece' : op.cost_type === 'per_run' ? 'Per Run' : 'Total'}
                               </Badge>
                             </TableCell>
-                            <TableCell className="text-right">{op.quantity_per_run || '-'}</TableCell>
-                            <TableCell className="text-right">€{op.cost.toFixed(2)}</TableCell>
-                            <TableCell>{op.lead_time || '-'}</TableCell>
+                            <TableCell className="text-right">
+                              {op.cost_type === 'per_run' ? `${op.qty_per_run} pcs` : '-'}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {op.cost_type === 'per_piece' ? `${op.time_per_piece} min` : 
+                               op.cost_type === 'per_run' ? `${op.time_per_run} min` : 
+                               `${op.total_time} min`}
+                            </TableCell>
+                            <TableCell className="text-right">€{op.cost_per_minute.toFixed(2)}/min</TableCell>
+                            <TableCell className="text-right">€{op.calculated_cost.toFixed(2)}</TableCell>
                             <TableCell className="text-right">{op.markup}%</TableCell>
                             <TableCell className="max-w-[150px] truncate">{op.notes || '-'}</TableCell>
                             <TableCell>
@@ -3590,20 +3605,28 @@ const QuotationSystemNew = () => {
                     <h4 className="font-medium text-sm">Add Secondary Operation</h4>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <div className="space-y-2">
-                      <Label>Operation</Label>
+                      <Label>Resource / Operation</Label>
                       <Select
-                        value={secondaryOpForm.operation}
-                        onValueChange={(v) => setSecondaryOpForm(prev => ({ ...prev, operation: v }))}
+                        value={secondaryOpForm.resource_id}
+                        onValueChange={(v) => {
+                          const resource = resources.find(r => r.id === v);
+                          setSecondaryOpForm(prev => ({ 
+                            ...prev, 
+                            resource_id: v,
+                            operation: resource?.resource_description || '',
+                            cost_per_minute: resource?.cost_per_minute || 0
+                          }));
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select resource..." />
                         </SelectTrigger>
                         <SelectContent>
                           {resources.filter(r => r.is_active).map(r => (
-                            <SelectItem key={r.id} value={r.resource_description}>
-                              {r.resource_no} - {r.resource_description}
+                            <SelectItem key={r.id} value={r.id}>
+                              {r.resource_no} - {r.resource_description} (€{r.cost_per_minute.toFixed(2)}/min)
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -3614,53 +3637,82 @@ const QuotationSystemNew = () => {
                       <Label>Cost Type</Label>
                       <RadioGroup
                         value={secondaryOpForm.cost_type}
-                        onValueChange={(v) => setSecondaryOpForm(prev => ({ ...prev, cost_type: v as 'per_piece' | 'per_run' | 'total' }))}
+                        onValueChange={(v) => setSecondaryOpForm(prev => ({ 
+                          ...prev, 
+                          cost_type: v as 'per_piece' | 'per_run' | 'total',
+                          // Reset time fields when changing cost type
+                          time_per_piece: 0,
+                          time_per_run: 0,
+                          total_time: 0,
+                          qty_per_run: v === 'per_run' ? 1 : 0
+                        }))}
                         className="flex gap-4"
                       >
                         <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="per_piece" id="per_piece" />
-                          <Label htmlFor="per_piece" className="font-normal cursor-pointer">Per Piece</Label>
+                          <RadioGroupItem value="per_piece" id="sec_per_piece" />
+                          <Label htmlFor="sec_per_piece" className="font-normal cursor-pointer">Per Piece</Label>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="per_run" id="per_run" />
-                          <Label htmlFor="per_run" className="font-normal cursor-pointer">Per Run</Label>
+                          <RadioGroupItem value="per_run" id="sec_per_run" />
+                          <Label htmlFor="sec_per_run" className="font-normal cursor-pointer">Per Run</Label>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="total" id="total" />
-                          <Label htmlFor="total" className="font-normal cursor-pointer">Total</Label>
+                          <RadioGroupItem value="total" id="sec_total" />
+                          <Label htmlFor="sec_total" className="font-normal cursor-pointer">Total</Label>
                         </div>
                       </RadioGroup>
                     </div>
                     
-                    <div className="space-y-2">
-                      <Label>Quantity per Run</Label>
-                      <Input
-                        type="number"
-                        value={secondaryOpForm.quantity_per_run || ''}
-                        onChange={(e) => setSecondaryOpForm(prev => ({ ...prev, quantity_per_run: parseFloat(e.target.value) || 0 }))}
-                        placeholder="e.g., 100"
-                      />
-                    </div>
+                    {/* Conditional fields based on cost type */}
+                    {secondaryOpForm.cost_type === 'per_run' && (
+                      <>
+                        <div className="space-y-2">
+                          <Label>Qty per Run</Label>
+                          <Input
+                            type="number"
+                            value={secondaryOpForm.qty_per_run || ''}
+                            onChange={(e) => setSecondaryOpForm(prev => ({ ...prev, qty_per_run: parseInt(e.target.value) || 1 }))}
+                            placeholder="e.g., 100"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Time per Run (min)</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            value={secondaryOpForm.time_per_run || ''}
+                            onChange={(e) => setSecondaryOpForm(prev => ({ ...prev, time_per_run: parseFloat(e.target.value) || 0 }))}
+                            placeholder="e.g., 30"
+                          />
+                        </div>
+                      </>
+                    )}
                     
-                    <div className="space-y-2">
-                      <Label>Cost (€)</Label>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        value={secondaryOpForm.cost || ''}
-                        onChange={(e) => setSecondaryOpForm(prev => ({ ...prev, cost: parseFloat(e.target.value) || 0 }))}
-                        placeholder="e.g., 35"
-                      />
-                    </div>
+                    {secondaryOpForm.cost_type === 'per_piece' && (
+                      <div className="space-y-2">
+                        <Label>Time per Piece (min)</Label>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={secondaryOpForm.time_per_piece || ''}
+                          onChange={(e) => setSecondaryOpForm(prev => ({ ...prev, time_per_piece: parseFloat(e.target.value) || 0 }))}
+                          placeholder="e.g., 0.5"
+                        />
+                      </div>
+                    )}
                     
-                    <div className="space-y-2">
-                      <Label>Lead Time</Label>
-                      <Input
-                        value={secondaryOpForm.lead_time}
-                        onChange={(e) => setSecondaryOpForm(prev => ({ ...prev, lead_time: e.target.value }))}
-                        placeholder="e.g., 2 days"
-                      />
-                    </div>
+                    {secondaryOpForm.cost_type === 'total' && (
+                      <div className="space-y-2">
+                        <Label>Total Time (min)</Label>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={secondaryOpForm.total_time || ''}
+                          onChange={(e) => setSecondaryOpForm(prev => ({ ...prev, total_time: parseFloat(e.target.value) || 0 }))}
+                          placeholder="e.g., 60"
+                        />
+                      </div>
+                    )}
                     
                     <div className="space-y-2">
                       <Label>Markup %</Label>
@@ -3672,7 +3724,27 @@ const QuotationSystemNew = () => {
                       />
                     </div>
                     
-                    <div className="space-y-2 md:col-span-2">
+                    {/* Calculated cost display */}
+                    <div className="space-y-2">
+                      <Label>Calculated Cost</Label>
+                      <div className="h-10 px-3 py-2 rounded-md border bg-muted flex items-center">
+                        €{(() => {
+                          const rate = secondaryOpForm.cost_per_minute;
+                          const markup = 1 + (secondaryOpForm.markup / 100);
+                          let baseCost = 0;
+                          if (secondaryOpForm.cost_type === 'per_piece') {
+                            baseCost = secondaryOpForm.time_per_piece * rate;
+                          } else if (secondaryOpForm.cost_type === 'per_run') {
+                            baseCost = secondaryOpForm.time_per_run * rate;
+                          } else {
+                            baseCost = secondaryOpForm.total_time * rate;
+                          }
+                          return (baseCost * markup).toFixed(2);
+                        })()}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2 lg:col-span-3">
                       <Label>Notes</Label>
                       <Textarea
                         value={secondaryOpForm.notes}
@@ -3687,11 +3759,14 @@ const QuotationSystemNew = () => {
                     <Button 
                       variant="outline" 
                       onClick={() => setSecondaryOpForm({
+                        resource_id: '',
                         operation: '',
                         cost_type: 'per_run',
-                        quantity_per_run: 0,
-                        cost: 0,
-                        lead_time: '',
+                        qty_per_run: 1,
+                        time_per_run: 0,
+                        time_per_piece: 0,
+                        total_time: 0,
+                        cost_per_minute: 0,
                         markup: 0,
                         notes: ''
                       })}
@@ -3700,23 +3775,39 @@ const QuotationSystemNew = () => {
                     </Button>
                     <Button 
                       onClick={() => {
-                        if (secondaryOpForm.operation) {
+                        if (secondaryOpForm.resource_id) {
+                          const rate = secondaryOpForm.cost_per_minute;
+                          const markup = 1 + (secondaryOpForm.markup / 100);
+                          let baseCost = 0;
+                          if (secondaryOpForm.cost_type === 'per_piece') {
+                            baseCost = secondaryOpForm.time_per_piece * rate;
+                          } else if (secondaryOpForm.cost_type === 'per_run') {
+                            baseCost = secondaryOpForm.time_per_run * rate;
+                          } else {
+                            baseCost = secondaryOpForm.total_time * rate;
+                          }
+                          const calculatedCost = baseCost * markup;
+                          
                           setSecondaryOps(prev => [...prev, {
                             id: crypto.randomUUID(),
-                            ...secondaryOpForm
+                            ...secondaryOpForm,
+                            calculated_cost: calculatedCost
                           }]);
                           setSecondaryOpForm({
+                            resource_id: '',
                             operation: '',
                             cost_type: 'per_run',
-                            quantity_per_run: 0,
-                            cost: 0,
-                            lead_time: '',
+                            qty_per_run: 1,
+                            time_per_run: 0,
+                            time_per_piece: 0,
+                            total_time: 0,
+                            cost_per_minute: 0,
                             markup: 0,
                             notes: ''
                           });
                         }
                       }}
-                      disabled={!secondaryOpForm.operation}
+                      disabled={!secondaryOpForm.resource_id}
                     >
                       <Plus className="h-4 w-4 mr-1" />
                       Add
