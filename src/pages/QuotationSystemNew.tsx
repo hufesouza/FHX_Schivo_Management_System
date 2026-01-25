@@ -394,8 +394,9 @@ const QuotationSystemNew = () => {
     return volumes.map(vol => {
       const quantity = vol.quantity || 0;
       
-      // Time needed = (Quantity × Cycle time per piece × (1 + (100 - Effectiveness) / 100)) / 3600 / hours per day
-      const effectivenessFactor = 1 + (100 - effectiveness) / 100;
+      // Time needed = (Quantity × Cycle time per piece × (100 / Effectiveness)) / 3600 / hours per day
+      // Effectiveness factor: 85% means you're only 85% effective, so you need 100/85 = 1.176x the time
+      const effectivenessFactor = 100 / effectiveness;
       const totalSeconds = quantity * cycleTimeSeconds * effectivenessFactor;
       const timeNeededDays = totalSeconds / 3600 / hoursPerDay;
 
