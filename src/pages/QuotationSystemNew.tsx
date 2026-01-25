@@ -1062,27 +1062,15 @@ const QuotationSystemNew = () => {
     // For display, show the sum of all subcon costs (first quantity tier)
     const firstQty = volumes[0]?.quantity || 0;
     const totalSubconCost = getSubconCostForQuantity(firstQty);
-    const totalSetupTime = routings.reduce((sum, r) => sum + r.setup_time, 0);
-    const totalRunTime = routings.reduce((sum, r) => sum + r.run_time, 0);
-    // Calculate total setup cost using only selected routing's resource rate
-    const totalSetupCost = routings.reduce((sum, r) => {
-      if (!setupIncludedOps.has(r.op_no)) return sum;
-      const costPerMin = getResourceCost(r.resource_no);
-      return sum + (r.setup_time * costPerMin);
-    }, 0);
-    // Selected setup time for display
-    const selectedSetupTime = routings.reduce((sum, r) => {
-      if (!setupIncludedOps.has(r.op_no)) return sum;
-      return sum + r.setup_time;
-    }, 0);
-    // totalRoutingCost = production cost per detail + selected routing costs
+    // Routing section disabled - set routing values to 0
+    const totalSetupTime = 0; // routings disabled
+    const totalRunTime = 0; // routings disabled
+    const totalSetupCost = 0; // routings disabled
+    const selectedSetupTime = 0; // routings disabled
+    
+    // totalRoutingCost = only production cost per detail (routing disabled)
     const productionCostPerDetail = productionCalculations[0]?.costPerDetail || 0;
-    const selectedRoutingCost = routings.reduce((sum, r) => {
-      if (!setupIncludedOps.has(r.op_no)) return sum;
-      const costPerMin = getResourceCost(r.resource_no);
-      return sum + (r.run_time * costPerMin);
-    }, 0);
-    const totalRoutingCost = productionCostPerDetail + selectedRoutingCost;
+    const totalRoutingCost = productionCostPerDetail;
     const costPerHour = getSettingValue('cost_per_hour') || 55;
 
     return {
