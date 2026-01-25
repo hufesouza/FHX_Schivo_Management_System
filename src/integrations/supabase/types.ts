@@ -411,6 +411,338 @@ export type Database = {
         }
         Relationships: []
       }
+      enquiry_quoted_part_materials: {
+        Row: {
+          certification_required: string | null
+          description_for_qa: string | null
+          enquiry_quoted_part_id: string
+          id: string
+          line_number: number
+          mat_category: string | null
+          material_description: string | null
+          part_number: string | null
+          purchaser: string | null
+          qa_inspection_required: boolean | null
+          qty_per_unit: number | null
+          std_cost_est: number | null
+          total_material: number | null
+          uom: string | null
+          vendor_name: string | null
+          vendor_no: string | null
+        }
+        Insert: {
+          certification_required?: string | null
+          description_for_qa?: string | null
+          enquiry_quoted_part_id: string
+          id?: string
+          line_number: number
+          mat_category?: string | null
+          material_description?: string | null
+          part_number?: string | null
+          purchaser?: string | null
+          qa_inspection_required?: boolean | null
+          qty_per_unit?: number | null
+          std_cost_est?: number | null
+          total_material?: number | null
+          uom?: string | null
+          vendor_name?: string | null
+          vendor_no?: string | null
+        }
+        Update: {
+          certification_required?: string | null
+          description_for_qa?: string | null
+          enquiry_quoted_part_id?: string
+          id?: string
+          line_number?: number
+          mat_category?: string | null
+          material_description?: string | null
+          part_number?: string | null
+          purchaser?: string | null
+          qa_inspection_required?: boolean | null
+          qty_per_unit?: number | null
+          std_cost_est?: number | null
+          total_material?: number | null
+          uom?: string | null
+          vendor_name?: string | null
+          vendor_no?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enquiry_quoted_part_materials_enquiry_quoted_part_id_fkey"
+            columns: ["enquiry_quoted_part_id"]
+            isOneToOne: false
+            referencedRelation: "enquiry_quoted_parts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enquiry_quoted_part_routings: {
+        Row: {
+          cost: number | null
+          enquiry_quoted_part_id: string
+          id: string
+          op_no: number
+          operation_details: string | null
+          part_number: string | null
+          resource_id: string | null
+          resource_no: string | null
+          run_time: number | null
+          setup_time: number | null
+          subcon_processing_time: number | null
+          sublevel_bom: boolean | null
+        }
+        Insert: {
+          cost?: number | null
+          enquiry_quoted_part_id: string
+          id?: string
+          op_no: number
+          operation_details?: string | null
+          part_number?: string | null
+          resource_id?: string | null
+          resource_no?: string | null
+          run_time?: number | null
+          setup_time?: number | null
+          subcon_processing_time?: number | null
+          sublevel_bom?: boolean | null
+        }
+        Update: {
+          cost?: number | null
+          enquiry_quoted_part_id?: string
+          id?: string
+          op_no?: number
+          operation_details?: string | null
+          part_number?: string | null
+          resource_id?: string | null
+          resource_no?: string | null
+          run_time?: number | null
+          setup_time?: number | null
+          subcon_processing_time?: number | null
+          sublevel_bom?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enquiry_quoted_part_routings_enquiry_quoted_part_id_fkey"
+            columns: ["enquiry_quoted_part_id"]
+            isOneToOne: false
+            referencedRelation: "enquiry_quoted_parts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enquiry_quoted_part_subcons: {
+        Row: {
+          certification_required: boolean | null
+          enquiry_quoted_part_id: string
+          id: string
+          line_number: number
+          part_number: string | null
+          process_description: string | null
+          std_cost_est: number | null
+          total_subcon: number | null
+          vendor_name: string | null
+          vendor_no: string | null
+        }
+        Insert: {
+          certification_required?: boolean | null
+          enquiry_quoted_part_id: string
+          id?: string
+          line_number: number
+          part_number?: string | null
+          process_description?: string | null
+          std_cost_est?: number | null
+          total_subcon?: number | null
+          vendor_name?: string | null
+          vendor_no?: string | null
+        }
+        Update: {
+          certification_required?: boolean | null
+          enquiry_quoted_part_id?: string
+          id?: string
+          line_number?: number
+          part_number?: string | null
+          process_description?: string | null
+          std_cost_est?: number | null
+          total_subcon?: number | null
+          vendor_name?: string | null
+          vendor_no?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enquiry_quoted_part_subcons_enquiry_quoted_part_id_fkey"
+            columns: ["enquiry_quoted_part_id"]
+            isOneToOne: false
+            referencedRelation: "enquiry_quoted_parts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enquiry_quoted_part_volume_pricing: {
+        Row: {
+          carriage: number | null
+          cost_per_hour: number | null
+          cost_per_unit: number | null
+          enquiry_quoted_part_id: string
+          hours: number | null
+          id: string
+          labour_cost: number | null
+          margin: number | null
+          material_cost: number | null
+          misc: number | null
+          quantity: number
+          subcon_cost: number | null
+          tooling_cost: number | null
+          total_price: number | null
+          unit_price_quoted: number | null
+        }
+        Insert: {
+          carriage?: number | null
+          cost_per_hour?: number | null
+          cost_per_unit?: number | null
+          enquiry_quoted_part_id: string
+          hours?: number | null
+          id?: string
+          labour_cost?: number | null
+          margin?: number | null
+          material_cost?: number | null
+          misc?: number | null
+          quantity: number
+          subcon_cost?: number | null
+          tooling_cost?: number | null
+          total_price?: number | null
+          unit_price_quoted?: number | null
+        }
+        Update: {
+          carriage?: number | null
+          cost_per_hour?: number | null
+          cost_per_unit?: number | null
+          enquiry_quoted_part_id?: string
+          hours?: number | null
+          id?: string
+          labour_cost?: number | null
+          margin?: number | null
+          material_cost?: number | null
+          misc?: number | null
+          quantity?: number
+          subcon_cost?: number | null
+          tooling_cost?: number | null
+          total_price?: number | null
+          unit_price_quoted?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enquiry_quoted_part_volume_pricing_enquiry_quoted_part_id_fkey"
+            columns: ["enquiry_quoted_part_id"]
+            isOneToOne: false
+            referencedRelation: "enquiry_quoted_parts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      enquiry_quoted_parts: {
+        Row: {
+          average_margin: number | null
+          batch_traceable: boolean | null
+          blue_review_required: boolean | null
+          created_at: string
+          customer: string
+          customer_code: string | null
+          description: string | null
+          enquiry_id: string
+          id: string
+          manufacture_type: string | null
+          material_markup: number | null
+          notes: string | null
+          part_number: string
+          qty_per: number | null
+          revision: string | null
+          rohs_compliant: boolean | null
+          serial_traceable: boolean | null
+          source_quotation_id: string
+          subcon_markup: number | null
+          total_quoted_value: number | null
+          updated_at: string
+          vol_1: number | null
+          vol_2: number | null
+          vol_3: number | null
+          vol_4: number | null
+          vol_5: number | null
+          won_volume: number | null
+        }
+        Insert: {
+          average_margin?: number | null
+          batch_traceable?: boolean | null
+          blue_review_required?: boolean | null
+          created_at?: string
+          customer: string
+          customer_code?: string | null
+          description?: string | null
+          enquiry_id: string
+          id?: string
+          manufacture_type?: string | null
+          material_markup?: number | null
+          notes?: string | null
+          part_number: string
+          qty_per?: number | null
+          revision?: string | null
+          rohs_compliant?: boolean | null
+          serial_traceable?: boolean | null
+          source_quotation_id: string
+          subcon_markup?: number | null
+          total_quoted_value?: number | null
+          updated_at?: string
+          vol_1?: number | null
+          vol_2?: number | null
+          vol_3?: number | null
+          vol_4?: number | null
+          vol_5?: number | null
+          won_volume?: number | null
+        }
+        Update: {
+          average_margin?: number | null
+          batch_traceable?: boolean | null
+          blue_review_required?: boolean | null
+          created_at?: string
+          customer?: string
+          customer_code?: string | null
+          description?: string | null
+          enquiry_id?: string
+          id?: string
+          manufacture_type?: string | null
+          material_markup?: number | null
+          notes?: string | null
+          part_number?: string
+          qty_per?: number | null
+          revision?: string | null
+          rohs_compliant?: boolean | null
+          serial_traceable?: boolean | null
+          source_quotation_id?: string
+          subcon_markup?: number | null
+          total_quoted_value?: number | null
+          updated_at?: string
+          vol_1?: number | null
+          vol_2?: number | null
+          vol_3?: number | null
+          vol_4?: number | null
+          vol_5?: number | null
+          won_volume?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "enquiry_quoted_parts_enquiry_id_fkey"
+            columns: ["enquiry_id"]
+            isOneToOne: false
+            referencedRelation: "quotation_enquiries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enquiry_quoted_parts_source_quotation_id_fkey"
+            columns: ["source_quotation_id"]
+            isOneToOne: false
+            referencedRelation: "system_quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       form_fields: {
         Row: {
           created_at: string
@@ -2842,6 +3174,7 @@ export type Database = {
       }
       system_quotations: {
         Row: {
+          assignment_status: string | null
           batch_traceable: boolean | null
           blue_review_required: boolean | null
           created_at: string
@@ -2852,6 +3185,7 @@ export type Database = {
           enquiry_no: string
           enquiry_part_id: string | null
           id: string
+          is_template: boolean | null
           manufacture_type: string | null
           material_markup: number | null
           notes: string | null
@@ -2873,6 +3207,7 @@ export type Database = {
           won_volume: number | null
         }
         Insert: {
+          assignment_status?: string | null
           batch_traceable?: boolean | null
           blue_review_required?: boolean | null
           created_at?: string
@@ -2883,6 +3218,7 @@ export type Database = {
           enquiry_no: string
           enquiry_part_id?: string | null
           id?: string
+          is_template?: boolean | null
           manufacture_type?: string | null
           material_markup?: number | null
           notes?: string | null
@@ -2904,6 +3240,7 @@ export type Database = {
           won_volume?: number | null
         }
         Update: {
+          assignment_status?: string | null
           batch_traceable?: boolean | null
           blue_review_required?: boolean | null
           created_at?: string
@@ -2914,6 +3251,7 @@ export type Database = {
           enquiry_no?: string
           enquiry_part_id?: string | null
           id?: string
+          is_template?: boolean | null
           manufacture_type?: string | null
           material_markup?: number | null
           notes?: string | null
