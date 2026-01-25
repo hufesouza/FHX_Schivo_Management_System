@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw, AlertTriangle, Check, Pencil, X, CheckCircle, Upload, Eye, FileUp } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -39,6 +40,10 @@ interface MaterialLine {
   std_cost_est: number;
   certification_required: string;
   purchaser: string;
+  length: number;
+  diameter: number;
+  cut_off: number;
+  overhead: number;
 }
 
 interface SubconLine {
@@ -317,8 +322,9 @@ const QuotationSystemNew = () => {
   ]);
 
   // Materials state
+  const [materialUnits, setMaterialUnits] = useState<'metric' | 'imperial'>('metric');
   const [materials, setMaterials] = useState<MaterialLine[]>([
-    { line_number: 1, vendor_no: '', vendor_name: '', part_number: '', material_description: '', mat_category: '', uom: 'Each', qty_per_unit: 1, qa_inspection_required: false, std_cost_est: 0, certification_required: '', purchaser: '' }
+    { line_number: 1, vendor_no: '', vendor_name: '', part_number: '', material_description: '', mat_category: '', uom: 'Each', qty_per_unit: 1, qa_inspection_required: false, std_cost_est: 0, certification_required: '', purchaser: '', length: 0, diameter: 0, cut_off: 0, overhead: 0 }
   ]);
 
   // Subcon state - generate initial lines based on volumes
@@ -650,7 +656,11 @@ const QuotationSystemNew = () => {
             qa_inspection_required: m.qa_inspection_required || false,
             std_cost_est: m.std_cost_est || 0,
             certification_required: m.certification_required || '',
-            purchaser: m.purchaser || ''
+            purchaser: m.purchaser || '',
+            length: (m as any).length || 0,
+            diameter: (m as any).diameter || 0,
+            cut_off: (m as any).cut_off || 0,
+            overhead: (m as any).overhead || 0
           })));
         }
 
@@ -736,7 +746,8 @@ const QuotationSystemNew = () => {
       line_number: materials.length + 1,
       vendor_no: '', vendor_name: '', part_number: '', material_description: '',
       mat_category: '', uom: 'Each', qty_per_unit: 1, qa_inspection_required: false,
-      std_cost_est: 0, certification_required: '', purchaser: ''
+      std_cost_est: 0, certification_required: '', purchaser: '',
+      length: 0, diameter: 0, cut_off: 0, overhead: 0
     }]);
   };
 
@@ -1671,6 +1682,89 @@ const QuotationSystemNew = () => {
                 </Button>
               </CardHeader>
               <CardContent>
+                {/* Material dimensions section */}
+                <div className="border rounded-lg p-4 bg-muted/30 mb-4">
+                  <div className="flex flex-wrap items-end gap-6">
+                    <div className="flex items-center gap-4">
+                      <Label className="text-sm font-medium whitespace-nowrap">Measurement units</Label>
+                      <RadioGroup
+                        value={materialUnits}
+                        onValueChange={(v) => setMaterialUnits(v as 'metric' | 'imperial')}
+                        className="flex items-center gap-4"
+                      >
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="imperial" id="imperial" />
+                          <Label htmlFor="imperial" className="font-normal cursor-pointer">Imperial</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="metric" id="metric" />
+                          <Label htmlFor="metric" className="font-normal cursor-pointer">Metric</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm whitespace-nowrap">Length</Label>
+                      <Input
+                        type="number"
+                        value={materials[0]?.length || 0}
+                        onChange={(e) => {
+                          const newMats = [...materials];
+                          if (newMats[0]) newMats[0].length = parseFloat(e.target.value) || 0;
+                          setMaterials(newMats);
+                        }}
+                        className="w-24"
+                      />
+                      <span className="text-sm text-muted-foreground">{materialUnits === 'metric' ? 'mm' : 'in'}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm whitespace-nowrap">Diameter</Label>
+                      <Input
+                        type="number"
+                        value={materials[0]?.diameter || 0}
+                        onChange={(e) => {
+                          const newMats = [...materials];
+                          if (newMats[0]) newMats[0].diameter = parseFloat(e.target.value) || 0;
+                          setMaterials(newMats);
+                        }}
+                        className="w-24"
+                      />
+                      <span className="text-sm text-muted-foreground">{materialUnits === 'metric' ? 'mm' : 'in'}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm whitespace-nowrap">Cut off</Label>
+                      <Input
+                        type="number"
+                        value={materials[0]?.cut_off || 0}
+                        onChange={(e) => {
+                          const newMats = [...materials];
+                          if (newMats[0]) newMats[0].cut_off = parseFloat(e.target.value) || 0;
+                          setMaterials(newMats);
+                        }}
+                        className="w-24"
+                      />
+                      <span className="text-sm text-muted-foreground">{materialUnits === 'metric' ? 'mm' : 'in'}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm whitespace-nowrap">Overhead</Label>
+                      <Input
+                        type="number"
+                        value={materials[0]?.overhead || 0}
+                        onChange={(e) => {
+                          const newMats = [...materials];
+                          if (newMats[0]) newMats[0].overhead = parseFloat(e.target.value) || 0;
+                          setMaterials(newMats);
+                        }}
+                        className="w-20"
+                      />
+                      <span className="text-sm text-muted-foreground">%</span>
+                    </div>
+                  </div>
+                </div>
+
                 <Alert className="bg-muted/50 border-primary/20 mb-4">
                   <Info className="h-4 w-4 text-primary" />
                   <AlertDescription className="text-sm text-muted-foreground">
