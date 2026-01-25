@@ -930,8 +930,8 @@ const QuotationSystemNew = () => {
       return false;
     }
 
-    if (!header.enquiry_no || !header.customer || !header.part_number) {
-      toast.error('Please fill in required fields (Enquiry No, Customer, Part Number)');
+    if (!header.customer || !header.part_number) {
+      toast.error('Please fill in required fields (Customer, Part Number)');
       return false;
     }
 
