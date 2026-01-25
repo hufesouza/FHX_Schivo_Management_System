@@ -1810,7 +1810,7 @@ const QuotationSystemNew = () => {
                   <Alert className="bg-muted/50 border-primary/20 mb-4">
                     <Info className="h-4 w-4 text-primary" />
                     <AlertDescription className="text-sm text-muted-foreground">
-                      Enter vendor details, part numbers, and standard costs. <strong>Qty/Unit</strong> = how many of this material are needed per finished part. <strong>Std Cost</strong> = cost per unit of material. Total is calculated with the {header.material_markup}% markup applied.
+                      Enter vendor details, part numbers, and standard costs. <strong>Qty to Buy</strong> = how many of this material are needed per finished part. <strong>Std Cost</strong> = cost per unit of material. Total is calculated with the {header.material_markup}% markup applied.
                     </AlertDescription>
                   </Alert>
                   <div className="border rounded-lg overflow-auto">
@@ -1823,7 +1823,7 @@ const QuotationSystemNew = () => {
                         <TableHead>Part Number</TableHead>
                         <TableHead>Description</TableHead>
                         <TableHead>UOM</TableHead>
-                        <TableHead className="text-right">Qty/Unit</TableHead>
+                        <TableHead className="text-right">Qty to Buy</TableHead>
                         <TableHead className="text-right">Std Cost (€)</TableHead>
                         <TableHead className="text-right">Total (€)</TableHead>
                       </TableRow>
