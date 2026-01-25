@@ -137,8 +137,9 @@ const QuotationSystemNew = () => {
   const [customerPopoverOpen, setCustomerPopoverOpen] = useState(false);
   const [materialVendorPopoverOpen, setMaterialVendorPopoverOpen] = useState<number | null>(null);
   const [subconVendorPopoverOpen, setSubconVendorPopoverOpen] = useState<number | null>(null);
-  // Initialize with only non-development operations included (e.g., op_no 20 = Saw)
-  const [setupIncludedOps, setSetupIncludedOps] = useState<Set<number>>(new Set([20]));
+  // Initialize with non-development operations included in setup calculation
+  // (Saw, Machine Setup, Machine Parts Complete, Deburr, Wash, QA ops)
+  const [setupIncludedOps, setSetupIncludedOps] = useState<Set<number>>(new Set([20, 40, 60, 70, 80, 90, 100, 110]));
   // Exclude subcon from margin calculation when subcon cost warning is triggered
   const [excludeSubconFromMargin, setExcludeSubconFromMargin] = useState(false);
   
@@ -534,11 +535,24 @@ const QuotationSystemNew = () => {
     return [...siteResources, ...subconResources];
   }, [siteResources, subconResources]);
 
-  // Routing state - ManuEng is development, so include_setup_calc defaults to false
-  const [routings, setRoutings] = useState<RoutingLine[]>([
-    { op_no: 10, sublevel_bom: false, part_number: '', resource_no: 'ManuEng', operation_details: 'REVIEW PROCESS, METHOD & FILL IN BLUE REVIEW', subcon_processing_time: 0, setup_time: 0.1, run_time: 0, include_setup_calc: false },
+  // Standard routing template - auto-populated for new quotations
+  const defaultRoutings: RoutingLine[] = [
+    { op_no: 10, sublevel_bom: false, part_number: '', resource_no: 'ManuEng', operation_details: 'REVIEW PROCESS, METHOD & FILL IN BLUE REVIEW - REQUEST IF NOT SUPPLIED', subcon_processing_time: 0, setup_time: 0.1, run_time: 0, include_setup_calc: false },
     { op_no: 20, sublevel_bom: false, part_number: '', resource_no: 'Saw', operation_details: 'BOOK OUT ALLOCATED MATERIAL', subcon_processing_time: 0, setup_time: 10, run_time: 0, include_setup_calc: true },
-  ]);
+    { op_no: 30, sublevel_bom: false, part_number: '', resource_no: 'DoosanMX1600', operation_details: 'DEVELOPMENT TIME', subcon_processing_time: 1440, setup_time: 0, run_time: 0, include_setup_calc: false },
+    { op_no: 40, sublevel_bom: false, part_number: '', resource_no: 'DoosanMX1600', operation_details: 'MACHINE SETUP', subcon_processing_time: 0, setup_time: 240, run_time: 0, include_setup_calc: true },
+    { op_no: 50, sublevel_bom: false, part_number: '', resource_no: 'DoosanMX1600', operation_details: 'FIRST ARTICLE INSPECTION & BUILD QA PACK', subcon_processing_time: 0, setup_time: 0, run_time: 0.1, include_setup_calc: false },
+    { op_no: 60, sublevel_bom: false, part_number: '', resource_no: 'DoosanMX1600', operation_details: 'MACHINE PARTS COMPLETE', subcon_processing_time: 0, setup_time: 0, run_time: 11, include_setup_calc: true },
+    { op_no: 70, sublevel_bom: false, part_number: '', resource_no: 'Debur1', operation_details: 'REMOVING BURRS:', subcon_processing_time: 0, setup_time: 0, run_time: 0.5, include_setup_calc: true },
+    { op_no: 80, sublevel_bom: false, part_number: '', resource_no: 'Wash', operation_details: 'WASH PARTS as per WD-WI-0048', subcon_processing_time: 0, setup_time: 0, run_time: 0.5, include_setup_calc: true },
+    { op_no: 90, sublevel_bom: false, part_number: '', resource_no: 'QA1', operation_details: 'PRE SUBCON INSPECT PER WD-WI-0017', subcon_processing_time: 0, setup_time: 0, run_time: 0.1, include_setup_calc: true },
+    { op_no: 100, sublevel_bom: false, part_number: '', resource_no: 'QA1', operation_details: 'POST SUBCON INSPECT PER WD-WI-0017', subcon_processing_time: 0, setup_time: 0, run_time: 0.1, include_setup_calc: true },
+    { op_no: 110, sublevel_bom: false, part_number: '', resource_no: 'QA4', operation_details: 'RELEASE TO STOCK AS PER WD-PRO-0011', subcon_processing_time: 0, setup_time: 0, run_time: 0.1, include_setup_calc: true },
+    { op_no: 120, sublevel_bom: false, part_number: '', resource_no: 'Dispatch', operation_details: 'Dispatch Shipping times', subcon_processing_time: 2400, setup_time: 0, run_time: 0, include_setup_calc: false },
+  ];
+
+  // Routing state - initialized with standard template
+  const [routings, setRoutings] = useState<RoutingLine[]>(defaultRoutings);
 
   // Keep setupIncludedOps in sync when routing lines are removed
   useEffect(() => {
