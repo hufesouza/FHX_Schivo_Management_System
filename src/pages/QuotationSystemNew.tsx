@@ -1716,13 +1716,14 @@ const QuotationSystemNew = () => {
                         <Input
                           type="number"
                           step="0.01"
-                          value={materials[0]?.length || 0}
+                          value={materials[0]?.length || ''}
                           onChange={(e) => {
                             const newMats = [...materials];
                             if (newMats[0]) newMats[0].length = parseFloat(e.target.value) || 0;
                             setMaterials(newMats);
                           }}
                           className="w-24"
+                          placeholder="0"
                         />
                         <span className="text-sm text-muted-foreground">{materialUnits === 'metric' ? 'mm' : 'in'}</span>
                       </div>
@@ -1731,13 +1732,14 @@ const QuotationSystemNew = () => {
                         <Input
                           type="number"
                           step="0.01"
-                          value={materials[0]?.diameter || 0}
+                          value={materials[0]?.diameter || ''}
                           onChange={(e) => {
                             const newMats = [...materials];
                             if (newMats[0]) newMats[0].diameter = parseFloat(e.target.value) || 0;
                             setMaterials(newMats);
                           }}
                           className="w-24"
+                          placeholder="0"
                         />
                         <span className="text-sm text-muted-foreground">{materialUnits === 'metric' ? 'mm' : 'in'}</span>
                       </div>
@@ -1750,13 +1752,14 @@ const QuotationSystemNew = () => {
                       <Input
                         type="number"
                         step="0.01"
-                        value={materials[0]?.cut_off || 0}
+                        value={materials[0]?.cut_off || ''}
                         onChange={(e) => {
                           const newMats = [...materials];
                           if (newMats[0]) newMats[0].cut_off = parseFloat(e.target.value) || 0;
                           setMaterials(newMats);
                         }}
                         className="w-24"
+                        placeholder="0"
                       />
                       <span className="text-sm text-muted-foreground">{materialUnits === 'metric' ? 'mm' : 'in'}</span>
                     </div>
@@ -1765,13 +1768,14 @@ const QuotationSystemNew = () => {
                       <Input
                         type="number"
                         step="0.1"
-                        value={materials[0]?.overhead || 0}
+                        value={materials[0]?.overhead || ''}
                         onChange={(e) => {
                           const newMats = [...materials];
                           if (newMats[0]) newMats[0].overhead = parseFloat(e.target.value) || 0;
                           setMaterials(newMats);
                         }}
                         className="w-20"
+                        placeholder="0"
                       />
                       <span className="text-sm text-muted-foreground">%</span>
                     </div>
