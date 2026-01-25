@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -1849,14 +1849,7 @@ const QuotationSystemNew = () => {
                               <TableHead>Description</TableHead>
                               <TableHead>UOM</TableHead>
                               <TableHead className="text-right">Std Cost (€)</TableHead>
-                              {activeVolumes.length > 0 ? (
-                                activeVolumes.map((vol, idx) => (
-                                  <TableHead key={idx} className="text-center bg-muted/30">
-                                    <div className="text-xs font-medium">Vol {volumes.indexOf(vol) + 1}</div>
-                                    <div className="text-xs text-muted-foreground">({vol.quantity.toLocaleString()} pcs)</div>
-                                  </TableHead>
-                                ))
-                              ) : (
+                              {activeVolumes.length === 0 && (
                                 <TableHead className="text-right">Qty to Buy</TableHead>
                               )}
                             </TableRow>
@@ -1880,20 +1873,18 @@ const QuotationSystemNew = () => {
                               };
                               
                               return (
-                                <>
+                                <React.Fragment key={idx}>
                                   {/* Main row with material details */}
-                                  <TableRow key={`main-${idx}`} className="border-b-0">
-                                    <TableCell rowSpan={activeVolumes.length > 0 ? 3 : 1} className="align-top border-r">
-                                      {mat.line_number}
-                                    </TableCell>
-                                    <TableCell rowSpan={activeVolumes.length > 0 ? 3 : 1} className="align-top">
+                                  <TableRow className={activeVolumes.length > 0 ? "border-b-0" : ""}>
+                                    <TableCell className="font-medium">{mat.line_number}</TableCell>
+                                    <TableCell>
                                       <Input
                                         value={getMaterialSupplierCode(mat.vendor_name)}
                                         readOnly
                                         className={`w-24 bg-muted ${mat.vendor_name && !isKnownMaterialSupplier(mat.vendor_name) ? 'text-amber-600' : ''}`}
                                       />
                                     </TableCell>
-                                    <TableCell rowSpan={activeVolumes.length > 0 ? 3 : 1} className="align-top">
+                                    <TableCell>
                                       <Popover open={materialVendorPopoverOpen === idx} onOpenChange={(open) => setMaterialVendorPopoverOpen(open ? idx : null)}>
                                         <PopoverTrigger asChild>
                                           <div className="relative">
@@ -1958,7 +1949,7 @@ const QuotationSystemNew = () => {
                                         </PopoverContent>
                                       </Popover>
                                     </TableCell>
-                                    <TableCell rowSpan={activeVolumes.length > 0 ? 3 : 1} className="align-top">
+                                    <TableCell>
                                       <Input
                                         value={mat.part_number}
                                         onChange={(e) => {
@@ -1969,7 +1960,7 @@ const QuotationSystemNew = () => {
                                         className="w-32"
                                       />
                                     </TableCell>
-                                    <TableCell rowSpan={activeVolumes.length > 0 ? 3 : 1} className="align-top">
+                                    <TableCell>
                                       <Input
                                         value={mat.material_description}
                                         onChange={(e) => {
@@ -1979,7 +1970,7 @@ const QuotationSystemNew = () => {
                                         }}
                                       />
                                     </TableCell>
-                                    <TableCell rowSpan={activeVolumes.length > 0 ? 3 : 1} className="align-top">
+                                    <TableCell>
                                       <Select 
                                         value={mat.uom} 
                                         onValueChange={(v) => {
@@ -2006,7 +1997,7 @@ const QuotationSystemNew = () => {
                                         </SelectContent>
                                       </Select>
                                     </TableCell>
-                                    <TableCell rowSpan={activeVolumes.length > 0 ? 3 : 1} className="align-top">
+                                    <TableCell>
                                       <Input
                                         type="number"
                                         step="0.01"
@@ -2019,11 +2010,7 @@ const QuotationSystemNew = () => {
                                         className="w-24 text-right"
                                       />
                                     </TableCell>
-                                    {activeVolumes.length > 0 ? (
-                                      <TableCell colSpan={activeVolumes.length} className="p-0 bg-muted/10">
-                                        <div className="text-xs font-medium text-muted-foreground px-2 py-1 border-b">Qty to Buy</div>
-                                      </TableCell>
-                                    ) : (
+                                    {activeVolumes.length === 0 && (
                                       <TableCell>
                                         <Input
                                           type="number"
@@ -2040,54 +2027,56 @@ const QuotationSystemNew = () => {
                                     )}
                                   </TableRow>
                                   
-                                  {/* Qty to Buy row */}
+                                  {/* Volume breakdown sub-rows */}
                                   {activeVolumes.length > 0 && (
-                                    <TableRow key={`qty-${idx}`} className="border-b-0">
-                                      {activeVolumes.map((vol, volIdx) => {
-                                        const originalVolIndex = volumes.indexOf(vol);
-                                        const calculatedQty = getMetersForVolume(vol.quantity);
-                                        const key = getQtyKey(originalVolIndex);
-                                        const currentOverride = mat[key] as number | null | undefined;
-                                        
-                                        return (
-                                          <TableCell key={volIdx} className="text-center bg-muted/10 py-1">
-                                            <Input
-                                              type="number"
-                                              step="0.01"
-                                              value={currentOverride ?? calculatedQty.toFixed(2)}
-                                              onChange={(e) => {
-                                                const newMats = [...materials];
-                                                const val = parseFloat(e.target.value);
-                                                (newMats[idx] as any)[key] = isNaN(val) ? null : val;
-                                                setMaterials(newMats);
-                                              }}
-                                              className="w-20 text-right text-sm mx-auto"
-                                              placeholder={calculatedQty.toFixed(2)}
-                                            />
-                                          </TableCell>
-                                        );
-                                      })}
+                                    <TableRow className="bg-muted/30">
+                                      <TableCell colSpan={7} className="py-2">
+                                        <div className="pl-6 space-y-2">
+                                          <div className="text-xs font-medium text-muted-foreground mb-2">Volume Breakdown:</div>
+                                          <div className="grid gap-2">
+                                            {activeVolumes.map((vol, volIdx) => {
+                                              const originalVolIndex = volumes.indexOf(vol);
+                                              const calculatedQty = getMetersForVolume(vol.quantity);
+                                              const key = getQtyKey(originalVolIndex);
+                                              const currentOverride = mat[key] as number | null | undefined;
+                                              const effectiveQty = getEffectiveQty(originalVolIndex, vol.quantity);
+                                              const totalCost = effectiveQty * mat.std_cost_est * (1 + header.material_markup / 100);
+                                              
+                                              return (
+                                                <div key={volIdx} className="flex items-center gap-4 p-2 bg-background rounded border">
+                                                  <div className="min-w-[100px]">
+                                                    <span className="text-sm font-medium">Vol {originalVolIndex + 1}</span>
+                                                    <span className="text-xs text-muted-foreground ml-1">({vol.quantity.toLocaleString()} pcs)</span>
+                                                  </div>
+                                                  <div className="flex items-center gap-2">
+                                                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Qty to Buy:</Label>
+                                                    <Input
+                                                      type="number"
+                                                      step="0.01"
+                                                      value={currentOverride ?? calculatedQty.toFixed(2)}
+                                                      onChange={(e) => {
+                                                        const newMats = [...materials];
+                                                        const val = parseFloat(e.target.value);
+                                                        (newMats[idx] as any)[key] = isNaN(val) ? null : val;
+                                                        setMaterials(newMats);
+                                                      }}
+                                                      className="w-24 text-right text-sm h-8"
+                                                      placeholder={calculatedQty.toFixed(2)}
+                                                    />
+                                                  </div>
+                                                  <div className="flex items-center gap-2">
+                                                    <Label className="text-xs text-muted-foreground whitespace-nowrap">Total €:</Label>
+                                                    <span className="text-sm font-medium min-w-[80px] text-right">€{totalCost.toFixed(2)}</span>
+                                                  </div>
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        </div>
+                                      </TableCell>
                                     </TableRow>
                                   )}
-                                  
-                                  {/* Total row */}
-                                  {activeVolumes.length > 0 && (
-                                    <TableRow key={`total-${idx}`}>
-                                      {activeVolumes.map((vol, volIdx) => {
-                                        const originalVolIndex = volumes.indexOf(vol);
-                                        const effectiveQty = getEffectiveQty(originalVolIndex, vol.quantity);
-                                        const totalCost = effectiveQty * mat.std_cost_est * (1 + header.material_markup / 100);
-                                        
-                                        return (
-                                          <TableCell key={volIdx} className="text-center bg-muted/20 py-1">
-                                            <div className="text-xs text-muted-foreground">Total €</div>
-                                            <div className="text-sm font-medium">€{totalCost.toFixed(2)}</div>
-                                          </TableCell>
-                                        );
-                                      })}
-                                    </TableRow>
-                                  )}
-                                </>
+                                </React.Fragment>
                               );
                             })}
                           </TableBody>
