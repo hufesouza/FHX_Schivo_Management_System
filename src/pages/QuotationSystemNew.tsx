@@ -18,7 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useQuotationResources, useQuotationSettings } from '@/hooks/useQuotationSystem';
 import { supabase } from '@/integrations/supabase/client';
@@ -439,6 +439,43 @@ const QuotationSystemNew = () => {
   const [newToolDialogOpen, setNewToolDialogOpen] = useState(false);
   const [newToolName, setNewToolName] = useState('');
   const [newToolPrice, setNewToolPrice] = useState(0);
+
+  // Secondary Operations state
+  interface SecondaryOp {
+    id: string;
+    operation: string;
+    cost_type: 'per_piece' | 'per_run' | 'total';
+    quantity_per_run: number;
+    cost: number;
+    lead_time: string;
+    markup: number;
+    notes: string;
+  }
+  const [secondaryOps, setSecondaryOps] = useState<SecondaryOp[]>([]);
+  const [secondaryOpForm, setSecondaryOpForm] = useState<Omit<SecondaryOp, 'id'>>({
+    operation: '',
+    cost_type: 'per_run',
+    quantity_per_run: 0,
+    cost: 0,
+    lead_time: '',
+    markup: 0,
+    notes: ''
+  });
+  const [newSecondaryOpDialogOpen, setNewSecondaryOpDialogOpen] = useState(false);
+  const [newSecondaryOpName, setNewSecondaryOpName] = useState('');
+  
+  const defaultSecondaryOperations = [
+    'Deburring',
+    'Washing',
+    'QA Inspection',
+    'Packaging',
+    'Heat Treatment',
+    'Anodizing',
+    'Painting',
+    'Assembly',
+    'Marking',
+    'Testing'
+  ];
 
   // Fetch tool library
   useEffect(() => {
@@ -3514,17 +3551,221 @@ const QuotationSystemNew = () => {
                 <CardDescription>Add secondary operations and post-processing costs</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <Alert>
-                  <Info className="h-4 w-4" />
-                  <AlertDescription className="text-sm text-muted-foreground">
-                    <strong>Secondary Operations:</strong> Define post-machining processes like deburring, washing, QA inspection, packaging, etc. with their time and cost per part.
-                  </AlertDescription>
-                </Alert>
-                
-                <div className="text-center py-12 text-muted-foreground">
-                  <Wrench className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                  <p className="text-lg font-medium">Secondary Operations</p>
-                  <p className="text-sm">This section is under development.</p>
+                {/* Added Secondary Operations Table */}
+                {secondaryOps.length > 0 && (
+                  <div className="border rounded-lg overflow-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Operation</TableHead>
+                          <TableHead>Cost Type</TableHead>
+                          <TableHead className="text-right">Qty/Run</TableHead>
+                          <TableHead className="text-right">Cost (€)</TableHead>
+                          <TableHead>Lead Time</TableHead>
+                          <TableHead className="text-right">Markup %</TableHead>
+                          <TableHead>Notes</TableHead>
+                          <TableHead className="w-10"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {secondaryOps.map((op) => (
+                          <TableRow key={op.id}>
+                            <TableCell className="font-medium">{op.operation}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline">
+                                {op.cost_type === 'per_piece' ? 'Per Piece' : op.cost_type === 'per_run' ? 'Per Run' : 'Total'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-right">{op.quantity_per_run || '-'}</TableCell>
+                            <TableCell className="text-right">€{op.cost.toFixed(2)}</TableCell>
+                            <TableCell>{op.lead_time || '-'}</TableCell>
+                            <TableCell className="text-right">{op.markup}%</TableCell>
+                            <TableCell className="max-w-[150px] truncate">{op.notes || '-'}</TableCell>
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                onClick={() => setSecondaryOps(prev => prev.filter(o => o.id !== op.id))}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+
+                {/* Add Secondary Operation Form */}
+                <div className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="font-medium text-sm">Add Secondary Operation</h4>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Operation</Label>
+                      <div className="flex gap-2">
+                        <Select
+                          value={secondaryOpForm.operation}
+                          onValueChange={(v) => setSecondaryOpForm(prev => ({ ...prev, operation: v }))}
+                        >
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder="Select operation..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {defaultSecondaryOperations.map(op => (
+                              <SelectItem key={op} value={op}>{op}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Dialog open={newSecondaryOpDialogOpen} onOpenChange={setNewSecondaryOpDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">New</Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Add New Operation Type</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                              <div className="space-y-2">
+                                <Label>Operation Name</Label>
+                                <Input
+                                  value={newSecondaryOpName}
+                                  onChange={(e) => setNewSecondaryOpName(e.target.value)}
+                                  placeholder="e.g., Laser Marking"
+                                />
+                              </div>
+                            </div>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setNewSecondaryOpDialogOpen(false)}>Cancel</Button>
+                              <Button onClick={() => {
+                                if (newSecondaryOpName.trim()) {
+                                  setSecondaryOpForm(prev => ({ ...prev, operation: newSecondaryOpName.trim() }));
+                                  setNewSecondaryOpName('');
+                                  setNewSecondaryOpDialogOpen(false);
+                                }
+                              }}>Add</Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Cost Type</Label>
+                      <RadioGroup
+                        value={secondaryOpForm.cost_type}
+                        onValueChange={(v) => setSecondaryOpForm(prev => ({ ...prev, cost_type: v as 'per_piece' | 'per_run' | 'total' }))}
+                        className="flex gap-4"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="per_piece" id="per_piece" />
+                          <Label htmlFor="per_piece" className="font-normal cursor-pointer">Per Piece</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="per_run" id="per_run" />
+                          <Label htmlFor="per_run" className="font-normal cursor-pointer">Per Run</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="total" id="total" />
+                          <Label htmlFor="total" className="font-normal cursor-pointer">Total</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Quantity per Run</Label>
+                      <Input
+                        type="number"
+                        value={secondaryOpForm.quantity_per_run || ''}
+                        onChange={(e) => setSecondaryOpForm(prev => ({ ...prev, quantity_per_run: parseFloat(e.target.value) || 0 }))}
+                        placeholder="e.g., 100"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Cost (€)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={secondaryOpForm.cost || ''}
+                        onChange={(e) => setSecondaryOpForm(prev => ({ ...prev, cost: parseFloat(e.target.value) || 0 }))}
+                        placeholder="e.g., 35"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Lead Time</Label>
+                      <Input
+                        value={secondaryOpForm.lead_time}
+                        onChange={(e) => setSecondaryOpForm(prev => ({ ...prev, lead_time: e.target.value }))}
+                        placeholder="e.g., 2 days"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>Markup %</Label>
+                      <Input
+                        type="number"
+                        value={secondaryOpForm.markup || ''}
+                        onChange={(e) => setSecondaryOpForm(prev => ({ ...prev, markup: parseFloat(e.target.value) || 0 }))}
+                        placeholder="e.g., 10"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2 md:col-span-2">
+                      <Label>Notes</Label>
+                      <Textarea
+                        value={secondaryOpForm.notes}
+                        onChange={(e) => setSecondaryOpForm(prev => ({ ...prev, notes: e.target.value }))}
+                        placeholder="Additional notes..."
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end gap-2 mt-4">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => setSecondaryOpForm({
+                        operation: '',
+                        cost_type: 'per_run',
+                        quantity_per_run: 0,
+                        cost: 0,
+                        lead_time: '',
+                        markup: 0,
+                        notes: ''
+                      })}
+                    >
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={() => {
+                        if (secondaryOpForm.operation) {
+                          setSecondaryOps(prev => [...prev, {
+                            id: crypto.randomUUID(),
+                            ...secondaryOpForm
+                          }]);
+                          setSecondaryOpForm({
+                            operation: '',
+                            cost_type: 'per_run',
+                            quantity_per_run: 0,
+                            cost: 0,
+                            lead_time: '',
+                            markup: 0,
+                            notes: ''
+                          });
+                        }
+                      }}
+                      disabled={!secondaryOpForm.operation}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="flex justify-between items-center pt-4">
