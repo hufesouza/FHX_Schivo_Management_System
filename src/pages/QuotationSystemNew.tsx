@@ -3154,9 +3154,22 @@ const QuotationSystemNew = () => {
                   </CardTitle>
                   <CardDescription>Define the manufacturing routing sequence</CardDescription>
                 </div>
-                <Button onClick={addRoutingLine} size="sm">
-                  <Plus className="h-4 w-4 mr-1" /> Add Operation
-                </Button>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => {
+                      setRoutings(defaultRoutings);
+                      setSetupIncludedOps(new Set([20, 40, 60, 70, 80, 90, 100, 110]));
+                      toast.success('Routing reset to standard template');
+                    }}
+                  >
+                    <RefreshCw className="h-4 w-4 mr-1" /> Reset to Standard
+                  </Button>
+                  <Button onClick={addRoutingLine} size="sm">
+                    <Plus className="h-4 w-4 mr-1" /> Add Operation
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 <Alert className="bg-muted/50 border-primary/20 mb-4">
