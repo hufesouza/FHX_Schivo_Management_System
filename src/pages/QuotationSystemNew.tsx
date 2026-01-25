@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw, AlertTriangle, Check, Pencil, X, CheckCircle } from 'lucide-react';
+import { Loader2, Save, Plus, Trash2, Calculator, FileText, Package, Truck, ListOrdered, HelpCircle, Info, ChevronRight, ChevronLeft, RefreshCw, AlertTriangle, Check, Pencil, X, CheckCircle, Upload, Eye, FileUp } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -22,6 +22,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQuotationResources, useQuotationSettings } from '@/hooks/useQuotationSystem';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { DrawingPreviewDialog } from '@/components/drawings/DrawingPreviewDialog';
 
 type CalculationExplainer = 'setupCost' | 'routingCost' | 'material' | 'subcon' | 'totalCost' | 'costPerPart' | 'unitPrice' | 'ratePerHour' | 'margin' | null;
 
@@ -115,6 +116,13 @@ const QuotationSystemNew = () => {
   const [setupIncludedOps, setSetupIncludedOps] = useState<Set<number>>(new Set([20]));
   // Exclude subcon from margin calculation when subcon cost warning is triggered
   const [excludeSubconFromMargin, setExcludeSubconFromMargin] = useState(false);
+  
+  // Drawing state
+  const [drawingFile, setDrawingFile] = useState<File | null>(null);
+  const [drawingUrl, setDrawingUrl] = useState<string | null>(null);
+  const [extractingFromDrawing, setExtractingFromDrawing] = useState(false);
+  const [drawingPreviewOpen, setDrawingPreviewOpen] = useState(false);
+  const drawingInputRef = useRef<HTMLInputElement>(null);
 
   const tabOrder = ['header', 'materials', 'subcon', 'routings', 'pricing'];
 
@@ -410,6 +418,82 @@ const QuotationSystemNew = () => {
     } finally {
       setFetchingRates(false);
     }
+  };
+
+  // Handle drawing upload and extraction
+  const handleDrawingUpload = async (file: File) => {
+    setDrawingFile(file);
+    setExtractingFromDrawing(true);
+    
+    // Create a local URL for preview
+    const localUrl = URL.createObjectURL(file);
+    setDrawingUrl(localUrl);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/extract-part-from-drawing`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: formData,
+        }
+      );
+      
+      if (!response.ok) {
+        if (response.status === 429) {
+          toast.error('Rate limit exceeded. Please try again in a moment.');
+        } else if (response.status === 402) {
+          toast.error('AI credits depleted. Please add credits to continue.');
+        } else {
+          throw new Error('Failed to extract part details');
+        }
+        return;
+      }
+      
+      const data = await response.json();
+      
+      if (data.part_number) {
+        setHeader(prev => ({ ...prev, part_number: data.part_number }));
+      }
+      if (data.description) {
+        setHeader(prev => ({ ...prev, description: data.description }));
+      }
+      if (data.revision) {
+        setHeader(prev => ({ ...prev, revision: data.revision }));
+      }
+      
+      if (data.part_number || data.description || data.revision) {
+        toast.success('Part details extracted from drawing');
+      } else {
+        toast.info('Could not extract details - please enter manually');
+      }
+    } catch (error) {
+      console.error('Error extracting part details:', error);
+      toast.error('Failed to extract part details from drawing');
+    } finally {
+      setExtractingFromDrawing(false);
+    }
+  };
+
+  const handleDrawingFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      handleDrawingUpload(file);
+    }
+    e.target.value = '';
+  };
+
+  const clearDrawing = () => {
+    if (drawingUrl) {
+      URL.revokeObjectURL(drawingUrl);
+    }
+    setDrawingFile(null);
+    setDrawingUrl(null);
   };
 
   // Fetch rates on mount
@@ -1192,18 +1276,78 @@ const QuotationSystemNew = () => {
                 <Alert className="bg-muted/50 border-primary/20">
                   <Info className="h-4 w-4 text-primary" />
                   <AlertDescription className="text-sm text-muted-foreground">
-                    <strong>Required fields:</strong> Enquiry No, Customer, and Part Number are mandatory. Material and Subcon markups are applied automatically to calculate total costs.
+                    <strong>Required fields:</strong> Customer and Part Number are mandatory. Upload a drawing to auto-extract part details.
                   </AlertDescription>
                 </Alert>
-                <div className="grid gap-4 md:grid-cols-4">
-                  <div className="space-y-2">
-                    <Label>Enquiry No. *</Label>
-                    <Input
-                      value={header.enquiry_no}
-                      onChange={(e) => setHeader({ ...header, enquiry_no: e.target.value })}
-                      placeholder="e.g., 7650"
-                    />
+
+                {/* Drawing Upload Section */}
+                <div className="border rounded-lg p-4 bg-muted/30">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <FileUp className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <Label className="text-sm font-medium">Drawing (Optional)</Label>
+                        <p className="text-xs text-muted-foreground">Upload a drawing to auto-extract Part Number, Description & Revision</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {drawingFile ? (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDrawingPreviewOpen(true)}
+                            className="gap-1"
+                          >
+                            <Eye className="h-4 w-4" />
+                            View
+                          </Button>
+                          <Badge variant="secondary" className="gap-1">
+                            <FileText className="h-3 w-3" />
+                            {drawingFile.name.length > 20 ? drawingFile.name.slice(0, 20) + '...' : drawingFile.name}
+                          </Badge>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={clearDrawing}
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => drawingInputRef.current?.click()}
+                          disabled={extractingFromDrawing}
+                          className="gap-2"
+                        >
+                          {extractingFromDrawing ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Extracting...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="h-4 w-4" />
+                              Upload Drawing
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      <input
+                        ref={drawingInputRef}
+                        type="file"
+                        accept=".pdf,.png,.jpg,.jpeg,.webp"
+                        onChange={handleDrawingFileChange}
+                        className="hidden"
+                      />
+                    </div>
                   </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-4">
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
                       Customer *
@@ -2707,6 +2851,14 @@ const QuotationSystemNew = () => {
             </DialogContent>
           </Dialog>
         </Tabs>
+
+        {/* Drawing Preview Dialog */}
+        <DrawingPreviewDialog
+          open={drawingPreviewOpen}
+          onOpenChange={setDrawingPreviewOpen}
+          url={drawingUrl}
+          fileName={drawingFile?.name}
+        />
       </div>
     </AppLayout>
   );
