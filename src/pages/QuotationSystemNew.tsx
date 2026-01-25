@@ -3552,48 +3552,87 @@ const QuotationSystemNew = () => {
                         <TableRow>
                           <TableHead>Operation</TableHead>
                           <TableHead>Cost Type</TableHead>
-                          <TableHead className="text-right">Qty/Run</TableHead>
                           <TableHead className="text-right">Time</TableHead>
                           <TableHead className="text-right">Rate</TableHead>
-                          <TableHead className="text-right">Cost</TableHead>
-                          <TableHead className="text-right">Markup %</TableHead>
-                          <TableHead>Notes</TableHead>
+                          <TableHead className="text-right">Markup</TableHead>
+                          {volumes.map((vol, idx) => (
+                            <TableHead key={idx} className="text-right text-xs">
+                              Vol {idx + 1}<br/>({vol.quantity} pcs)
+                            </TableHead>
+                          ))}
                           <TableHead className="w-10"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {secondaryOps.map((op) => (
-                          <TableRow key={op.id}>
-                            <TableCell className="font-medium">{op.operation}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline">
-                                {op.cost_type === 'per_piece' ? 'Per Piece' : op.cost_type === 'per_run' ? 'Per Run' : 'Total'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {op.cost_type === 'per_run' ? `${op.qty_per_run} pcs` : '-'}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              {op.cost_type === 'per_piece' ? `${op.time_per_piece} min` : 
-                               op.cost_type === 'per_run' ? `${op.time_per_run} min` : 
-                               `${op.total_time} min`}
-                            </TableCell>
-                            <TableCell className="text-right">€{op.cost_per_minute.toFixed(2)}/min</TableCell>
-                            <TableCell className="text-right">€{op.calculated_cost.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">{op.markup}%</TableCell>
-                            <TableCell className="max-w-[150px] truncate">{op.notes || '-'}</TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                onClick={() => setSecondaryOps(prev => prev.filter(o => o.id !== op.id))}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                        {secondaryOps.map((op) => {
+                          // Calculate cost per volume
+                          const rate = op.cost_per_minute;
+                          const markup = 1 + (op.markup / 100);
+                          
+                          const getVolumeCost = (qty: number) => {
+                            if (op.cost_type === 'per_piece') {
+                              // Per piece: time × rate × qty × markup
+                              return op.time_per_piece * rate * qty * markup;
+                            } else if (op.cost_type === 'per_run') {
+                              // Per run: time × rate × (qty / qty_per_run) × markup
+                              const runs = Math.ceil(qty / (op.qty_per_run || 1));
+                              return op.time_per_run * rate * runs * markup;
+                            } else {
+                              // Total: fixed cost regardless of quantity
+                              return op.total_time * rate * markup;
+                            }
+                          };
+                          
+                          // Calculate lead time in hours for each volume
+                          const getLeadTimeHours = (qty: number) => {
+                            if (op.cost_type === 'per_piece') {
+                              return (op.time_per_piece * qty) / 60;
+                            } else if (op.cost_type === 'per_run') {
+                              const runs = Math.ceil(qty / (op.qty_per_run || 1));
+                              return (op.time_per_run * runs) / 60;
+                            } else {
+                              return op.total_time / 60;
+                            }
+                          };
+                          
+                          return (
+                            <TableRow key={op.id}>
+                              <TableCell className="font-medium">{op.operation}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className="text-xs">
+                                  {op.cost_type === 'per_piece' ? 'Per Piece' : op.cost_type === 'per_run' ? 'Per Run' : 'Total'}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right text-sm">
+                                {op.cost_type === 'per_piece' ? `${op.time_per_piece} min/pc` : 
+                                 op.cost_type === 'per_run' ? `${op.time_per_run} min/run (${op.qty_per_run} pcs)` : 
+                                 `${op.total_time} min total`}
+                              </TableCell>
+                              <TableCell className="text-right text-sm">€{rate.toFixed(2)}/min</TableCell>
+                              <TableCell className="text-right text-sm">{op.markup}%</TableCell>
+                              {volumes.map((vol, idx) => {
+                                const cost = getVolumeCost(vol.quantity);
+                                const hours = getLeadTimeHours(vol.quantity);
+                                return (
+                                  <TableCell key={idx} className="text-right">
+                                    <div className="text-sm font-medium">€{cost.toFixed(2)}</div>
+                                    <div className="text-xs text-muted-foreground">{hours.toFixed(1)}h</div>
+                                  </TableCell>
+                                );
+                              })}
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                  onClick={() => setSecondaryOps(prev => prev.filter(o => o.id !== op.id))}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>
