@@ -2856,6 +2856,65 @@ export type Database = {
           },
         ]
       }
+      quotation_secondary_ops: {
+        Row: {
+          calculated_cost: number | null
+          cost_per_minute: number | null
+          cost_type: string
+          created_at: string
+          id: string
+          markup: number | null
+          notes: string | null
+          operation: string
+          qty_per_run: number | null
+          quotation_id: string
+          resource_id: string | null
+          time_per_piece: number | null
+          time_per_run: number | null
+          total_time: number | null
+        }
+        Insert: {
+          calculated_cost?: number | null
+          cost_per_minute?: number | null
+          cost_type?: string
+          created_at?: string
+          id?: string
+          markup?: number | null
+          notes?: string | null
+          operation: string
+          qty_per_run?: number | null
+          quotation_id: string
+          resource_id?: string | null
+          time_per_piece?: number | null
+          time_per_run?: number | null
+          total_time?: number | null
+        }
+        Update: {
+          calculated_cost?: number | null
+          cost_per_minute?: number | null
+          cost_type?: string
+          created_at?: string
+          id?: string
+          markup?: number | null
+          notes?: string | null
+          operation?: string
+          qty_per_run?: number | null
+          quotation_id?: string
+          resource_id?: string | null
+          time_per_piece?: number | null
+          time_per_run?: number | null
+          total_time?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotation_secondary_ops_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "system_quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       quotation_subcon_vendors: {
         Row: {
           bp_code: string

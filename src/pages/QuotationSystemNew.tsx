@@ -979,6 +979,29 @@ const QuotationSystemNew = () => {
           })));
         }
 
+        // Load secondary operations
+        const { data: secondaryOpsData } = await supabase
+          .from('quotation_secondary_ops')
+          .select('*')
+          .eq('quotation_id', idToLoad);
+        
+        if (secondaryOpsData && secondaryOpsData.length > 0) {
+          setSecondaryOps(secondaryOpsData.map(op => ({
+            id: op.id,
+            resource_id: op.resource_id || '',
+            operation: op.operation || '',
+            cost_type: (op.cost_type as 'per_piece' | 'per_run' | 'total') || 'per_run',
+            qty_per_run: Number(op.qty_per_run) || 1,
+            time_per_run: Number(op.time_per_run) || 0,
+            time_per_piece: Number(op.time_per_piece) || 0,
+            total_time: Number(op.total_time) || 0,
+            cost_per_minute: Number(op.cost_per_minute) || 0,
+            calculated_cost: Number(op.calculated_cost) || 0,
+            markup: Number(op.markup) || 0,
+            notes: op.notes || ''
+          })));
+        }
+
       } catch (error) {
         console.error('Error loading quotation:', error);
         toast.error('Failed to load quotation');
@@ -1198,6 +1221,7 @@ const QuotationSystemNew = () => {
       routings: any[];
       volumes: any[];
       tools: any[];
+      secondaryOps: any[];
     } | null = null;
 
     try {
@@ -1229,12 +1253,13 @@ const QuotationSystemNew = () => {
         if (updateError) throw updateError;
 
         // Backup current related rows BEFORE deleting anything
-        const [mRes, sRes, rRes, vRes, tRes] = await Promise.all([
+        const [mRes, sRes, rRes, vRes, tRes, soRes] = await Promise.all([
           supabase.from('quotation_materials').select('*').eq('quotation_id', currentQuotationId),
           supabase.from('quotation_subcons').select('*').eq('quotation_id', currentQuotationId),
           supabase.from('quotation_routings').select('*').eq('quotation_id', currentQuotationId),
           supabase.from('quotation_volume_pricing').select('*').eq('quotation_id', currentQuotationId),
           supabase.from('quotation_tools').select('*').eq('quotation_id', currentQuotationId),
+          supabase.from('quotation_secondary_ops').select('*').eq('quotation_id', currentQuotationId),
         ]);
 
         backup = {
@@ -1243,15 +1268,17 @@ const QuotationSystemNew = () => {
           routings: rRes.data ?? [],
           volumes: vRes.data ?? [],
           tools: tRes.data ?? [],
+          secondaryOps: soRes.data ?? [],
         };
 
         // Delete existing related data to re-insert
-        const [dm, ds, dr, dv, dt] = await Promise.all([
+        const [dm, ds, dr, dv, dt, dso] = await Promise.all([
           supabase.from('quotation_materials').delete().eq('quotation_id', currentQuotationId),
           supabase.from('quotation_subcons').delete().eq('quotation_id', currentQuotationId),
           supabase.from('quotation_routings').delete().eq('quotation_id', currentQuotationId),
           supabase.from('quotation_volume_pricing').delete().eq('quotation_id', currentQuotationId),
           supabase.from('quotation_tools').delete().eq('quotation_id', currentQuotationId),
+          supabase.from('quotation_secondary_ops').delete().eq('quotation_id', currentQuotationId),
         ]);
 
         if (dm.error) throw dm.error;
@@ -1259,6 +1286,7 @@ const QuotationSystemNew = () => {
         if (dr.error) throw dr.error;
         if (dv.error) throw dv.error;
         if (dt.error) throw dt.error;
+        if (dso.error) throw dso.error;
       } else {
         // Create quotation header
         const { data: quotation, error: quotationError } = await supabase
@@ -1406,6 +1434,29 @@ const QuotationSystemNew = () => {
         if (toolError) throw toolError;
       }
 
+      // Insert secondary operations
+      const secondaryOpsInserts = secondaryOps.map(op => ({
+        quotation_id: currentQuotationId,
+        resource_id: op.resource_id,
+        operation: op.operation,
+        cost_type: op.cost_type,
+        qty_per_run: op.qty_per_run,
+        time_per_run: op.time_per_run,
+        time_per_piece: op.time_per_piece,
+        total_time: op.total_time,
+        cost_per_minute: op.cost_per_minute,
+        calculated_cost: op.calculated_cost,
+        markup: op.markup,
+        notes: op.notes
+      }));
+
+      if (secondaryOpsInserts.length > 0) {
+        const { error: secondaryOpsError } = await supabase
+          .from('quotation_secondary_ops')
+          .insert(secondaryOpsInserts);
+        if (secondaryOpsError) throw secondaryOpsError;
+      }
+
       if (showSuccessToast) {
         toast.success('Quotation saved successfully');
       }
@@ -1425,6 +1476,7 @@ const QuotationSystemNew = () => {
             supabase.from('quotation_routings').delete().eq('quotation_id', currentQuotationId),
             supabase.from('quotation_volume_pricing').delete().eq('quotation_id', currentQuotationId),
             supabase.from('quotation_tools').delete().eq('quotation_id', currentQuotationId),
+            supabase.from('quotation_secondary_ops').delete().eq('quotation_id', currentQuotationId),
           ]);
 
           if (backup.materials.length > 0) {
@@ -1460,6 +1512,13 @@ const QuotationSystemNew = () => {
               .from('quotation_tools')
               .insert(backup.tools);
             if (restoreToolsError) throw restoreToolsError;
+          }
+
+          if (backup.secondaryOps.length > 0) {
+            const { error: restoreSecondaryOpsError } = await supabase
+              .from('quotation_secondary_ops')
+              .insert(backup.secondaryOps);
+            if (restoreSecondaryOpsError) throw restoreSecondaryOpsError;
           }
 
           toast.error('Save failed — previous data was restored');
