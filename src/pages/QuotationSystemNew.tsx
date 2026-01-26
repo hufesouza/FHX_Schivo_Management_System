@@ -153,7 +153,7 @@ const QuotationSystemNew = () => {
   // Drag and drop state for routing
   const [draggedRoutingIdx, setDraggedRoutingIdx] = useState<number | null>(null);
 
-  const tabOrder = ['header', 'materials', 'tools', 'subcon', 'production', 'secondary', 'pricing']; // 'routings' hidden for now
+  const tabOrder = ['header', 'materials', 'tools', 'subcon', 'production', 'secondary', 'additional', 'pricing']; // 'routings' hidden for now
 
 
   // Fetch customers, subcon vendors, and material suppliers lists
@@ -367,6 +367,16 @@ const QuotationSystemNew = () => {
   };
 
   const [subcons, setSubcons] = useState<SubconLine[]>([]);
+
+  // Additional Costs state
+  const [additionalCosts, setAdditionalCosts] = useState({
+    inspection_cost: 0,
+    handling_cost: 0,
+    shipping_cost: 0,
+    sales_commission_percent: 0,
+    profit_percent: 0,
+    one_time_charge: 0,
+  });
 
   // Production Planning state
   const [productionPlanning, setProductionPlanning] = useState({
@@ -1429,8 +1439,18 @@ const QuotationSystemNew = () => {
         const qtySubconCostRaw = getSubconCostForQuantity(v.quantity);
         const subconPerPart = qtySubconCostRaw * (1 + header.subcon_markup / 100);
         
-        // Total cost per part
-        const totalCostPerPart = productionCostPerPart + toolsCostPerPart + secondaryOpsCostPerPart + materialPerPart + subconPerPart;
+        // Additional costs per part
+        const fixedAdditionalCosts = additionalCosts.inspection_cost + additionalCosts.handling_cost + 
+          additionalCosts.shipping_cost + additionalCosts.one_time_charge;
+        const additionalCostsPerPart = v.quantity > 0 ? fixedAdditionalCosts / v.quantity : 0;
+        
+        // Base cost per part
+        const baseCostPerPart = productionCostPerPart + toolsCostPerPart + secondaryOpsCostPerPart + materialPerPart + subconPerPart + additionalCostsPerPart;
+        
+        // Apply sales commission and profit percentages
+        const commissionMultiplier = 1 + (additionalCosts.sales_commission_percent / 100);
+        const profitMultiplier = 1 + (additionalCosts.profit_percent / 100);
+        const totalCostPerPart = baseCostPerPart * commissionMultiplier * profitMultiplier;
         
         // Unit price with margin
         const unitPrice = totalCostPerPart / (1 - v.margin / 100);
@@ -1444,7 +1464,7 @@ const QuotationSystemNew = () => {
           material_cost: materialPerPart * v.quantity,
           subcon_cost: subconPerPart * v.quantity,
           tooling_cost: getTotalToolsCostForVolume(idx),
-          carriage: 0,
+          carriage: fixedAdditionalCosts, // Store fixed additional costs in carriage field
           misc: getSecondaryOpsCostForQuantity(v.quantity),
           total_price: unitPrice * v.quantity,
           unit_price_quoted: unitPrice,
@@ -1658,6 +1678,10 @@ const QuotationSystemNew = () => {
             <TabsTrigger value="secondary" className="flex items-center gap-1 text-xs">
               <Wrench className="h-3 w-3" />
               Secondary Ops
+            </TabsTrigger>
+            <TabsTrigger value="additional" className="flex items-center gap-1 text-xs">
+              <Plus className="h-3 w-3" />
+              Additional Costs
             </TabsTrigger>
             <TabsTrigger value="pricing" className="flex items-center gap-1 text-xs">
               <Calculator className="h-3 w-3" />
@@ -4007,6 +4031,127 @@ const QuotationSystemNew = () => {
                   </Button>
                   <Button onClick={handleNext} disabled={saving}>
                     {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                    Next: Additional Costs
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Additional Costs Tab */}
+          <TabsContent value="additional">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Plus className="h-5 w-5" />
+                  Additional Costs
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-sm">
+                      <p>Enter any additional costs that should be included in the final price. These are one-time or per-order costs applied to the total quotation.</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </CardTitle>
+                <CardDescription>Add inspection, handling, shipping, and other costs</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="border rounded-lg p-6">
+                  <h3 className="font-medium text-lg mb-4 text-primary">Additional Cost</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <Label>Inspection Cost (€)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={additionalCosts.inspection_cost || ''}
+                        onChange={(e) => setAdditionalCosts(prev => ({ ...prev, inspection_cost: parseFloat(e.target.value) || 0 }))}
+                        placeholder="e.g., 50.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Handling Cost (€)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={additionalCosts.handling_cost || ''}
+                        onChange={(e) => setAdditionalCosts(prev => ({ ...prev, handling_cost: parseFloat(e.target.value) || 0 }))}
+                        placeholder="e.g., 25.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Shipping Cost (€)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={additionalCosts.shipping_cost || ''}
+                        onChange={(e) => setAdditionalCosts(prev => ({ ...prev, shipping_cost: parseFloat(e.target.value) || 0 }))}
+                        placeholder="e.g., 100.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>One Time Charge (€)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        value={additionalCosts.one_time_charge || ''}
+                        onChange={(e) => setAdditionalCosts(prev => ({ ...prev, one_time_charge: parseFloat(e.target.value) || 0 }))}
+                        placeholder="e.g., 200.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Sales Commission %</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={additionalCosts.sales_commission_percent || ''}
+                        onChange={(e) => setAdditionalCosts(prev => ({ ...prev, sales_commission_percent: parseFloat(e.target.value) || 0 }))}
+                        placeholder="e.g., 5"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Profit %</Label>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        value={additionalCosts.profit_percent || ''}
+                        onChange={(e) => setAdditionalCosts(prev => ({ ...prev, profit_percent: parseFloat(e.target.value) || 0 }))}
+                        placeholder="e.g., 10"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Summary of additional costs */}
+                  <div className="mt-6 p-4 bg-muted/50 rounded-lg">
+                    <h4 className="font-medium mb-2">Summary</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Fixed Costs:</span>
+                        <span className="ml-2 font-medium">
+                          €{(additionalCosts.inspection_cost + additionalCosts.handling_cost + additionalCosts.shipping_cost + additionalCosts.one_time_charge).toFixed(2)}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Sales Commission:</span>
+                        <span className="ml-2 font-medium">{additionalCosts.sales_commission_percent}%</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Profit:</span>
+                        <span className="ml-2 font-medium">{additionalCosts.profit_percent}%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-between items-center pt-4">
+                  <Button variant="outline" onClick={handleBack}>
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Back
+                  </Button>
+                  <Button onClick={handleNext} disabled={saving}>
+                    {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                     Next: Pricing
                     <ChevronRight className="h-4 w-4 ml-1" />
                   </Button>
@@ -4015,7 +4160,6 @@ const QuotationSystemNew = () => {
             </Card>
           </TabsContent>
 
-          {/* Pricing Tab */}
           <TabsContent value="pricing">
             <Card>
               <CardHeader>
@@ -4079,7 +4223,7 @@ const QuotationSystemNew = () => {
                           <span className="text-xs">Tools/Part (€)</span>
                         </TableHead>
                         <TableHead className="text-right">
-                          <span className="text-xs">Secondary Ops/Part (€)</span>
+                          <span className="text-xs">Sec. Ops/Part (€)</span>
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
@@ -4092,6 +4236,9 @@ const QuotationSystemNew = () => {
                           onClick={() => setExplainerOpen('subcon')}
                         >
                           <span className="underline decoration-dotted text-xs">Subcon/Part (€)</span>
+                        </TableHead>
+                        <TableHead className="text-right">
+                          <span className="text-xs">Add. Costs/Part (€)</span>
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
@@ -4141,14 +4288,25 @@ const QuotationSystemNew = () => {
                           : qtySubconCostWithMarkup;
                         const subconPerPart = rawSubconPerPart;
                         
-                        // Total cost per part = sum of all cost components
-                        const totalCostPerPart = productionCostPerPart + toolsCostPerPart + secondaryOpsCostPerPart + materialPerPart + subconPerPart;
+                        // Additional costs per part = fixed costs / quantity
+                        const fixedAdditionalCosts = additionalCosts.inspection_cost + additionalCosts.handling_cost + 
+                          additionalCosts.shipping_cost + additionalCosts.one_time_charge;
+                        const additionalCostsPerPart = vol.quantity > 0 ? fixedAdditionalCosts / vol.quantity : 0;
+                        
+                        // Base cost per part = sum of all cost components
+                        const baseCostPerPart = productionCostPerPart + toolsCostPerPart + secondaryOpsCostPerPart + materialPerPart + subconPerPart + additionalCostsPerPart;
+                        
+                        // Apply sales commission and profit percentages on top of base cost
+                        // Total Cost = Base Cost × (1 + Sales Commission%) × (1 + Profit%)
+                        const commissionMultiplier = 1 + (additionalCosts.sales_commission_percent / 100);
+                        const profitMultiplier = 1 + (additionalCosts.profit_percent / 100);
+                        const totalCostPerPart = baseCostPerPart * commissionMultiplier * profitMultiplier;
                         
                         // Calculate unit price based on margin calculation method
                         let unitPriceEur: number;
                         if (excludeSubconFromMargin) {
                           // Apply margin only to cost without subcon, then add raw subcon
-                          const costWithoutSubcon = productionCostPerPart + toolsCostPerPart + secondaryOpsCostPerPart + materialPerPart;
+                          const costWithoutSubcon = (productionCostPerPart + toolsCostPerPart + secondaryOpsCostPerPart + materialPerPart + additionalCostsPerPart) * commissionMultiplier * profitMultiplier;
                           unitPriceEur = (costWithoutSubcon / (1 - vol.margin / 100)) + rawSubconPerPart;
                         } else {
                           unitPriceEur = totalCostPerPart / (1 - vol.margin / 100);
@@ -4171,6 +4329,7 @@ const QuotationSystemNew = () => {
                               €{subconPerPart.toFixed(2)}
                               {subconExceedsThreshold && <AlertTriangle className="inline-block ml-1 h-4 w-4 text-destructive" />}
                             </TableCell>
+                            <TableCell className="text-right text-sm">€{additionalCostsPerPart.toFixed(2)}</TableCell>
                             <TableCell className="text-right font-medium">€{totalCostPerPart.toFixed(2)}</TableCell>
                             <TableCell className="text-right">
                               <Badge className="bg-primary">{currencySymbols[currency]}{unitPriceConverted.toFixed(2)}</Badge>
