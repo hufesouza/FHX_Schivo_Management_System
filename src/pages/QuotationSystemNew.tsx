@@ -3709,19 +3709,31 @@ const QuotationSystemNew = () => {
                       <Select
                         value={secondaryOpForm.resource_id}
                         onValueChange={(v) => {
-                          const resource = resources.find(r => r.id === v);
-                          setSecondaryOpForm(prev => ({ 
-                            ...prev, 
-                            resource_id: v,
-                            operation: resource?.resource_description || '',
-                            cost_per_minute: resource?.cost_per_minute || 0
-                          }));
+                          if (v === 'custom') {
+                            setSecondaryOpForm(prev => ({ 
+                              ...prev, 
+                              resource_id: 'custom',
+                              operation: '',
+                              cost_per_minute: 0
+                            }));
+                          } else {
+                            const resource = resources.find(r => r.id === v);
+                            setSecondaryOpForm(prev => ({ 
+                              ...prev, 
+                              resource_id: v,
+                              operation: resource?.resource_description || '',
+                              cost_per_minute: resource?.cost_per_minute || 0
+                            }));
+                          }
                         }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select resource..." />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="custom" className="text-primary font-medium">
+                            ✏️ Custom (Manual Entry)
+                          </SelectItem>
                           {resources.filter(r => r.is_active).map(r => (
                             <SelectItem key={r.id} value={r.id}>
                               {r.resource_no} - {r.resource_description} (€{r.cost_per_minute.toFixed(2)}/min)
@@ -3730,6 +3742,30 @@ const QuotationSystemNew = () => {
                         </SelectContent>
                       </Select>
                     </div>
+                    
+                    {/* Custom entry fields - only show when 'custom' is selected */}
+                    {secondaryOpForm.resource_id === 'custom' && (
+                      <>
+                        <div className="space-y-2">
+                          <Label>Operation Name</Label>
+                          <Input
+                            value={secondaryOpForm.operation}
+                            onChange={(e) => setSecondaryOpForm(prev => ({ ...prev, operation: e.target.value }))}
+                            placeholder="e.g., Anodizing, Heat Treatment"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Cost per Minute (€)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={secondaryOpForm.cost_per_minute || ''}
+                            onChange={(e) => setSecondaryOpForm(prev => ({ ...prev, cost_per_minute: parseFloat(e.target.value) || 0 }))}
+                            placeholder="e.g., 0.85"
+                          />
+                        </div>
+                      </>
+                    )}
                     
                     <div className="space-y-2">
                       <Label>Cost Type</Label>
@@ -3873,7 +3909,11 @@ const QuotationSystemNew = () => {
                     </Button>
                     <Button 
                       onClick={() => {
-                        if (secondaryOpForm.resource_id) {
+                        // Validate: either a resource is selected, or custom with operation name filled
+                        const isValid = secondaryOpForm.resource_id && 
+                          (secondaryOpForm.resource_id !== 'custom' || secondaryOpForm.operation.trim());
+                        
+                        if (isValid) {
                           const rate = secondaryOpForm.cost_per_minute;
                           const markup = 1 + (secondaryOpForm.markup / 100);
                           let baseCost = 0;
@@ -3905,7 +3945,7 @@ const QuotationSystemNew = () => {
                           });
                         }
                       }}
-                      disabled={!secondaryOpForm.resource_id}
+                      disabled={!secondaryOpForm.resource_id || (secondaryOpForm.resource_id === 'custom' && !secondaryOpForm.operation.trim())}
                     >
                       <Plus className="h-4 w-4 mr-1" />
                       Add
