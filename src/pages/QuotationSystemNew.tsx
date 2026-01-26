@@ -1149,8 +1149,126 @@ const QuotationSystemNew = () => {
     return matchingSubcons.reduce((sum, s) => sum + s.std_cost_est, 0);
   };
 
+  // Helper function to calculate material requirement based on UOM (same logic as Materials tab)
+  const calculateMaterialRequirement = (
+    mat: MaterialLine, 
+    qty: number, 
+    firstMaterial: MaterialLine | null
+  ): number => {
+    // Part details come from the first material row
+    const partLength = firstMaterial?.length || 0;
+    const cutOff = firstMaterial?.cut_off || 0;
+    const overhead = (firstMaterial?.overhead || 0) / 100;
+    
+    // Convert to cm (assuming metric mm input)
+    const lengthCm = materialUnits === 'metric' ? partLength / 10 : partLength * 2.54;
+    const cutOffCm = materialUnits === 'metric' ? cutOff / 10 : cutOff * 2.54;
+    
+    // Calculate base meters value
+    const getBaseMeters = (quantity: number) => {
+      if (partLength === 0 && cutOff === 0) return 0;
+      return ((lengthCm + cutOffCm) / 100) * quantity * (1 + overhead);
+    };
+    
+    // Convert meters to material's UOM
+    const getQtyInUom = (quantity: number, uom: string): number => {
+      const meters = getBaseMeters(quantity);
+      switch (uom) {
+        case 'MM': return meters * 1000; // meters to mm
+        case 'Inch': return meters / 0.0254; // meters to inches
+        case 'Each': return quantity; // just quantity
+        case 'Plate': return quantity; // just quantity
+        case 'Metre': 
+        default: return meters;
+      }
+    };
+    
+    // Check for override values per volume
+    const getOverrideQty = (material: MaterialLine, volIdx: number): number | null => {
+      const keys: (keyof MaterialLine)[] = ['qty_vol_1', 'qty_vol_2', 'qty_vol_3', 'qty_vol_4', 'qty_vol_5'];
+      const override = material[keys[volIdx]] as number | null | undefined;
+      if (override !== null && override !== undefined && override > 0) {
+        return override;
+      }
+      return null;
+    };
+    
+    // For totals, we just need the per-unit requirement (for qty=1)
+    return getQtyInUom(qty, mat.uom);
+  };
+
+  // Get material cost for a specific volume tier
+  const getMaterialCostForVolume = (volIdx: number, volQty: number): number => {
+    const firstMaterial = materials[0] || null;
+    const partLength = firstMaterial?.length || 0;
+    const cutOff = firstMaterial?.cut_off || 0;
+    const overhead = (firstMaterial?.overhead || 0) / 100;
+    
+    const lengthCm = materialUnits === 'metric' ? partLength / 10 : partLength * 2.54;
+    const cutOffCm = materialUnits === 'metric' ? cutOff / 10 : cutOff * 2.54;
+    
+    const getBaseMeters = (quantity: number) => {
+      if (partLength === 0 && cutOff === 0) return 0;
+      return ((lengthCm + cutOffCm) / 100) * quantity * (1 + overhead);
+    };
+    
+    const getQtyInUom = (quantity: number, uom: string): number => {
+      const meters = getBaseMeters(quantity);
+      switch (uom) {
+        case 'MM': return meters * 1000;
+        case 'Inch': return meters / 0.0254;
+        case 'Each': return quantity;
+        case 'Plate': return quantity;
+        case 'Metre': 
+        default: return meters;
+      }
+    };
+    
+    return materials.reduce((sum, mat) => {
+      // Check for override qty
+      const keys: (keyof MaterialLine)[] = ['qty_vol_1', 'qty_vol_2', 'qty_vol_3', 'qty_vol_4', 'qty_vol_5'];
+      const override = mat[keys[volIdx]] as number | null | undefined;
+      const effectiveQty = (override !== null && override !== undefined && override > 0) 
+        ? override 
+        : getQtyInUom(volQty, mat.uom);
+      
+      return sum + (effectiveQty * mat.std_cost_est);
+    }, 0);
+  };
+
   const calculateTotals = () => {
-    const totalMaterialCost = materials.reduce((sum, m) => sum + (m.std_cost_est * m.qty_per_unit), 0);
+    // Calculate material cost for first volume tier (per unit = qty of 1)
+    const firstMaterial = materials[0] || null;
+    const partLength = firstMaterial?.length || 0;
+    const cutOff = firstMaterial?.cut_off || 0;
+    const overhead = (firstMaterial?.overhead || 0) / 100;
+    
+    const lengthCm = materialUnits === 'metric' ? partLength / 10 : partLength * 2.54;
+    const cutOffCm = materialUnits === 'metric' ? cutOff / 10 : cutOff * 2.54;
+    
+    const getBaseMeters = (quantity: number) => {
+      if (partLength === 0 && cutOff === 0) return 0;
+      return ((lengthCm + cutOffCm) / 100) * quantity * (1 + overhead);
+    };
+    
+    const getQtyInUom = (quantity: number, uom: string): number => {
+      const meters = getBaseMeters(quantity);
+      switch (uom) {
+        case 'MM': return meters * 1000;
+        case 'Inch': return meters / 0.0254;
+        case 'Each': return quantity;
+        case 'Plate': return quantity;
+        case 'Metre': 
+        default: return meters;
+      }
+    };
+    
+    // Per-unit material cost (for 1 piece)
+    const totalMaterialCostPerUnit = materials.reduce((sum, mat) => {
+      const qtyRequired = getQtyInUom(1, mat.uom);
+      return sum + (qtyRequired * mat.std_cost_est);
+    }, 0);
+    
     // For display, show the sum of all subcon costs (first quantity tier)
     const firstQty = volumes[0]?.quantity || 0;
     const totalSubconCost = getSubconCostForQuantity(firstQty);
@@ -1166,7 +1284,7 @@ const QuotationSystemNew = () => {
     const costPerHour = getSettingValue('cost_per_hour') || 55;
 
     return {
-      totalMaterialCost: totalMaterialCost * (1 + header.material_markup / 100),
+      totalMaterialCost: totalMaterialCostPerUnit * (1 + header.material_markup / 100),
       totalSubconCost: totalSubconCost * (1 + header.subcon_markup / 100),
       totalSetupTime,
       selectedSetupTime,
@@ -4396,13 +4514,10 @@ const QuotationSystemNew = () => {
                     const programmingCost = prodCalc.programmingCost;
                     const setupCost = prodCalc.setupCost;
                     
-                    const totalMaterialCostRaw = materials.reduce((sum, m) => {
-                      const matTotal = m.qty_per_unit * m.std_cost_est * (1 + m.overhead / 100);
-                      return sum + matTotal;
-                    }, 0);
+                    // Use the proper material requirement calculation (same as Materials tab)
+                    const totalMaterialCostRaw = getMaterialCostForVolume(volIdx, vol.quantity);
                     const materialMarkupPercent = header.material_markup;
-                    const totalMaterialCost = totalMaterialCostRaw * vol.quantity;
-                    const totalMaterialWithMarkup = totalMaterialCost * (1 + materialMarkupPercent / 100);
+                    const totalMaterialWithMarkup = totalMaterialCostRaw * (1 + materialMarkupPercent / 100);
                     
                     const totalToolCost = getTotalToolsCostForVolume(volIdx);
                     const totalSecOps = getSecondaryOpsCostForQuantity(vol.quantity);
@@ -4437,17 +4552,51 @@ const QuotationSystemNew = () => {
                       });
                     }
                     
-                    // Materials
+                    // Materials - use correct requirement calculation
+                    const firstMat = materials[0] || null;
+                    const partLengthBd = firstMat?.length || 0;
+                    const cutOffBd = firstMat?.cut_off || 0;
+                    const overheadBd = (firstMat?.overhead || 0) / 100;
+                    
+                    const lengthCmBd = materialUnits === 'metric' ? partLengthBd / 10 : partLengthBd * 2.54;
+                    const cutOffCmBd = materialUnits === 'metric' ? cutOffBd / 10 : cutOffBd * 2.54;
+                    
+                    const getBaseMetersBd = (quantity: number) => {
+                      if (partLengthBd === 0 && cutOffBd === 0) return 0;
+                      return ((lengthCmBd + cutOffCmBd) / 100) * quantity * (1 + overheadBd);
+                    };
+                    
+                    const getQtyInUomBd = (quantity: number, uom: string): number => {
+                      const meters = getBaseMetersBd(quantity);
+                      switch (uom) {
+                        case 'MM': return meters * 1000;
+                        case 'Inch': return meters / 0.0254;
+                        case 'Each': return quantity;
+                        case 'Plate': return quantity;
+                        case 'Metre': 
+                        default: return meters;
+                      }
+                    };
+                    
                     materials.filter(m => m.std_cost_est > 0).forEach(m => {
-                      const matCostPerUnit = m.qty_per_unit * m.std_cost_est * (1 + m.overhead / 100);
+                      // Check for override qty
+                      const qtyKeys: (keyof MaterialLine)[] = ['qty_vol_1', 'qty_vol_2', 'qty_vol_3', 'qty_vol_4', 'qty_vol_5'];
+                      const override = m[qtyKeys[volIdx]] as number | null | undefined;
+                      const effectiveQty = (override !== null && override !== undefined && override > 0) 
+                        ? override 
+                        : getQtyInUomBd(vol.quantity, m.uom);
+                      
+                      const matCostPerUnit = m.std_cost_est; // Cost per UOM unit (e.g., per Metre)
+                      const totalMatCostRaw = effectiveQty * matCostPerUnit;
+                      
                       breakdownRows.push({
                         qty: vol.quantity,
                         type: 'Materials',
                         name: m.material_description || m.part_number || 'Material',
-                        description: `${m.qty_per_unit} ${m.uom} @ €${m.std_cost_est}`,
-                        costPerOne: matCostPerUnit,
+                        description: `${effectiveQty.toFixed(2)} ${m.uom} @ €${m.std_cost_est}`,
+                        costPerOne: effectiveQty > 0 && vol.quantity > 0 ? totalMatCostRaw / vol.quantity : 0,
                         additionalCharge: materialMarkupPercent > 0 ? `${materialMarkupPercent}%` : '',
-                        totalCost: matCostPerUnit * vol.quantity * (1 + materialMarkupPercent / 100)
+                        totalCost: totalMatCostRaw * (1 + materialMarkupPercent / 100)
                       });
                     });
                     
