@@ -503,6 +503,35 @@ const QuotationSystemNew = () => {
     return tools.reduce((sum, t) => sum + calculateToolTotalForVolume(t, volumeIndex), 0);
   };
 
+  // Calculate secondary operations cost for a specific quantity
+  const getSecondaryOpsCostForQuantity = (quantity: number): number => {
+    return secondaryOps.reduce((sum, op) => {
+      const rate = op.cost_per_minute;
+      const markup = 1 + (op.markup / 100);
+      let baseCost = 0;
+      
+      if (op.cost_type === 'per_piece') {
+        // Per Piece: time * rate * quantity * markup
+        baseCost = op.time_per_piece * rate * quantity;
+      } else if (op.cost_type === 'per_run') {
+        // Per Run: time * rate * ceil(qty / qty_per_run) * markup
+        const numRuns = Math.ceil(quantity / (op.qty_per_run || 1));
+        baseCost = op.time_per_run * rate * numRuns;
+      } else {
+        // Total: fixed time * rate * markup
+        baseCost = op.total_time * rate;
+      }
+      
+      return sum + (baseCost * markup);
+    }, 0);
+  };
+
+  // Get secondary ops cost per part for a specific quantity
+  const getSecondaryOpsCostPerPart = (quantity: number): number => {
+    if (quantity <= 0) return 0;
+    return getSecondaryOpsCostForQuantity(quantity) / quantity;
+  };
+
   const addToolLine = (selectedToolName?: string) => {
     const selectedTool = selectedToolName ? toolLibrary.find(t => t.tool_name === selectedToolName) : undefined;
     setTools([...tools, {
@@ -1379,29 +1408,47 @@ const QuotationSystemNew = () => {
 
       // Insert volume pricing - MUST match display calculation exactly
       const costPerHour = getSettingValue('cost_per_hour') || 55;
-      const volumeInserts = volumes.map(v => {
+      const volumeInserts = volumes.map((v, idx) => {
         // Match the display calculation from the Pricing tab exactly:
-        const setupCost = totals.totalSetupCost; // Full setup cost (not divided by qty)
-        const routingCost = totals.totalRoutingCost * v.quantity;
-        const materialCost = totals.totalMaterialCost * v.quantity;
-        const subconCost = totals.totalSubconCost * v.quantity; // Use totals.totalSubconCost like display
-        const totalCost = setupCost + routingCost + materialCost + subconCost;
-        const unitPrice = totalCost / v.quantity / (1 - v.margin / 100);
+        const prodCalc = productionCalculations[idx] || { costPerDetail: 0, programmingCost: 0, setupCost: 0 };
+        
+        // Production cost per part = cost per detail + (programming + setup) / quantity
+        const productionCostPerPart = prodCalc.costPerDetail + 
+          ((prodCalc.programmingCost + prodCalc.setupCost) / (v.quantity || 1));
+        
+        // Tools cost per part
+        const toolsCostPerPart = v.quantity > 0 ? getTotalToolsCostForVolume(idx) / v.quantity : 0;
+        
+        // Secondary ops cost per part
+        const secondaryOpsCostPerPart = getSecondaryOpsCostPerPart(v.quantity);
+        
+        // Material cost per part (with markup)
+        const materialPerPart = totals.totalMaterialCost;
+        
+        // Subcon cost per part (quantity-specific)
+        const qtySubconCostRaw = getSubconCostForQuantity(v.quantity);
+        const subconPerPart = qtySubconCostRaw * (1 + header.subcon_markup / 100);
+        
+        // Total cost per part
+        const totalCostPerPart = productionCostPerPart + toolsCostPerPart + secondaryOpsCostPerPart + materialPerPart + subconPerPart;
+        
+        // Unit price with margin
+        const unitPrice = totalCostPerPart / (1 - v.margin / 100);
 
         return {
           quotation_id: currentQuotationId,
           quantity: v.quantity,
-          hours: (totals.totalSetupTime + totals.totalRunTime * v.quantity) / 60,
+          hours: (productionPlanning.cycle_time_per_piece * v.quantity) / 3600, // Convert seconds to hours
           cost_per_hour: costPerHour,
-          labour_cost: routingCost + setupCost, // Include setup in labour for this qty tier
-          material_cost: materialCost,
-          subcon_cost: subconCost,
-          tooling_cost: 0,
+          labour_cost: productionCostPerPart * v.quantity,
+          material_cost: materialPerPart * v.quantity,
+          subcon_cost: subconPerPart * v.quantity,
+          tooling_cost: getTotalToolsCostForVolume(idx),
           carriage: 0,
-          misc: 0,
+          misc: getSecondaryOpsCostForQuantity(v.quantity),
           total_price: unitPrice * v.quantity,
           unit_price_quoted: unitPrice,
-          cost_per_unit: totalCost / v.quantity,
+          cost_per_unit: totalCostPerPart,
           margin: v.margin
         };
       });
@@ -3994,18 +4041,21 @@ const QuotationSystemNew = () => {
                   </AlertDescription>
                 </Alert>
                 {/* Warning for high subcon costs */}
-                {volumes.some(vol => {
-                  const setupPerPart = totals.totalSetupCost / vol.quantity;
-                  const routingPerPart = totals.totalRoutingCost;
-                  const subconPerPart = totals.totalSubconCost;
-                  const setupPlusRouting = setupPerPart + routingPerPart;
-                  return setupPlusRouting > 0 && subconPerPart > (setupPlusRouting * 0.4);
+                {volumes.some((vol, idx) => {
+                  const prodCalc = productionCalculations[idx] || { costPerDetail: 0, programmingCost: 0, setupCost: 0 };
+                  const productionCostPerPart = prodCalc.costPerDetail + ((prodCalc.programmingCost + prodCalc.setupCost) / (vol.quantity || 1));
+                  const toolsCostPerPart = vol.quantity > 0 ? getTotalToolsCostForVolume(idx) / vol.quantity : 0;
+                  const secondaryOpsCostPerPart = getSecondaryOpsCostPerPart(vol.quantity);
+                  const internalCosts = productionCostPerPart + toolsCostPerPart + secondaryOpsCostPerPart;
+                  const qtySubconCostRaw = getSubconCostForQuantity(vol.quantity);
+                  const subconPerPart = qtySubconCostRaw * (1 + header.subcon_markup / 100);
+                  return internalCosts > 0 && subconPerPart > (internalCosts * 0.4);
                 }) && (
                   <Alert variant="destructive" className="mb-4">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription className="flex items-center justify-between">
                       <span>
-                        <strong>Warning:</strong> Subcon cost exceeds 40% of Setup + Routing cost. Please review your subcontracting costs.
+                        <strong>Warning:</strong> Subcon cost exceeds 40% of internal costs (Production + Tools + Secondary Ops). Please review your subcontracting costs.
                       </span>
                       <label className="flex items-center gap-2 ml-4 cursor-pointer">
                         <Checkbox
@@ -4022,107 +4072,108 @@ const QuotationSystemNew = () => {
                     <TableHeader>
                       <TableRow className="bg-muted/50">
                         <TableHead>Qty</TableHead>
-                        <TableHead 
-                          className="text-right cursor-pointer hover:bg-muted transition-colors"
-                          onClick={() => setExplainerOpen('setupCost')}
-                        >
-                          <span className="underline decoration-dotted">Setup/Part (€)</span>
+                        <TableHead className="text-right">
+                          <span className="text-xs">Production/Part (€)</span>
                         </TableHead>
-                        <TableHead 
-                          className="text-right cursor-pointer hover:bg-muted transition-colors"
-                          onClick={() => setExplainerOpen('routingCost')}
-                        >
-                          <span className="underline decoration-dotted">Routing/Part (€)</span>
+                        <TableHead className="text-right">
+                          <span className="text-xs">Tools/Part (€)</span>
+                        </TableHead>
+                        <TableHead className="text-right">
+                          <span className="text-xs">Secondary Ops/Part (€)</span>
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
                           onClick={() => setExplainerOpen('material')}
                         >
-                          <span className="underline decoration-dotted">Material/Part (€)</span>
+                          <span className="underline decoration-dotted text-xs">Material/Part (€)</span>
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
                           onClick={() => setExplainerOpen('subcon')}
                         >
-                          <span className="underline decoration-dotted">Subcon/Part (€)</span>
+                          <span className="underline decoration-dotted text-xs">Subcon/Part (€)</span>
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
                           onClick={() => setExplainerOpen('costPerPart')}
                         >
-                          <span className="underline decoration-dotted">Total Cost/Part (€)</span>
+                          <span className="underline decoration-dotted text-xs">Total Cost/Part (€)</span>
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
                           onClick={() => setExplainerOpen('unitPrice')}
                         >
-                          <span className="underline decoration-dotted">Unit Price ({currencySymbols[currency]})</span>
-                        </TableHead>
-                        <TableHead 
-                          className="text-right cursor-pointer hover:bg-muted transition-colors"
-                          onClick={() => setExplainerOpen('ratePerHour')}
-                        >
-                          <span className="underline decoration-dotted">Rate/hr (€)</span>
+                          <span className="underline decoration-dotted text-xs">Unit Price ({currencySymbols[currency]})</span>
                         </TableHead>
                         <TableHead 
                           className="text-right cursor-pointer hover:bg-muted transition-colors"
                           onClick={() => setExplainerOpen('margin')}
                         >
-                          <span className="underline decoration-dotted">Margin</span>
+                          <span className="underline decoration-dotted text-xs">Margin</span>
                         </TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {volumes.map((vol, idx) => {
-                        // Calculate per-part values
-                        const setupPerPart = totals.totalSetupCost / vol.quantity;
-                        const routingPerPart = totals.totalRoutingCost;
+                        // Get production calculation for this volume tier
+                        const prodCalc = productionCalculations[idx] || { costPerDetail: 0, programmingCost: 0, setupCost: 0 };
+                        
+                        // Production cost per part = cost per detail + (programming + setup) / quantity
+                        const productionCostPerPart = prodCalc.costPerDetail + 
+                          ((prodCalc.programmingCost + prodCalc.setupCost) / (vol.quantity || 1));
+                        
+                        // Tools cost per part = total tools for this volume / quantity
+                        const toolsCostPerPart = vol.quantity > 0 
+                          ? getTotalToolsCostForVolume(idx) / vol.quantity 
+                          : 0;
+                        
+                        // Secondary ops cost per part (already includes markup)
+                        const secondaryOpsCostPerPart = getSecondaryOpsCostPerPart(vol.quantity);
+                        
+                        // Material cost per part (with markup)
                         const materialPerPart = totals.totalMaterialCost;
-                        // Get quantity-specific subcon cost with markup
+                        
+                        // Subcon cost per part (quantity-specific)
                         const qtySubconCostRaw = getSubconCostForQuantity(vol.quantity);
                         const qtySubconCostWithMarkup = qtySubconCostRaw * (1 + header.subcon_markup / 100);
-                        // When excluding subcon from margin, use raw subcon cost (without markup)
                         const rawSubconPerPart = excludeSubconFromMargin 
                           ? qtySubconCostRaw
                           : qtySubconCostWithMarkup;
                         const subconPerPart = rawSubconPerPart;
-                        const totalCostPerPart = setupPerPart + routingPerPart + materialPerPart + subconPerPart;
+                        
+                        // Total cost per part = sum of all cost components
+                        const totalCostPerPart = productionCostPerPart + toolsCostPerPart + secondaryOpsCostPerPart + materialPerPart + subconPerPart;
                         
                         // Calculate unit price based on margin calculation method
                         let unitPriceEur: number;
                         if (excludeSubconFromMargin) {
                           // Apply margin only to cost without subcon, then add raw subcon
-                          const costWithoutSubcon = setupPerPart + routingPerPart + materialPerPart;
+                          const costWithoutSubcon = productionCostPerPart + toolsCostPerPart + secondaryOpsCostPerPart + materialPerPart;
                           unitPriceEur = (costWithoutSubcon / (1 - vol.margin / 100)) + rawSubconPerPart;
                         } else {
                           unitPriceEur = totalCostPerPart / (1 - vol.margin / 100);
                         }
                         
                         const unitPriceConverted = unitPriceEur * exchangeRate;
-                        // Calculate rate per hour: Price per Part × (60 / Minutes per Part)
-                        const timePerPartMins = totals.totalRunTime;
-                        const ratePerHour = timePerPartMins > 0 ? unitPriceEur * (60 / timePerPartMins) : 0;
                         
-                        // Check if subcon cost exceeds 40% of setup+routing cost
-                        const setupPlusRouting = setupPerPart + routingPerPart;
-                        const subconExceedsThreshold = setupPlusRouting > 0 && subconPerPart > (setupPlusRouting * 0.4);
+                        // Check if subcon cost exceeds 40% threshold
+                        const internalCosts = productionCostPerPart + toolsCostPerPart + secondaryOpsCostPerPart;
+                        const subconExceedsThreshold = internalCosts > 0 && subconPerPart > (internalCosts * 0.4);
 
                         return (
-                          <TableRow key={idx} className={subconExceedsThreshold ? "bg-red-50" : ""}>
+                          <TableRow key={idx} className={subconExceedsThreshold ? "bg-destructive/10" : ""}>
                             <TableCell className="font-medium">{vol.quantity}</TableCell>
-                            <TableCell className="text-right">€{setupPerPart.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">€{routingPerPart.toFixed(2)}</TableCell>
-                            <TableCell className="text-right">€{materialPerPart.toFixed(2)}</TableCell>
-                            <TableCell className={`text-right ${subconExceedsThreshold ? "text-red-600 font-bold" : ""}`}>
+                            <TableCell className="text-right text-sm">€{productionCostPerPart.toFixed(2)}</TableCell>
+                            <TableCell className="text-right text-sm">€{toolsCostPerPart.toFixed(2)}</TableCell>
+                            <TableCell className="text-right text-sm">€{secondaryOpsCostPerPart.toFixed(2)}</TableCell>
+                            <TableCell className="text-right text-sm">€{materialPerPart.toFixed(2)}</TableCell>
+                            <TableCell className={`text-right text-sm ${subconExceedsThreshold ? "text-destructive font-bold" : ""}`}>
                               €{subconPerPart.toFixed(2)}
-                              {subconExceedsThreshold && <AlertTriangle className="inline-block ml-1 h-4 w-4 text-red-600" />}
+                              {subconExceedsThreshold && <AlertTriangle className="inline-block ml-1 h-4 w-4 text-destructive" />}
                             </TableCell>
                             <TableCell className="text-right font-medium">€{totalCostPerPart.toFixed(2)}</TableCell>
                             <TableCell className="text-right">
                               <Badge className="bg-primary">{currencySymbols[currency]}{unitPriceConverted.toFixed(2)}</Badge>
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Badge variant="outline" className="border-green-500 text-green-600">€{ratePerHour.toFixed(2)}</Badge>
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-1">
