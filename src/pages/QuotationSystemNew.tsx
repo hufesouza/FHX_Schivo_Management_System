@@ -926,7 +926,13 @@ const QuotationSystemNew = () => {
             length: (m as any).length || 0,
             diameter: (m as any).diameter || 0,
             cut_off: (m as any).cut_off || 0,
-            overhead: (m as any).overhead || 0
+            overhead: (m as any).overhead || 0,
+            // Load qty_vol overrides (Qty to Buy)
+            qty_vol_1: m.qty_vol_1 ?? null,
+            qty_vol_2: m.qty_vol_2 ?? null,
+            qty_vol_3: m.qty_vol_3 ?? null,
+            qty_vol_4: m.qty_vol_4 ?? null,
+            qty_vol_5: m.qty_vol_5 ?? null,
           })));
         }
 
