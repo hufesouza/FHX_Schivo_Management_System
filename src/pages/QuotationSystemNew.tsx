@@ -4381,6 +4381,273 @@ const QuotationSystemNew = () => {
                     </TableBody>
                   </Table>
                 </div>
+
+                {/* Detailed Cost Breakdown per Volume */}
+                <div className="mt-6 space-y-4">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Detailed Cost Breakdown
+                  </h3>
+                  
+                  {volumes.map((vol, volIdx) => {
+                    const prodCalc = productionCalculations[volIdx] || { costPerDetail: 0, programmingCost: 0, setupCost: 0, totalCost: 0 };
+                    const productionMarkup = 1 + ((productionPlanning.production_sales_commission_percent || 0) + (productionPlanning.production_profit_percent || 0)) / 100;
+                    const totalProductionCost = prodCalc.totalCost * productionMarkup;
+                    const programmingCost = prodCalc.programmingCost;
+                    const setupCost = prodCalc.setupCost;
+                    
+                    const totalMaterialCostRaw = materials.reduce((sum, m) => {
+                      const matTotal = m.qty_per_unit * m.std_cost_est * (1 + m.overhead / 100);
+                      return sum + matTotal;
+                    }, 0);
+                    const materialMarkupPercent = header.material_markup;
+                    const totalMaterialCost = totalMaterialCostRaw * vol.quantity;
+                    const totalMaterialWithMarkup = totalMaterialCost * (1 + materialMarkupPercent / 100);
+                    
+                    const totalToolCost = getTotalToolsCostForVolume(volIdx);
+                    const totalSecOps = getSecondaryOpsCostForQuantity(vol.quantity);
+                    
+                    const qtySubconCostRaw = getSubconCostForQuantity(vol.quantity);
+                    const subconMarkupPercent = header.subcon_markup;
+                    const totalSubconWithMarkup = qtySubconCostRaw * vol.quantity * (1 + subconMarkupPercent / 100);
+                    
+                    const fixedCosts = additionalCosts.inspection_cost + additionalCosts.handling_cost + 
+                      additionalCosts.shipping_cost + additionalCosts.one_time_charge;
+                    
+                    const baseCost = totalMaterialWithMarkup + totalToolCost + totalSecOps + totalProductionCost + programmingCost + setupCost + totalSubconWithMarkup;
+                    const commissionMultiplier = 1 + (additionalCosts.sales_commission_percent / 100);
+                    const profitMultiplier = 1 + (additionalCosts.profit_percent / 100);
+                    const costAfterMultipliers = baseCost * commissionMultiplier * profitMultiplier;
+                    const grandTotal = costAfterMultipliers + fixedCosts;
+                    const pricePerPart = vol.quantity > 0 ? grandTotal / vol.quantity : 0;
+                    
+                    // Build breakdown rows
+                    const breakdownRows: { qty: number; type: string; name: string; description: string; costPerOne: number; additionalCharge: string; totalCost: number }[] = [];
+                    
+                    // Production
+                    if (prodCalc.totalCost > 0) {
+                      breakdownRows.push({
+                        qty: vol.quantity,
+                        type: 'Production',
+                        name: 'Production',
+                        description: `${productionPlanning.cycle_time_per_piece}s/pc @ €${productionPlanning.hourly_rate}/hr`,
+                        costPerOne: prodCalc.costPerDetail * productionMarkup,
+                        additionalCharge: productionMarkup > 1 ? `${((productionMarkup - 1) * 100).toFixed(0)}%` : '',
+                        totalCost: totalProductionCost
+                      });
+                    }
+                    
+                    // Materials
+                    materials.filter(m => m.std_cost_est > 0).forEach(m => {
+                      const matCostPerUnit = m.qty_per_unit * m.std_cost_est * (1 + m.overhead / 100);
+                      breakdownRows.push({
+                        qty: vol.quantity,
+                        type: 'Materials',
+                        name: m.material_description || m.part_number || 'Material',
+                        description: `${m.qty_per_unit} ${m.uom} @ €${m.std_cost_est}`,
+                        costPerOne: matCostPerUnit,
+                        additionalCharge: materialMarkupPercent > 0 ? `${materialMarkupPercent}%` : '',
+                        totalCost: matCostPerUnit * vol.quantity * (1 + materialMarkupPercent / 100)
+                      });
+                    });
+                    
+                    // Programming
+                    if (programmingCost > 0) {
+                      breakdownRows.push({
+                        qty: 1,
+                        type: 'Programming',
+                        name: 'Programming',
+                        description: `${productionPlanning.programming_hours || 0}h @ €${productionPlanning.programming_rate || 0}/hr`,
+                        costPerOne: programmingCost,
+                        additionalCharge: '',
+                        totalCost: programmingCost
+                      });
+                    }
+                    
+                    // Setup
+                    if (setupCost > 0) {
+                      breakdownRows.push({
+                        qty: 1,
+                        type: 'Setup',
+                        name: 'Setup',
+                        description: `${productionPlanning.setup_hours || 0}h @ €${productionPlanning.setup_rate || 0}/hr`,
+                        costPerOne: setupCost,
+                        additionalCharge: '',
+                        totalCost: setupCost
+                      });
+                    }
+                    
+                    // Tools
+                    tools.filter(t => t.price > 0).forEach(t => {
+                      const qtyKey = `qty_vol_${volIdx + 1}` as keyof ToolLine;
+                      const qty = (t[qtyKey] as number) || 0;
+                      if (qty > 0) {
+                        const toolTotal = qty * t.price * (1 + t.markup / 100);
+                        breakdownRows.push({
+                          qty: qty,
+                          type: 'Tool',
+                          name: t.tool_name,
+                          description: '',
+                          costPerOne: t.price,
+                          additionalCharge: t.markup > 0 ? `${t.markup}%` : '',
+                          totalCost: toolTotal
+                        });
+                      }
+                    });
+                    
+                    // Secondary Operations
+                    secondaryOps.forEach(op => {
+                      const rate = op.cost_per_minute;
+                      const markup = 1 + (op.markup / 100);
+                      let opTotal = 0;
+                      let costPerOne = 0;
+                      if (op.cost_type === 'per_piece') {
+                        costPerOne = op.time_per_piece * rate * markup;
+                        opTotal = costPerOne * vol.quantity;
+                      } else if (op.cost_type === 'per_run') {
+                        const runs = Math.ceil(vol.quantity / (op.qty_per_run || 1));
+                        costPerOne = op.time_per_run * rate * markup;
+                        opTotal = costPerOne * runs;
+                      } else {
+                        opTotal = op.total_time * rate * markup;
+                        costPerOne = opTotal;
+                      }
+                      breakdownRows.push({
+                        qty: op.cost_type === 'per_piece' ? vol.quantity : (op.cost_type === 'per_run' ? Math.ceil(vol.quantity / (op.qty_per_run || 1)) : 1),
+                        type: 'Secondary operation',
+                        name: op.operation,
+                        description: op.cost_type === 'per_piece' ? 'Per Piece' : (op.cost_type === 'per_run' ? `Per Run (${op.qty_per_run})` : 'Total'),
+                        costPerOne: costPerOne,
+                        additionalCharge: op.markup > 0 ? `${op.markup}%` : '',
+                        totalCost: opTotal
+                      });
+                    });
+                    
+                    // Subcon
+                    const uniqueSubcons = [...new Set(subcons.map(s => s.subcon_id))];
+                    uniqueSubcons.forEach(subconId => {
+                      const subconLines = subcons.filter(s => s.subcon_id === subconId);
+                      const matchingLine = subconLines.find(s => s.quantity === vol.quantity) || subconLines[0];
+                      if (matchingLine && matchingLine.std_cost_est > 0) {
+                        breakdownRows.push({
+                          qty: vol.quantity,
+                          type: 'Subcon',
+                          name: matchingLine.process_description,
+                          description: matchingLine.vendor_name || '',
+                          costPerOne: matchingLine.std_cost_est,
+                          additionalCharge: subconMarkupPercent > 0 ? `${subconMarkupPercent}%` : '',
+                          totalCost: matchingLine.std_cost_est * vol.quantity * (1 + subconMarkupPercent / 100)
+                        });
+                      }
+                    });
+                    
+                    // Sales Commission
+                    if (additionalCosts.sales_commission_percent > 0) {
+                      const commissionAmount = baseCost * (additionalCosts.sales_commission_percent / 100);
+                      breakdownRows.push({
+                        qty: 1,
+                        type: 'Sales Commission',
+                        name: `Sales Commission (${additionalCosts.sales_commission_percent}%)`,
+                        description: '',
+                        costPerOne: 0,
+                        additionalCharge: '',
+                        totalCost: commissionAmount
+                      });
+                    }
+                    
+                    // Profit
+                    if (additionalCosts.profit_percent > 0) {
+                      const basePlusComm = baseCost * commissionMultiplier;
+                      const profitAmount = basePlusComm * (additionalCosts.profit_percent / 100);
+                      breakdownRows.push({
+                        qty: 1,
+                        type: 'Profit',
+                        name: `Profit (${additionalCosts.profit_percent}%)`,
+                        description: '',
+                        costPerOne: 0,
+                        additionalCharge: '',
+                        totalCost: profitAmount
+                      });
+                    }
+                    
+                    // Fixed Additional Costs
+                    if (additionalCosts.inspection_cost > 0) {
+                      breakdownRows.push({ qty: 1, type: 'Fixed Cost', name: 'Inspection', description: '', costPerOne: additionalCosts.inspection_cost, additionalCharge: '', totalCost: additionalCosts.inspection_cost });
+                    }
+                    if (additionalCosts.handling_cost > 0) {
+                      breakdownRows.push({ qty: 1, type: 'Fixed Cost', name: 'Handling', description: '', costPerOne: additionalCosts.handling_cost, additionalCharge: '', totalCost: additionalCosts.handling_cost });
+                    }
+                    if (additionalCosts.shipping_cost > 0) {
+                      breakdownRows.push({ qty: 1, type: 'Fixed Cost', name: 'Shipping', description: '', costPerOne: additionalCosts.shipping_cost, additionalCharge: '', totalCost: additionalCosts.shipping_cost });
+                    }
+                    if (additionalCosts.one_time_charge > 0) {
+                      breakdownRows.push({ qty: 1, type: 'Fixed Cost', name: 'One-time Charge', description: '', costPerOne: additionalCosts.one_time_charge, additionalCharge: '', totalCost: additionalCosts.one_time_charge });
+                    }
+
+                    return (
+                      <div key={volIdx} className="border rounded-lg overflow-hidden">
+                        <div className="bg-muted/50 px-4 py-3 flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Badge variant="secondary" className="text-base px-3 py-1">
+                              Volume {volIdx + 1}: {vol.quantity.toLocaleString()} pcs
+                            </Badge>
+                            <span className="text-sm text-muted-foreground">
+                              Total: <strong className="text-foreground">€{grandTotal.toFixed(2)}</strong>
+                            </span>
+                            <span className="text-sm text-muted-foreground">
+                              Price/Part: <strong className="text-primary">€{pricePerPart.toFixed(2)}</strong>
+                            </span>
+                          </div>
+                        </div>
+                        <Table>
+                          <TableHeader>
+                            <TableRow className="text-xs">
+                              <TableHead className="w-16">Qty</TableHead>
+                              <TableHead className="w-32">Type</TableHead>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Description</TableHead>
+                              <TableHead className="text-right w-24">Cost/Unit</TableHead>
+                              <TableHead className="text-right w-24">Markup</TableHead>
+                              <TableHead className="text-right w-28">Total Cost</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {breakdownRows.map((row, rowIdx) => (
+                              <TableRow key={rowIdx} className="text-sm">
+                                <TableCell className="font-medium">{row.qty.toLocaleString()}</TableCell>
+                                <TableCell>
+                                  <Badge variant="outline" className="text-xs font-normal">
+                                    {row.type}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="font-medium">{row.name}</TableCell>
+                                <TableCell className="text-muted-foreground">{row.description}</TableCell>
+                                <TableCell className="text-right">
+                                  {row.costPerOne > 0 ? `€${row.costPerOne.toFixed(2)}` : ''}
+                                </TableCell>
+                                <TableCell className="text-right text-amber-600">
+                                  {row.additionalCharge}
+                                </TableCell>
+                                <TableCell className="text-right font-medium">€{row.totalCost.toFixed(2)}</TableCell>
+                              </TableRow>
+                            ))}
+                            {/* Total Row */}
+                            <TableRow className="bg-muted/50 font-semibold">
+                              <TableCell colSpan={6} className="text-right">Total</TableCell>
+                              <TableCell className="text-right text-lg">€{grandTotal.toFixed(2)}</TableCell>
+                            </TableRow>
+                            {/* Price per part Row */}
+                            <TableRow className="bg-primary/10 font-semibold">
+                              <TableCell colSpan={6} className="text-right">Price per Part</TableCell>
+                              <TableCell className="text-right text-lg text-primary">€{pricePerPart.toFixed(2)}</TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </div>
+                    );
+                  })}
+                </div>
+
                 <div className="mt-4 flex justify-between">
                   <Button variant="outline" onClick={handleBack}>
                     <ChevronLeft className="h-4 w-4 mr-1" />
