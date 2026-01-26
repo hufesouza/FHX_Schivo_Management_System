@@ -374,7 +374,6 @@ const QuotationSystemNew = () => {
     handling_cost: 0,
     shipping_cost: 0,
     sales_commission_percent: 0,
-    profit_percent: 0,
     one_time_charge: 0,
   });
 
@@ -1571,12 +1570,11 @@ const QuotationSystemNew = () => {
         // Base cost per part
         const baseCostPerPart = productionCostPerPart + toolsCostPerPart + secondaryOpsCostPerPart + materialPerPart + subconPerPart + additionalCostsPerPart;
         
-        // Apply sales commission and profit percentages
+        // Apply sales commission percentage
         const commissionMultiplier = 1 + (additionalCosts.sales_commission_percent / 100);
-        const profitMultiplier = 1 + (additionalCosts.profit_percent / 100);
-        const totalCostPerPart = baseCostPerPart * commissionMultiplier * profitMultiplier;
+        const totalCostPerPart = baseCostPerPart * commissionMultiplier;
         
-        // Unit price with margin
+        // Unit price with margin (margin replaces profit)
         const unitPrice = totalCostPerPart / (1 - v.margin / 100);
 
         return {
@@ -4235,16 +4233,6 @@ const QuotationSystemNew = () => {
                         placeholder="e.g., 5"
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label>Profit %</Label>
-                      <Input
-                        type="number"
-                        step="0.1"
-                        value={additionalCosts.profit_percent || ''}
-                        onChange={(e) => setAdditionalCosts(prev => ({ ...prev, profit_percent: parseFloat(e.target.value) || 0 }))}
-                        placeholder="e.g., 10"
-                      />
-                    </div>
                   </div>
                   
                   {/* Summary of additional costs */}
@@ -4260,10 +4248,6 @@ const QuotationSystemNew = () => {
                       <div>
                         <span className="text-muted-foreground">Sales Commission:</span>
                         <span className="ml-2 font-medium">{additionalCosts.sales_commission_percent}%</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Profit:</span>
-                        <span className="ml-2 font-medium">{additionalCosts.profit_percent}%</span>
                       </div>
                     </div>
                   </div>
@@ -4425,10 +4409,9 @@ const QuotationSystemNew = () => {
                         // Add subcon to base cost
                         const baseCostWithSubcon = baseCostBeforeMultipliers + (totalSubconCost * vol.quantity);
                         
-                        // Apply overall sales commission and profit percentages
+                        // Apply overall sales commission percentage (margin is applied at unit price level)
                         const commissionMultiplier = 1 + (additionalCosts.sales_commission_percent / 100);
-                        const profitMultiplier = 1 + (additionalCosts.profit_percent / 100);
-                        const costAfterMultipliers = baseCostWithSubcon * commissionMultiplier * profitMultiplier;
+                        const costAfterMultipliers = baseCostWithSubcon * commissionMultiplier;
                         
                         // Fixed costs are added AFTER the multipliers
                         const fixedAdditionalCosts = additionalCosts.inspection_cost + additionalCosts.handling_cost + 
@@ -4537,10 +4520,11 @@ const QuotationSystemNew = () => {
                     
                     const baseCost = totalMaterialWithMarkup + totalToolCost + totalSecOps + totalProductionCost + programmingCost + setupCost + totalSubconWithMarkup;
                     const commissionMultiplier = 1 + (additionalCosts.sales_commission_percent / 100);
-                    const profitMultiplier = 1 + (additionalCosts.profit_percent / 100);
-                    const costAfterMultipliers = baseCost * commissionMultiplier * profitMultiplier;
+                    const costAfterMultipliers = baseCost * commissionMultiplier;
                     const grandTotal = costAfterMultipliers + fixedCosts;
-                    const pricePerPart = vol.quantity > 0 ? grandTotal / vol.quantity : 0;
+                    // Price per part uses margin from volumes
+                    const costPerPart = vol.quantity > 0 ? grandTotal / vol.quantity : 0;
+                    const pricePerPart = costPerPart / (1 - vol.margin / 100);
                     
                     // Build breakdown rows
                     const breakdownRows: { qty: number; type: string; name: string; description: string; costPerOne: number; additionalCharge: string; totalCost: number }[] = [];
@@ -4710,20 +4694,6 @@ const QuotationSystemNew = () => {
                       });
                     }
                     
-                    // Profit
-                    if (additionalCosts.profit_percent > 0) {
-                      const basePlusComm = baseCost * commissionMultiplier;
-                      const profitAmount = basePlusComm * (additionalCosts.profit_percent / 100);
-                      breakdownRows.push({
-                        qty: 1,
-                        type: 'Profit',
-                        name: `Profit (${additionalCosts.profit_percent}%)`,
-                        description: '',
-                        costPerOne: 0,
-                        additionalCharge: '',
-                        totalCost: profitAmount
-                      });
-                    }
                     
                     // Fixed Additional Costs
                     if (additionalCosts.inspection_cost > 0) {
