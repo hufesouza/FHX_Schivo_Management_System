@@ -4180,14 +4180,16 @@ const QuotationSystemNew = () => {
                 <Alert className="bg-muted/50 border-primary/20 mb-4">
                   <Info className="h-4 w-4 text-primary" />
                   <AlertDescription className="text-sm text-muted-foreground">
-                    <strong>All values shown per part.</strong> Unit Price = Cost/Part ÷ (1 - Margin%). 
+                    <strong>Formula:</strong> Total = (Material + Tools + Sec.Ops + Production×(1+(ProdComm+ProdProfit)%) + Prog + Setup) × (1+Comm%) × (1+Profit%) + Fixed Costs
                     {currency !== 'EUR' && <span className="ml-2"><strong>Currency:</strong> {currency} (1 EUR = {exchangeRate.toFixed(4)} {currency})</span>}
                   </AlertDescription>
                 </Alert>
                 {/* Warning for high subcon costs */}
                 {volumes.some((vol, idx) => {
-                  const prodCalc = productionCalculations[idx] || { costPerDetail: 0, programmingCost: 0, setupCost: 0 };
-                  const productionCostPerPart = prodCalc.costPerDetail + ((prodCalc.programmingCost + prodCalc.setupCost) / (vol.quantity || 1));
+                  const prodCalc = productionCalculations[idx] || { costPerDetail: 0, programmingCost: 0, setupCost: 0, totalCost: 0 };
+                  const productionMarkup = 1 + ((productionPlanning.production_sales_commission_percent || 0) + (productionPlanning.production_profit_percent || 0)) / 100;
+                  const totalProductionCost = prodCalc.totalCost * productionMarkup;
+                  const productionCostPerPart = vol.quantity > 0 ? (totalProductionCost + prodCalc.programmingCost + prodCalc.setupCost) / vol.quantity : 0;
                   const toolsCostPerPart = vol.quantity > 0 ? getTotalToolsCostForVolume(idx) / vol.quantity : 0;
                   const secondaryOpsCostPerPart = getSecondaryOpsCostPerPart(vol.quantity);
                   const internalCosts = productionCostPerPart + toolsCostPerPart + secondaryOpsCostPerPart;
@@ -4263,51 +4265,74 @@ const QuotationSystemNew = () => {
                     <TableBody>
                       {volumes.map((vol, idx) => {
                         // Get production calculation for this volume tier
-                        const prodCalc = productionCalculations[idx] || { costPerDetail: 0, programmingCost: 0, setupCost: 0 };
+                        const prodCalc = productionCalculations[idx] || { costPerDetail: 0, programmingCost: 0, setupCost: 0, totalCost: 0 };
                         
-                        // Production cost per part = cost per detail + (programming + setup) / quantity
-                        const productionCostPerPart = prodCalc.costPerDetail + 
-                          ((prodCalc.programmingCost + prodCalc.setupCost) / (vol.quantity || 1));
+                        // === FORMULA: Total cost = Total material cost + Total tool cost + Total secondary operation cost 
+                        // + Total production cost * (1 + (Production sales commissions + Production profit)/100)
+                        // + Programming qty * Programming cost + Setup qty * Setup cost
+                        // All above × (1 + Sales commissions / 100) × (1 + Profit / 100)
+                        // + Inspection cost + Handling cost + Shipping cost + One time charge
                         
-                        // Tools cost per part = total tools for this volume / quantity
-                        const toolsCostPerPart = vol.quantity > 0 
-                          ? getTotalToolsCostForVolume(idx) / vol.quantity 
-                          : 0;
+                        // Total Material Cost (with markup)
+                        const totalMaterialCost = totals.totalMaterialCost * vol.quantity;
                         
-                        // Secondary ops cost per part (already includes markup)
-                        const secondaryOpsCostPerPart = getSecondaryOpsCostPerPart(vol.quantity);
+                        // Total Tool Cost for this volume
+                        const totalToolCost = getTotalToolsCostForVolume(idx);
                         
-                        // Material cost per part (with markup)
-                        const materialPerPart = totals.totalMaterialCost;
+                        // Total Secondary Operation Cost
+                        const totalSecondaryOpsCost = getSecondaryOpsCostForQuantity(vol.quantity);
                         
-                        // Subcon cost per part (quantity-specific)
+                        // Total Production Cost with production-specific markup
+                        const productionMarkup = 1 + ((productionPlanning.production_sales_commission_percent || 0) + (productionPlanning.production_profit_percent || 0)) / 100;
+                        const totalProductionCost = prodCalc.totalCost * productionMarkup;
+                        
+                        // Programming and Setup costs (already calculated as totals)
+                        const programmingCost = prodCalc.programmingCost;
+                        const setupCost = prodCalc.setupCost;
+                        
+                        // Base cost BEFORE overall commission/profit (includes all variable costs)
+                        const baseCostBeforeMultipliers = totalMaterialCost + totalToolCost + totalSecondaryOpsCost + totalProductionCost + programmingCost + setupCost;
+                        
+                        // Subcon cost (quantity-specific, with markup)
                         const qtySubconCostRaw = getSubconCostForQuantity(vol.quantity);
                         const qtySubconCostWithMarkup = qtySubconCostRaw * (1 + header.subcon_markup / 100);
-                        const rawSubconPerPart = excludeSubconFromMargin 
-                          ? qtySubconCostRaw
-                          : qtySubconCostWithMarkup;
-                        const subconPerPart = rawSubconPerPart;
+                        const totalSubconCost = excludeSubconFromMargin ? qtySubconCostRaw : qtySubconCostWithMarkup;
                         
-                        // Additional costs per part = fixed costs / quantity
-                        const fixedAdditionalCosts = additionalCosts.inspection_cost + additionalCosts.handling_cost + 
-                          additionalCosts.shipping_cost + additionalCosts.one_time_charge;
-                        const additionalCostsPerPart = vol.quantity > 0 ? fixedAdditionalCosts / vol.quantity : 0;
+                        // Add subcon to base cost
+                        const baseCostWithSubcon = baseCostBeforeMultipliers + (totalSubconCost * vol.quantity);
                         
-                        // Base cost per part = sum of all cost components
-                        const baseCostPerPart = productionCostPerPart + toolsCostPerPart + secondaryOpsCostPerPart + materialPerPart + subconPerPart + additionalCostsPerPart;
-                        
-                        // Apply sales commission and profit percentages on top of base cost
-                        // Total Cost = Base Cost × (1 + Sales Commission%) × (1 + Profit%)
+                        // Apply overall sales commission and profit percentages
                         const commissionMultiplier = 1 + (additionalCosts.sales_commission_percent / 100);
                         const profitMultiplier = 1 + (additionalCosts.profit_percent / 100);
-                        const totalCostPerPart = baseCostPerPart * commissionMultiplier * profitMultiplier;
+                        const costAfterMultipliers = baseCostWithSubcon * commissionMultiplier * profitMultiplier;
                         
-                        // Calculate unit price based on margin calculation method
+                        // Fixed costs are added AFTER the multipliers
+                        const fixedAdditionalCosts = additionalCosts.inspection_cost + additionalCosts.handling_cost + 
+                          additionalCosts.shipping_cost + additionalCosts.one_time_charge;
+                        
+                        // TOTAL COST = (Variable Costs × Commission × Profit) + Fixed Costs
+                        const totalCost = costAfterMultipliers + fixedAdditionalCosts;
+                        
+                        // Total cost per part
+                        const totalCostPerPart = vol.quantity > 0 ? totalCost / vol.quantity : 0;
+                        
+                        // Per-part breakdown for display
+                        const productionCostPerPart = vol.quantity > 0 
+                          ? (totalProductionCost + programmingCost + setupCost) / vol.quantity 
+                          : 0;
+                        const toolsCostPerPart = vol.quantity > 0 ? totalToolCost / vol.quantity : 0;
+                        const secondaryOpsCostPerPart = vol.quantity > 0 ? totalSecondaryOpsCost / vol.quantity : 0;
+                        const materialPerPart = totals.totalMaterialCost;
+                        const subconPerPart = totalSubconCost;
+                        const additionalCostsPerPart = vol.quantity > 0 ? fixedAdditionalCosts / vol.quantity : 0;
+                        
+                        // Calculate unit price based on margin
+                        // Unit Price = Total Cost per Part / (1 - Margin%)
                         let unitPriceEur: number;
                         if (excludeSubconFromMargin) {
                           // Apply margin only to cost without subcon, then add raw subcon
-                          const costWithoutSubcon = (productionCostPerPart + toolsCostPerPart + secondaryOpsCostPerPart + materialPerPart + additionalCostsPerPart) * commissionMultiplier * profitMultiplier;
-                          unitPriceEur = (costWithoutSubcon / (1 - vol.margin / 100)) + rawSubconPerPart;
+                          const costWithoutSubcon = totalCostPerPart - subconPerPart;
+                          unitPriceEur = (costWithoutSubcon / (1 - vol.margin / 100)) + qtySubconCostRaw;
                         } else {
                           unitPriceEur = totalCostPerPart / (1 - vol.margin / 100);
                         }
