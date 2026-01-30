@@ -257,7 +257,10 @@ function parseEnquiryData(data: unknown[][]): ParsedEnquiryLog[] {
   
   const headerRow = data[headerRowIdx];
   console.log('Header row found at index:', headerRowIdx);
-  console.log('Header columns:', headerRow);
+  console.log('All header columns:');
+  headerRow.forEach((cell, idx) => {
+    console.log(`  Column ${idx}: "${String(cell || '').trim()}"`);
+  });
   
   const columnMapping = buildColumnMapping(headerRow, columnNames);
   console.log('Column mapping:', columnMapping);
