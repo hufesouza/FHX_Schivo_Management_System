@@ -256,13 +256,15 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
 
   // Calculate aging for open enquiries
   const openEnquiriesWithAging = useMemo(() => {
-    const openStatuses = ['OPEN', 'WIP'];
+    // Closed statuses - everything else is considered "Open"
+    const closedStatuses = ['QUOTED', 'DECLINED', 'CANCELLED'];
     const today = new Date();
     
     return filteredEnquiries
       .filter(e => {
-        const status = (e.status || '').toUpperCase();
-        return (openStatuses.includes(status) || !e.status) && e.customer;
+        const status = (e.status || '').toUpperCase().trim();
+        // Open = anything NOT in closedStatuses
+        return !closedStatuses.includes(status) && e.customer;
       })
       .map(e => {
         let agingDays: number | null = null;
