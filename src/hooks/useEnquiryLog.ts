@@ -34,7 +34,13 @@ export function useEnquiryLog() {
         .order('date_received', { ascending: false });
 
       if (error) throw error;
-      setEnquiries(data || []);
+      // Add missing fields for database records that don't have them
+      const enrichedData: EnquiryLog[] = (data || []).map(item => ({
+        ...item,
+        action_required: (item as unknown as Record<string, unknown>).action_required as string | null ?? null,
+        action_owner: (item as unknown as Record<string, unknown>).action_owner as string | null ?? null,
+      }));
+      setEnquiries(enrichedData);
     } catch (error) {
       console.error('Error fetching enquiries:', error);
       toast({
