@@ -34,6 +34,7 @@ import QuotationSystemList from "./pages/QuotationSystemList";
 import QuotationSystemSettings from "./pages/QuotationSystemSettings";
 import EnquiryList from "./pages/EnquiryList";
 import EnquiryDetail from "./pages/EnquiryDetail";
+import QuotationDashboard from "./pages/QuotationDashboard";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +58,7 @@ const App = () => (
           <Route path="/npi/quotation/machines" element={<QuotationMachines />} />
           <Route path="/npi/quotation/estimator" element={<PertEstimator />} />
           <Route path="/npi/quotation/compliance" element={<QuotationComplianceSettings />} />
+          <Route path="/npi/quotation-dashboard" element={<QuotationDashboard />} />
           
           <Route path="/npi/quotation-control" element={<QuotationControlHub />} />
           <Route path="/npi/quotation-system" element={<QuotationSystemHub />} />

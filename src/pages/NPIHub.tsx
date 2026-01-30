@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
-import { ReceiptText } from 'lucide-react';
+import { ReceiptText, BarChart3 } from 'lucide-react';
 
 const subModules = [
   {
@@ -62,6 +62,15 @@ const subModules = [
     icon: ClipboardList,
     href: '/npi/pipeline',
     color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
+    available: true,
+  },
+  {
+    id: 'quotation-dashboard',
+    title: 'Quotation Dashboard',
+    description: 'Upload enquiry log Excel and view KPIs, charts, and analytics',
+    icon: BarChart3,
+    href: '/npi/quotation-dashboard',
+    color: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
     available: true,
   },
   {
