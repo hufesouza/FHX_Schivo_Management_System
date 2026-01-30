@@ -38,7 +38,7 @@ const QuotationDashboard = () => {
     setFileName(file.name);
     
     try {
-      const parsedData = await parseEnquiryLogExcel(file);
+      const parsedData = await parseEnquiryLogExcel(file, '2026');
       
       // Convert ParsedEnquiryLog to EnquiryLog format (add mock IDs and timestamps)
       const enquiryData: EnquiryLog[] = parsedData.map((item, index) => ({
