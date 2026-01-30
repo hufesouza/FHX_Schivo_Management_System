@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { FileUpload } from '@/components/capacity/FileUpload';
 import { EnquiryDashboard } from '@/components/quotation-control/EnquiryDashboard';
 import { EnquiryList } from '@/components/quotation-control/EnquiryList';
+import { ActionsList } from '@/components/quotation-control/ActionsList';
 import { parseEnquiryLogExcel } from '@/utils/enquiryLogParser';
 import { ParsedEnquiryLog, EnquiryLog } from '@/types/enquiryLog';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,10 +18,10 @@ import {
   Upload, 
   LayoutDashboard, 
   List,
-  RefreshCw,
   FileSpreadsheet,
   X,
-  BarChart3
+  BarChart3,
+  ClipboardList
 } from 'lucide-react';
 
 const QuotationDashboard = () => {
@@ -111,6 +112,10 @@ const QuotationDashboard = () => {
               <TabsTrigger value="list" className="flex items-center gap-2" disabled={enquiries.length === 0}>
                 <List className="h-4 w-4" />
                 Enquiry List
+              </TabsTrigger>
+              <TabsTrigger value="actions" className="flex items-center gap-2" disabled={enquiries.length === 0}>
+                <ClipboardList className="h-4 w-4" />
+                Actions
               </TabsTrigger>
             </TabsList>
 
@@ -205,6 +210,20 @@ const QuotationDashboard = () => {
                   });
                 }}
               />
+            )}
+          </TabsContent>
+
+          <TabsContent value="actions" className="mt-0">
+            {enquiries.length === 0 ? (
+              <Card className="text-center py-12">
+                <CardContent>
+                  <p className="text-muted-foreground">
+                    No enquiries loaded. Upload an Excel file first.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <ActionsList enquiries={enquiries} />
             )}
           </TabsContent>
         </Tabs>

@@ -9,6 +9,8 @@ export interface EnquiryLog {
   npi_owner: string | null;
   priority: string | null;
   commercial_owner: string | null;
+  action_required: string | null;
+  action_owner: string | null;
   ecd_quote_submission: string | null;
   date_quote_submitted: string | null;
   quoted_price_euro: number | null;
@@ -38,6 +40,8 @@ export interface ParsedEnquiryLog {
   npi_owner: string | null;
   priority: string | null;
   commercial_owner: string | null;
+  action_required: string | null;
+  action_owner: string | null;
   ecd_quote_submission: string | null;
   date_quote_submitted: string | null;
   quoted_price_euro: number | null;
