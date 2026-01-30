@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { EnquiryLog } from '@/types/enquiryLog';
 import { 
   FileText, 
@@ -17,7 +18,8 @@ import {
   Filter,
   X,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  AlertCircle
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
 
@@ -224,6 +226,45 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       })(),
     };
   }, [filteredEnquiries]);
+
+  // Calculate aging for open enquiries
+  const openEnquiriesWithAging = useMemo(() => {
+    const openStatuses = ['OPEN', 'WIP'];
+    const today = new Date();
+    
+    return filteredEnquiries
+      .filter(e => {
+        const status = (e.status || '').toUpperCase();
+        return (openStatuses.includes(status) || !e.status) && e.customer;
+      })
+      .map(e => {
+        let agingDays: number | null = null;
+        if (e.date_received) {
+          try {
+            const receivedDate = new Date(e.date_received);
+            const diffMs = today.getTime() - receivedDate.getTime();
+            agingDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            if (agingDays < 0) agingDays = null;
+          } catch {
+            agingDays = null;
+          }
+        }
+        return { ...e, agingDays };
+      })
+      .sort((a, b) => {
+        if (a.agingDays === null && b.agingDays === null) return 0;
+        if (a.agingDays === null) return 1;
+        if (b.agingDays === null) return -1;
+        return b.agingDays - a.agingDays;
+      });
+  }, [filteredEnquiries]);
+
+  const getAgingBadgeVariant = (days: number | null): 'default' | 'secondary' | 'destructive' | 'outline' => {
+    if (days === null) return 'outline';
+    if (days <= 7) return 'secondary';
+    if (days <= 14) return 'default';
+    return 'destructive';
+  };
 
   const hasActiveFilters = Object.values(filters).some(v => 
     Array.isArray(v) ? v.length > 0 : Boolean(v)
@@ -644,6 +685,74 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
           </CardContent>
         </Card>
       </div>
+
+      {/* Open Enquiries with Aging */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-sky-600" />
+            Open Enquiries
+            <Badge variant="secondary" className="ml-2">{openEnquiriesWithAging.length}</Badge>
+          </CardTitle>
+          <CardDescription>
+            Enquiries that are open or in progress, sorted by aging (oldest first)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {openEnquiriesWithAging.length === 0 ? (
+            <p className="text-muted-foreground text-center py-8">
+              No open enquiries found.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[100px]">Enquiry No</TableHead>
+                    <TableHead className="w-[150px]">Customer</TableHead>
+                    <TableHead>Details</TableHead>
+                    <TableHead className="w-[120px]">NPI Owner</TableHead>
+                    <TableHead className="w-[100px]">Date Received</TableHead>
+                    <TableHead className="w-[80px] text-right">Aging</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {openEnquiriesWithAging.map((enquiry) => (
+                    <TableRow key={enquiry.id}>
+                      <TableCell className="font-medium">{enquiry.enquiry_no}</TableCell>
+                      <TableCell className="text-muted-foreground">{enquiry.customer || '-'}</TableCell>
+                      <TableCell className="max-w-md">
+                        <span className="line-clamp-1">{enquiry.details || '-'}</span>
+                      </TableCell>
+                      <TableCell>
+                        {enquiry.npi_owner ? (
+                          <Badge variant="outline" className="font-normal">
+                            {enquiry.npi_owner}
+                          </Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {enquiry.date_received 
+                          ? new Date(enquiry.date_received).toLocaleDateString('en-GB')
+                          : '-'
+                        }
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant={getAgingBadgeVariant(enquiry.agingDays)}>
+                          <Clock className="h-3 w-3 mr-1" />
+                          {enquiry.agingDays !== null ? `${enquiry.agingDays}d` : '-'}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
