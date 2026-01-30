@@ -111,7 +111,7 @@ function buildColumnMapping(headerRow: unknown[], columnNames: Record<string, st
   return mapping;
 }
 
-export function parseEnquiryLogExcel(file: File): Promise<ParsedEnquiryLog[]> {
+export function parseEnquiryLogExcel(file: File, targetSheet?: string): Promise<ParsedEnquiryLog[]> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
@@ -122,8 +122,13 @@ export function parseEnquiryLogExcel(file: File): Promise<ParsedEnquiryLog[]> {
         
         const allEnquiries: ParsedEnquiryLog[] = [];
         
-        // Process ALL sheets that contain enquiry data (skip pivot tables)
+        // Process sheets - if targetSheet specified, only process that one
         for (const sheetName of workbook.SheetNames) {
+          // If a specific sheet is requested, skip all others
+          if (targetSheet && sheetName !== targetSheet) {
+            continue;
+          }
+          
           // Skip pivot table sheets
           if (sheetName.toUpperCase().includes('PIVOT')) {
             continue;
