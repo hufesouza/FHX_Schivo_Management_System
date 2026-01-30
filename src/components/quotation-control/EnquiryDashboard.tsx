@@ -227,6 +227,33 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
     };
   }, [filteredEnquiries]);
 
+  // Calculate working days between two dates (excludes weekends and holiday period)
+  const calculateWorkingDays = (startDate: Date, endDate: Date): number => {
+    // Holiday period to exclude: 23/12/2025 to 01/01/2026
+    const holidayStart = new Date(2025, 11, 23); // Dec 23, 2025
+    const holidayEnd = new Date(2026, 0, 1);     // Jan 1, 2026
+    
+    let workingDays = 0;
+    const current = new Date(startDate);
+    current.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(0, 0, 0, 0);
+    
+    while (current < end) {
+      const dayOfWeek = current.getDay();
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6; // Sunday = 0, Saturday = 6
+      const isHoliday = current >= holidayStart && current <= holidayEnd;
+      
+      if (!isWeekend && !isHoliday) {
+        workingDays++;
+      }
+      
+      current.setDate(current.getDate() + 1);
+    }
+    
+    return workingDays;
+  };
+
   // Calculate aging for open enquiries
   const openEnquiriesWithAging = useMemo(() => {
     const openStatuses = ['OPEN', 'WIP'];
@@ -242,9 +269,9 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
         if (e.date_received) {
           try {
             const receivedDate = new Date(e.date_received);
-            const diffMs = today.getTime() - receivedDate.getTime();
-            agingDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-            if (agingDays < 0) agingDays = null;
+            if (receivedDate <= today) {
+              agingDays = calculateWorkingDays(receivedDate, today);
+            }
           } catch {
             agingDays = null;
           }
