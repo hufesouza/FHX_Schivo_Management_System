@@ -199,7 +199,7 @@ export function parseEnquiryLogExcel(file: File, targetSheet?: string): Promise<
 function parseEnquiryData(data: unknown[][]): ParsedEnquiryLog[] {
   const columnNames: Record<string, string[]> = {
     enquiry_no: ['ENQUIRY NO', 'ENQUIRY', 'ENQ NO', 'ENQ'],
-    customer: ['CUSTOMER', 'CUST'],
+    customer: ['CUSTOMER NAME', 'CUSTOMER', 'CUST'],
     details: ['DETAILS', 'DESCRIPTION', 'DESC'],
     customer_type: ['NEW/EXISTING CUSTOMER', 'CUSTOMER TYPE'],
     business_type: ['NEW/EXISTING BUSINESS', 'BUSINESS TYPE'],
@@ -211,8 +211,8 @@ function parseEnquiryData(data: unknown[][]): ParsedEnquiryLog[] {
     date_quote_submitted: ['DATE QUOTE SUBMITTED', 'QUOTE SUBMITTED', 'SUBMITTED DATE'],
     quoted_price_euro: ['QUOTED PRICE', 'PRICE', 'EURO', 'VALUE'],
     aging: ['AGING', 'AGE'],
-    turnaround_days: ['TURNAROUND', 'TURNAROUND TIME', 'TAT'],
-    quantity_parts_quoted: ['QUANTITY', 'QTY', 'PARTS QUOTED'],
+    turnaround_days: ['TURNAROUND TIME', 'TURNAROUND', 'TURNAROUND TIME (DAYS)', 'TAT'],
+    quantity_parts_quoted: ['QUANTITY', 'QTY', 'PARTS QUOTED', 'QUANTITY OF TOTAL PARTS'],
     quoted_gap: ['QUOTED GAP', 'GAP'],
     is_quoted: ['QUOTED'],
     po_received: ['P.O. RECEIVED', 'PO RECEIVED', 'PO'],
@@ -231,7 +231,11 @@ function parseEnquiryData(data: unknown[][]): ParsedEnquiryLog[] {
   }
   
   const headerRow = data[headerRowIdx];
+  console.log('Header row found at index:', headerRowIdx);
+  console.log('Header columns:', headerRow);
+  
   const columnMapping = buildColumnMapping(headerRow, columnNames);
+  console.log('Column mapping:', columnMapping);
   
   const enquiries: ParsedEnquiryLog[] = [];
   
