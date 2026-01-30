@@ -103,7 +103,16 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
   // Calculate stats from filtered enquiries
   const stats = useMemo(() => {
     const data = filteredEnquiries;
+
+    const hasCustomerName = (e: EnquiryLog) => Boolean((e.customer || '').trim());
+    const coerceTurnaroundDays = (e: EnquiryLog): number | null => {
+      const v: unknown = (e as any).turnaround_days;
+      const n = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
+      return Number.isFinite(n) ? n : null;
+    };
     
+    const base = data.filter(hasCustomerName);
+
     // Count based on actual status values in the enquiry log
     const openStatuses = ['OPEN', 'WIP'];
     const wonStatuses = ['WON', 'PO RAISED'];
@@ -111,54 +120,58 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
     const holdStatuses = ['ON HOLD'];
     
     // Count unique customers
-    const uniqueCustomers = new Set(data.map(e => e.customer).filter(Boolean)).size;
+    const uniqueCustomers = new Set(base.map(e => e.customer).filter(Boolean)).size;
     
     // Calculate turnaround stats
-    const enquiriesWithTurnaround = data.filter(e => e.turnaround_days && e.turnaround_days > 0);
+    const enquiriesWithTurnaround = base.filter(e => {
+      const t = coerceTurnaroundDays(e);
+      return t !== null && t > 0;
+    });
     const avgTurnaround = enquiriesWithTurnaround.length > 0
-      ? enquiriesWithTurnaround.reduce((sum, e) => sum + (e.turnaround_days || 0), 0) / enquiriesWithTurnaround.length
+      ? enquiriesWithTurnaround.reduce((sum, e) => sum + (coerceTurnaroundDays(e) || 0), 0) / enquiriesWithTurnaround.length
       : 0;
     const minTurnaround = enquiriesWithTurnaround.length > 0
-      ? Math.min(...enquiriesWithTurnaround.map(e => e.turnaround_days!))
+      ? Math.min(...enquiriesWithTurnaround.map(e => coerceTurnaroundDays(e) || 0))
       : 0;
     const maxTurnaround = enquiriesWithTurnaround.length > 0
-      ? Math.max(...enquiriesWithTurnaround.map(e => e.turnaround_days!))
+      ? Math.max(...enquiriesWithTurnaround.map(e => coerceTurnaroundDays(e) || 0))
       : 0;
     
     return {
-      total: data.length,
+      // Per your requirement: count enquiries by rows that have a Customer Name.
+      total: base.length,
       uniqueCustomers,
       // Open: status is OPEN, WIP, or no status
-      open: data.filter(e => {
+      open: base.filter(e => {
         const status = (e.status || '').toUpperCase();
         return openStatuses.includes(status) || !e.status;
       }).length,
       // Quoted: is_quoted flag is true
-      quoted: data.filter(e => e.is_quoted === true).length,
+      quoted: base.filter(e => e.is_quoted === true).length,
       // Won: po_received is true OR status is WON/PO RAISED
-      won: data.filter(e => {
+      won: base.filter(e => {
         const status = (e.status || '').toUpperCase();
         return e.po_received === true || wonStatuses.includes(status);
       }).length,
       // Lost: status is LOST, NOT CONVERTED, DECLINED, or CANCELLED
-      lost: data.filter(e => {
+      lost: base.filter(e => {
         const status = (e.status || '').toUpperCase();
         return lostStatuses.includes(status);
       }).length,
       // On Hold: status is ON HOLD or priority contains 'hold'
-      onHold: data.filter(e => {
+      onHold: base.filter(e => {
         const status = (e.status || '').toUpperCase();
         const priority = (e.priority || '').toLowerCase();
         return holdStatuses.includes(status) || priority.includes('hold');
       }).length,
-      totalQuotedValue: data.reduce((sum, e) => sum + (e.quoted_price_euro || 0), 0),
-      totalPOValue: data.reduce((sum, e) => sum + (e.po_value_euro || 0), 0),
+      totalQuotedValue: base.reduce((sum, e) => sum + (e.quoted_price_euro || 0), 0),
+      totalPOValue: base.reduce((sum, e) => sum + (e.po_value_euro || 0), 0),
       avgTurnaround,
       minTurnaround,
       maxTurnaround,
       enquiriesWithTurnaroundCount: enquiriesWithTurnaround.length,
       byCustomer: Object.entries(
-        data.reduce((acc, e) => {
+        base.reduce((acc, e) => {
           const customer = e.customer || 'Unknown';
           acc[customer] = (acc[customer] || 0) + 1;
           return acc;
@@ -172,7 +185,7 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
         .sort((a, b) => b.count - a.count)
         .slice(0, 10),
       byOwner: Object.entries(
-        data.reduce((acc, e) => {
+        base.reduce((acc, e) => {
           const owner = e.npi_owner || 'Unassigned';
           acc[owner] = (acc[owner] || 0) + 1;
           return acc;
@@ -181,7 +194,7 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
         .map(([owner, count]) => ({ owner, count }))
         .sort((a, b) => b.count - a.count),
       byStatus: Object.entries(
-        data.reduce((acc, e) => {
+        base.reduce((acc, e) => {
           const status = e.status || 'OPEN';
           acc[status] = (acc[status] || 0) + 1;
           return acc;
@@ -191,12 +204,13 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
         .sort((a, b) => b.count - a.count),
       turnaroundByMonth: (() => {
         const byMonth: Record<string, { total: number; count: number }> = {};
-        data.forEach(e => {
-          if (e.date_received && e.turnaround_days) {
+        base.forEach(e => {
+          const t = coerceTurnaroundDays(e);
+          if (e.date_received && t !== null && t > 0) {
             const date = new Date(e.date_received);
             const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
             if (!byMonth[key]) byMonth[key] = { total: 0, count: 0 };
-            byMonth[key].total += e.turnaround_days;
+            byMonth[key].total += t;
             byMonth[key].count += 1;
           }
         });

@@ -66,6 +66,22 @@ function parseNumber(value: unknown): number | null {
   return null;
 }
 
+function diffDaysIso(startIso: string, endIso: string): number | null {
+  try {
+    const start = new Date(startIso);
+    const end = new Date(endIso);
+    const diffMs = end.getTime() - start.getTime();
+    if (!Number.isFinite(diffMs)) return null;
+    const days = diffMs / (1000 * 60 * 60 * 24);
+    if (!Number.isFinite(days)) return null;
+    // Guard against obvious garbage values
+    if (days < 0 || days > 3650) return null;
+    return Math.round(days);
+  } catch {
+    return null;
+  }
+}
+
 function normalizeString(value: unknown): string | null {
   if (value === null || value === undefined) return null;
   const str = String(value).trim();
@@ -261,30 +277,41 @@ function parseEnquiryData(data: unknown[][]): ParsedEnquiryLog[] {
     };
     
     const enquiryNo = normalizeString(getValue('enquiry_no'));
+    const customer = normalizeString(getValue('customer'));
     
-    // Skip rows without enquiry number
-    if (!enquiryNo) {
+    // Skip rows without an enquiry number OR customer name.
+    // (Prevents counting footer/blank rows and aligns totals with what users see in the sheet.)
+    if (!enquiryNo || !customer) {
       continue;
     }
     
     // Check if status indicates this is a valid enquiry (skip blank/cancelled if needed)
     const status = normalizeString(getValue('status'));
+
+    const dateReceived = parseExcelDate(getValue('date_received'));
+    const dateQuoteSubmitted = parseExcelDate(getValue('date_quote_submitted'));
+    const turnaroundParsed = parseNumber(getValue('turnaround_days'));
+    const turnaroundFallback =
+      turnaroundParsed === null && dateReceived && dateQuoteSubmitted
+        ? diffDaysIso(dateReceived, dateQuoteSubmitted)
+        : null;
+    const turnaroundDays = turnaroundParsed ?? turnaroundFallback;
     
     enquiries.push({
       enquiry_no: enquiryNo,
-      customer: normalizeString(getValue('customer')),
+      customer,
       details: normalizeString(getValue('details')),
       customer_type: normalizeString(getValue('customer_type')),
       business_type: normalizeString(getValue('business_type')),
-      date_received: parseExcelDate(getValue('date_received')),
+      date_received: dateReceived,
       npi_owner: normalizeString(getValue('npi_owner')),
       priority: normalizeString(getValue('priority')),
       commercial_owner: normalizeString(getValue('commercial_owner')),
       ecd_quote_submission: parseExcelDate(getValue('ecd_quote_submission')),
-      date_quote_submitted: parseExcelDate(getValue('date_quote_submitted')),
+      date_quote_submitted: dateQuoteSubmitted,
       quoted_price_euro: parseNumber(getValue('quoted_price_euro')),
       aging: parseNumber(getValue('aging')),
-      turnaround_days: parseNumber(getValue('turnaround_days')),
+      turnaround_days: turnaroundDays,
       quantity_parts_quoted: parseNumber(getValue('quantity_parts_quoted')),
       quoted_gap: parseNumber(getValue('quoted_gap')),
       is_quoted: parseBoolean(getValue('is_quoted')) || !!parseExcelDate(getValue('date_quote_submitted')),
