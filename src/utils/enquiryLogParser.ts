@@ -120,15 +120,37 @@ export function parseEnquiryLogExcel(file: File, targetSheet?: string): Promise<
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: 'array', cellDates: true });
         
+        console.log('Available sheets:', workbook.SheetNames);
+        
         const allEnquiries: ParsedEnquiryLog[] = [];
         
-        // Process sheets - if targetSheet specified, only process that one
-        for (const sheetName of workbook.SheetNames) {
-          // If a specific sheet is requested, skip all others
-          if (targetSheet && sheetName !== targetSheet) {
-            continue;
+        // Find matching sheet - check for exact match or partial match
+        let sheetsToProcess: string[] = [];
+        if (targetSheet) {
+          // First try exact match
+          if (workbook.SheetNames.includes(targetSheet)) {
+            sheetsToProcess = [targetSheet];
+          } else {
+            // Try partial/case-insensitive match
+            const matchingSheet = workbook.SheetNames.find(name => 
+              name.toUpperCase().includes(targetSheet.toUpperCase()) ||
+              targetSheet.toUpperCase().includes(name.toUpperCase())
+            );
+            if (matchingSheet) {
+              sheetsToProcess = [matchingSheet];
+              console.log(`Using sheet "${matchingSheet}" (matched from "${targetSheet}")`);
+            } else {
+              // Fallback: process all non-pivot sheets with enquiry data
+              console.log(`Sheet "${targetSheet}" not found, processing all relevant sheets`);
+              sheetsToProcess = workbook.SheetNames;
+            }
           }
-          
+        } else {
+          sheetsToProcess = workbook.SheetNames;
+        }
+        
+        // Process selected sheets
+        for (const sheetName of sheetsToProcess) {
           // Skip pivot table sheets
           if (sheetName.toUpperCase().includes('PIVOT')) {
             continue;
