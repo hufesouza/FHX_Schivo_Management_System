@@ -143,6 +143,14 @@ export function ActionsList({ enquiries }: ActionsListProps) {
     );
   }
 
+  // Sort by aging (oldest first)
+  const sortedActions = [...parsedActions].sort((a, b) => {
+    if (a.aging_days === null && b.aging_days === null) return 0;
+    if (a.aging_days === null) return 1;
+    if (b.aging_days === null) return -1;
+    return b.aging_days - a.aging_days;
+  });
+
   return (
     <div className="space-y-6">
       <Card>
@@ -178,121 +186,71 @@ export function ActionsList({ enquiries }: ActionsListProps) {
         </CardContent>
       </Card>
 
-      {Object.entries(groupedByOwner).map(([owner, actions]) => (
-        <Card key={owner}>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <User className="h-4 w-4" />
-              {owner}
-              <Badge variant="secondary" className="ml-2">{actions.length} actions</Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[100px]">Enquiry</TableHead>
-                  <TableHead className="w-[150px]">Customer</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead className="w-[120px]">Date</TableHead>
-                  <TableHead className="w-[100px] text-right">Aging</TableHead>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <AlertCircle className="h-5 w-5" />
+            All Actions
+            <Badge variant="secondary" className="ml-2">{sortedActions.length} total</Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-[80px]">Enquiry</TableHead>
+                <TableHead className="w-[140px]">Customer</TableHead>
+                <TableHead className="w-[120px]">Owner</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead className="w-[100px]">Date</TableHead>
+                <TableHead className="w-[80px] text-right">Aging</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedActions.map((action, idx) => (
+                <TableRow key={`${action.enquiry_no}-${idx}`}>
+                  <TableCell className="font-medium">{action.enquiry_no}</TableCell>
+                  <TableCell className="text-muted-foreground">{action.customer || '-'}</TableCell>
+                  <TableCell>
+                    {action.action_owner ? (
+                      <Badge variant="outline" className="font-normal">
+                        <User className="h-3 w-3 mr-1" />
+                        {action.action_owner}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="max-w-md">
+                    <span className="line-clamp-2">{action.action_text}</span>
+                  </TableCell>
+                  <TableCell>
+                    {action.is_parsing ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : action.parsed_date ? (
+                      <span className="text-sm">{action.parsed_date}</span>
+                    ) : (
+                      <span className="text-muted-foreground text-sm">-</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {action.is_parsing ? (
+                      <Loader2 className="h-4 w-4 animate-spin ml-auto" />
+                    ) : action.aging_days !== null ? (
+                      <Badge variant={getAgingBadgeVariant(action.aging_days)}>
+                        <Clock className="h-3 w-3 mr-1" />
+                        {action.aging_days}d
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {actions.map((action, idx) => (
-                  <TableRow key={`${action.enquiry_no}-${idx}`}>
-                    <TableCell className="font-medium">{action.enquiry_no}</TableCell>
-                    <TableCell className="text-muted-foreground">{action.customer || '-'}</TableCell>
-                    <TableCell className="max-w-md">
-                      <span className="line-clamp-2">{action.action_text}</span>
-                    </TableCell>
-                    <TableCell>
-                      {action.is_parsing ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : action.parsed_date ? (
-                        <span className="text-sm">{action.parsed_date}</span>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {action.is_parsing ? (
-                        <Loader2 className="h-4 w-4 animate-spin ml-auto" />
-                      ) : action.aging_days !== null ? (
-                        <Badge variant={getAgingBadgeVariant(action.aging_days)}>
-                          <Clock className="h-3 w-3 mr-1" />
-                          {action.aging_days}d
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      ))}
-
-      {parsedActions.filter(a => !a.action_owner).length > 0 && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg text-muted-foreground">
-              <User className="h-4 w-4" />
-              Unassigned Actions
-              <Badge variant="outline" className="ml-2">
-                {parsedActions.filter(a => !a.action_owner).length} actions
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[100px]">Enquiry</TableHead>
-                  <TableHead className="w-[150px]">Customer</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead className="w-[120px]">Date</TableHead>
-                  <TableHead className="w-[100px] text-right">Aging</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {parsedActions.filter(a => !a.action_owner).map((action, idx) => (
-                  <TableRow key={`unassigned-${action.enquiry_no}-${idx}`}>
-                    <TableCell className="font-medium">{action.enquiry_no}</TableCell>
-                    <TableCell className="text-muted-foreground">{action.customer || '-'}</TableCell>
-                    <TableCell className="max-w-md">
-                      <span className="line-clamp-2">{action.action_text}</span>
-                    </TableCell>
-                    <TableCell>
-                      {action.is_parsing ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : action.parsed_date ? (
-                        <span className="text-sm">{action.parsed_date}</span>
-                      ) : (
-                        <span className="text-muted-foreground text-sm">-</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {action.is_parsing ? (
-                        <Loader2 className="h-4 w-4 animate-spin ml-auto" />
-                      ) : action.aging_days !== null ? (
-                        <Badge variant={getAgingBadgeVariant(action.aging_days)}>
-                          <Clock className="h-3 w-3 mr-1" />
-                          {action.aging_days}d
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">-</span>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }
