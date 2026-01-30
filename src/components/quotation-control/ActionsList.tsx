@@ -235,7 +235,9 @@ export function ActionsList({ enquiries }: ActionsListProps) {
                     {action.is_parsing ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : action.parsed_date ? (
-                      <span className="text-sm">{action.parsed_date}</span>
+                      <span className="text-sm">
+                        {action.parsed_date.split('-').reverse().join('/')}
+                      </span>
                     ) : (
                       <span className="text-muted-foreground text-sm">-</span>
                     )}
