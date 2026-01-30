@@ -110,8 +110,24 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
     const lostStatuses = ['LOST', 'NOT CONVERTED', 'DECLINED', 'CANCELLED'];
     const holdStatuses = ['ON HOLD'];
     
+    // Count unique customers
+    const uniqueCustomers = new Set(data.map(e => e.customer).filter(Boolean)).size;
+    
+    // Calculate turnaround stats
+    const enquiriesWithTurnaround = data.filter(e => e.turnaround_days && e.turnaround_days > 0);
+    const avgTurnaround = enquiriesWithTurnaround.length > 0
+      ? enquiriesWithTurnaround.reduce((sum, e) => sum + (e.turnaround_days || 0), 0) / enquiriesWithTurnaround.length
+      : 0;
+    const minTurnaround = enquiriesWithTurnaround.length > 0
+      ? Math.min(...enquiriesWithTurnaround.map(e => e.turnaround_days!))
+      : 0;
+    const maxTurnaround = enquiriesWithTurnaround.length > 0
+      ? Math.max(...enquiriesWithTurnaround.map(e => e.turnaround_days!))
+      : 0;
+    
     return {
       total: data.length,
+      uniqueCustomers,
       // Open: status is OPEN, WIP, or no status
       open: data.filter(e => {
         const status = (e.status || '').toUpperCase();
@@ -137,10 +153,10 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       }).length,
       totalQuotedValue: data.reduce((sum, e) => sum + (e.quoted_price_euro || 0), 0),
       totalPOValue: data.reduce((sum, e) => sum + (e.po_value_euro || 0), 0),
-      avgTurnaround: data.filter(e => e.turnaround_days).length > 0
-        ? data.filter(e => e.turnaround_days).reduce((sum, e) => sum + (e.turnaround_days || 0), 0) / 
-          data.filter(e => e.turnaround_days).length
-        : 0,
+      avgTurnaround,
+      minTurnaround,
+      maxTurnaround,
+      enquiriesWithTurnaroundCount: enquiriesWithTurnaround.length,
       byCustomer: Object.entries(
         data.reduce((acc, e) => {
           const customer = e.customer || 'Unknown';
@@ -236,6 +252,14 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       borderColor: '#6366f1',
     },
     {
+      title: 'Unique Customers',
+      value: stats.uniqueCustomers,
+      icon: Building,
+      color: 'text-violet-600',
+      bgColor: 'bg-violet-100',
+      borderColor: '#8b5cf6',
+    },
+    {
       title: 'Open',
       value: stats.open,
       icon: Clock,
@@ -270,14 +294,6 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       borderColor: '#f43f5e',
       onClick: () => onFilterByStatus?.('LOST'),
     },
-    {
-      title: 'On Hold',
-      value: stats.onHold,
-      icon: PauseCircle,
-      color: 'text-amber-600',
-      bgColor: 'bg-amber-100',
-      borderColor: '#f59e0b',
-    },
   ];
 
   const valueCards = [
@@ -300,6 +316,9 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
     {
       title: 'Avg Turnaround',
       value: `${stats.avgTurnaround.toFixed(1)} days`,
+      subtitle: stats.enquiriesWithTurnaroundCount > 0 
+        ? `Min: ${stats.minTurnaround} / Max: ${stats.maxTurnaround} days`
+        : undefined,
       icon: Clock,
       color: 'text-orange-600',
       bgColor: 'bg-orange-100',
@@ -456,6 +475,9 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
                 <div>
                   <p className="text-lg font-bold">{card.value}</p>
                   <p className="text-xs text-muted-foreground">{card.title}</p>
+                  {'subtitle' in card && card.subtitle && (
+                    <p className="text-[10px] text-muted-foreground/70">{card.subtitle}</p>
+                  )}
                 </div>
               </div>
             </div>
