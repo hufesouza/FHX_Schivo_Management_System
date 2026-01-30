@@ -97,13 +97,20 @@ function buildColumnMapping(headerRow: unknown[], columnNames: Record<string, st
   const mapping: ColumnMapping = {};
   
   headerRow.forEach((cell, colIdx) => {
-    const cellText = String(cell || '').toUpperCase().trim().replace(/\n/g, ' ');
+    // Normalize: uppercase, trim, replace line breaks with space
+    const cellText = String(cell || '').toUpperCase().trim().replace(/[\r\n]+/g, ' ');
     
     for (const [field, aliases] of Object.entries(columnNames)) {
-      if (aliases.some(alias => cellText.includes(alias.toUpperCase()))) {
-        if (!(field in mapping)) {
-          mapping[field] = colIdx;
-        }
+      // Skip if field already mapped
+      if (field in mapping) continue;
+      
+      // Check each alias - prefer exact match, then includes
+      const exactMatch = aliases.some(alias => cellText === alias.toUpperCase());
+      const partialMatch = aliases.some(alias => cellText.includes(alias.toUpperCase()));
+      
+      if (exactMatch || partialMatch) {
+        mapping[field] = colIdx;
+        console.log(`Mapped "${field}" to column ${colIdx} ("${cellText}")`);
       }
     }
   });
@@ -211,7 +218,7 @@ function parseEnquiryData(data: unknown[][]): ParsedEnquiryLog[] {
     date_quote_submitted: ['DATE QUOTE SUBMITTED', 'QUOTE SUBMITTED', 'SUBMITTED DATE'],
     quoted_price_euro: ['QUOTED PRICE', 'PRICE', 'EURO', 'VALUE'],
     aging: ['AGING', 'AGE'],
-    turnaround_days: ['TURNAROUND TIME', 'TURNAROUND', 'TURNAROUND TIME (DAYS)', 'TAT'],
+    turnaround_days: ['TURNAROUND TIME (DAYS)', 'TURNAROUND TIME', 'TURNAROUND DAYS', 'TURNAROUND'],
     quantity_parts_quoted: ['QUANTITY', 'QTY', 'PARTS QUOTED', 'QUANTITY OF TOTAL PARTS'],
     quoted_gap: ['QUOTED GAP', 'GAP'],
     is_quoted: ['QUOTED'],
