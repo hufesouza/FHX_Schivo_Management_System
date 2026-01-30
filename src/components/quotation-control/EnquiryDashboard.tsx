@@ -143,10 +143,11 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       // Per your requirement: count enquiries by rows that have a Customer Name.
       total: base.length,
       uniqueCustomers,
-      // Open: status is OPEN, WIP, or no status
+      // Open: anything NOT Quoted, Declined, or Cancelled
       open: base.filter(e => {
-        const status = (e.status || '').toUpperCase();
-        return openStatuses.includes(status) || !e.status;
+        const status = (e.status || '').toUpperCase().trim();
+        const closedStatuses = ['QUOTED', 'DECLINED', 'CANCELLED'];
+        return !closedStatuses.includes(status);
       }).length,
       // Quoted: is_quoted flag is true
       quoted: base.filter(e => e.is_quoted === true).length,
