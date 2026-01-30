@@ -112,21 +112,35 @@ function findHeaderRow(data: unknown[][], searchTerms: string[]): number {
 function buildColumnMapping(headerRow: unknown[], columnNames: Record<string, string[]>): ColumnMapping {
   const mapping: ColumnMapping = {};
   
+  // First pass: exact matches only
   headerRow.forEach((cell, colIdx) => {
-    // Normalize: uppercase, trim, replace line breaks with space
     const cellText = String(cell || '').toUpperCase().trim().replace(/[\r\n]+/g, ' ');
     
     for (const [field, aliases] of Object.entries(columnNames)) {
-      // Skip if field already mapped
       if (field in mapping) continue;
       
-      // Check each alias - prefer exact match, then includes
       const exactMatch = aliases.some(alias => cellText === alias.toUpperCase());
-      const partialMatch = aliases.some(alias => cellText.includes(alias.toUpperCase()));
-      
-      if (exactMatch || partialMatch) {
+      if (exactMatch) {
         mapping[field] = colIdx;
-        console.log(`Mapped "${field}" to column ${colIdx} ("${cellText}")`);
+        console.log(`Mapped "${field}" to column ${colIdx} (exact: "${cellText}")`);
+      }
+    }
+  });
+  
+  // Second pass: partial matches for fields not yet mapped
+  headerRow.forEach((cell, colIdx) => {
+    const cellText = String(cell || '').toUpperCase().trim().replace(/[\r\n]+/g, ' ');
+    
+    // Skip if this column is already used
+    if (Object.values(mapping).includes(colIdx)) return;
+    
+    for (const [field, aliases] of Object.entries(columnNames)) {
+      if (field in mapping) continue;
+      
+      const partialMatch = aliases.some(alias => cellText.includes(alias.toUpperCase()));
+      if (partialMatch) {
+        mapping[field] = colIdx;
+        console.log(`Mapped "${field}" to column ${colIdx} (partial: "${cellText}")`);
       }
     }
   });
