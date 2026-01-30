@@ -60,6 +60,13 @@ function getAgingBadgeVariant(days: number | null): 'default' | 'secondary' | 'd
   return 'destructive';
 }
 
+// Remove date prefix from action text for display
+function stripDateFromAction(actionText: string): string {
+  // Match patterns like "27/01 - ", "30/01 -", "08/01-", "27-01 - ", etc.
+  const datePattern = /^\s*\d{1,2}[\/\-\.]\d{1,2}(?:[\/\-\.]\d{2,4})?\s*[-–—:]\s*/i;
+  return actionText.replace(datePattern, '').trim();
+}
+
 export function ActionsList({ enquiries }: ActionsListProps) {
   const [parsedActions, setParsedActions] = useState<ParsedAction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -222,7 +229,7 @@ export function ActionsList({ enquiries }: ActionsListProps) {
                     )}
                   </TableCell>
                   <TableCell className="max-w-md">
-                    <span className="line-clamp-2">{action.action_text}</span>
+                    <span className="line-clamp-2">{stripDateFromAction(action.action_text)}</span>
                   </TableCell>
                   <TableCell>
                     {action.is_parsing ? (
