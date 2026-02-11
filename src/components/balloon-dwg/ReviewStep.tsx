@@ -11,8 +11,13 @@ import { Trash2, Star, ChevronRight, ZoomIn, ZoomOut, RotateCcw } from 'lucide-r
 import { BalloonFeature } from '@/hooks/useBalloonJobs';
 import * as pdfjsLib from 'pdfjs-dist';
 
-// Set worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString();
+
+// OCR images were rendered at scale=2 from PDF, so OCR pixel / 2 = PDF points
+const OCR_RENDER_SCALE = 2;
 
 const FEATURE_TYPES = [
   'linear_dimension', 'angular_dimension', 'diameter', 'radius',
@@ -73,16 +78,34 @@ export function ReviewStep({ features, pdfFile, onUpdateFeature, onDeleteFeature
     await page.render({ canvasContext: ctx, viewport }).promise;
 
     // Draw balloons for current page
+    // OCR coords are in image pixel space (rendered at scale=2)
+    // Canvas is rendered at zoom*1.5, so conversion: ocr_pixel / OCR_RENDER_SCALE * zoom * 1.5
+    const canvasScale = zoom * 1.5;
+    const coordScale = canvasScale / OCR_RENDER_SCALE;
     const pageFeatures = features.filter(f => f.page_number === currentPage);
+    
     for (const f of pageFeatures) {
       if (f.bbox_x > 0 || f.bbox_y > 0) {
-        const x = f.bbox_x * zoom * 1.5;
-        const y = f.bbox_y * zoom * 1.5;
-        const radius = 14 * zoom;
+        // Convert OCR pixel coords to canvas coords
+        const cx = f.bbox_x * coordScale + (f.bbox_w * coordScale) / 2;
+        const cy = f.bbox_y * coordScale + (f.bbox_h * coordScale) / 2;
+        const radius = 12 * zoom;
+
+        // Position balloon above the feature
+        const balloonX = cx;
+        const balloonY = cy - radius * 2.5;
+
+        // Leader line from balloon to feature center
+        ctx.beginPath();
+        ctx.moveTo(balloonX, balloonY + radius);
+        ctx.lineTo(cx, cy);
+        ctx.strokeStyle = f.is_ctq ? '#ef4444' : '#2563eb';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
 
         // Balloon circle
         ctx.beginPath();
-        ctx.arc(x + radius, y - radius * 2, radius, 0, Math.PI * 2);
+        ctx.arc(balloonX, balloonY, radius, 0, Math.PI * 2);
         ctx.fillStyle = f.is_ctq ? '#ef4444' : '#2563eb';
         ctx.fill();
         ctx.strokeStyle = '#fff';
@@ -91,18 +114,10 @@ export function ReviewStep({ features, pdfFile, onUpdateFeature, onDeleteFeature
 
         // Balloon number
         ctx.fillStyle = '#fff';
-        ctx.font = `bold ${Math.round(12 * zoom)}px sans-serif`;
+        ctx.font = `bold ${Math.round(11 * zoom)}px sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText(String(f.balloon_id), x + radius, y - radius * 2);
-
-        // Leader line
-        ctx.beginPath();
-        ctx.moveTo(x + radius, y - radius);
-        ctx.lineTo(x + f.bbox_w * zoom * 0.75, y);
-        ctx.strokeStyle = f.is_ctq ? '#ef4444' : '#2563eb';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
+        ctx.fillText(String(f.balloon_id), balloonX, balloonY);
       }
     }
   }, [pdfDoc, currentPage, zoom, features]);

@@ -101,26 +101,46 @@ export function ExportStep({ features, pdfFile, jobName }: ExportStepProps) {
       const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
       const pages = pdfDoc.getPages();
 
+      // OCR images rendered at scale=2 from PDF viewport, so OCR pixel / 2 = PDF points
+      const OCR_RENDER_SCALE = 2;
+
       for (let pageIdx = 0; pageIdx < pages.length; pageIdx++) {
         const page = pages[pageIdx];
         const { width, height } = page.getSize();
         const pageFeatures = features.filter(f => f.page_number === pageIdx + 1);
 
         for (const f of pageFeatures) {
-          // Position balloon - use bbox if available, else distribute along right margin
-          let bx: number, by: number;
-          if (f.bbox_x > 0 || f.bbox_y > 0) {
-            // Scale bbox coords to PDF coords (approximate)
-            bx = Math.min(f.bbox_x * 0.72, width - 30);
-            by = height - Math.min(f.bbox_y * 0.72, height - 30);
-          } else {
-            // Fallback: position along right side
-            bx = width - 40;
-            by = height - (f.balloon_id * 25) % (height - 40);
-          }
-
           const radius = 10;
           const color = f.is_ctq ? rgb(0.93, 0.26, 0.26) : rgb(0.15, 0.39, 0.92);
+
+          // Convert OCR pixel coords to PDF points
+          let featureX: number, featureY: number;
+          let bx: number, by: number;
+
+          if (f.bbox_x > 0 || f.bbox_y > 0) {
+            // OCR coords → PDF points, flip Y (PDF origin is bottom-left)
+            featureX = (f.bbox_x + f.bbox_w / 2) / OCR_RENDER_SCALE;
+            featureY = height - (f.bbox_y + f.bbox_h / 2) / OCR_RENDER_SCALE;
+            // Place balloon above the feature
+            bx = featureX;
+            by = Math.min(featureY + radius * 2.5, height - radius - 2);
+          } else {
+            // Fallback: distribute along right margin
+            bx = width - 40;
+            by = height - ((f.balloon_id * 25) % (height - 40));
+            featureX = bx;
+            featureY = by;
+          }
+
+          // Leader line
+          if (f.bbox_x > 0 || f.bbox_y > 0) {
+            page.drawLine({
+              start: { x: bx, y: by - radius },
+              end: { x: featureX, y: featureY },
+              thickness: 0.75,
+              color,
+            });
+          }
 
           // Draw circle
           page.drawCircle({
@@ -142,18 +162,6 @@ export function ExportStep({ features, pdfFile, jobName }: ExportStepProps) {
             font,
             color: rgb(1, 1, 1),
           });
-
-          // Leader line if bbox available
-          if (f.bbox_x > 0 && f.bbox_w > 0) {
-            const targetX = f.bbox_x * 0.72 + (f.bbox_w * 0.72) / 2;
-            const targetY = height - (f.bbox_y * 0.72 + (f.bbox_h * 0.72) / 2);
-            page.drawLine({
-              start: { x: bx, y: by - radius },
-              end: { x: targetX, y: targetY },
-              thickness: 0.75,
-              color,
-            });
-          }
         }
       }
 

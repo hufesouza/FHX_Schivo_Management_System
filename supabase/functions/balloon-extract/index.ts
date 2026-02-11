@@ -107,9 +107,14 @@ For each feature, extract:
 - notes: any additional context
 
 Do NOT include title block text, revision info, material specs, or non-inspectable annotations.
-Deduplicate: if same dimension appears multiple times in similar location, include only once.`;
+Deduplicate: if same dimension appears multiple times in similar location, include only once.
 
-  const wordsContext = words.slice(0, 200).map(w => `"${w.text}" at (${w.x},${w.y},${w.w},${w.h})`).join('\n');
+CRITICAL: You MUST locate each feature's bounding box (bbox_x, bbox_y, bbox_w, bbox_h) from the word positions provided. Match each extracted feature to the nearest word(s) that contain it and use their coordinates. This is essential for placing balloon overlays correctly on the drawing. The coordinates are in image pixel space.
+
+Be thorough - examine ALL text in the drawing. A typical engineering drawing has 15-40+ inspectable features. Do not stop early.`;
+
+  // Send all words for maximum coverage - truncate only if extremely large
+  const wordsContext = words.slice(0, 500).map(w => `"${w.text}" at (${w.x},${w.y},${w.w},${w.h})`).join('\n');
 
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
