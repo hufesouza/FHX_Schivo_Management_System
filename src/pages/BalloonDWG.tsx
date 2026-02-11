@@ -10,8 +10,9 @@ import { ReviewStep } from '@/components/balloon-dwg/ReviewStep';
 import { ExportStep } from '@/components/balloon-dwg/ExportStep';
 import { toast } from 'sonner';
 import * as pdfjsLib from 'pdfjs-dist';
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 type Step = 'upload' | 'review' | 'export';
 
