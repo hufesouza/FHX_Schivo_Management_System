@@ -23,7 +23,8 @@ import {
   CalendarDays,
   FolderKanban,
   FileType2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  CircleDot
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -116,6 +117,15 @@ const subModules = [
     icon: FileType2,
     href: '/npi/drawing-translate',
     color: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
+    available: true,
+  },
+  {
+    id: 'balloon-dwg',
+    title: 'BalloonDWG',
+    description: 'Generate ballooned drawings and dimensional inspection reports from engineering PDFs',
+    icon: CircleDot,
+    href: '/npi/balloon-dwg',
+    color: 'bg-sky-500/10 text-sky-600 border-sky-500/20',
     available: true,
   },
 ];

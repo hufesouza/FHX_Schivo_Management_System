@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.extract-part-from-drawing]
 verify_jwt = false
+
+[functions.balloon-extract]
+verify_jwt = false

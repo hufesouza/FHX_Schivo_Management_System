@@ -14,6 +14,140 @@ export type Database = {
   }
   public: {
     Tables: {
+      balloon_features: {
+        Row: {
+          balloon_id: number
+          bbox_h: number | null
+          bbox_w: number | null
+          bbox_x: number | null
+          bbox_y: number | null
+          confidence: number | null
+          created_at: string
+          feature_type: string
+          id: string
+          is_ctq: boolean | null
+          job_id: string
+          nominal: number | null
+          notes: string | null
+          original_text: string | null
+          page_number: number | null
+          tol_minus: number | null
+          tol_plus: number | null
+          unit: string | null
+          updated_at: string
+          zone: string | null
+        }
+        Insert: {
+          balloon_id: number
+          bbox_h?: number | null
+          bbox_w?: number | null
+          bbox_x?: number | null
+          bbox_y?: number | null
+          confidence?: number | null
+          created_at?: string
+          feature_type?: string
+          id?: string
+          is_ctq?: boolean | null
+          job_id: string
+          nominal?: number | null
+          notes?: string | null
+          original_text?: string | null
+          page_number?: number | null
+          tol_minus?: number | null
+          tol_plus?: number | null
+          unit?: string | null
+          updated_at?: string
+          zone?: string | null
+        }
+        Update: {
+          balloon_id?: number
+          bbox_h?: number | null
+          bbox_w?: number | null
+          bbox_x?: number | null
+          bbox_y?: number | null
+          confidence?: number | null
+          created_at?: string
+          feature_type?: string
+          id?: string
+          is_ctq?: boolean | null
+          job_id?: string
+          nominal?: number | null
+          notes?: string | null
+          original_text?: string | null
+          page_number?: number | null
+          tol_minus?: number | null
+          tol_plus?: number | null
+          unit?: string | null
+          updated_at?: string
+          zone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "balloon_features_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "balloon_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      balloon_jobs: {
+        Row: {
+          ballooned_pdf_path: string | null
+          created_at: string
+          created_by: string
+          current_step: string | null
+          error_message: string | null
+          excel_path: string | null
+          file_name: string
+          file_path: string
+          id: string
+          json_path: string | null
+          preferred_unit: string | null
+          report_format: string | null
+          standard: string | null
+          status: string
+          total_pages: number | null
+          updated_at: string
+        }
+        Insert: {
+          ballooned_pdf_path?: string | null
+          created_at?: string
+          created_by: string
+          current_step?: string | null
+          error_message?: string | null
+          excel_path?: string | null
+          file_name: string
+          file_path: string
+          id?: string
+          json_path?: string | null
+          preferred_unit?: string | null
+          report_format?: string | null
+          standard?: string | null
+          status?: string
+          total_pages?: number | null
+          updated_at?: string
+        }
+        Update: {
+          ballooned_pdf_path?: string | null
+          created_at?: string
+          created_by?: string
+          current_step?: string | null
+          error_message?: string | null
+          excel_path?: string | null
+          file_name?: string
+          file_path?: string
+          id?: string
+          json_path?: string | null
+          preferred_unit?: string | null
+          report_format?: string | null
+          standard?: string | null
+          status?: string
+          total_pages?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       capacity_data: {
         Row: {
           created_at: string
