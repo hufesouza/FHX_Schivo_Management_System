@@ -42,36 +42,40 @@ const BalloonDWG = () => {
   }, [isAuthenticated, authLoading, navigate]);
 
   const handleProcess = useCallback(async (file: File, standard: string, unit: string, format: string) => {
-    setPdfFile(file);
-    setProcessingStep('Creating job...');
+    try {
+      setPdfFile(file);
+      setProcessingStep('Creating job...');
 
-    const newJob = await createJob(file, standard, unit, format);
-    if (!newJob) return;
+      const newJob = await createJob(file, standard, unit, format);
+      if (!newJob) return;
 
-    setProcessingStep('Converting PDF pages to images...');
+      setProcessingStep('Converting PDF pages to images...');
 
-    // Convert PDF pages to images
-    const fileData = await file.arrayBuffer();
-    const doc = await pdfjsLib.getDocument({ data: new Uint8Array(fileData) }).promise;
-    const pages: Array<{ imageBase64: string }> = [];
+      const fileData = await file.arrayBuffer();
+      const doc = await pdfjsLib.getDocument({ data: new Uint8Array(fileData) }).promise;
+      const pages: Array<{ imageBase64: string }> = [];
 
-    for (let i = 1; i <= doc.numPages; i++) {
-      setProcessingStep(`Rendering page ${i}/${doc.numPages}...`);
-      const page = await doc.getPage(i);
-      const viewport = page.getViewport({ scale: 2 });
-      const canvas = document.createElement('canvas');
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const ctx = canvas.getContext('2d')!;
-      await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
-      const base64 = canvas.toDataURL('image/png');
-      pages.push({ imageBase64: base64 });
-    }
+      for (let i = 1; i <= doc.numPages; i++) {
+        setProcessingStep(`Rendering page ${i}/${doc.numPages}...`);
+        const page = await doc.getPage(i);
+        const viewport = page.getViewport({ scale: 2 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d')!;
+        await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
+        const base64 = canvas.toDataURL('image/png');
+        pages.push({ imageBase64: base64 });
+      }
 
-    setProcessingStep('Extracting features with AI...');
-    const success = await processJob(newJob.id, pages, standard, unit);
-    if (success) {
-      setStep('review');
+      setProcessingStep('Extracting features with AI...');
+      const success = await processJob(newJob.id, pages, standard, unit);
+      if (success) {
+        setStep('review');
+      }
+    } catch (err: any) {
+      console.error('BalloonDWG process error:', err);
+      toast.error(err?.message || 'Failed to process drawing');
     }
   }, [createJob, processJob, setProcessingStep]);
 
