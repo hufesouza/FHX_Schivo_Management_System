@@ -423,14 +423,14 @@ const QuotationSystemNew = () => {
       const piecesPerDay = cycleTimeSeconds > 0 ? effectiveSecondsPerDay / cycleTimeSeconds : 0;
       const timeNeededDays = piecesPerDay > 0 ? Math.ceil(quantity / piecesPerDay) : 0;
 
-      // Cost per detail = (Cycle time / 3600) × Hourly rate × (100 / effectiveness)
-      const effectivenessFactor = effectiveness > 0 ? 100 / effectiveness : 0;
-      const costPerDetail = cycleTimeSeconds > 0 && effectiveness > 0 
-        ? (cycleTimeSeconds / 3600) * hourlyRate * effectivenessFactor 
+      // Total cost = (Quantity × Time per piece × (1 + (100 - Effectiveness) / 100) × Hourly rate) / 3600
+      const inefficiencyFactor = 1 + (100 - effectiveness) / 100;
+      const totalCost = cycleTimeSeconds > 0 && effectiveness > 0
+        ? (quantity * cycleTimeSeconds * inefficiencyFactor * hourlyRate) / 3600
         : 0;
 
-      // Total cost = Quantity × Cost per detail
-      const totalCost = quantity * costPerDetail;
+      // Cost per detail = Total cost / Quantity
+      const costPerDetail = quantity > 0 ? totalCost / quantity : 0;
 
       return {
         quantity,
