@@ -3927,7 +3927,7 @@ const QuotationSystemNew = () => {
                           <SelectItem value="custom" className="text-primary font-medium">
                             ✏️ Custom (Manual Entry)
                           </SelectItem>
-                          {resources.filter(r => r.is_active).map(r => (
+                          {siteResources.filter(r => r.is_active).map(r => (
                             <SelectItem key={r.id} value={r.id}>
                               {r.resource_no} - {r.resource_description} (€{r.cost_per_minute.toFixed(2)}/min)
                             </SelectItem>
