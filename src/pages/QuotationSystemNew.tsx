@@ -4381,8 +4381,9 @@ const QuotationSystemNew = () => {
                         // All above × (1 + Sales commissions / 100) × (1 + Profit / 100)
                         // + Inspection cost + Handling cost + Shipping cost + One time charge
                         
-                        // Total Material Cost (with markup)
-                        const totalMaterialCost = totals.totalMaterialCost * vol.quantity;
+                        // Total Material Cost (with markup) - use same calc as detailed breakdown
+                        const totalMaterialCostRaw = getMaterialCostForVolume(idx, vol.quantity);
+                        const totalMaterialCost = totalMaterialCostRaw * (1 + header.material_markup / 100);
                         
                         // Total Tool Cost for this volume
                         const totalToolCost = getTotalToolsCostForVolume(idx);
@@ -4401,13 +4402,14 @@ const QuotationSystemNew = () => {
                         // Base cost BEFORE overall commission/profit (includes all variable costs)
                         const baseCostBeforeMultipliers = totalMaterialCost + totalToolCost + totalSecondaryOpsCost + totalProductionCost + programmingCost + setupCost;
                         
-                        // Subcon cost (quantity-specific, with markup)
+                        // Subcon cost (quantity-specific, with markup) - use same calc as detailed breakdown
                         const qtySubconCostRaw = getSubconCostForQuantity(vol.quantity);
-                        const qtySubconCostWithMarkup = qtySubconCostRaw * (1 + header.subcon_markup / 100);
-                        const totalSubconCost = excludeSubconFromMargin ? qtySubconCostRaw : qtySubconCostWithMarkup;
+                        const subconMarkupPercent = header.subcon_markup;
+                        const totalSubconWithMarkup = qtySubconCostRaw * vol.quantity * (1 + subconMarkupPercent / 100);
+                        const totalSubconCost = excludeSubconFromMargin ? qtySubconCostRaw : (qtySubconCostRaw * (1 + subconMarkupPercent / 100));
                         
                         // Add subcon to base cost
-                        const baseCostWithSubcon = baseCostBeforeMultipliers + (totalSubconCost * vol.quantity);
+                        const baseCostWithSubcon = baseCostBeforeMultipliers + totalSubconWithMarkup;
                         
                         // Apply overall sales commission percentage (margin is applied at unit price level)
                         const commissionMultiplier = 1 + (additionalCosts.sales_commission_percent / 100);
@@ -4429,7 +4431,7 @@ const QuotationSystemNew = () => {
                           : 0;
                         const toolsCostPerPart = vol.quantity > 0 ? totalToolCost / vol.quantity : 0;
                         const secondaryOpsCostPerPart = vol.quantity > 0 ? totalSecondaryOpsCost / vol.quantity : 0;
-                        const materialPerPart = totals.totalMaterialCost;
+                        const materialPerPart = vol.quantity > 0 ? totalMaterialCost / vol.quantity : 0;
                         const subconPerPart = totalSubconCost;
                         const additionalCostsPerPart = vol.quantity > 0 ? fixedAdditionalCosts / vol.quantity : 0;
                         
