@@ -72,11 +72,10 @@ export function ActionsList({ enquiries }: ActionsListProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Only include actions from "open" enquiries (not Quoted, Declined, or Cancelled)
-    const closedStatuses = ['QUOTED', 'DECLINED', 'CANCELLED'];
+    // Only include actions from enquiries with blank or "OPEN" status
     const actionsWithData = enquiries.filter(e => {
       const status = (e.status || '').toUpperCase().trim();
-      const isOpen = !closedStatuses.includes(status);
+      const isOpen = status === '' || status === 'OPEN';
       return isOpen && e.action_required && e.action_required.trim();
     });
     
