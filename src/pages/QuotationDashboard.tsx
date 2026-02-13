@@ -224,6 +224,7 @@ const QuotationDashboard = () => {
               </Card>
             ) : (
               <ActionsList enquiries={enquiries} />
+
             )}
           </TabsContent>
         </Tabs>
