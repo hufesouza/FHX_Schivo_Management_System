@@ -1,14 +1,19 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { toast } from 'sonner';
+import html2canvas from 'html2canvas';
+import { PDFDocument } from 'pdf-lib';
 import {
   ChevronLeft,
   ChevronRight,
   FileSpreadsheet,
+  FileDown,
+  Loader2,
   Upload,
   Calculator,
   ClipboardCheck,
@@ -474,17 +479,96 @@ const slides: Slide[] = [
 
 const QuotationSystemPresentation = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [exporting, setExporting] = useState(false);
   const navigate = useNavigate();
+  const slideRef = useRef<HTMLDivElement>(null);
 
   const goNext = () => setCurrentSlide(prev => Math.min(prev + 1, slides.length - 1));
   const goPrev = () => setCurrentSlide(prev => Math.max(prev - 1, 0));
+
+  const exportToPDF = useCallback(async () => {
+    if (!slideRef.current) return;
+    setExporting(true);
+    toast.info('Generating PDF — rendering all slides…');
+
+    try {
+      const pdfDoc = await PDFDocument.create();
+      const originalSlide = currentSlide;
+
+      for (let i = 0; i < slides.length; i++) {
+        setCurrentSlide(i);
+        // Wait for render
+        await new Promise(r => setTimeout(r, 400));
+
+        const canvas = await html2canvas(slideRef.current!, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          logging: false,
+        });
+
+        const imgData = canvas.toDataURL('image/png');
+        const imgBytes = await fetch(imgData).then(r => r.arrayBuffer());
+        const img = await pdfDoc.embedPng(imgBytes);
+
+        // A4 landscape
+        const pageWidth = 842;
+        const pageHeight = 595;
+        const page = pdfDoc.addPage([pageWidth, pageHeight]);
+
+        const imgAspect = img.width / img.height;
+        const pageAspect = pageWidth / pageHeight;
+        let drawW, drawH, drawX, drawY;
+
+        if (imgAspect > pageAspect) {
+          drawW = pageWidth;
+          drawH = pageWidth / imgAspect;
+          drawX = 0;
+          drawY = (pageHeight - drawH) / 2;
+        } else {
+          drawH = pageHeight;
+          drawW = pageHeight * imgAspect;
+          drawX = (pageWidth - drawW) / 2;
+          drawY = 0;
+        }
+
+        page.drawImage(img, { x: drawX, y: drawY, width: drawW, height: drawH });
+      }
+
+      setCurrentSlide(originalSlide);
+
+      const pdfBytes = await pdfDoc.save();
+      const blob = new Blob([new Uint8Array(pdfBytes) as unknown as BlobPart], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'Quotation_System_Guide.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      toast.success('PDF exported successfully');
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast.error('Failed to export PDF');
+    } finally {
+      setExporting(false);
+    }
+  }, [currentSlide]);
 
   const slide = slides[currentSlide];
 
   return (
     <AppLayout title="Quotation System Guide" subtitle="Presentation" showBackButton backTo="/npi">
       <main className="container mx-auto px-4 py-8 max-w-5xl">
-        <Card className="relative overflow-hidden min-h-[560px] flex flex-col">
+        <div className="flex justify-end mb-4">
+          <Button variant="outline" size="sm" onClick={exportToPDF} disabled={exporting} className="gap-2">
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+            {exporting ? 'Exporting…' : 'Export PDF'}
+          </Button>
+        </div>
+        <Card ref={slideRef} className="relative overflow-hidden min-h-[560px] flex flex-col">
           {/* Header */}
           {slide.title && (
             <div className="p-8 pb-4 text-center border-b">
