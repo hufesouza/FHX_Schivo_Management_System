@@ -24,7 +24,8 @@ import {
   FolderKanban,
   FileType2,
   FileSpreadsheet,
-  CircleDot
+  CircleDot,
+  Presentation
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -126,6 +127,15 @@ const subModules = [
     icon: CircleDot,
     href: '/npi/balloon-dwg',
     color: 'bg-sky-500/10 text-sky-600 border-sky-500/20',
+    available: true,
+  },
+  {
+    id: 'quotation-presentation',
+    title: 'Quotation System Guide',
+    description: 'Interactive presentation explaining the digital quotation system and how it works',
+    icon: Presentation,
+    href: '/npi/quotation-system/guide',
+    color: 'bg-lime-500/10 text-lime-600 border-lime-500/20',
     available: true,
   },
 ];
