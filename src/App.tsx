@@ -36,6 +36,7 @@ import EnquiryList from "./pages/EnquiryList";
 import EnquiryDetail from "./pages/EnquiryDetail";
 import QuotationDashboard from "./pages/QuotationDashboard";
 import BalloonDWG from "./pages/BalloonDWG";
+import QuotationSystemPresentation from "./pages/QuotationSystemPresentation";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +74,7 @@ const App = () => (
           <Route path="/npi/projects/:id" element={<NPIProjectDetail />} />
           <Route path="/npi/drawing-translate" element={<DrawingTranslate />} />
           <Route path="/npi/balloon-dwg" element={<BalloonDWG />} />
+          <Route path="/npi/quotation-system/guide" element={<QuotationSystemPresentation />} />
           
           {/* Change Control Module */}
           <Route path="/change-control" element={<ChangeControlHub />} />
