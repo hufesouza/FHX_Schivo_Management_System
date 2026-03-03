@@ -73,7 +73,7 @@ export function ActionsList({ enquiries }: ActionsListProps) {
 
   useEffect(() => {
     // Only include actions from open enquiries (matching dashboard definition)
-    const closedStatuses = ['QUOTED', 'DECLINED', 'CANCELLED'];
+    const closedStatuses = ['QUOTED', 'DECLINED', 'CANCELLED', 'WON', 'LOST', 'ON HOLD'];
     const actionsWithData = enquiries.filter(e => {
       const status = (e.status || '').toUpperCase().trim();
       const isOpen = !closedStatuses.includes(status);
