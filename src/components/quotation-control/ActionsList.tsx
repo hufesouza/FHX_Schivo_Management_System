@@ -72,12 +72,10 @@ export function ActionsList({ enquiries }: ActionsListProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Only include actions from open enquiries (matching dashboard definition)
-    const closedStatuses = ['QUOTED', 'DECLINED', 'CANCELLED', 'WON', 'LOST', 'ON HOLD'];
+    // Only include actions from WIP enquiries
     const actionsWithData = enquiries.filter(e => {
       const status = (e.status || '').toUpperCase().trim();
-      const isOpen = !closedStatuses.includes(status);
-      return isOpen && e.customer && e.action_required && e.action_required.trim();
+      return status === 'WIP' && e.customer && e.action_required && e.action_required.trim();
     });
     
     if (actionsWithData.length === 0) {
