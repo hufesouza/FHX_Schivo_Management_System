@@ -37,6 +37,16 @@ import EnquiryDetail from "./pages/EnquiryDetail";
 import QuotationDashboard from "./pages/QuotationDashboard";
 import BalloonDWG from "./pages/BalloonDWG";
 import QuotationSystemPresentation from "./pages/QuotationSystemPresentation";
+import NPICapacityPlannerHub from "./pages/npi-planner/CapacityPlannerHub";
+import PlannerDashboard from "./pages/npi-planner/PlannerDashboard";
+import PartSetup from "./pages/npi-planner/PartSetup";
+import JobList from "./pages/npi-planner/JobList";
+import JobDetail from "./pages/npi-planner/JobDetail";
+import MachineCalendar from "./pages/npi-planner/MachineCalendar";
+import MachineCapacity from "./pages/npi-planner/MachineCapacity";
+import ToolingTracker from "./pages/npi-planner/ToolingTracker";
+import PlannerReports from "./pages/npi-planner/Reports";
+import PlannerSettings from "./pages/npi-planner/PlannerSettings";
 
 const queryClient = new QueryClient();
 
@@ -75,6 +85,18 @@ const App = () => (
           <Route path="/npi/drawing-translate" element={<DrawingTranslate />} />
           <Route path="/npi/balloon-dwg" element={<BalloonDWG />} />
           <Route path="/npi/quotation-system/guide" element={<QuotationSystemPresentation />} />
+
+          {/* NPI Capacity Planner */}
+          <Route path="/npi/capacity-planner" element={<NPICapacityPlannerHub />} />
+          <Route path="/npi/capacity-planner/dashboard" element={<PlannerDashboard />} />
+          <Route path="/npi/capacity-planner/parts/new" element={<PartSetup />} />
+          <Route path="/npi/capacity-planner/parts/:id" element={<JobDetail />} />
+          <Route path="/npi/capacity-planner/jobs" element={<JobList />} />
+          <Route path="/npi/capacity-planner/calendar" element={<MachineCalendar />} />
+          <Route path="/npi/capacity-planner/capacity" element={<MachineCapacity />} />
+          <Route path="/npi/capacity-planner/tooling" element={<ToolingTracker />} />
+          <Route path="/npi/capacity-planner/reports" element={<PlannerReports />} />
+          <Route path="/npi/capacity-planner/settings" element={<PlannerSettings />} />
           
           {/* Change Control Module */}
           <Route path="/change-control" element={<ChangeControlHub />} />

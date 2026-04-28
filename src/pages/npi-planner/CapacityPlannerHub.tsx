@@ -1,0 +1,49 @@
+import { useNavigate } from 'react-router-dom';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  LayoutDashboard, ListChecks, PlusCircle, CalendarRange, Gauge,
+  Wrench, FileBarChart2, Settings as SettingsIcon
+} from 'lucide-react';
+
+const tiles = [
+  { id: 'dashboard', title: 'Dashboard', desc: 'KPIs, bottlenecks, late jobs, capacity, sales by customer', icon: LayoutDashboard, href: '/npi/capacity-planner/dashboard', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+  { id: 'new-part', title: 'New Part / Job', desc: 'Guided form to set up a new NPI part with allocation', icon: PlusCircle, href: '/npi/capacity-planner/parts/new', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+  { id: 'jobs', title: 'Job List', desc: 'All parts/jobs with filters by customer, engineer, status', icon: ListChecks, href: '/npi/capacity-planner/jobs', color: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
+  { id: 'calendar', title: 'Machine Calendar', desc: 'Visual calendar of allocations and free gaps', icon: CalendarRange, href: '/npi/capacity-planner/calendar', color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20' },
+  { id: 'capacity', title: 'Machine Capacity', desc: 'Per-machine load, available hours and bottlenecks', icon: Gauge, href: '/npi/capacity-planner/capacity', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
+  { id: 'tooling', title: 'Tooling Tracker', desc: 'All tooling requirements and order status', icon: Wrench, href: '/npi/capacity-planner/tooling', color: 'bg-rose-500/10 text-rose-600 border-rose-500/20' },
+  { id: 'reports', title: 'Reports', desc: 'Sales, capacity, late jobs, at-risk, project progress', icon: FileBarChart2, href: '/npi/capacity-planner/reports', color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
+  { id: 'settings', title: 'Settings', desc: 'Machines, customers, projects, email recipients', icon: SettingsIcon, href: '/npi/capacity-planner/settings', color: 'bg-slate-500/10 text-slate-600 border-slate-500/20' },
+];
+
+export default function NPICapacityPlannerHub() {
+  const navigate = useNavigate();
+  return (
+    <AppLayout title="NPI Capacity Planner" subtitle="Job planning, machine allocation & capacity" showBackButton backTo="/npi">
+      <main className="container mx-auto px-4 py-10">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-heading font-semibold mb-2">NPI Capacity Planner</h2>
+          <p className="text-muted-foreground max-w-2xl mx-auto">
+            Plan jobs, allocate the best machine, find the next available gap, and track tooling, material and subcon status.
+          </p>
+        </div>
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4 max-w-6xl mx-auto">
+          {tiles.map(t => (
+            <Card key={t.id} className="cursor-pointer hover:shadow-elegant hover:-translate-y-1 transition-all"
+              onClick={() => navigate(t.href)}>
+              <CardHeader>
+                <div className={`w-11 h-11 rounded-lg flex items-center justify-center border ${t.color} mb-2`}>
+                  <t.icon className="h-5 w-5" />
+                </div>
+                <CardTitle className="text-base">{t.title}</CardTitle>
+                <CardDescription className="text-xs">{t.desc}</CardDescription>
+              </CardHeader>
+              <CardContent />
+            </Card>
+          ))}
+        </div>
+      </main>
+    </AppLayout>
+  );
+}

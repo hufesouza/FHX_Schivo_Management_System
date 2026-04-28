@@ -1495,6 +1495,131 @@ export type Database = {
           },
         ]
       }
+      npi_change_log: {
+        Row: {
+          changed_by: string | null
+          changed_by_name: string | null
+          created_at: string
+          customer_name: string | null
+          email_error: string | null
+          email_sent: boolean | null
+          email_sent_at: string | null
+          field_changed: string
+          id: string
+          new_value: string | null
+          part_id: string | null
+          part_number: string | null
+          previous_value: string | null
+          project_name: string | null
+          reason: string | null
+        }
+        Insert: {
+          changed_by?: string | null
+          changed_by_name?: string | null
+          created_at?: string
+          customer_name?: string | null
+          email_error?: string | null
+          email_sent?: boolean | null
+          email_sent_at?: string | null
+          field_changed: string
+          id?: string
+          new_value?: string | null
+          part_id?: string | null
+          part_number?: string | null
+          previous_value?: string | null
+          project_name?: string | null
+          reason?: string | null
+        }
+        Update: {
+          changed_by?: string | null
+          changed_by_name?: string | null
+          created_at?: string
+          customer_name?: string | null
+          email_error?: string | null
+          email_sent?: boolean | null
+          email_sent_at?: string | null
+          field_changed?: string
+          id?: string
+          new_value?: string | null
+          part_id?: string | null
+          part_number?: string | null
+          previous_value?: string | null
+          project_name?: string | null
+          reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_change_log_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "npi_parts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      npi_customers: {
+        Row: {
+          account_owner: string | null
+          created_at: string
+          created_by: string | null
+          customer_name: string
+          email: string | null
+          id: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          account_owner?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name: string
+          email?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          account_owner?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string
+          email?: string | null
+          id?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      npi_email_recipients: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          is_active: boolean
+          name: string | null
+          role: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          role?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       npi_evidence: {
         Row: {
           description: string | null
@@ -1609,6 +1734,283 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "npi_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      npi_machine_schedule: {
+        Row: {
+          allocation_status: string
+          created_at: string
+          created_by: string | null
+          customer_name: string | null
+          end_date: string
+          id: string
+          machine_id: string | null
+          machine_name: string | null
+          notes: string | null
+          part_id: string | null
+          part_number: string | null
+          project_name: string | null
+          start_date: string
+          total_required_time: number
+          updated_at: string
+        }
+        Insert: {
+          allocation_status?: string
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          end_date: string
+          id?: string
+          machine_id?: string | null
+          machine_name?: string | null
+          notes?: string | null
+          part_id?: string | null
+          part_number?: string | null
+          project_name?: string | null
+          start_date: string
+          total_required_time?: number
+          updated_at?: string
+        }
+        Update: {
+          allocation_status?: string
+          created_at?: string
+          created_by?: string | null
+          customer_name?: string | null
+          end_date?: string
+          id?: string
+          machine_id?: string | null
+          machine_name?: string | null
+          notes?: string | null
+          part_id?: string | null
+          part_number?: string | null
+          project_name?: string | null
+          start_date?: string
+          total_required_time?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_machine_schedule_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "npi_machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "npi_machine_schedule_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "npi_parts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      npi_machines: {
+        Row: {
+          created_at: string
+          daily_available_hours: number
+          id: string
+          machine_name: string
+          machine_type: string | null
+          notes: string | null
+          shift_pattern: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          daily_available_hours?: number
+          id?: string
+          machine_name: string
+          machine_type?: string | null
+          notes?: string | null
+          shift_pattern?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          daily_available_hours?: number
+          id?: string
+          machine_name?: string
+          machine_type?: string | null
+          notes?: string | null
+          shift_pattern?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      npi_part_machine_options: {
+        Row: {
+          created_at: string
+          id: string
+          machine_id: string
+          part_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          machine_id: string
+          part_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          machine_id?: string
+          part_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_part_machine_options_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "npi_machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "npi_part_machine_options_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "npi_parts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      npi_parts: {
+        Row: {
+          best_commence_date: string | null
+          committed_date: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          customer_name: string | null
+          cycle_time: number | null
+          description: string | null
+          development_time: number | null
+          engineer: string | null
+          id: string
+          machine_id: string | null
+          machine_name: string | null
+          material: string | null
+          material_lead_time: number | null
+          material_status: string | null
+          notes: string | null
+          overall_status: string
+          part_number: string
+          po: string | null
+          project_id: string | null
+          project_name: string | null
+          qty: number | null
+          sales_price: number | null
+          ship_date: string | null
+          subcon: boolean | null
+          subcon_lead_time: number | null
+          subcon_status: string | null
+          supplier_name: string | null
+          tooling: string | null
+          tooling_lead_time: number | null
+          tooling_status: string | null
+          total_required_time: number | null
+          type_of_service: string | null
+          updated_at: string
+        }
+        Insert: {
+          best_commence_date?: string | null
+          committed_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          cycle_time?: number | null
+          description?: string | null
+          development_time?: number | null
+          engineer?: string | null
+          id?: string
+          machine_id?: string | null
+          machine_name?: string | null
+          material?: string | null
+          material_lead_time?: number | null
+          material_status?: string | null
+          notes?: string | null
+          overall_status?: string
+          part_number: string
+          po?: string | null
+          project_id?: string | null
+          project_name?: string | null
+          qty?: number | null
+          sales_price?: number | null
+          ship_date?: string | null
+          subcon?: boolean | null
+          subcon_lead_time?: number | null
+          subcon_status?: string | null
+          supplier_name?: string | null
+          tooling?: string | null
+          tooling_lead_time?: number | null
+          tooling_status?: string | null
+          total_required_time?: number | null
+          type_of_service?: string | null
+          updated_at?: string
+        }
+        Update: {
+          best_commence_date?: string | null
+          committed_date?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          cycle_time?: number | null
+          description?: string | null
+          development_time?: number | null
+          engineer?: string | null
+          id?: string
+          machine_id?: string | null
+          machine_name?: string | null
+          material?: string | null
+          material_lead_time?: number | null
+          material_status?: string | null
+          notes?: string | null
+          overall_status?: string
+          part_number?: string
+          po?: string | null
+          project_id?: string | null
+          project_name?: string | null
+          qty?: number | null
+          sales_price?: number | null
+          ship_date?: string | null
+          subcon?: boolean | null
+          subcon_lead_time?: number | null
+          subcon_status?: string | null
+          supplier_name?: string | null
+          tooling?: string | null
+          tooling_lead_time?: number | null
+          tooling_status?: string | null
+          total_required_time?: number | null
+          type_of_service?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_parts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "npi_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "npi_parts_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "npi_machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "npi_parts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "npi_projects_planning"
             referencedColumns: ["id"]
           },
         ]
@@ -2051,6 +2453,103 @@ export type Database = {
           work_order_number?: string | null
         }
         Relationships: []
+      }
+      npi_projects_planning: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          customer_name: string | null
+          engineer: string | null
+          id: string
+          notes: string | null
+          project_name: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          engineer?: string | null
+          id?: string
+          notes?: string | null
+          project_name: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          engineer?: string | null
+          id?: string
+          notes?: string | null
+          project_name?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_projects_planning_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "npi_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      npi_tooling_tracker: {
+        Row: {
+          created_at: string
+          expected_delivery_date: string | null
+          id: string
+          notes: string | null
+          ordered_status: string | null
+          part_id: string | null
+          part_number: string | null
+          required_status: string | null
+          supplier: string | null
+          tooling_description: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          expected_delivery_date?: string | null
+          id?: string
+          notes?: string | null
+          ordered_status?: string | null
+          part_id?: string | null
+          part_number?: string | null
+          required_status?: string | null
+          supplier?: string | null
+          tooling_description: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          expected_delivery_date?: string | null
+          id?: string
+          notes?: string | null
+          ordered_status?: string | null
+          part_id?: string | null
+          part_number?: string | null
+          required_status?: string | null
+          supplier?: string | null
+          tooling_description?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_tooling_tracker_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "npi_parts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       personal_actions: {
         Row: {
