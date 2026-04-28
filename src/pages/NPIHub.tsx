@@ -25,7 +25,8 @@ import {
   FileType2,
   FileSpreadsheet,
   CircleDot,
-  Presentation
+  Presentation,
+  Gauge
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -136,6 +137,15 @@ const subModules = [
     icon: Presentation,
     href: '/npi/quotation-system/guide',
     color: 'bg-lime-500/10 text-lime-600 border-lime-500/20',
+    available: true,
+  },
+  {
+    id: 'capacity-planner',
+    title: 'NPI Capacity Planner',
+    description: 'Plan jobs, allocate the best machine, find next available gaps and track capacity, tooling, material & subcon',
+    icon: Gauge,
+    href: '/npi/capacity-planner',
+    color: 'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-500/20',
     available: true,
   },
 ];
