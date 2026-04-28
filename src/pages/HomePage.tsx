@@ -7,10 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { 
   Loader2, 
-  Cog,
   FileCheck,
-  Factory,
-  Gauge,
   ChevronRight
 } from 'lucide-react';
 
@@ -23,33 +20,6 @@ const modules = [
     href: '/npi',
     color: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
     available: true,
-  },
-  {
-    id: 'production',
-    title: 'Production',
-    description: 'Capacity planning, machine scheduling, and production resource management',
-    icon: Gauge,
-    href: '/production',
-    color: 'bg-purple-500/10 text-purple-600 border-purple-500/20',
-    available: true,
-  },
-  {
-    id: 'change-control',
-    title: 'Change Control',
-    description: 'Manage Internal Change Notices (ICN) and Engineering Change Notices (ECN)',
-    icon: Cog,
-    href: '/change-control',
-    color: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-    available: false,
-  },
-  {
-    id: 'manufacturing',
-    title: 'Manufacturing Engineering',
-    description: 'Scrap Management, Projects, and manufacturing operations',
-    icon: Factory,
-    href: '/manufacturing',
-    color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
-    available: false,
   },
 ];
 
