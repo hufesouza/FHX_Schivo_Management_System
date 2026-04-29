@@ -18,6 +18,7 @@ import { QuickCustomerDialog } from '@/components/npi-planner/QuickCustomerDialo
 import { QuickProjectDialog } from '@/components/npi-planner/QuickProjectDialog';
 import { ToolingListEditor, type ToolLine } from '@/components/npi-planner/ToolingListEditor';
 import { SupplierPicker } from '@/components/npi-planner/SupplierPicker';
+import { QuickMachineDialog } from '@/components/npi-planner/QuickMachineDialog';
 
 const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 const TOOLING_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
@@ -34,6 +35,8 @@ export default function PartSetup() {
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [toolLines, setToolLines] = useState<ToolLine[]>([]);
+  const [machineDialogOpen, setMachineDialogOpen] = useState(false);
+  const [machineSearch, setMachineSearch] = useState('');
 
   const [form, setForm] = useState<any>({
     customer_id: '', project_id: '', engineer: '',
@@ -303,20 +306,40 @@ export default function PartSetup() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label className="text-xs text-muted-foreground">Which machines can run this job?</Label>
-              <div className="grid md:grid-cols-3 gap-2 mt-2">
-                {machines.map(m => (
-                  <label key={m.id} className="flex items-center gap-2 border rounded-md px-3 py-2 cursor-pointer hover:bg-muted/40">
-                    <Checkbox
-                      checked={machineOptionIds.includes(m.id)}
-                      onCheckedChange={(v) => setMachineOptionIds(ids => v ? [...ids, m.id] : ids.filter(i => i !== m.id))}
-                    />
-                    <span className="text-sm">{m.machine_name}</span>
-                  </label>
-                ))}
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <Label className="text-xs text-muted-foreground">Which machines can run this job? Tick all capable machines.</Label>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setMachineOptionIds(machines.map(m => m.id))} disabled={!machines.length}>Select all</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setMachineOptionIds([])} disabled={!machineOptionIds.length}>Clear</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => setMachineDialogOpen(true)}><Plus className="h-4 w-4 mr-1" />Add machine</Button>
+                </div>
               </div>
+              <Input placeholder="Search machines..." value={machineSearch} onChange={e => setMachineSearch(e.target.value)} className="mb-2" />
+              {machines.length === 0 ? (
+                <div className="text-sm text-muted-foreground border rounded-md p-4 text-center">
+                  No NPI machines yet. Click <strong>Add machine</strong> to register the machines available for NPI.
+                </div>
+              ) : (
+                <>
+                  <div className="text-xs text-muted-foreground mb-2">{machineOptionIds.length} of {machines.length} selected</div>
+                  <div className="grid md:grid-cols-3 gap-2 max-h-72 overflow-auto">
+                    {machines
+                      .filter(m => !machineSearch || m.machine_name.toLowerCase().includes(machineSearch.toLowerCase()) || (m.machine_type || '').toLowerCase().includes(machineSearch.toLowerCase()))
+                      .map(m => (
+                        <label key={m.id} className="flex items-center gap-2 border rounded-md px-3 py-2 cursor-pointer hover:bg-muted/40">
+                          <Checkbox
+                            checked={machineOptionIds.includes(m.id)}
+                            onCheckedChange={(v) => setMachineOptionIds(ids => v ? [...ids, m.id] : ids.filter(i => i !== m.id))}
+                          />
+                          <span className="text-sm flex-1">{m.machine_name}</span>
+                          {m.machine_type && <span className="text-xs text-muted-foreground">{m.machine_type}</span>}
+                        </label>
+                      ))}
+                  </div>
+                </>
+              )}
             </div>
-            <Button onClick={runAllocation} variant="default"><Sparkles className="mr-2 h-4 w-4" />Recommend allocation</Button>
+            <Button onClick={runAllocation} variant="default" disabled={machineOptionIds.length === 0}><Sparkles className="mr-2 h-4 w-4" />Recommend allocation</Button>
             {options.length > 0 && (
               <div className="space-y-2">
                 <Separator />
@@ -361,6 +384,11 @@ export default function PartSetup() {
         customerId={form.customer_id || null}
         customerName={customers.find(c => c.id === form.customer_id)?.customer_name || null}
         onCreated={async (p) => { await reload(); set('project_id', p.id); }}
+      />
+      <QuickMachineDialog
+        open={machineDialogOpen}
+        onOpenChange={setMachineDialogOpen}
+        onCreated={async (m) => { await reload(); setMachineOptionIds(ids => [...ids, m.id]); }}
       />
     </AppLayout>
   );
