@@ -43,7 +43,7 @@ export default function PartSetup() {
     material: '', material_lead_time: 0, material_status: 'Not Required',
     material_supplier_id: '', material_supplier_name: '',
     tooling: '', tooling_lead_time: 0, tooling_status: 'Not Required',
-    committed_date: '', best_commence_date: '', ship_date: '',
+    committed_date: '',
     cycle_time: 0, development_time: 0,
     subcon_supplier_id: '', supplier_name: '', type_of_service: '', subcon_lead_time: 0, subcon_status: 'Not Required',
     sales_price: 0, notes: '', overall_status: 'Not Started',
@@ -86,7 +86,7 @@ export default function PartSetup() {
       subconRequired: (form.subcon_status && form.subcon_status !== 'Not Required'),
       subconLeadTime: Number(form.subcon_lead_time) || 0,
       backendLeadTime: 0,
-      bestCommenceDate: form.best_commence_date ? new Date(form.best_commence_date) : null,
+      bestCommenceDate: null,
       committedDate: form.committed_date ? new Date(form.committed_date) : null,
     });
     setOptions(opts);
@@ -112,8 +112,8 @@ export default function PartSetup() {
         customer_id: form.customer_id || null,
         project_id: form.project_id || null,
         committed_date: form.committed_date || null,
-        best_commence_date: form.best_commence_date || null,
-        ship_date: form.ship_date || (chosen ? chosen.shipDate.toISOString().slice(0, 10) : null),
+        best_commence_date: chosen ? chosen.earliestStart.toISOString().slice(0, 10) : null,
+        ship_date: null,
         customer_name: customer?.customer_name || null,
         project_name: project?.project_name || null,
         machine_id: machine?.id || null,
@@ -306,9 +306,7 @@ export default function PartSetup() {
             <Field label="Cycle time (hrs)"><Input type="number" step="0.1" value={form.cycle_time} onChange={e => set('cycle_time', +e.target.value)} /></Field>
             <Field label="Development time (hrs)"><Input type="number" step="0.1" value={form.development_time} onChange={e => set('development_time', +e.target.value)} /></Field>
             <Field label="Total machining hrs (dev + cycle × qty)"><Input value={totalRequired} disabled /></Field>
-            <Field label="Best commence date"><Input type="date" value={form.best_commence_date} onChange={e => set('best_commence_date', e.target.value)} /></Field>
             <Field label="Committed date"><Input type="date" value={form.committed_date} onChange={e => set('committed_date', e.target.value)} /></Field>
-            <Field label="Ship date"><Input type="date" value={form.ship_date} onChange={e => set('ship_date', e.target.value)} /></Field>
             <Field label="Sales price (€)"><Input type="number" step="0.01" value={form.sales_price} onChange={e => set('sales_price', +e.target.value)} /></Field>
             <Field label="Overall status">
               <Select value={form.overall_status} onValueChange={v => set('overall_status', v)}>
