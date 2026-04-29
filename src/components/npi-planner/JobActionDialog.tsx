@@ -88,7 +88,7 @@ export function JobActionDialog({ open, onOpenChange, part, report, onReallocate
             </div>
           )}
 
-          {report.driftDays > 0 && !report.hasOverlap && (
+          {slipped && !report.hasOverlap && clockNotStarted && (
             <div className="text-xs text-muted-foreground">
               Lead-time clock has not started — start date will drift one day for each day this is delayed.
             </div>
