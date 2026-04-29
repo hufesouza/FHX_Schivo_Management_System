@@ -129,13 +129,12 @@ export default function JobList() {
                     <TableHead>Tooling</TableHead>
                     <TableHead>Committed</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Reallocate</TableHead>
-                    <TableHead className="min-w-[200px]">Ship date</TableHead>
+                    <TableHead className="min-w-[220px]">Ship date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
                   ) : filtered.map(p => {
                     const matStatus = p.material_status || 'Required';
                     const toolStatus = p.tooling_status || 'Required';
@@ -146,30 +145,22 @@ export default function JobList() {
                         <TableCell className="cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>{p.customer_name || '-'}</TableCell>
                         <TableCell>{p.machine_name || '-'}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={MAT_TOOL_TONE[matStatus] || ''}>{matStatus}</Badge>
-                          {p.material_lead_time ? <div className="text-xs text-muted-foreground mt-1">{p.material_lead_time}d lead</div> : null}
+                          <div className="flex flex-col items-start gap-0.5">
+                            <Badge variant="outline" className={MAT_TOOL_TONE[matStatus] || ''}>{matStatus}</Badge>
+                            {p.material_lead_time ? <span className="text-xs text-muted-foreground">{p.material_lead_time}d lead</span> : null}
+                          </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={MAT_TOOL_TONE[toolStatus] || ''}>{toolStatus}</Badge>
-                          {p.tooling_lead_time ? <div className="text-xs text-muted-foreground mt-1">{p.tooling_lead_time}d lead</div> : null}
+                          <div className="flex flex-col items-start gap-0.5">
+                            <Badge variant="outline" className={MAT_TOOL_TONE[toolStatus] || ''}>{toolStatus}</Badge>
+                            {p.tooling_lead_time ? <span className="text-xs text-muted-foreground">{p.tooling_lead_time}d lead</span> : null}
+                          </div>
                         </TableCell>
                         <TableCell>{p.committed_date || '-'}</TableCell>
                         <TableCell><Badge className={STATUS_TONE[p.overall_status] || ''} variant="outline">{p.overall_status}</Badge></TableCell>
                         <TableCell>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-8"
-                            onClick={() => setReallocPart(p)}
-                            title="Recommend reallocation"
-                          >
-                            <Sparkles className="h-3.5 w-3.5 mr-1" />
-                            Recommend
-                          </Button>
-                        </TableCell>
-                        <TableCell>
                           {p.ship_date ? (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
                               <span className="text-sm font-medium text-emerald-700">Shipped {p.ship_date}</span>
                               <Button
                                 size="icon"
@@ -180,6 +171,15 @@ export default function JobList() {
                                 title="Unship"
                               >
                                 {savingId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-8 w-8"
+                                onClick={() => setReallocPart(p)}
+                                title="Recommend reallocation"
+                              >
+                                <Sparkles className="h-4 w-4" />
                               </Button>
                             </div>
                           ) : (
@@ -199,6 +199,15 @@ export default function JobList() {
                                 title="Mark as shipped"
                               >
                                 {savingId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-8 w-8"
+                                onClick={() => setReallocPart(p)}
+                                title="Recommend reallocation"
+                              >
+                                <Sparkles className="h-4 w-4" />
                               </Button>
                             </div>
                           )}
