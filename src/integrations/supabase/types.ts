@@ -1900,6 +1900,8 @@ export type Database = {
           material: string | null
           material_lead_time: number | null
           material_status: string | null
+          material_supplier_id: string | null
+          material_supplier_name: string | null
           notes: string | null
           overall_status: string
           part_number: string
@@ -1913,6 +1915,7 @@ export type Database = {
           subcon: boolean | null
           subcon_lead_time: number | null
           subcon_status: string | null
+          subcon_supplier_id: string | null
           supplier_name: string | null
           tooling: string | null
           tooling_lead_time: number | null
@@ -1938,6 +1941,8 @@ export type Database = {
           material?: string | null
           material_lead_time?: number | null
           material_status?: string | null
+          material_supplier_id?: string | null
+          material_supplier_name?: string | null
           notes?: string | null
           overall_status?: string
           part_number: string
@@ -1951,6 +1956,7 @@ export type Database = {
           subcon?: boolean | null
           subcon_lead_time?: number | null
           subcon_status?: string | null
+          subcon_supplier_id?: string | null
           supplier_name?: string | null
           tooling?: string | null
           tooling_lead_time?: number | null
@@ -1976,6 +1982,8 @@ export type Database = {
           material?: string | null
           material_lead_time?: number | null
           material_status?: string | null
+          material_supplier_id?: string | null
+          material_supplier_name?: string | null
           notes?: string | null
           overall_status?: string
           part_number?: string
@@ -1989,6 +1997,7 @@ export type Database = {
           subcon?: boolean | null
           subcon_lead_time?: number | null
           subcon_status?: string | null
+          subcon_supplier_id?: string | null
           supplier_name?: string | null
           tooling?: string | null
           tooling_lead_time?: number | null
@@ -2013,10 +2022,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "npi_parts_material_supplier_id_fkey"
+            columns: ["material_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "npi_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "npi_parts_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "npi_projects_planning"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "npi_parts_subcon_supplier_id_fkey"
+            columns: ["subcon_supplier_id"]
+            isOneToOne: false
+            referencedRelation: "npi_suppliers"
             referencedColumns: ["id"]
           },
         ]
