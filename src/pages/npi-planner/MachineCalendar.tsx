@@ -76,15 +76,23 @@ export default function MachineCalendar() {
   }, [schedule]);
 
   const buildReport = (entry: typeof schedule[number], part: Part): ReadinessReport => {
+    const links = partTooling.filter((l: any) => l.part_id === part.id);
+    const toolAgg = aggregateTooling(links);
+    // Prefer aggregated link data; fall back to part-level fields if no links exist
+    const effToolStatus = links.length ? toolAgg.status : part.tooling_status;
+    const effToolLead = links.length ? toolAgg.leadTime : part.tooling_lead_time;
+    const effToolOrderedAt = links.length ? toolAgg.orderedAt : part.tooling_ordered_at;
+    const effToolReceivedAt = links.length ? null : part.tooling_received_at;
+
     const earliest = computeEarliestStart({
       materialLeadTime: part.material_lead_time,
       materialStatus: part.material_status,
       materialOrderedAt: part.material_ordered_at,
       materialReceivedAt: part.material_received_at,
-      toolingLeadTime: part.tooling_lead_time,
-      toolingStatus: part.tooling_status,
-      toolingOrderedAt: part.tooling_ordered_at,
-      toolingReceivedAt: part.tooling_received_at,
+      toolingLeadTime: effToolLead,
+      toolingStatus: effToolStatus,
+      toolingOrderedAt: effToolOrderedAt,
+      toolingReceivedAt: effToolReceivedAt,
       bestCommenceDate: null,
     });
     const scheduledStart = new Date(entry.start_date);
@@ -102,8 +110,8 @@ export default function MachineCalendar() {
       driftDays,
       matReady: isReady(part.material_status),
       matLabel: `${part.material || '—'} · ${statusLabel(part.material_status, part.material_ordered_at, part.material_lead_time)}`,
-      toolReady: isReady(part.tooling_status),
-      toolLabel: `${statusLabel(part.tooling_status, part.tooling_ordered_at, part.tooling_lead_time)}`,
+      toolReady: isReady(effToolStatus),
+      toolLabel: `${statusLabel(effToolStatus, effToolOrderedAt, effToolLead)}`,
       hasOverlap: overlaps.length > 0,
       overlapWith: overlaps.map(o => o.part_number || 'Unknown').slice(0, 5),
     };
