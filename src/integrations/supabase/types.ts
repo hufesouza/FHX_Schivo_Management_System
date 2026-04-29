@@ -2506,6 +2506,7 @@ export type Database = {
       }
       npi_tooling_tracker: {
         Row: {
+          catalog_tool_id: string | null
           created_at: string
           expected_delivery_date: string | null
           id: string
@@ -2513,12 +2514,17 @@ export type Database = {
           ordered_status: string | null
           part_id: string | null
           part_number: string | null
+          po: string | null
+          qty: number | null
           required_status: string | null
           supplier: string | null
           tooling_description: string
+          total_cost: number | null
+          unit_cost: number | null
           updated_at: string
         }
         Insert: {
+          catalog_tool_id?: string | null
           created_at?: string
           expected_delivery_date?: string | null
           id?: string
@@ -2526,12 +2532,17 @@ export type Database = {
           ordered_status?: string | null
           part_id?: string | null
           part_number?: string | null
+          po?: string | null
+          qty?: number | null
           required_status?: string | null
           supplier?: string | null
           tooling_description: string
+          total_cost?: number | null
+          unit_cost?: number | null
           updated_at?: string
         }
         Update: {
+          catalog_tool_id?: string | null
           created_at?: string
           expected_delivery_date?: string | null
           id?: string
@@ -2539,9 +2550,13 @@ export type Database = {
           ordered_status?: string | null
           part_id?: string | null
           part_number?: string | null
+          po?: string | null
+          qty?: number | null
           required_status?: string | null
           supplier?: string | null
           tooling_description?: string
+          total_cost?: number | null
+          unit_cost?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -2553,6 +2568,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      npi_tools_catalog: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          lead_time_days: number | null
+          notes: string | null
+          supplier: string | null
+          times_used: number | null
+          tool_code: string | null
+          unit_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          lead_time_days?: number | null
+          notes?: string | null
+          supplier?: string | null
+          times_used?: number | null
+          tool_code?: string | null
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          lead_time_days?: number | null
+          notes?: string | null
+          supplier?: string | null
+          times_used?: number | null
+          tool_code?: string | null
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       personal_actions: {
         Row: {

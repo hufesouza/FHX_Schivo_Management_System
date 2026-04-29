@@ -16,6 +16,7 @@ import { Loader2, Sparkles, CheckCircle2, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { QuickCustomerDialog } from '@/components/npi-planner/QuickCustomerDialog';
 import { QuickProjectDialog } from '@/components/npi-planner/QuickProjectDialog';
+import { ToolingListEditor, type ToolLine } from '@/components/npi-planner/ToolingListEditor';
 
 const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 const TOOLING_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
@@ -31,6 +32,7 @@ export default function PartSetup() {
   const [machineOptionIds, setMachineOptionIds] = useState<string[]>([]);
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
+  const [toolLines, setToolLines] = useState<ToolLine[]>([]);
 
   const [form, setForm] = useState<any>({
     customer_id: '', project_id: '', engineer: '',
@@ -112,6 +114,38 @@ export default function PartSetup() {
         });
       }
 
+      // Persist tooling lines + upsert catalog entries
+      if (part && toolLines.length > 0) {
+        const rows = toolLines
+          .filter(t => t.tooling_description?.trim())
+          .map(t => ({
+            part_id: part.id,
+            part_number: part.part_number,
+            po: form.po || null,
+            tooling_description: t.tooling_description,
+            supplier: t.supplier || null,
+            qty: Number(t.qty) || 1,
+            unit_cost: Number(t.unit_cost) || 0,
+            total_cost: (Number(t.qty) || 0) * (Number(t.unit_cost) || 0),
+            expected_delivery_date: t.expected_delivery_date || null,
+            ordered_status: t.ordered_status || 'Not Ordered',
+            required_status: 'Required',
+            catalog_tool_id: t.catalog_tool_id || null,
+          }));
+        if (rows.length) await supabase.from('npi_tooling_tracker').insert(rows as any);
+
+        // Add brand-new tools to catalog (no catalog_tool_id, has description)
+        const newCatalog = toolLines
+          .filter(t => !t.catalog_tool_id && t.tooling_description?.trim() && t.save_to_catalog !== false)
+          .map(t => ({
+            tool_code: t.tool_code || null,
+            description: t.tooling_description,
+            supplier: t.supplier || null,
+            unit_cost: Number(t.unit_cost) || 0,
+          }));
+        if (newCatalog.length) await supabase.from('npi_tools_catalog').insert(newCatalog as any);
+      }
+
       toast.success('Part created and allocated');
       reload();
       navigate('/npi/capacity-planner/jobs');
@@ -158,7 +192,7 @@ export default function PartSetup() {
             <Field label="Part Number *"><Input value={form.part_number} onChange={e => set('part_number', e.target.value)} /></Field>
             <Field label="PO"><Input value={form.po} onChange={e => set('po', e.target.value)} /></Field>
             <Field label="QTY"><Input type="number" value={form.qty} onChange={e => set('qty', +e.target.value)} /></Field>
-            <Field label="Description" className="md:col-span-3"><Textarea rows={2} value={form.description} onChange={e => set('description', e.target.value)} /></Field>
+            <Field label="Description" className="md:col-span-2"><Input value={form.description} onChange={e => set('description', e.target.value)} placeholder="Short part description" /></Field>
           </CardContent>
         </Card>
 
@@ -178,15 +212,20 @@ export default function PartSetup() {
 
         <Card>
           <CardHeader><CardTitle className="text-base">Tooling</CardTitle></CardHeader>
-          <CardContent className="grid md:grid-cols-3 gap-4">
-            <Field label="Tooling"><Input value={form.tooling} onChange={e => set('tooling', e.target.value)} /></Field>
-            <Field label="Lead time (days)"><Input type="number" value={form.tooling_lead_time} onChange={e => set('tooling_lead_time', +e.target.value)} /></Field>
-            <Field label="Status">
-              <Select value={form.tooling_status} onValueChange={v => set('tooling_status', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{TOOLING_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
-            </Field>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-3 gap-4">
+              <Field label="Summary status">
+                <Select value={form.tooling_status} onValueChange={v => set('tooling_status', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{TOOLING_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                </Select>
+              </Field>
+              <Field label="Lead time (days)"><Input type="number" value={form.tooling_lead_time} onChange={e => set('tooling_lead_time', +e.target.value)} /></Field>
+              <Field label="Total tooling cost (€)">
+                <Input value={toolLines.reduce((s, t) => s + (Number(t.qty) || 0) * (Number(t.unit_cost) || 0), 0).toFixed(2)} disabled />
+              </Field>
+            </div>
+            <ToolingListEditor lines={toolLines} onChange={setToolLines} />
           </CardContent>
         </Card>
 
