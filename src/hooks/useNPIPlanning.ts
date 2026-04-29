@@ -45,9 +45,13 @@ export type Part = {
   material: string | null;
   material_lead_time: number | null;
   material_status: string | null;
+  material_ordered_at: string | null;
+  material_received_at: string | null;
   tooling: string | null;
   tooling_lead_time: number | null;
   tooling_status: string | null;
+  tooling_ordered_at: string | null;
+  tooling_received_at: string | null;
   committed_date: string | null;
   best_commence_date: string | null;
   ship_date: string | null;
@@ -188,25 +192,43 @@ export type AllocationOption = {
 };
 
 // Compute the earliest the job can physically start, constrained by material/tooling lead times.
-// Lead times are days from "today" (when material/tooling has not yet been received).
-// If status is "Received", that constraint is treated as already satisfied (0 days).
+// Lead-time clock starts when status becomes "Ordered" (uses ordered_at + lead_time days).
+// "Received" / "Not Required" => already satisfied (today).
+// Otherwise (Required / Not Ordered / null) => not yet ordered, clock starts today.
 export const computeEarliestStart = (params: {
   materialLeadTime?: number | null;
   materialStatus?: string | null;
+  materialOrderedAt?: Date | string | null;
+  materialReceivedAt?: Date | string | null;
   toolingLeadTime?: number | null;   // already the MAX across tools
   toolingStatus?: string | null;
+  toolingOrderedAt?: Date | string | null;
+  toolingReceivedAt?: Date | string | null;
   bestCommenceDate?: Date | null;
 }): Date => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const matDays = params.materialStatus === 'Received' || params.materialStatus === 'Not Required'
-    ? 0 : Math.max(0, Number(params.materialLeadTime) || 0);
-  const toolDays = params.toolingStatus === 'Received' || params.toolingStatus === 'Not Required'
-    ? 0 : Math.max(0, Number(params.toolingLeadTime) || 0);
+  const readyDate = (
+    status: string | null | undefined,
+    leadTime: number | null | undefined,
+    orderedAt: Date | string | null | undefined,
+    receivedAt: Date | string | null | undefined,
+  ): Date => {
+    if (status === 'Received' || status === 'Not Required') {
+      return receivedAt ? new Date(receivedAt) : today;
+    }
+    const lead = Math.max(0, Number(leadTime) || 0);
+    if (status === 'Ordered' && orderedAt) {
+      return new Date(new Date(orderedAt).getTime() + lead * 24 * 3600 * 1000);
+    }
+    // Not yet ordered — clock starts today
+    return new Date(today.getTime() + lead * 24 * 3600 * 1000);
+  };
 
-  const constraintDays = Math.max(matDays, toolDays);
-  const leadStart = new Date(today.getTime() + constraintDays * 24 * 3600 * 1000);
+  const matReady = readyDate(params.materialStatus, params.materialLeadTime, params.materialOrderedAt, params.materialReceivedAt);
+  const toolReady = readyDate(params.toolingStatus, params.toolingLeadTime, params.toolingOrderedAt, params.toolingReceivedAt);
+  const leadStart = matReady > toolReady ? matReady : toolReady;
 
   if (params.bestCommenceDate && params.bestCommenceDate > leadStart) return params.bestCommenceDate;
   return leadStart;
@@ -272,8 +294,12 @@ export type AllocationInputs = {
   developmentTimeHrs: number;    // one-off setup/dev hrs
   materialLeadTime: number | null;
   materialStatus: string | null;
+  materialOrderedAt?: Date | string | null;
+  materialReceivedAt?: Date | string | null;
   toolingLeadTime: number | null;  // already MAX across tools
   toolingStatus: string | null;
+  toolingOrderedAt?: Date | string | null;
+  toolingReceivedAt?: Date | string | null;
   subconRequired: boolean;
   subconLeadTime: number | null;   // days, after machining
   backendLeadTime?: number | null; // days, deburr/wash/inspection (default 0)
@@ -294,8 +320,12 @@ export const recommendAllocations = (
   const earliestStart = computeEarliestStart({
     materialLeadTime: inputs.materialLeadTime,
     materialStatus: inputs.materialStatus,
+    materialOrderedAt: inputs.materialOrderedAt,
+    materialReceivedAt: inputs.materialReceivedAt,
     toolingLeadTime: inputs.toolingLeadTime,
     toolingStatus: inputs.toolingStatus,
+    toolingOrderedAt: inputs.toolingOrderedAt,
+    toolingReceivedAt: inputs.toolingReceivedAt,
     bestCommenceDate: inputs.bestCommenceDate,
   });
 

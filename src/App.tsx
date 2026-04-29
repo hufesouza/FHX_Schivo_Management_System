@@ -45,6 +45,8 @@ import JobDetail from "./pages/npi-planner/JobDetail";
 import MachineCalendar from "./pages/npi-planner/MachineCalendar";
 import MachineCapacity from "./pages/npi-planner/MachineCapacity";
 import ToolingTracker from "./pages/npi-planner/ToolingTracker";
+import MaterialTracker from "./pages/npi-planner/MaterialTracker";
+import PartToolingStatus from "./pages/npi-planner/PartToolingStatus";
 import PlannerReports from "./pages/npi-planner/Reports";
 import PlannerSettings from "./pages/npi-planner/PlannerSettings";
 
@@ -95,6 +97,8 @@ const App = () => (
           <Route path="/npi/capacity-planner/calendar" element={<MachineCalendar />} />
           <Route path="/npi/capacity-planner/capacity" element={<MachineCapacity />} />
           <Route path="/npi/capacity-planner/tooling" element={<ToolingTracker />} />
+          <Route path="/npi/capacity-planner/material" element={<MaterialTracker />} />
+          <Route path="/npi/capacity-planner/tooling-status" element={<PartToolingStatus />} />
           <Route path="/npi/capacity-planner/reports" element={<PlannerReports />} />
           <Route path="/npi/capacity-planner/settings" element={<PlannerSettings />} />
           

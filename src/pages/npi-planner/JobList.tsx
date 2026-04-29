@@ -7,13 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { useNPIPlanning } from '@/hooks/useNPIPlanning';
-import { Loader2, Plus, Check, X } from 'lucide-react';
+import { useNPIPlanning, type Part } from '@/hooks/useNPIPlanning';
+import { Loader2, Plus, Check, X, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-
-const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
-const TOOLING_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
+import { ReallocateDialog } from '@/components/npi-planner/ReallocateDialog';
 
 const STATUS_TONE: Record<string, string> = {
   'Not Started': 'bg-slate-200 text-slate-700',
@@ -37,13 +35,14 @@ const MAT_TOOL_TONE: Record<string, string> = {
 
 export default function JobList() {
   const navigate = useNavigate();
-  const { parts, customers, machines, loading, reload } = useNPIPlanning();
+  const { parts, customers, machines, schedule, availability, loading, reload } = useNPIPlanning();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [customerFilter, setCustomerFilter] = useState('all');
   const [machineFilter, setMachineFilter] = useState('all');
   const [shipDates, setShipDates] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
+  const [reallocPart, setReallocPart] = useState<Part | null>(null);
 
   const filtered = useMemo(() => parts.filter(p => {
     if (search && !`${p.part_number} ${p.description}`.toLowerCase().includes(search.toLowerCase())) return false;
@@ -81,11 +80,7 @@ export default function JobList() {
     reload();
   };
 
-  const updateStatus = async (partId: string, field: 'material_status' | 'tooling_status', value: string) => {
-    const { error } = await supabase.from('npi_parts').update({ [field]: value } as any).eq('id', partId);
-    if (error) return toast.error(error.message);
-    reload();
-  };
+  // Material & tooling status are read-only on the tracker — managed on dedicated tiles.
 
   if (loading) return <AppLayout title="Jobs" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin" /></div></AppLayout>;
 
@@ -134,15 +129,16 @@ export default function JobList() {
                     <TableHead>Tooling</TableHead>
                     <TableHead>Committed</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Reallocate</TableHead>
                     <TableHead className="min-w-[200px]">Ship date</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
                   ) : filtered.map(p => {
-                    const matStatus = p.material_status || 'Not Ordered';
-                    const toolStatus = p.tooling_status || 'Not Ordered';
+                    const matStatus = p.material_status || 'Required';
+                    const toolStatus = p.tooling_status || 'Required';
                     const pendingShip = shipDates[p.id];
                     return (
                       <TableRow key={p.id}>
@@ -150,25 +146,27 @@ export default function JobList() {
                         <TableCell className="cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>{p.customer_name || '-'}</TableCell>
                         <TableCell>{p.machine_name || '-'}</TableCell>
                         <TableCell>
-                          <Select value={matStatus} onValueChange={v => updateStatus(p.id, 'material_status', v)}>
-                            <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {MATERIAL_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <Badge variant="outline" className={MAT_TOOL_TONE[matStatus] || ''}>{matStatus}</Badge>
                           {p.material_lead_time ? <div className="text-xs text-muted-foreground mt-1">{p.material_lead_time}d lead</div> : null}
                         </TableCell>
                         <TableCell>
-                          <Select value={toolStatus} onValueChange={v => updateStatus(p.id, 'tooling_status', v)}>
-                            <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {TOOLING_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          <Badge variant="outline" className={MAT_TOOL_TONE[toolStatus] || ''}>{toolStatus}</Badge>
                           {p.tooling_lead_time ? <div className="text-xs text-muted-foreground mt-1">{p.tooling_lead_time}d lead</div> : null}
                         </TableCell>
                         <TableCell>{p.committed_date || '-'}</TableCell>
                         <TableCell><Badge className={STATUS_TONE[p.overall_status] || ''} variant="outline">{p.overall_status}</Badge></TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8"
+                            onClick={() => setReallocPart(p)}
+                            title="Recommend reallocation"
+                          >
+                            <Sparkles className="h-3.5 w-3.5 mr-1" />
+                            Recommend
+                          </Button>
+                        </TableCell>
                         <TableCell>
                           {p.ship_date ? (
                             <div className="flex items-center gap-2">
@@ -213,6 +211,16 @@ export default function JobList() {
             </div>
           </CardContent>
         </Card>
+
+        <ReallocateDialog
+          open={!!reallocPart}
+          onOpenChange={(v) => { if (!v) setReallocPart(null); }}
+          part={reallocPart}
+          machines={machines}
+          schedule={schedule}
+          availability={availability}
+          onApplied={reload}
+        />
       </main>
     </AppLayout>
   );
