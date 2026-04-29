@@ -406,7 +406,7 @@ export default function PartSetup() {
                         </Badge>
                       </div>
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs pl-6">
-                        <div><span className="text-muted-foreground">Earliest start:</span> <div className="font-medium">{fmt(o.earliestStart)}</div></div>
+                        <div><span className="text-muted-foreground">Materials/tools ready:</span> <div className="font-medium">{fmt(o.earliestStart)}</div></div>
                         <div><span className="text-muted-foreground">Machining:</span> <div className="font-medium">{fmt(o.machiningStart)} → {fmt(o.machiningEnd)}</div></div>
                         <div><span className="text-muted-foreground">Backend done:</span> <div className="font-medium">{fmt(o.backendEnd)}</div></div>
                         <div><span className="text-muted-foreground">Ship date:</span> <div className="font-medium">{fmt(o.shipDate)}</div></div>
