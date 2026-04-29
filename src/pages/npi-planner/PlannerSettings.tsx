@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,13 +16,15 @@ import { toast } from 'sonner';
 
 export default function PlannerSettings() {
   const { customers, projects, machines, recipients, loading, reload } = useNPIPlanning();
+  const [searchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab') || 'machines';
 
   if (loading) return <AppLayout title="Settings" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin"/></div></AppLayout>;
 
   return (
     <AppLayout title="Settings" subtitle="Master data & email recipients" showBackButton backTo="/npi/capacity-planner">
       <main className="container mx-auto px-4 py-8">
-        <Tabs defaultValue="machines">
+        <Tabs defaultValue={initialTab}>
           <TabsList>
             <TabsTrigger value="machines">Machines</TabsTrigger>
             <TabsTrigger value="customers">Customers</TabsTrigger>
