@@ -171,7 +171,19 @@ export default function JobList() {
                         <TableCell><Badge className={STATUS_TONE[p.overall_status] || ''} variant="outline">{p.overall_status}</Badge></TableCell>
                         <TableCell>
                           {p.ship_date ? (
-                            <span className="text-sm font-medium text-emerald-700">Shipped {p.ship_date}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-emerald-700">Shipped {p.ship_date}</span>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                disabled={savingId === p.id}
+                                onClick={() => unship(p.id)}
+                                title="Unship"
+                              >
+                                {savingId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                              </Button>
+                            </div>
                           ) : (
                             <div className="flex gap-1 items-center">
                               <Input
