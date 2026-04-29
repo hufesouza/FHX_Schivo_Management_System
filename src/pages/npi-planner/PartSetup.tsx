@@ -82,6 +82,8 @@ export default function PartSetup() {
       const machine = machines.find(m => m.id === selectedMachineId);
       const chosen = options.find(o => o.machine.id === selectedMachineId);
 
+      const maxToolLead = toolLines.reduce((m, t) => Math.max(m, Number(t.lead_time_days) || 0), 0);
+
       const partData: any = {
         ...form,
         customer_id: form.customer_id || null,
@@ -93,6 +95,7 @@ export default function PartSetup() {
         project_name: project?.project_name || null,
         machine_id: machine?.id || null,
         machine_name: machine?.machine_name || null,
+        tooling_lead_time: maxToolLead || form.tooling_lead_time || 0,
       };
       delete partData.id;
 
