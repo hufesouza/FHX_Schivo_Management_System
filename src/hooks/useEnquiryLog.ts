@@ -97,7 +97,7 @@ export function useEnquiryLog() {
 
         const { error: insertError } = await supabase
           .from('enquiry_log')
-          .insert(batch);
+          .insert(batch as any);
 
         if (insertError) throw insertError;
       }
@@ -150,7 +150,7 @@ export function useEnquiryLog() {
     try {
       const { error } = await supabase
         .from('enquiry_log')
-        .update(updates)
+        .update(updates as any)
         .eq('id', id);
 
       if (error) throw error;
