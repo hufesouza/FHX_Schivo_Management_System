@@ -2507,12 +2507,55 @@ export type Database = {
           },
         ]
       }
+      npi_suppliers: {
+        Row: {
+          address: string | null
+          contact_name: string | null
+          created_at: string
+          created_by: string | null
+          default_lead_time_days: number | null
+          email: string | null
+          id: string
+          notes: string | null
+          phone: string | null
+          supplier_name: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          contact_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_lead_time_days?: number | null
+          email?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          supplier_name: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          contact_name?: string | null
+          created_at?: string
+          created_by?: string | null
+          default_lead_time_days?: number | null
+          email?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          supplier_name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       npi_tooling_tracker: {
         Row: {
           catalog_tool_id: string | null
           created_at: string
           expected_delivery_date: string | null
           id: string
+          lead_time_days: number | null
           notes: string | null
           ordered_status: string | null
           part_id: string | null
@@ -2521,6 +2564,7 @@ export type Database = {
           qty: number | null
           required_status: string | null
           supplier: string | null
+          supplier_id: string | null
           tooling_description: string
           total_cost: number | null
           unit_cost: number | null
@@ -2531,6 +2575,7 @@ export type Database = {
           created_at?: string
           expected_delivery_date?: string | null
           id?: string
+          lead_time_days?: number | null
           notes?: string | null
           ordered_status?: string | null
           part_id?: string | null
@@ -2539,6 +2584,7 @@ export type Database = {
           qty?: number | null
           required_status?: string | null
           supplier?: string | null
+          supplier_id?: string | null
           tooling_description: string
           total_cost?: number | null
           unit_cost?: number | null
@@ -2549,6 +2595,7 @@ export type Database = {
           created_at?: string
           expected_delivery_date?: string | null
           id?: string
+          lead_time_days?: number | null
           notes?: string | null
           ordered_status?: string | null
           part_id?: string | null
@@ -2557,6 +2604,7 @@ export type Database = {
           qty?: number | null
           required_status?: string | null
           supplier?: string | null
+          supplier_id?: string | null
           tooling_description?: string
           total_cost?: number | null
           unit_cost?: number | null
@@ -2570,6 +2618,13 @@ export type Database = {
             referencedRelation: "npi_parts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "npi_tooling_tracker_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "npi_suppliers"
+            referencedColumns: ["id"]
+          },
         ]
       }
       npi_tools_catalog: {
@@ -2581,6 +2636,7 @@ export type Database = {
           lead_time_days: number | null
           notes: string | null
           supplier: string | null
+          supplier_id: string | null
           times_used: number | null
           tool_code: string | null
           unit_cost: number | null
@@ -2594,6 +2650,7 @@ export type Database = {
           lead_time_days?: number | null
           notes?: string | null
           supplier?: string | null
+          supplier_id?: string | null
           times_used?: number | null
           tool_code?: string | null
           unit_cost?: number | null
@@ -2607,12 +2664,21 @@ export type Database = {
           lead_time_days?: number | null
           notes?: string | null
           supplier?: string | null
+          supplier_id?: string | null
           times_used?: number | null
           tool_code?: string | null
           unit_cost?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "npi_tools_catalog_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "npi_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       personal_actions: {
         Row: {
