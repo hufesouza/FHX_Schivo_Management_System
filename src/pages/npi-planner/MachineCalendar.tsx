@@ -203,16 +203,17 @@ export default function MachineCalendar() {
                           {entries.map(e => {
                             const part = parts.find(p => p.id === e.part_id);
                             const report = part ? buildReport(e, part) : null;
-                            const flagged = report && (report.driftDays > 0 || report.hasOverlap || !report.matReady || !report.toolReady);
+                            const driftWhole = report ? Math.round(report.driftDays) : 0;
+                            const flagged = report && (driftWhole > 0 || report.hasOverlap || !report.matReady || !report.toolReady);
                             const notReady = report && (!report.matReady || !report.toolReady);
                             const tone = !report ? 'bg-primary/15 text-primary'
                               : report.hasOverlap ? 'bg-destructive/20 text-destructive border border-destructive/40'
-                              : (notReady || report.driftDays > 0) ? 'bg-destructive/15 text-destructive border border-destructive/40'
+                              : (notReady || driftWhole > 0) ? 'bg-destructive/15 text-destructive border border-destructive/40'
                               : 'bg-emerald-500/15 text-emerald-700 border border-emerald-500/30';
                             const titleText = !report ? `${e.part_number}` :
                               `${e.part_number} — ${e.customer_name || ''}\n` +
                               (report.hasOverlap ? `⚠ Overlap with: ${report.overlapWith.join(', ')}\n` : '') +
-                              (report.driftDays > 0 ? `⚠ Not ready — earliest ${format(report.earliest, 'MMM d')} (+${Math.ceil(report.driftDays)}d)\n` : '') +
+                              (driftWhole > 0 ? `⚠ Not ready — earliest ${format(report.earliest, 'MMM d')} (+${driftWhole}d)\n` : '') +
                               `Material: ${report.matLabel}\nTooling: ${report.toolLabel}`;
                             return (
                               <button

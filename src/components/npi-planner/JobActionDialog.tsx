@@ -39,7 +39,11 @@ const Row = ({ ok, label, detail }: { ok: boolean; label: string; detail: string
 
 export function JobActionDialog({ open, onOpenChange, part, report, onReallocate, onExpedite }: Props) {
   if (!part || !report) return null;
-  const blocked = report.driftDays > 0 || report.hasOverlap;
+  // Use whole-day drift to avoid sub-day timezone noise creating phantom "+1d slip"
+  const driftWholeDays = Math.round(report.driftDays);
+  const slipped = driftWholeDays > 0;
+  const clockNotStarted = !report.matReady || !report.toolReady;
+  const blocked = slipped || report.hasOverlap;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -62,9 +66,9 @@ export function JobActionDialog({ open, onOpenChange, part, report, onReallocate
             <div className="flex items-center gap-2">
               <Clock className="h-3.5 w-3.5" />
               <span>Feasible earliest start: <strong>{format(report.earliest, 'MMM d, yyyy')}</strong></span>
-              {report.driftDays > 0 && (
+              {slipped && (
                 <Badge variant="outline" className="bg-amber-500/15 text-amber-800 border-amber-500/30">
-                  +{Math.ceil(report.driftDays)}d slip
+                  +{driftWholeDays}d slip
                 </Badge>
               )}
             </div>
@@ -84,7 +88,7 @@ export function JobActionDialog({ open, onOpenChange, part, report, onReallocate
             </div>
           )}
 
-          {report.driftDays > 0 && !report.hasOverlap && (
+          {slipped && !report.hasOverlap && clockNotStarted && (
             <div className="text-xs text-muted-foreground">
               Lead-time clock has not started — start date will drift one day for each day this is delayed.
             </div>
