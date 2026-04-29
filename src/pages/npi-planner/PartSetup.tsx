@@ -18,7 +18,7 @@ import { QuickCustomerDialog } from '@/components/npi-planner/QuickCustomerDialo
 import { QuickProjectDialog } from '@/components/npi-planner/QuickProjectDialog';
 import { ToolingListEditor, type ToolLine } from '@/components/npi-planner/ToolingListEditor';
 import { SupplierPicker } from '@/components/npi-planner/SupplierPicker';
-import { QuickMachineDialog } from '@/components/npi-planner/QuickMachineDialog';
+
 
 const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 const TOOLING_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
@@ -35,7 +35,6 @@ export default function PartSetup() {
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [toolLines, setToolLines] = useState<ToolLine[]>([]);
-  const [machineDialogOpen, setMachineDialogOpen] = useState(false);
   const [machineSearch, setMachineSearch] = useState('');
 
   const [form, setForm] = useState<any>({
@@ -311,13 +310,12 @@ export default function PartSetup() {
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" size="sm" onClick={() => setMachineOptionIds(machines.map(m => m.id))} disabled={!machines.length}>Select all</Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => setMachineOptionIds([])} disabled={!machineOptionIds.length}>Clear</Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setMachineDialogOpen(true)}><Plus className="h-4 w-4 mr-1" />Add machine</Button>
                 </div>
               </div>
               <Input placeholder="Search machines..." value={machineSearch} onChange={e => setMachineSearch(e.target.value)} className="mb-2" />
               {machines.length === 0 ? (
                 <div className="text-sm text-muted-foreground border rounded-md p-4 text-center">
-                  No NPI machines yet. Click <strong>Add machine</strong> to register the machines available for NPI.
+                  No NPI machines yet. Set them up in the <a href="/npi/capacity-planner/settings?tab=machines" className="underline text-primary">Machines</a> page from the Capacity Planner front page.
                 </div>
               ) : (
                 <>
@@ -384,11 +382,6 @@ export default function PartSetup() {
         customerId={form.customer_id || null}
         customerName={customers.find(c => c.id === form.customer_id)?.customer_name || null}
         onCreated={async (p) => { await reload(); set('project_id', p.id); }}
-      />
-      <QuickMachineDialog
-        open={machineDialogOpen}
-        onOpenChange={setMachineDialogOpen}
-        onCreated={async (m) => { await reload(); setMachineOptionIds(ids => [...ids, m.id]); }}
       />
     </AppLayout>
   );
