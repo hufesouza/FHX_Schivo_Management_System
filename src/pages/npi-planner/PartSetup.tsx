@@ -82,6 +82,8 @@ export default function PartSetup() {
       const machine = machines.find(m => m.id === selectedMachineId);
       const chosen = options.find(o => o.machine.id === selectedMachineId);
 
+      const maxToolLead = toolLines.reduce((m, t) => Math.max(m, Number(t.lead_time_days) || 0), 0);
+
       const partData: any = {
         ...form,
         customer_id: form.customer_id || null,
@@ -93,6 +95,7 @@ export default function PartSetup() {
         project_name: project?.project_name || null,
         machine_id: machine?.id || null,
         machine_name: machine?.machine_name || null,
+        tooling_lead_time: maxToolLead || form.tooling_lead_time || 0,
       };
       delete partData.id;
 
@@ -124,9 +127,11 @@ export default function PartSetup() {
             po: form.po || null,
             tooling_description: t.tooling_description,
             supplier: t.supplier || null,
+            supplier_id: t.supplier_id || null,
             qty: Number(t.qty) || 1,
             unit_cost: Number(t.unit_cost) || 0,
             total_cost: (Number(t.qty) || 0) * (Number(t.unit_cost) || 0),
+            lead_time_days: Number(t.lead_time_days) || 0,
             expected_delivery_date: t.expected_delivery_date || null,
             ordered_status: t.ordered_status || 'Not Ordered',
             required_status: 'Required',
@@ -141,7 +146,9 @@ export default function PartSetup() {
             tool_code: t.tool_code || null,
             description: t.tooling_description,
             supplier: t.supplier || null,
+            supplier_id: t.supplier_id || null,
             unit_cost: Number(t.unit_cost) || 0,
+            lead_time_days: Number(t.lead_time_days) || 0,
           }));
         if (newCatalog.length) await supabase.from('npi_tools_catalog').insert(newCatalog as any);
       }
@@ -221,7 +228,9 @@ export default function PartSetup() {
                   <SelectContent>{TOOLING_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
-              <Field label="Lead time (days)"><Input type="number" value={form.tooling_lead_time} onChange={e => set('tooling_lead_time', +e.target.value)} /></Field>
+              <Field label="Total lead time (days, max of tools)">
+                <Input value={toolLines.reduce((m, t) => Math.max(m, Number(t.lead_time_days) || 0), 0)} disabled />
+              </Field>
               <Field label="Total tooling cost (€)">
                 <Input value={toolLines.reduce((s, t) => s + (Number(t.qty) || 0) * (Number(t.unit_cost) || 0), 0).toFixed(2)} disabled />
               </Field>

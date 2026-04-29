@@ -1,20 +1,23 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
-import { Plus, Trash2, Library, Check } from 'lucide-react';
+import { Plus, Trash2, Library, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { QuickSupplierDialog, type Supplier } from './QuickSupplierDialog';
 
 export type ToolLine = {
   catalog_tool_id?: string | null;
   tool_code?: string | null;
   tooling_description: string;
   supplier?: string | null;
+  supplier_id?: string | null;
   qty: number;
   unit_cost: number;
+  lead_time_days?: number | null;
   expected_delivery_date?: string | null;
   ordered_status?: string;
   save_to_catalog?: boolean;
@@ -25,7 +28,9 @@ type CatalogTool = {
   tool_code: string | null;
   description: string;
   supplier: string | null;
+  supplier_id: string | null;
   unit_cost: number | null;
+  lead_time_days: number | null;
 };
 
 const STATUSES = ['Not Ordered', 'Ordered', 'Received', 'Delayed', 'Issue'];
@@ -38,14 +43,27 @@ export function ToolingListEditor({
   onChange: (lines: ToolLine[]) => void;
 }) {
   const [catalog, setCatalog] = useState<CatalogTool[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
+  const [supplierTargetIdx, setSupplierTargetIdx] = useState<number | null>(null);
 
-  useEffect(() => {
-    supabase
+  const loadCatalog = useCallback(async () => {
+    const { data } = await supabase
       .from('npi_tools_catalog')
-      .select('id, tool_code, description, supplier, unit_cost')
-      .order('description')
-      .then(({ data }) => setCatalog((data as any) || []));
+      .select('id, tool_code, description, supplier, supplier_id, unit_cost, lead_time_days')
+      .order('description');
+    setCatalog((data as any) || []);
   }, []);
+
+  const loadSuppliers = useCallback(async () => {
+    const { data } = await supabase
+      .from('npi_suppliers')
+      .select('*')
+      .order('supplier_name');
+    setSuppliers((data as any) || []);
+  }, []);
+
+  useEffect(() => { loadCatalog(); loadSuppliers(); }, [loadCatalog, loadSuppliers]);
 
   const update = (i: number, patch: Partial<ToolLine>) => {
     const next = lines.slice();
@@ -58,7 +76,7 @@ export function ToolingListEditor({
   const addBlank = () =>
     onChange([
       ...lines,
-      { tooling_description: '', qty: 1, unit_cost: 0, ordered_status: 'Not Ordered' },
+      { tooling_description: '', qty: 1, unit_cost: 0, lead_time_days: 0, ordered_status: 'Not Ordered' },
     ]);
 
   const pickFromCatalog = (i: number, tool: CatalogTool) => {
@@ -67,17 +85,34 @@ export function ToolingListEditor({
       tool_code: tool.tool_code,
       tooling_description: tool.description,
       supplier: tool.supplier,
+      supplier_id: tool.supplier_id,
       unit_cost: Number(tool.unit_cost) || 0,
+      lead_time_days: tool.lead_time_days ?? 0,
     });
   };
+
+  const pickSupplier = (i: number, s: Supplier) => {
+    update(i, {
+      supplier_id: s.id,
+      supplier: s.supplier_name,
+      lead_time_days: lines[i].lead_time_days || s.default_lead_time_days || 0,
+    });
+  };
+
+  const totalLeadTime = lines.reduce((max, t) => Math.max(max, Number(t.lead_time_days) || 0), 0);
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium">Tools list</span>
-        <Button type="button" size="sm" variant="outline" onClick={addBlank}>
-          <Plus className="h-4 w-4 mr-1" /> Add tool
-        </Button>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">
+            Total lead time: <strong>{totalLeadTime} days</strong> (max across tools)
+          </span>
+          <Button type="button" size="sm" variant="outline" onClick={addBlank}>
+            <Plus className="h-4 w-4 mr-1" /> Add tool
+          </Button>
+        </div>
       </div>
 
       {lines.length === 0 ? (
@@ -85,14 +120,15 @@ export function ToolingListEditor({
           No tools added. Click "Add tool" to start.
         </div>
       ) : (
-        <div className="border rounded-md overflow-hidden">
-          <div className="grid grid-cols-[1fr_120px_90px_90px_90px_140px_120px_40px] gap-2 px-3 py-2 bg-muted/40 text-xs font-medium text-muted-foreground">
+        <div className="border rounded-md overflow-x-auto">
+          <div className="grid grid-cols-[1fr_110px_70px_80px_80px_180px_90px_110px_40px] gap-2 px-3 py-2 bg-muted/40 text-xs font-medium text-muted-foreground min-w-[1000px]">
             <div>Description</div>
             <div>Tool code</div>
             <div>Qty</div>
             <div>Unit €</div>
             <div>Total €</div>
             <div>Supplier</div>
+            <div>Lead (d)</div>
             <div>Status</div>
             <div></div>
           </div>
@@ -101,7 +137,7 @@ export function ToolingListEditor({
             return (
               <div
                 key={i}
-                className="grid grid-cols-[1fr_120px_90px_90px_90px_140px_120px_40px] gap-2 px-3 py-2 border-t items-center"
+                className="grid grid-cols-[1fr_110px_70px_80px_80px_180px_90px_110px_40px] gap-2 px-3 py-2 border-t items-center min-w-[1000px]"
               >
                 <div className="flex gap-1">
                   <Input
@@ -132,11 +168,18 @@ export function ToolingListEditor({
                   className="h-8"
                 />
                 <Input value={total.toFixed(2)} disabled className="h-8" />
+                <SupplierPicker
+                  suppliers={suppliers}
+                  value={line.supplier_id || null}
+                  displayName={line.supplier || ''}
+                  onPick={(s) => pickSupplier(i, s)}
+                  onNew={() => { setSupplierTargetIdx(i); setSupplierDialogOpen(true); }}
+                />
                 <Input
-                  value={line.supplier || ''}
-                  onChange={(e) => update(i, { supplier: e.target.value })}
+                  type="number"
+                  value={line.lead_time_days ?? 0}
+                  onChange={(e) => update(i, { lead_time_days: +e.target.value })}
                   className="h-8"
-                  placeholder="Supplier"
                 />
                 <Select
                   value={line.ordered_status || 'Not Ordered'}
@@ -156,30 +199,27 @@ export function ToolingListEditor({
         </div>
       )}
       <p className="text-xs text-muted-foreground">
-        New tools are saved to the catalog automatically so you can reuse them on the next part.
+        Tools and suppliers are saved automatically for reuse on the next part.
       </p>
+
+      <QuickSupplierDialog
+        open={supplierDialogOpen}
+        onOpenChange={setSupplierDialogOpen}
+        onCreated={(s) => {
+          loadSuppliers();
+          if (supplierTargetIdx !== null) pickSupplier(supplierTargetIdx, s);
+        }}
+      />
     </div>
   );
 }
 
-function CatalogPicker({
-  catalog,
-  onPick,
-}: {
-  catalog: CatalogTool[];
-  onPick: (t: CatalogTool) => void;
-}) {
+function CatalogPicker({ catalog, onPick }: { catalog: CatalogTool[]; onPick: (t: CatalogTool) => void }) {
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          className="h-8 w-8 shrink-0"
-          title="Pick from catalog"
-        >
+        <Button type="button" size="icon" variant="outline" className="h-8 w-8 shrink-0" title="Pick from catalog">
           <Library className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
@@ -193,10 +233,7 @@ function CatalogPicker({
                 <CommandItem
                   key={t.id}
                   value={`${t.tool_code || ''} ${t.description} ${t.supplier || ''}`}
-                  onSelect={() => {
-                    onPick(t);
-                    setOpen(false);
-                  }}
+                  onSelect={() => { onPick(t); setOpen(false); }}
                 >
                   <Check className={cn('mr-2 h-4 w-4 opacity-0')} />
                   <div className="flex flex-col">
@@ -204,12 +241,73 @@ function CatalogPicker({
                       {t.tool_code ? `${t.tool_code} · ` : ''}{t.description}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {t.supplier || '—'} · €{Number(t.unit_cost || 0).toFixed(2)}
+                      {t.supplier || '—'} · €{Number(t.unit_cost || 0).toFixed(2)} · {t.lead_time_days ?? 0}d
                     </span>
                   </div>
                 </CommandItem>
               ))}
             </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+function SupplierPicker({
+  suppliers,
+  value,
+  displayName,
+  onPick,
+  onNew,
+}: {
+  suppliers: Supplier[];
+  value: string | null;
+  displayName: string;
+  onPick: (s: Supplier) => void;
+  onNew: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const current = suppliers.find((s) => s.id === value);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" variant="outline" className="h-8 justify-between font-normal text-xs px-2">
+          <span className="truncate">{current?.supplier_name || displayName || 'Pick supplier'}</span>
+          <ChevronsUpDown className="h-3 w-3 opacity-50 ml-1 shrink-0" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 w-72" align="start">
+        <Command>
+          <CommandInput placeholder="Search suppliers…" />
+          <CommandList>
+            <CommandEmpty>No suppliers</CommandEmpty>
+            <CommandGroup>
+              {suppliers.map((s) => (
+                <CommandItem
+                  key={s.id}
+                  value={`${s.supplier_name} ${s.contact_name || ''} ${s.email || ''}`}
+                  onSelect={() => { onPick(s); setOpen(false); }}
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">{s.supplier_name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {s.contact_name || '—'} · {s.email || '—'} · {s.default_lead_time_days ?? 0}d
+                    </span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+            <div className="border-t p-1">
+              <Button
+                type="button"
+                variant="ghost"
+                className="w-full justify-start h-8 text-xs"
+                onClick={() => { setOpen(false); onNew(); }}
+              >
+                <Plus className="h-3 w-3 mr-1" /> New supplier
+              </Button>
+            </div>
           </CommandList>
         </Command>
       </PopoverContent>
