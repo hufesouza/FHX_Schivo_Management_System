@@ -3,7 +3,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNPIPlanning, computeEarliestStart, Part } from '@/hooks/useNPIPlanning';
-import { Loader2, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { isNonWorkingDay, idleNonWorkingDaysAfter } from '@/utils/workingCalendar';
+import { Loader2, ChevronLeft, ChevronRight, AlertTriangle, CalendarOff } from 'lucide-react';
 import { JobActionDialog, ReadinessReport } from '@/components/npi-planner/JobActionDialog';
 import { ExpediteDialog } from '@/components/npi-planner/ExpediteDialog';
 import { ReallocateDialog } from '@/components/npi-planner/ReallocateDialog';
@@ -22,7 +23,7 @@ const isReady = (status: string | null | undefined) =>
   status === 'Received' || status === 'Not Required' || status === 'Ordered';
 
 export default function MachineCalendar() {
-  const { machines, schedule, parts, availability, reload, loading } = useNPIPlanning();
+  const { machines, schedule, parts, availability, calendarSettings, reload, loading } = useNPIPlanning();
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - d.getDay() + 1); // Monday
