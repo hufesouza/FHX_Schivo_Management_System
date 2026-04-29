@@ -16,6 +16,7 @@ const tiles = [
   { id: 'calendar', title: 'Machine Calendar', desc: 'Visual calendar of allocations and free gaps', icon: CalendarRange, href: '/npi/capacity-planner/calendar', color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20' },
   { id: 'capacity', title: 'Machine Capacity', desc: 'Per-machine load, available hours and bottlenecks', icon: Gauge, href: '/npi/capacity-planner/capacity', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
   { id: 'tooling', title: 'Tooling Catalog', desc: 'Reusable tool library — set up once, link to many PNs from Tooling Tracker', icon: Wrench, href: '/npi/capacity-planner/tooling', color: 'bg-pink-500/10 text-pink-600 border-pink-500/20' },
+  { id: 'materials-catalog', title: 'Materials Catalog', desc: 'Reusable material library — set up once, pick from Material Tracker', icon: Package, href: '/npi/capacity-planner/materials-catalog', color: 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' },
   { id: 'reports', title: 'Reports', desc: 'Sales, capacity, late jobs, at-risk, project progress', icon: FileBarChart2, href: '/npi/capacity-planner/reports', color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
   { id: 'settings', title: 'Settings', desc: 'Customers, projects, suppliers, email recipients', icon: SettingsIcon, href: '/npi/capacity-planner/settings', color: 'bg-slate-500/10 text-slate-600 border-slate-500/20' },
 ];
