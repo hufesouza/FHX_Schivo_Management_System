@@ -319,6 +319,22 @@ export default function PartSetup() {
               </Select>
             </Field>
             <Field label="Notes" className="md:col-span-3"><Textarea rows={2} value={form.notes} onChange={e => set('notes', e.target.value)} /></Field>
+            <div className="md:col-span-3 grid md:grid-cols-2 gap-3 pt-2 border-t">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <Checkbox checked={!!form.dev_allow_weekends} onCheckedChange={v => set('dev_allow_weekends', !!v)} />
+                <div>
+                  <div className="text-sm font-medium">Development allowed on weekends/bank holidays</div>
+                  <div className="text-xs text-muted-foreground">If unchecked, development time only schedules on working days ({calendarSettings.countryLabel}).</div>
+                </div>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <Checkbox checked={!!form.prod_allow_weekends} onCheckedChange={v => set('prod_allow_weekends', !!v)} />
+                <div>
+                  <div className="text-sm font-medium">Production allowed on weekends/bank holidays</div>
+                  <div className="text-xs text-muted-foreground">When ticked, machining can run continuously through weekends &amp; holidays — preferred for long jobs.</div>
+                </div>
+              </label>
+            </div>
           </CardContent>
         </Card>
 
