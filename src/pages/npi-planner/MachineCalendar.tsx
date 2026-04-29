@@ -214,8 +214,10 @@ export default function MachineCalendar() {
           <span><span className="inline-block w-3 h-3 bg-emerald-50 border align-middle mr-1" />Available</span>
           <span><span className="inline-block w-3 h-3 bg-blue-50 border align-middle mr-1" />Allocated</span>
           <span><span className="inline-block w-3 h-3 bg-destructive/10 border align-middle mr-1" />Overloaded</span>
+          <span><span className="inline-block w-3 h-3 bg-muted-foreground/10 border align-middle mr-1" />Non-working day ({calendarSettings.countryLabel})</span>
           <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-destructive" /> Not ready — material/tooling not ordered or schedule will slip</span>
           <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-destructive" /> Schedule overlap</span>
+          <span className="flex items-center gap-1"><CalendarOff className="h-3 w-3 text-amber-600" /> Idle weekend — consider a longer/weekend-OK job to bridge</span>
           <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-emerald-500/15 border border-emerald-500/30" /> Ready — on track for scheduled start</span>
         </div>
       </main>
