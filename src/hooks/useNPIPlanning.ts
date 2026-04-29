@@ -181,12 +181,15 @@ export type AllocationOption = {
   score: number; // lower = better
 };
 
+// Find next gap that fits required time within machine's existing schedule
+// AND inside one of its NPI availability windows.
 export const findNextGap = (
   machine: Machine,
   schedule: ScheduleEntry[],
+  availability: MachineAvailability[],
   requiredHours: number,
   earliestStart: Date,
-): { start: Date; end: Date } => {
+): { start: Date; end: Date } | null => {
   const dailyHours = Number(machine.daily_available_hours) || 24;
   const requiredMs = (requiredHours / dailyHours) * 24 * 3600 * 1000;
 
@@ -195,20 +198,47 @@ export const findNextGap = (
     .map(s => ({ start: new Date(s.start_date), end: new Date(s.end_date) }))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 
-  let cursor = new Date(earliestStart);
-  for (const slot of machineSchedule) {
-    if (slot.end <= cursor) continue;
-    if (slot.start.getTime() - cursor.getTime() >= requiredMs) {
+  const windows = availability
+    .filter(a => a.machine_id === machine.id)
+    .map(a => ({
+      start: new Date(a.start_date + 'T00:00:00'),
+      // end_date is inclusive day; treat as end of that day
+      end: new Date(a.end_date + 'T23:59:59'),
+    }))
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+  // If no windows defined, machine is never available for NPI
+  if (windows.length === 0) return null;
+
+  for (const win of windows) {
+    if (win.end <= earliestStart) continue;
+    let cursor = new Date(Math.max(win.start.getTime(), earliestStart.getTime()));
+
+    const slotsInWindow = machineSchedule.filter(s => s.end > win.start && s.start < win.end);
+
+    let placed = false;
+    for (const slot of slotsInWindow) {
+      if (slot.end <= cursor) continue;
+      const availableMs = slot.start.getTime() - cursor.getTime();
+      if (availableMs >= requiredMs) {
+        return { start: cursor, end: new Date(cursor.getTime() + requiredMs) };
+      }
+      if (slot.end > cursor) cursor = new Date(slot.end);
+      if (cursor >= win.end) { placed = true; break; }
+    }
+
+    // Try after the last booking inside this window
+    if (!placed && win.end.getTime() - cursor.getTime() >= requiredMs) {
       return { start: cursor, end: new Date(cursor.getTime() + requiredMs) };
     }
-    if (slot.end > cursor) cursor = new Date(slot.end);
   }
-  return { start: cursor, end: new Date(cursor.getTime() + requiredMs) };
+  return null;
 };
 
 export const recommendAllocations = (
   candidateMachines: Machine[],
   schedule: ScheduleEntry[],
+  availability: MachineAvailability[],
   requiredHours: number,
   bestCommenceDate: Date | null,
   committedDate: Date | null,
@@ -220,10 +250,10 @@ export const recommendAllocations = (
   const options = candidateMachines
     .filter(m => m.status === 'Available')
     .map(m => {
-      const gap = findNextGap(m, schedule, requiredHours, earliest);
+      const gap = findNextGap(m, schedule, availability, requiredHours, earliest);
+      if (!gap) return null;
       const meetsCommitted = !committedDate || gap.end <= committedDate;
       const meetsBest = !bestCommenceDate || gap.start <= bestCommenceDate;
-      // Score: earliest start wins, penalize missing committed
       const score = gap.start.getTime() + (meetsCommitted ? 0 : 1e12);
       return {
         machine: m,
@@ -234,6 +264,7 @@ export const recommendAllocations = (
         score,
       };
     })
+    .filter((o): o is AllocationOption => o !== null)
     .sort((a, b) => a.score - b.score);
 
   return options;
