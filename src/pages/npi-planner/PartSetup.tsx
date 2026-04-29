@@ -180,15 +180,20 @@ export default function PartSetup() {
 
         <Card>
           <CardHeader><CardTitle className="text-base">Tooling</CardTitle></CardHeader>
-          <CardContent className="grid md:grid-cols-3 gap-4">
-            <Field label="Tooling"><Input value={form.tooling} onChange={e => set('tooling', e.target.value)} /></Field>
-            <Field label="Lead time (days)"><Input type="number" value={form.tooling_lead_time} onChange={e => set('tooling_lead_time', +e.target.value)} /></Field>
-            <Field label="Status">
-              <Select value={form.tooling_status} onValueChange={v => set('tooling_status', v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{TOOLING_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-              </Select>
-            </Field>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-3 gap-4">
+              <Field label="Summary status">
+                <Select value={form.tooling_status} onValueChange={v => set('tooling_status', v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>{TOOLING_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                </Select>
+              </Field>
+              <Field label="Lead time (days)"><Input type="number" value={form.tooling_lead_time} onChange={e => set('tooling_lead_time', +e.target.value)} /></Field>
+              <Field label="Total tooling cost (€)">
+                <Input value={toolLines.reduce((s, t) => s + (Number(t.qty) || 0) * (Number(t.unit_cost) || 0), 0).toFixed(2)} disabled />
+              </Field>
+            </div>
+            <ToolingListEditor lines={toolLines} onChange={setToolLines} />
           </CardContent>
         </Card>
 
