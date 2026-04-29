@@ -1,12 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useNPIPlanning } from '@/hooks/useNPIPlanning';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Library } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { addDays, format, parseISO } from 'date-fns';
@@ -23,7 +26,7 @@ const TONE: Record<string, string> = {
 };
 
 export default function MaterialTracker() {
-  const { parts, loading, reload } = useNPIPlanning();
+  const { parts, materialsCatalog, loading, reload } = useNPIPlanning();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [savingId, setSavingId] = useState<string | null>(null);
@@ -47,6 +50,32 @@ export default function MaterialTracker() {
     reload();
   };
 
+  const updateLead = async (partId: string, value: number) => {
+    setSavingId(partId);
+    const { error } = await supabase.from('npi_parts').update({ material_lead_time: value }).eq('id', partId);
+    setSavingId(null);
+    if (error) return toast.error(error.message);
+    reload();
+  };
+
+  const pickFromCatalog = async (partId: string, mat: any) => {
+    setSavingId(partId);
+    const patch: any = {
+      material_catalog_id: mat.id,
+      material: mat.material_description,
+    };
+    // Pre-fill lead time from catalog default if part has none yet
+    const part = parts.find((p: any) => p.id === partId);
+    if (part && (part.material_lead_time == null || part.material_lead_time === 0) && mat.default_lead_time_days != null) {
+      patch.material_lead_time = mat.default_lead_time_days;
+    }
+    const { error } = await supabase.from('npi_parts').update(patch).eq('id', partId);
+    setSavingId(null);
+    if (error) return toast.error(error.message);
+    toast.success(`Linked to ${mat.material_description}`);
+    reload();
+  };
+
   const expectedDate = (p: any) => {
     if (p.material_status === 'Received' && p.material_received_at) {
       return `Received ${format(parseISO(p.material_received_at), 'MMM d')}`;
@@ -62,7 +91,7 @@ export default function MaterialTracker() {
   if (loading) return <AppLayout title="Material Tracker" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin" /></div></AppLayout>;
 
   return (
-    <AppLayout title="Material Tracker" subtitle="Mark Ordered to start lead-time clock; Received frees the part for production" showBackButton backTo="/npi/capacity-planner">
+    <AppLayout title="Material Tracker" subtitle="Pick from Materials Catalog. Mark Ordered to start lead-time clock; Received frees the part for production." showBackButton backTo="/npi/capacity-planner">
       <main className="container mx-auto px-4 py-8 space-y-4">
         <Card>
           <CardHeader><CardTitle className="text-base">Parts ({filtered.length})</CardTitle></CardHeader>
@@ -84,8 +113,8 @@ export default function MaterialTracker() {
                   <TableRow>
                     <TableHead>Part #</TableHead>
                     <TableHead>Customer</TableHead>
-                    <TableHead>Material</TableHead>
-                    <TableHead>Lead time</TableHead>
+                    <TableHead>Material (from catalog)</TableHead>
+                    <TableHead>Lead time (d)</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Ordered</TableHead>
                     <TableHead>Received / ETA</TableHead>
@@ -98,8 +127,23 @@ export default function MaterialTracker() {
                     <TableRow key={p.id}>
                       <TableCell className="font-medium">{p.part_number}</TableCell>
                       <TableCell>{p.customer_name || '-'}</TableCell>
-                      <TableCell>{p.material || '-'}</TableCell>
-                      <TableCell>{p.material_lead_time ? `${p.material_lead_time}d` : '-'}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">{p.material || <span className="text-muted-foreground italic">— none —</span>}</span>
+                          <CatalogPicker catalog={materialsCatalog} onPick={(m) => pickFromCatalog(p.id, m)} />
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Input
+                          type="number"
+                          defaultValue={p.material_lead_time ?? ''}
+                          onBlur={(e) => {
+                            const v = Number(e.target.value) || 0;
+                            if (v !== (p.material_lead_time ?? 0)) updateLead(p.id, v);
+                          }}
+                          className="h-8 w-20"
+                        />
+                      </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <Select value={p.material_status || 'Required'} onValueChange={v => updateStatus(p.id, v)}>
@@ -119,9 +163,51 @@ export default function MaterialTracker() {
                 </TableBody>
               </Table>
             </div>
+            <p className="text-xs text-muted-foreground">
+              Tip: lead time is pre-filled from the catalog default the first time you link, but can be overridden here per part for a better/worse supplier quote.
+            </p>
           </CardContent>
         </Card>
       </main>
     </AppLayout>
+  );
+}
+
+function CatalogPicker({ catalog, onPick }: { catalog: any[]; onPick: (m: any) => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button type="button" size="icon" variant="outline" className="h-7 w-7" title="Pick from Materials Catalog">
+          <Library className="h-3.5 w-3.5" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="p-0 w-80" align="start">
+        <Command>
+          <CommandInput placeholder="Search materials…" />
+          <CommandList>
+            <CommandEmpty>No materials in catalog</CommandEmpty>
+            <CommandGroup>
+              {catalog.map((m: any) => (
+                <CommandItem
+                  key={m.id}
+                  value={`${m.material_code || ''} ${m.material_description} ${m.supplier || ''}`}
+                  onSelect={() => { onPick(m); setOpen(false); }}
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">
+                      {m.material_code ? `${m.material_code} · ` : ''}{m.material_description}
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {m.supplier || '—'} · €{Number(m.default_unit_cost || 0).toFixed(2)} · {m.default_lead_time_days ?? 0}d (default)
+                    </span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
