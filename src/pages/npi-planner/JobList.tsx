@@ -82,7 +82,7 @@ export default function JobList() {
   };
 
   const updateStatus = async (partId: string, field: 'material_status' | 'tooling_status', value: string) => {
-    const { error } = await supabase.from('npi_parts').update({ [field]: value }).eq('id', partId);
+    const { error } = await supabase.from('npi_parts').update({ [field]: value } as any).eq('id', partId);
     if (error) return toast.error(error.message);
     reload();
   };
