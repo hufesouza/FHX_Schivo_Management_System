@@ -305,7 +305,7 @@ export default function PartSetup() {
           <CardContent className="grid md:grid-cols-3 gap-4">
             <Field label="Cycle time (hrs)"><Input type="number" step="0.1" value={form.cycle_time} onChange={e => set('cycle_time', +e.target.value)} /></Field>
             <Field label="Development time (hrs)"><Input type="number" step="0.1" value={form.development_time} onChange={e => set('development_time', +e.target.value)} /></Field>
-            <Field label="Total required (auto)"><Input value={totalRequired} disabled /></Field>
+            <Field label="Total machining hrs (dev + cycle × qty)"><Input value={totalRequired} disabled /></Field>
             <Field label="Best commence date"><Input type="date" value={form.best_commence_date} onChange={e => set('best_commence_date', e.target.value)} /></Field>
             <Field label="Committed date"><Input type="date" value={form.committed_date} onChange={e => set('committed_date', e.target.value)} /></Field>
             <Field label="Ship date"><Input type="date" value={form.ship_date} onChange={e => set('ship_date', e.target.value)} /></Field>
