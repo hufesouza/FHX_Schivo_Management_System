@@ -58,21 +58,37 @@ export default function PartSetup() {
     [projects, form.customer_id],
   );
 
+  const maxToolLeadFromList = useMemo(
+    () => toolLines.reduce((m, t) => Math.max(m, Number(t.lead_time_days) || 0), 0),
+    [toolLines],
+  );
+
   const runAllocation = () => {
     if (machineOptionIds.length === 0) {
       toast.error('Select at least one candidate machine');
       return;
     }
-    if (totalRequired <= 0) {
-      toast.error('Cycle time + development time must be > 0');
+    const qty = Number(form.qty) || 0;
+    const machiningHrs = (Number(form.development_time) || 0) + (Number(form.cycle_time) || 0) * qty;
+    if (machiningHrs <= 0) {
+      toast.error('Cycle time × qty + development time must be > 0');
       return;
     }
     const candidates = machines.filter(m => machineOptionIds.includes(m.id));
-    const opts = recommendAllocations(
-      candidates, schedule, availability, totalRequired,
-      form.best_commence_date ? new Date(form.best_commence_date) : null,
-      form.committed_date ? new Date(form.committed_date) : null,
-    );
+    const opts = recommendAllocations(candidates, schedule, availability, {
+      qty,
+      cycleTimeHrs: Number(form.cycle_time) || 0,
+      developmentTimeHrs: Number(form.development_time) || 0,
+      materialLeadTime: Number(form.material_lead_time) || 0,
+      materialStatus: form.material_status,
+      toolingLeadTime: maxToolLeadFromList || Number(form.tooling_lead_time) || 0,
+      toolingStatus: form.tooling_status,
+      subconRequired: (form.subcon_status && form.subcon_status !== 'Not Required'),
+      subconLeadTime: Number(form.subcon_lead_time) || 0,
+      backendLeadTime: 0,
+      bestCommenceDate: form.best_commence_date ? new Date(form.best_commence_date) : null,
+      committedDate: form.committed_date ? new Date(form.committed_date) : null,
+    });
     setOptions(opts);
     if (opts.length === 0) {
       toast.warning('No machine has an NPI availability window that fits this job. Add a window in Settings → Machines.');
