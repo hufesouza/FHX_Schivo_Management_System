@@ -141,14 +141,20 @@ export default function PartSetup() {
             </Field>
             <Field label="Project">
               <div className="flex gap-1">
-                <Select value={form.project_id} onValueChange={v => set('project_id', v)} disabled={!form.customer_id}>
+                <Select value={form.project_id} onValueChange={v => {
+                  set('project_id', v);
+                  const proj = projects.find(p => p.id === v);
+                  if (proj?.engineer) set('engineer', proj.engineer);
+                }} disabled={!form.customer_id}>
                   <SelectTrigger><SelectValue placeholder={form.customer_id ? 'Select' : 'Pick customer first'} /></SelectTrigger>
                   <SelectContent>{filteredProjects.map(p => <SelectItem key={p.id} value={p.id}>{p.project_name}</SelectItem>)}</SelectContent>
                 </Select>
                 <Button type="button" variant="outline" size="icon" onClick={() => setProjectDialogOpen(true)} disabled={!form.customer_id} title="New project"><Plus className="h-4 w-4" /></Button>
               </div>
             </Field>
-            <Field label="Engineer"><Input value={form.engineer} onChange={e => set('engineer', e.target.value)} /></Field>
+            <Field label="Engineer">
+              <Input value={form.engineer} disabled placeholder="Set on project" />
+            </Field>
             <Field label="Part Number *"><Input value={form.part_number} onChange={e => set('part_number', e.target.value)} /></Field>
             <Field label="PO"><Input value={form.po} onChange={e => set('po', e.target.value)} /></Field>
             <Field label="QTY"><Input type="number" value={form.qty} onChange={e => set('qty', +e.target.value)} /></Field>
