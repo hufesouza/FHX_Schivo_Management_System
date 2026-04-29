@@ -153,7 +153,7 @@ export default function PartSetup() {
               </div>
             </Field>
             <Field label="Engineer">
-              <Input value={form.engineer} disabled placeholder="Set on project" />
+              <Input value={form.engineer} disabled placeholder="—" />
             </Field>
             <Field label="Part Number *"><Input value={form.part_number} onChange={e => set('part_number', e.target.value)} /></Field>
             <Field label="PO"><Input value={form.po} onChange={e => set('po', e.target.value)} /></Field>
