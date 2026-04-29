@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useNPIPlanning } from '@/hooks/useNPIPlanning';
-import { Loader2, Mail, Phone, ExternalLink } from 'lucide-react';
+import { Loader2, Mail, Phone, ExternalLink, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { addDays, format, parseISO } from 'date-fns';
@@ -77,6 +77,52 @@ export default function PartToolingStatus() {
   const supplierFor = (t: any) =>
     suppliers.find(s => s.id === t.supplier_id) ||
     suppliers.find(s => s.supplier_name && t.supplier && s.supplier_name.toLowerCase() === String(t.supplier).toLowerCase());
+
+  const toolsBySupplier = useMemo(() => {
+    const groups = new Map<string, { name: string; email?: string; tools: any[] }>();
+    for (const t of partTools) {
+      const sup = supplierFor(t);
+      const name = sup?.supplier_name || t.supplier || 'Unknown supplier';
+      const key = (sup?.id || name).toString();
+      if (!groups.has(key)) groups.set(key, { name, email: sup?.email, tools: [] });
+      groups.get(key)!.tools.push(t);
+    }
+    return Array.from(groups.values());
+  }, [partTools, suppliers]);
+
+  const buildRFQ = (supplierName: string, tools: any[]) => {
+    const lines = tools.map((t, i) =>
+      `${i + 1}. Tool Description: ${t.tooling_description || '-'}\n   Quantity: ${t.qty || 1}\n   Material / Specification: ${t.material_spec || t.notes || '-'}\n   Drawing / Reference: ${detailPart?.part_number || '-'}${t.drawing_reference ? ` / ${t.drawing_reference}` : ''}`
+    ).join('\n\n');
+    return `Hi ${supplierName},
+
+I hope you are doing well.
+
+We would like to request a quotation and lead time for the following tooling:
+
+${lines}
+
+Could you please provide:
+- Unit price
+- Lead time
+- Any minimum order quantity (if applicable)
+- Any additional technical comments or recommendations
+
+If you require further information or clarification, please let me know.
+
+We would appreciate your feedback at your earliest convenience.
+
+Kind regards,`;
+  };
+
+  const copyRFQ = async (supplierName: string, tools: any[]) => {
+    try {
+      await navigator.clipboard.writeText(buildRFQ(supplierName, tools));
+      toast.success(`RFQ for ${supplierName} copied to clipboard`);
+    } catch {
+      toast.error('Could not copy to clipboard');
+    }
+  };
 
   if (loading) return <AppLayout title="Tooling Status" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin" /></div></AppLayout>;
 
@@ -217,6 +263,20 @@ export default function PartToolingStatus() {
                   })}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {toolsBySupplier.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">RFQ email (copy & send)</div>
+              <div className="flex flex-wrap gap-2">
+                {toolsBySupplier.map(g => (
+                  <Button key={g.name} size="sm" variant="secondary" onClick={() => copyRFQ(g.name, g.tools)}>
+                    <Copy className="h-3.5 w-3.5 mr-1.5" />
+                    Copy RFQ for {g.name} ({g.tools.length})
+                  </Button>
+                ))}
+              </div>
             </div>
           )}
 
