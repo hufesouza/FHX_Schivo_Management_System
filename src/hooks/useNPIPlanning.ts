@@ -9,6 +9,8 @@ import {
   addWorkingHours,
   idleNonWorkingDaysAfter,
 } from '@/utils/workingCalendar';
+export { isNonWorkingDay, idleNonWorkingDaysAfter } from '@/utils/workingCalendar';
+export type { CalendarSettings } from '@/utils/workingCalendar';
 
 export type Customer = {
   id: string;
