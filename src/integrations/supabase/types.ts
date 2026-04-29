@@ -1923,6 +1923,91 @@ export type Database = {
           },
         ]
       }
+      npi_part_tooling: {
+        Row: {
+          catalog_tool_id: string | null
+          created_at: string
+          expected_delivery_date: string | null
+          id: string
+          lead_time_days: number | null
+          notes: string | null
+          ordered_at: string | null
+          ordered_status: string | null
+          part_id: string
+          po: string | null
+          qty: number | null
+          received_at: string | null
+          supplier: string | null
+          supplier_id: string | null
+          tooling_description: string
+          total_cost: number | null
+          unit_cost: number | null
+          updated_at: string
+        }
+        Insert: {
+          catalog_tool_id?: string | null
+          created_at?: string
+          expected_delivery_date?: string | null
+          id?: string
+          lead_time_days?: number | null
+          notes?: string | null
+          ordered_at?: string | null
+          ordered_status?: string | null
+          part_id: string
+          po?: string | null
+          qty?: number | null
+          received_at?: string | null
+          supplier?: string | null
+          supplier_id?: string | null
+          tooling_description: string
+          total_cost?: number | null
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Update: {
+          catalog_tool_id?: string | null
+          created_at?: string
+          expected_delivery_date?: string | null
+          id?: string
+          lead_time_days?: number | null
+          notes?: string | null
+          ordered_at?: string | null
+          ordered_status?: string | null
+          part_id?: string
+          po?: string | null
+          qty?: number | null
+          received_at?: string | null
+          supplier?: string | null
+          supplier_id?: string | null
+          tooling_description?: string
+          total_cost?: number | null
+          unit_cost?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_part_tooling_catalog_tool_id_fkey"
+            columns: ["catalog_tool_id"]
+            isOneToOne: false
+            referencedRelation: "npi_tooling_catalog"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "npi_part_tooling_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "npi_parts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "npi_part_tooling_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "npi_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       npi_parts: {
         Row: {
           best_commence_date: string | null
@@ -2624,6 +2709,53 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      npi_tooling_catalog: {
+        Row: {
+          created_at: string
+          default_lead_time_days: number | null
+          default_unit_cost: number | null
+          id: string
+          notes: string | null
+          supplier: string | null
+          supplier_id: string | null
+          tool_code: string | null
+          tooling_description: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_lead_time_days?: number | null
+          default_unit_cost?: number | null
+          id?: string
+          notes?: string | null
+          supplier?: string | null
+          supplier_id?: string | null
+          tool_code?: string | null
+          tooling_description: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_lead_time_days?: number | null
+          default_unit_cost?: number | null
+          id?: string
+          notes?: string | null
+          supplier?: string | null
+          supplier_id?: string | null
+          tool_code?: string | null
+          tooling_description?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_tooling_catalog_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "npi_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       npi_tooling_tracker: {
         Row: {
