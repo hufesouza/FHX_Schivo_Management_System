@@ -27,6 +27,7 @@ const groups = [
       { id: 'jobs', title: 'Job Tracker', desc: 'All parts/jobs, ship status, and reallocation recommendations', icon: ListChecks, href: '/npi/capacity-planner/jobs', color: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
       { id: 'material', title: 'Material Tracker', desc: 'Update per-part material status (Ordered starts the lead-time clock)', icon: Package, href: '/npi/capacity-planner/material', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
       { id: 'tooling-status', title: 'Tooling Tracker', desc: 'Update per-part tooling status (Ordered starts the lead-time clock)', icon: Wrench, href: '/npi/capacity-planner/tooling-status', color: 'bg-rose-500/10 text-rose-600 border-rose-500/20' },
+      { id: 'calendar', title: 'Machine Calendar', desc: 'Visual calendar of allocations and free gaps', icon: CalendarRange, href: '/npi/capacity-planner/calendar', color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20' },
     ],
   },
   {
@@ -37,15 +38,9 @@ const groups = [
     ],
   },
   {
-    title: 'Scheduling',
-    tiles: [
-      { id: 'calendar', title: 'Machine Calendar', desc: 'Visual calendar of allocations and free gaps', icon: CalendarRange, href: '/npi/capacity-planner/calendar', color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20' },
-      { id: 'machines', title: 'Machines', desc: 'Set up machines available for NPI (name, type, daily hours)', icon: Cog, href: '/npi/capacity-planner/settings?tab=machines', color: 'bg-teal-500/10 text-teal-600 border-teal-500/20' },
-    ],
-  },
-  {
     title: 'Configuration',
     tiles: [
+      { id: 'machines', title: 'Machines', desc: 'Set up machines available for NPI (name, type, daily hours)', icon: Cog, href: '/npi/capacity-planner/settings?tab=machines', color: 'bg-teal-500/10 text-teal-600 border-teal-500/20' },
       { id: 'settings', title: 'Settings', desc: 'Customers, projects, calendar, suppliers, email recipients', icon: SettingsIcon, href: '/npi/capacity-planner/settings', color: 'bg-slate-500/10 text-slate-600 border-slate-500/20' },
     ],
   },
