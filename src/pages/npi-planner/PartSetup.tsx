@@ -208,8 +208,19 @@ export default function PartSetup() {
 
         <Card>
           <CardHeader><CardTitle className="text-base">Material</CardTitle></CardHeader>
-          <CardContent className="grid md:grid-cols-3 gap-4">
+          <CardContent className="grid md:grid-cols-4 gap-4">
             <Field label="Material"><Input value={form.material} onChange={e => set('material', e.target.value)} /></Field>
+            <Field label="Supplier">
+              <SupplierPicker
+                value={form.material_supplier_id || null}
+                displayName={form.material_supplier_name}
+                onPick={(s) => {
+                  set('material_supplier_id', s.id);
+                  set('material_supplier_name', s.supplier_name);
+                  if (!form.material_lead_time && s.default_lead_time_days) set('material_lead_time', s.default_lead_time_days);
+                }}
+              />
+            </Field>
             <Field label="Lead time (days)"><Input type="number" value={form.material_lead_time} onChange={e => set('material_lead_time', +e.target.value)} /></Field>
             <Field label="Status">
               <Select value={form.material_status} onValueChange={v => set('material_status', v)}>
