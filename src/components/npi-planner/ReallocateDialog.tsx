@@ -8,8 +8,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   Part, Machine, ScheduleEntry, MachineAvailability,
-  recommendAllocations, AllocationOption,
+  recommendAllocations, AllocationOption, CalendarSettings,
 } from '@/hooks/useNPIPlanning';
+import { DEFAULT_CALENDAR } from '@/utils/workingCalendar';
 
 interface Props {
   open: boolean;
@@ -18,6 +19,7 @@ interface Props {
   machines: Machine[];
   schedule: ScheduleEntry[];
   availability: MachineAvailability[];
+  calendar?: CalendarSettings;
   onApplied?: () => void;
 }
 
@@ -27,7 +29,7 @@ const STATUS_TONE: Record<string, string> = {
   'Late': 'bg-destructive/15 text-destructive border-destructive/30',
 };
 
-export function ReallocateDialog({ open, onOpenChange, part, machines, schedule, availability, onApplied }: Props) {
+export function ReallocateDialog({ open, onOpenChange, part, machines, schedule, availability, calendar, onApplied }: Props) {
   const [candidateIds, setCandidateIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
@@ -68,8 +70,11 @@ export function ReallocateDialog({ open, onOpenChange, part, machines, schedule,
       backendLeadTime: 0,
       bestCommenceDate: part.best_commence_date ? new Date(part.best_commence_date) : null,
       committedDate: part.committed_date ? new Date(part.committed_date) : null,
+      calendar: calendar || DEFAULT_CALENDAR,
+      devAllowWeekends: !!(part as any).dev_allow_weekends,
+      prodAllowWeekends: (part as any).prod_allow_weekends !== false,
     }).slice(0, 5);
-  }, [part, candidateIds, machines, schedule, availability]);
+  }, [part, candidateIds, machines, schedule, availability, calendar]);
 
   const apply = async (opt: AllocationOption) => {
     if (!part) return;

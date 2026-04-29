@@ -2065,6 +2065,7 @@ export type Database = {
           customer_name: string | null
           cycle_time: number | null
           description: string | null
+          dev_allow_weekends: boolean
           development_time: number | null
           engineer: string | null
           id: string
@@ -2083,6 +2084,7 @@ export type Database = {
           part_number: string
           part_revision: string | null
           po: string | null
+          prod_allow_weekends: boolean
           project_id: string | null
           project_name: string | null
           qty: number | null
@@ -2111,6 +2113,7 @@ export type Database = {
           customer_name?: string | null
           cycle_time?: number | null
           description?: string | null
+          dev_allow_weekends?: boolean
           development_time?: number | null
           engineer?: string | null
           id?: string
@@ -2129,6 +2132,7 @@ export type Database = {
           part_number: string
           part_revision?: string | null
           po?: string | null
+          prod_allow_weekends?: boolean
           project_id?: string | null
           project_name?: string | null
           qty?: number | null
@@ -2157,6 +2161,7 @@ export type Database = {
           customer_name?: string | null
           cycle_time?: number | null
           description?: string | null
+          dev_allow_weekends?: boolean
           development_time?: number | null
           engineer?: string | null
           id?: string
@@ -2175,6 +2180,7 @@ export type Database = {
           part_number?: string
           part_revision?: string | null
           po?: string | null
+          prod_allow_weekends?: boolean
           project_id?: string | null
           project_name?: string | null
           qty?: number | null
@@ -2440,6 +2446,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      npi_planner_settings: {
+        Row: {
+          country_code: string
+          country_label: string
+          created_at: string
+          id: string
+          is_active: boolean
+          updated_at: string
+          weekend_days: number[]
+        }
+        Insert: {
+          country_code?: string
+          country_label?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          weekend_days?: number[]
+        }
+        Update: {
+          country_code?: string
+          country_label?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+          weekend_days?: number[]
+        }
+        Relationships: []
       }
       npi_project_charter: {
         Row: {

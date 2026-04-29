@@ -3,7 +3,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useNPIPlanning, computeEarliestStart, Part } from '@/hooks/useNPIPlanning';
-import { Loader2, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { isNonWorkingDay, idleNonWorkingDaysAfter } from '@/utils/workingCalendar';
+import { Loader2, ChevronLeft, ChevronRight, AlertTriangle, CalendarOff } from 'lucide-react';
 import { JobActionDialog, ReadinessReport } from '@/components/npi-planner/JobActionDialog';
 import { ExpediteDialog } from '@/components/npi-planner/ExpediteDialog';
 import { ReallocateDialog } from '@/components/npi-planner/ReallocateDialog';
@@ -22,7 +23,7 @@ const isReady = (status: string | null | undefined) =>
   status === 'Received' || status === 'Not Required' || status === 'Ordered';
 
 export default function MachineCalendar() {
-  const { machines, schedule, parts, availability, reload, loading } = useNPIPlanning();
+  const { machines, schedule, parts, availability, calendarSettings, reload, loading } = useNPIPlanning();
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - d.getDay() + 1); // Monday
@@ -127,21 +128,52 @@ export default function MachineCalendar() {
               <thead>
                 <tr>
                   <th className="border p-2 bg-muted text-left sticky left-0">Machine</th>
-                  {days.map(d => (
-                    <th key={d.toISOString()} className="border p-2 bg-muted whitespace-nowrap">
-                      {d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
-                    </th>
-                  ))}
+                  {days.map(d => {
+                    const off = isNonWorkingDay(d, calendarSettings);
+                    return (
+                      <th key={d.toISOString()} className={`border p-2 whitespace-nowrap ${off ? 'bg-muted-foreground/15 text-muted-foreground' : 'bg-muted'}`}>
+                        {d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' })}
+                        {off && <CalendarOff className="h-3 w-3 inline ml-1" />}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
-                {machines.map(m => (
+                {machines.map(m => {
+                  // Detect "idle weekend" risk for this row
+                  const machineEntries = schedule
+                    .filter(s => s.machine_id === m.id && s.allocation_status !== 'Cancelled' && s.allocation_status !== 'Completed')
+                    .map(s => ({ ...s, _start: new Date(s.start_date), _end: new Date(s.end_date) }))
+                    .sort((a, b) => a._start.getTime() - b._start.getTime());
+                  const idleSpans: { after: Date; days: number }[] = [];
+                  for (let i = 0; i < machineEntries.length; i++) {
+                    const cur = machineEntries[i];
+                    const next = machineEntries[i + 1] || null;
+                    const idle = idleNonWorkingDaysAfter(cur._end, next?._start || null, calendarSettings);
+                    if (idle >= 2) idleSpans.push({ after: cur._end, days: idle });
+                  }
+                  return (
                   <tr key={m.id}>
-                    <td className="border p-2 font-medium sticky left-0 bg-background">{m.machine_name}</td>
+                    <td className="border p-2 font-medium sticky left-0 bg-background">
+                      <div className="flex items-center gap-2">
+                        <span>{m.machine_name}</span>
+                        {idleSpans.length > 0 && (
+                          <span title={`Idle ${idleSpans[0].days} non-working days after ${format(idleSpans[0].after, 'MMM d')} — consider a weekend-bridging job`}
+                                className="text-amber-600 flex items-center gap-0.5 text-[10px] font-normal">
+                            <CalendarOff className="h-3 w-3" /> idle wknd
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     {days.map(d => {
                       const entries = cellEntries(m.id, d);
+                      const off = isNonWorkingDay(d, calendarSettings);
+                      const baseBg = off
+                        ? 'bg-muted-foreground/10'
+                        : entries.length === 0 ? 'bg-emerald-50' : entries.length > 1 ? 'bg-destructive/10' : 'bg-blue-50';
                       return (
-                        <td key={d.toISOString()} className={`border p-1 align-top ${entries.length === 0 ? 'bg-emerald-50' : entries.length > 1 ? 'bg-destructive/10' : 'bg-blue-50'}`} style={{minWidth:80}}>
+                        <td key={d.toISOString()} className={`border p-1 align-top ${baseBg}`} style={{minWidth:80}}>
                           {entries.map(e => {
                             const part = parts.find(p => p.id === e.part_id);
                             const report = part ? buildReport(e, part) : null;
@@ -172,7 +204,8 @@ export default function MachineCalendar() {
                       );
                     })}
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </CardContent>
@@ -181,8 +214,10 @@ export default function MachineCalendar() {
           <span><span className="inline-block w-3 h-3 bg-emerald-50 border align-middle mr-1" />Available</span>
           <span><span className="inline-block w-3 h-3 bg-blue-50 border align-middle mr-1" />Allocated</span>
           <span><span className="inline-block w-3 h-3 bg-destructive/10 border align-middle mr-1" />Overloaded</span>
+          <span><span className="inline-block w-3 h-3 bg-muted-foreground/10 border align-middle mr-1" />Non-working day ({calendarSettings.countryLabel})</span>
           <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-destructive" /> Not ready — material/tooling not ordered or schedule will slip</span>
           <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-destructive" /> Schedule overlap</span>
+          <span className="flex items-center gap-1"><CalendarOff className="h-3 w-3 text-amber-600" /> Idle weekend — consider a longer/weekend-OK job to bridge</span>
           <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-emerald-500/15 border border-emerald-500/30" /> Ready — on track for scheduled start</span>
         </div>
       </main>
@@ -203,6 +238,7 @@ export default function MachineCalendar() {
         machines={machines}
         schedule={schedule}
         availability={availability}
+        calendar={calendarSettings}
         onApplied={reload}
       />
 

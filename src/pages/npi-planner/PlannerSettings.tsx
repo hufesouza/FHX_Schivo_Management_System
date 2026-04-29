@@ -12,6 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useNPIPlanning } from '@/hooks/useNPIPlanning';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { COUNTRY_OPTIONS } from '@/utils/workingCalendar';
 import { toast } from 'sonner';
 
 export default function PlannerSettings() {
@@ -22,19 +24,21 @@ export default function PlannerSettings() {
   if (loading) return <AppLayout title="Settings" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin"/></div></AppLayout>;
 
   return (
-    <AppLayout title="Settings" subtitle="Master data & email recipients" showBackButton backTo="/npi/capacity-planner">
+    <AppLayout title="Settings" subtitle="Master data, calendar & email recipients" showBackButton backTo="/npi/capacity-planner">
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue={initialTab}>
           <TabsList>
             <TabsTrigger value="machines">Machines</TabsTrigger>
             <TabsTrigger value="customers">Customers</TabsTrigger>
             <TabsTrigger value="projects">Projects</TabsTrigger>
+            <TabsTrigger value="calendar">Calendar</TabsTrigger>
             <TabsTrigger value="emails">Email recipients</TabsTrigger>
           </TabsList>
 
           <TabsContent value="machines"><MachinesTab machines={machines} reload={reload} /></TabsContent>
           <TabsContent value="customers"><CustomersTab customers={customers} reload={reload} /></TabsContent>
           <TabsContent value="projects"><ProjectsTab projects={projects} customers={customers} reload={reload} /></TabsContent>
+          <TabsContent value="calendar"><CalendarTab reload={reload} /></TabsContent>
           <TabsContent value="emails"><EmailsTab recipients={recipients} reload={reload} /></TabsContent>
         </Tabs>
       </main>
@@ -266,6 +270,91 @@ function EmailsTab({ recipients, reload }: any) {
             ))}
           </TableBody>
         </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function CalendarTab({ reload }: any) {
+  const [row, setRow] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const load = async () => {
+    setLoading(true);
+    const { data } = await supabase.from('npi_planner_settings')
+      .select('*').eq('is_active', true)
+      .order('updated_at', { ascending: false }).limit(1).maybeSingle();
+    setRow(data || { country_code: 'IE', country_label: 'Ireland', weekend_days: [0, 6], is_active: true });
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const save = async () => {
+    if (!row) return;
+    const country = COUNTRY_OPTIONS.find(c => c.code === row.country_code);
+    const payload = {
+      country_code: row.country_code,
+      country_label: country?.label || row.country_label,
+      weekend_days: row.weekend_days,
+      is_active: true,
+    };
+    const { error } = row.id
+      ? await supabase.from('npi_planner_settings').update(payload).eq('id', row.id)
+      : await supabase.from('npi_planner_settings').insert(payload);
+    if (error) return toast.error(error.message);
+    toast.success('Calendar settings saved');
+    await reload();
+    load();
+  };
+
+  const toggleWeekend = (idx: number) => {
+    const set = new Set<number>(row.weekend_days || []);
+    if (set.has(idx)) set.delete(idx); else set.add(idx);
+    setRow({ ...row, weekend_days: Array.from(set).sort((a, b) => a - b) });
+  };
+
+  if (loading) return <div className="py-8 text-center"><Loader2 className="animate-spin inline" /></div>;
+
+  return (
+    <Card className="mt-4">
+      <CardHeader>
+        <CardTitle className="text-base">Working calendar</CardTitle>
+        <p className="text-xs text-muted-foreground mt-1">
+          Used by all allocation, calendar & utilisation calculations. Bank/public holidays for the
+          selected country are loaded automatically.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid md:grid-cols-2 gap-4 max-w-xl">
+          <div>
+            <Label className="text-xs">Country</Label>
+            <Select value={row.country_code} onValueChange={v => setRow({ ...row, country_code: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {COUNTRY_OPTIONS.map(c => (
+                  <SelectItem key={c.code} value={c.code}>{c.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <div>
+          <Label className="text-xs">Weekend days (excluded from working time by default)</Label>
+          <div className="flex flex-wrap gap-3 mt-2">
+            {WEEKDAY_LABELS.map((lbl, idx) => (
+              <label key={idx} className="flex items-center gap-2 border rounded-md px-3 py-1.5 cursor-pointer hover:bg-muted/40">
+                <Checkbox
+                  checked={(row.weekend_days || []).includes(idx)}
+                  onCheckedChange={() => toggleWeekend(idx)}
+                />
+                <span className="text-sm">{lbl}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <Button onClick={save}>Save calendar settings</Button>
       </CardContent>
     </Card>
   );

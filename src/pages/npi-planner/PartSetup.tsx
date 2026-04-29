@@ -27,7 +27,7 @@ const OVERALL_STATUSES = ['Not Started','Awaiting Material','Awaiting Tooling','
 
 export default function PartSetup() {
   const navigate = useNavigate();
-  const { customers, projects, machines, schedule, availability, loading, reload } = useNPIPlanning();
+  const { customers, projects, machines, schedule, availability, calendarSettings, loading, reload } = useNPIPlanning();
   const [saving, setSaving] = useState(false);
   const [options, setOptions] = useState<AllocationOption[]>([]);
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
@@ -47,6 +47,7 @@ export default function PartSetup() {
     cycle_time: 0, development_time: 0,
     subcon_supplier_id: '', supplier_name: '', type_of_service: '', subcon_lead_time: 0, subcon_status: 'Not Required',
     sales_price: 0, notes: '', overall_status: 'Not Started',
+    dev_allow_weekends: false, prod_allow_weekends: true,
   });
 
   const totalRequired = (Number(form.development_time) || 0) + (Number(form.cycle_time) || 0) * (Number(form.qty) || 0);
@@ -88,6 +89,9 @@ export default function PartSetup() {
       backendLeadTime: 0,
       bestCommenceDate: null,
       committedDate: form.committed_date ? new Date(form.committed_date) : null,
+      calendar: calendarSettings,
+      devAllowWeekends: !!form.dev_allow_weekends,
+      prodAllowWeekends: !!form.prod_allow_weekends,
     });
     setOptions(opts);
     if (opts.length === 0) {
@@ -315,6 +319,22 @@ export default function PartSetup() {
               </Select>
             </Field>
             <Field label="Notes" className="md:col-span-3"><Textarea rows={2} value={form.notes} onChange={e => set('notes', e.target.value)} /></Field>
+            <div className="md:col-span-3 grid md:grid-cols-2 gap-3 pt-2 border-t">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <Checkbox checked={!!form.dev_allow_weekends} onCheckedChange={v => set('dev_allow_weekends', !!v)} />
+                <div>
+                  <div className="text-sm font-medium">Development allowed on weekends/bank holidays</div>
+                  <div className="text-xs text-muted-foreground">If unchecked, development time only schedules on working days ({calendarSettings.countryLabel}).</div>
+                </div>
+              </label>
+              <label className="flex items-start gap-2 cursor-pointer">
+                <Checkbox checked={!!form.prod_allow_weekends} onCheckedChange={v => set('prod_allow_weekends', !!v)} />
+                <div>
+                  <div className="text-sm font-medium">Production allowed on weekends/bank holidays</div>
+                  <div className="text-xs text-muted-foreground">When ticked, machining can run continuously through weekends &amp; holidays — preferred for long jobs.</div>
+                </div>
+              </label>
+            </div>
           </CardContent>
         </Card>
 

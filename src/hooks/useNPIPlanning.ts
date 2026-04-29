@@ -1,6 +1,16 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  CalendarSettings,
+  DEFAULT_CALENDAR,
+  isNonWorkingDay,
+  nextWorkingDay,
+  addWorkingHours,
+  idleNonWorkingDaysAfter,
+} from '@/utils/workingCalendar';
+export { isNonWorkingDay, idleNonWorkingDaysAfter } from '@/utils/workingCalendar';
+export type { CalendarSettings } from '@/utils/workingCalendar';
 
 export type Customer = {
   id: string;
@@ -68,6 +78,8 @@ export type Part = {
   subcon_status: string | null;
   sales_price: number | null;
   notes: string | null;
+  dev_allow_weekends: boolean | null;
+  prod_allow_weekends: boolean | null;
   created_at: string;
   updated_at: string;
 };
@@ -142,11 +154,12 @@ export const useNPIPlanning = () => {
   const [materialsCatalog, setMaterialsCatalog] = useState<any[]>([]);
   const [recipients, setRecipients] = useState<EmailRecipient[]>([]);
   const [availability, setAvailability] = useState<MachineAvailability[]>([]);
+  const [calendarSettings, setCalendarSettings] = useState<CalendarSettings>(DEFAULT_CALENDAR);
   const [loading, setLoading] = useState(true);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [c, p, m, pa, s, t, tc, pt, mc, r, a] = await Promise.all([
+    const [c, p, m, pa, s, t, tc, pt, mc, r, a, cs] = await Promise.all([
       supabase.from('npi_customers').select('*').order('customer_name'),
       supabase.from('npi_projects_planning').select('*').order('project_name'),
       supabase.from('npi_machines').select('*').order('machine_name'),
@@ -158,6 +171,7 @@ export const useNPIPlanning = () => {
       supabase.from('npi_materials_catalog').select('*').order('material_description'),
       supabase.from('npi_email_recipients').select('*').order('role'),
       supabase.from('npi_machine_availability').select('*').order('start_date'),
+      supabase.from('npi_planner_settings').select('*').eq('is_active', true).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
     setCustomers((c.data as any) || []);
     setProjects((p.data as any) || []);
@@ -170,6 +184,13 @@ export const useNPIPlanning = () => {
     setMaterialsCatalog((mc.data as any) || []);
     setRecipients((r.data as any) || []);
     setAvailability((a.data as any) || []);
+    if (cs.data) {
+      setCalendarSettings({
+        countryCode: (cs.data as any).country_code,
+        countryLabel: (cs.data as any).country_label,
+        weekendDays: (cs.data as any).weekend_days || [0, 6],
+      });
+    }
     setLoading(false);
   }, []);
 
@@ -179,6 +200,7 @@ export const useNPIPlanning = () => {
 
   return {
     customers, projects, machines, parts, schedule, tooling, toolingCatalog, partTooling, materialsCatalog, recipients, availability,
+    calendarSettings,
     loading, reload: loadAll,
     setCustomers, setProjects, setMachines, setParts, setSchedule, setTooling, setRecipients,
   };
@@ -245,12 +267,17 @@ export const computeEarliestStart = (params: {
 
 // Find next gap that fits required time within machine's existing schedule
 // AND inside one of its NPI availability windows.
+// When `calendar` + `respectCalendar` are supplied, machining hours skip non-working days
+// (weekends/holidays). When `respectCalendar` is false (production allowed weekends), the
+// job runs continuously through the gap.
 export const findNextGap = (
   machine: Machine,
   schedule: ScheduleEntry[],
   availability: MachineAvailability[],
   requiredHours: number,
   earliestStart: Date,
+  calendar?: CalendarSettings,
+  respectCalendar: boolean = false,
 ): { start: Date; end: Date } | null => {
   const dailyHours = Number(machine.daily_available_hours) || 24;
   const requiredMs = (requiredHours / dailyHours) * 24 * 3600 * 1000;
@@ -264,13 +291,33 @@ export const findNextGap = (
     .filter(a => a.machine_id === machine.id)
     .map(a => ({
       start: new Date(a.start_date + 'T00:00:00'),
-      // end_date is inclusive day; treat as end of that day
       end: new Date(a.end_date + 'T23:59:59'),
     }))
     .sort((a, b) => a.start.getTime() - b.start.getTime());
 
-  // If no windows defined, machine is never available for NPI
   if (windows.length === 0) return null;
+
+  const computeEnd = (start: Date): Date => {
+    if (calendar && respectCalendar) {
+      // Skip non-working days when consuming hours
+      return addWorkingHours(start, requiredHours, dailyHours, calendar, true);
+    }
+    return new Date(start.getTime() + requiredMs);
+  };
+
+  // Bump cursor forward to a working day if the calendar requires it
+  const bumpToWorking = (d: Date): Date => {
+    if (calendar && respectCalendar) return nextWorkingDay(d, calendar);
+    return d;
+  };
+
+  const fitsBefore = (start: Date, hardEnd: Date): { start: Date; end: Date } | null => {
+    const adjusted = bumpToWorking(start);
+    if (adjusted >= hardEnd) return null;
+    const end = computeEnd(adjusted);
+    if (end <= hardEnd) return { start: adjusted, end };
+    return null;
+  };
 
   for (const win of windows) {
     if (win.end <= earliestStart) continue;
@@ -281,17 +328,15 @@ export const findNextGap = (
     let placed = false;
     for (const slot of slotsInWindow) {
       if (slot.end <= cursor) continue;
-      const availableMs = slot.start.getTime() - cursor.getTime();
-      if (availableMs >= requiredMs) {
-        return { start: cursor, end: new Date(cursor.getTime() + requiredMs) };
-      }
+      const fit = fitsBefore(cursor, slot.start);
+      if (fit) return fit;
       if (slot.end > cursor) cursor = new Date(slot.end);
       if (cursor >= win.end) { placed = true; break; }
     }
 
-    // Try after the last booking inside this window
-    if (!placed && win.end.getTime() - cursor.getTime() >= requiredMs) {
-      return { start: cursor, end: new Date(cursor.getTime() + requiredMs) };
+    if (!placed) {
+      const fit = fitsBefore(cursor, win.end);
+      if (fit) return fit;
     }
   }
   return null;
@@ -299,21 +344,25 @@ export const findNextGap = (
 
 export type AllocationInputs = {
   qty: number;
-  cycleTimeHrs: number;          // hrs per piece
-  developmentTimeHrs: number;    // one-off setup/dev hrs
+  cycleTimeHrs: number;
+  developmentTimeHrs: number;
   materialLeadTime: number | null;
   materialStatus: string | null;
   materialOrderedAt?: Date | string | null;
   materialReceivedAt?: Date | string | null;
-  toolingLeadTime: number | null;  // already MAX across tools
+  toolingLeadTime: number | null;
   toolingStatus: string | null;
   toolingOrderedAt?: Date | string | null;
   toolingReceivedAt?: Date | string | null;
   subconRequired: boolean;
-  subconLeadTime: number | null;   // days, after machining
-  backendLeadTime?: number | null; // days, deburr/wash/inspection (default 0)
+  subconLeadTime: number | null;
+  backendLeadTime?: number | null;
   bestCommenceDate: Date | null;
   committedDate: Date | null;
+  // Calendar / weekend permissions
+  calendar?: CalendarSettings;
+  devAllowWeekends?: boolean;   // if false, dev hours skip non-working days
+  prodAllowWeekends?: boolean;  // if false, production hours skip non-working days
 };
 
 export const recommendAllocations = (
@@ -322,11 +371,20 @@ export const recommendAllocations = (
   availability: MachineAvailability[],
   inputs: AllocationInputs,
 ): AllocationOption[] => {
-  const totalMachiningHrs =
-    (Number(inputs.developmentTimeHrs) || 0) +
-    (Number(inputs.cycleTimeHrs) || 0) * (Number(inputs.qty) || 0);
+  const devHrs = Number(inputs.developmentTimeHrs) || 0;
+  const prodHrs = (Number(inputs.cycleTimeHrs) || 0) * (Number(inputs.qty) || 0);
+  const totalMachiningHrs = devHrs + prodHrs;
 
-  const earliestStart = computeEarliestStart({
+  // If dev and prod have different weekend rules, the most restrictive wins for the combined
+  // scheduling block (we treat dev + prod as one continuous machine booking). This is a
+  // pragmatic choice: if EITHER stage forbids weekends, the block respects the calendar.
+  const calendar = inputs.calendar;
+  const respectCalendar = !!calendar && (
+    (devHrs > 0 && inputs.devAllowWeekends === false) ||
+    (prodHrs > 0 && inputs.prodAllowWeekends === false)
+  );
+
+  let earliestStart = computeEarliestStart({
     materialLeadTime: inputs.materialLeadTime,
     materialStatus: inputs.materialStatus,
     materialOrderedAt: inputs.materialOrderedAt,
@@ -337,6 +395,9 @@ export const recommendAllocations = (
     toolingReceivedAt: inputs.toolingReceivedAt,
     bestCommenceDate: inputs.bestCommenceDate,
   });
+  if (calendar && respectCalendar) {
+    earliestStart = nextWorkingDay(earliestStart, calendar);
+  }
 
   const backendDays =
     (Number(inputs.backendLeadTime) || 0) +
@@ -349,7 +410,7 @@ export const recommendAllocations = (
   const options = candidateMachines
     .filter(m => m.status === 'Available')
     .map(m => {
-      const gap = findNextGap(m, schedule, availability, totalMachiningHrs, earliestStart);
+      const gap = findNextGap(m, schedule, availability, totalMachiningHrs, earliestStart, calendar, respectCalendar);
       if (!gap) return null;
 
       const machiningStart = gap.start;
@@ -368,6 +429,25 @@ export const recommendAllocations = (
         status = overdueDays > 3 ? 'Late' : 'At Risk';
       }
 
+      // Idle weekend bonus: jobs that bridge a weekend (run continuously through it)
+      // get a small score boost so the engine prefers them when committed dates allow.
+      let weekendBonus = 0;
+      let weekendNote = '';
+      if (calendar && inputs.prodAllowWeekends && !respectCalendar) {
+        // count non-working days swallowed by the booking
+        const cursor = new Date(machiningStart);
+        cursor.setHours(0, 0, 0, 0);
+        let bridged = 0;
+        while (cursor < machiningEnd) {
+          if (isNonWorkingDay(cursor, calendar)) bridged++;
+          cursor.setDate(cursor.getDate() + 1);
+        }
+        if (bridged > 0) {
+          weekendBonus = bridged * 12 * 3600 * 1000; // half-day bonus per bridged non-working day
+          weekendNote = `Bridges ${bridged} non-working day${bridged > 1 ? 's' : ''} — improves machine utilisation`;
+        }
+      }
+
       const reasonParts: string[] = [];
       if (constraintLabel && earliestStart.getTime() > Date.now()) {
         reasonParts.push(`Earliest start delayed by ${constraintLabel} (${Math.max(matDays, toolDays)}d)`);
@@ -375,14 +455,14 @@ export const recommendAllocations = (
       if (machiningStart.getTime() > earliestStart.getTime() + 24 * 3600 * 1000) {
         reasonParts.push('Waiting for machine availability');
       }
-      if (backendDays > 0) {
-        reasonParts.push(`+${backendDays}d backend/subcon`);
+      if (respectCalendar) {
+        reasonParts.push('Calendar-aware: skips weekends/holidays');
       }
-      if (!meetsCommitted) {
-        reasonParts.push('Cannot meet committed date with current constraints');
-      }
+      if (weekendNote) reasonParts.push(weekendNote);
+      if (backendDays > 0) reasonParts.push(`+${backendDays}d backend/subcon`);
+      if (!meetsCommitted) reasonParts.push('Cannot meet committed date with current constraints');
 
-      const score = shipDate.getTime() + (meetsCommitted ? 0 : 1e12);
+      const score = shipDate.getTime() - weekendBonus + (meetsCommitted ? 0 : 1e12);
 
       return {
         machine: m,
