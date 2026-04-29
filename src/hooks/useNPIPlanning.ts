@@ -1,6 +1,14 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import {
+  CalendarSettings,
+  DEFAULT_CALENDAR,
+  isNonWorkingDay,
+  nextWorkingDay,
+  addWorkingHours,
+  idleNonWorkingDaysAfter,
+} from '@/utils/workingCalendar';
 
 export type Customer = {
   id: string;
@@ -68,6 +76,8 @@ export type Part = {
   subcon_status: string | null;
   sales_price: number | null;
   notes: string | null;
+  dev_allow_weekends: boolean | null;
+  prod_allow_weekends: boolean | null;
   created_at: string;
   updated_at: string;
 };
