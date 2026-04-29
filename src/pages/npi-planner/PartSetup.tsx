@@ -119,9 +119,9 @@ export default function PartSetup() {
         machine_id: machine?.id || null,
         machine_name: machine?.machine_name || null,
         tooling_lead_time: maxToolLead || form.tooling_lead_time || 0,
-        total_required_time: totalRequired,
       };
       delete partData.id;
+      delete partData.total_required_time;
 
       const part = await upsertPart(partData, machineOptionIds);
 
