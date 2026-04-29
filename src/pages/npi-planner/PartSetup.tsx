@@ -49,7 +49,7 @@ export default function PartSetup() {
     sales_price: 0, notes: '', overall_status: 'Not Started',
   });
 
-  const totalRequired = (Number(form.cycle_time) || 0) + (Number(form.development_time) || 0);
+  const totalRequired = (Number(form.development_time) || 0) + (Number(form.cycle_time) || 0) * (Number(form.qty) || 0);
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
