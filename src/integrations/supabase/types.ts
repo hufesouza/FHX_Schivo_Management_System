@@ -1887,6 +1887,53 @@ export type Database = {
         }
         Relationships: []
       }
+      npi_materials_catalog: {
+        Row: {
+          created_at: string
+          default_lead_time_days: number | null
+          default_unit_cost: number | null
+          id: string
+          material_code: string | null
+          material_description: string
+          notes: string | null
+          supplier: string | null
+          supplier_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          default_lead_time_days?: number | null
+          default_unit_cost?: number | null
+          id?: string
+          material_code?: string | null
+          material_description: string
+          notes?: string | null
+          supplier?: string | null
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          default_lead_time_days?: number | null
+          default_unit_cost?: number | null
+          id?: string
+          material_code?: string | null
+          material_description?: string
+          notes?: string | null
+          supplier?: string | null
+          supplier_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_materials_catalog_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "npi_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       npi_part_machine_options: {
         Row: {
           created_at: string
@@ -2024,6 +2071,7 @@ export type Database = {
           machine_id: string | null
           machine_name: string | null
           material: string | null
+          material_catalog_id: string | null
           material_lead_time: number | null
           material_ordered_at: string | null
           material_received_at: string | null
@@ -2069,6 +2117,7 @@ export type Database = {
           machine_id?: string | null
           machine_name?: string | null
           material?: string | null
+          material_catalog_id?: string | null
           material_lead_time?: number | null
           material_ordered_at?: string | null
           material_received_at?: string | null
@@ -2114,6 +2163,7 @@ export type Database = {
           machine_id?: string | null
           machine_name?: string | null
           material?: string | null
+          material_catalog_id?: string | null
           material_lead_time?: number | null
           material_ordered_at?: string | null
           material_received_at?: string | null
@@ -2157,6 +2207,13 @@ export type Database = {
             columns: ["machine_id"]
             isOneToOne: false
             referencedRelation: "npi_machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "npi_parts_material_catalog_id_fkey"
+            columns: ["material_catalog_id"]
+            isOneToOne: false
+            referencedRelation: "npi_materials_catalog"
             referencedColumns: ["id"]
           },
           {
