@@ -8,9 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useNPIPlanning } from '@/hooks/useNPIPlanning';
-import { Loader2, Plus, Check } from 'lucide-react';
+import { Loader2, Plus, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
+const TOOLING_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 
 const STATUS_TONE: Record<string, string> = {
   'Not Started': 'bg-slate-200 text-slate-700',
