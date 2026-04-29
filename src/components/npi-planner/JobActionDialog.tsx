@@ -39,7 +39,11 @@ const Row = ({ ok, label, detail }: { ok: boolean; label: string; detail: string
 
 export function JobActionDialog({ open, onOpenChange, part, report, onReallocate, onExpedite }: Props) {
   if (!part || !report) return null;
-  const blocked = report.driftDays > 0 || report.hasOverlap;
+  // Use whole-day drift to avoid sub-day timezone noise creating phantom "+1d slip"
+  const driftWholeDays = Math.round(report.driftDays);
+  const slipped = driftWholeDays > 0;
+  const clockNotStarted = !report.matReady || !report.toolReady;
+  const blocked = slipped || report.hasOverlap;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
