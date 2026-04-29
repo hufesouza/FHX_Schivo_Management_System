@@ -311,13 +311,12 @@ export default function PartSetup() {
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" size="sm" onClick={() => setMachineOptionIds(machines.map(m => m.id))} disabled={!machines.length}>Select all</Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => setMachineOptionIds([])} disabled={!machineOptionIds.length}>Clear</Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setMachineDialogOpen(true)}><Plus className="h-4 w-4 mr-1" />Add machine</Button>
                 </div>
               </div>
               <Input placeholder="Search machines..." value={machineSearch} onChange={e => setMachineSearch(e.target.value)} className="mb-2" />
               {machines.length === 0 ? (
                 <div className="text-sm text-muted-foreground border rounded-md p-4 text-center">
-                  No NPI machines yet. Click <strong>Add machine</strong> to register the machines available for NPI.
+                  No NPI machines yet. Set them up in the <a href="/npi/capacity-planner/settings?tab=machines" className="underline text-primary">Machines</a> page from the Capacity Planner front page.
                 </div>
               ) : (
                 <>
