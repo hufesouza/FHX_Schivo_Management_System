@@ -99,6 +99,7 @@ const App = () => (
           <Route path="/npi/capacity-planner/capacity" element={<MachineCapacity />} />
           <Route path="/npi/capacity-planner/tooling" element={<ToolingTracker />} />
           <Route path="/npi/capacity-planner/material" element={<MaterialTracker />} />
+          <Route path="/npi/capacity-planner/materials-catalog" element={<MaterialsCatalog />} />
           <Route path="/npi/capacity-planner/tooling-status" element={<PartToolingStatus />} />
           <Route path="/npi/capacity-planner/reports" element={<PlannerReports />} />
           <Route path="/npi/capacity-planner/settings" element={<PlannerSettings />} />
