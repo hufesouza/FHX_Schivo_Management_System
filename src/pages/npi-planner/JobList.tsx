@@ -68,6 +68,25 @@ export default function JobList() {
     reload();
   };
 
+  const unship = async (partId: string) => {
+    if (!confirm('Mark this part as not shipped?')) return;
+    setSavingId(partId);
+    const { error } = await supabase
+      .from('npi_parts')
+      .update({ ship_date: null, overall_status: 'In Production' })
+      .eq('id', partId);
+    setSavingId(null);
+    if (error) return toast.error(error.message);
+    toast.success('Part unshipped');
+    reload();
+  };
+
+  const updateStatus = async (partId: string, field: 'material_status' | 'tooling_status', value: string) => {
+    const { error } = await supabase.from('npi_parts').update({ [field]: value }).eq('id', partId);
+    if (error) return toast.error(error.message);
+    reload();
+  };
+
   if (loading) return <AppLayout title="Jobs" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin" /></div></AppLayout>;
 
   return (
