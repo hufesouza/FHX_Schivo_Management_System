@@ -94,8 +94,8 @@ export function ToolingListEditor({
       tooling_description: tool.description,
       supplier: tool.supplier,
       supplier_id: tool.supplier_id,
-      unit_cost: Number(tool.unit_cost) || 0,
-      lead_time_days: tool.lead_time_days ?? 0,
+      unit_cost: Number(tool.default_unit_cost) || 0,
+      lead_time_days: tool.default_lead_time_days ?? 0,
     });
   };
 
