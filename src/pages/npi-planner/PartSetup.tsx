@@ -114,6 +114,38 @@ export default function PartSetup() {
         });
       }
 
+      // Persist tooling lines + upsert catalog entries
+      if (part && toolLines.length > 0) {
+        const rows = toolLines
+          .filter(t => t.tooling_description?.trim())
+          .map(t => ({
+            part_id: part.id,
+            part_number: part.part_number,
+            po: form.po || null,
+            tooling_description: t.tooling_description,
+            supplier: t.supplier || null,
+            qty: Number(t.qty) || 1,
+            unit_cost: Number(t.unit_cost) || 0,
+            total_cost: (Number(t.qty) || 0) * (Number(t.unit_cost) || 0),
+            expected_delivery_date: t.expected_delivery_date || null,
+            ordered_status: t.ordered_status || 'Not Ordered',
+            required_status: 'Required',
+            catalog_tool_id: t.catalog_tool_id || null,
+          }));
+        if (rows.length) await supabase.from('npi_tooling_tracker').insert(rows as any);
+
+        // Add brand-new tools to catalog (no catalog_tool_id, has description)
+        const newCatalog = toolLines
+          .filter(t => !t.catalog_tool_id && t.tooling_description?.trim() && t.save_to_catalog !== false)
+          .map(t => ({
+            tool_code: t.tool_code || null,
+            description: t.tooling_description,
+            supplier: t.supplier || null,
+            unit_cost: Number(t.unit_cost) || 0,
+          }));
+        if (newCatalog.length) await supabase.from('npi_tools_catalog').insert(newCatalog as any);
+      }
+
       toast.success('Part created and allocated');
       reload();
       navigate('/npi/capacity-planner/jobs');
