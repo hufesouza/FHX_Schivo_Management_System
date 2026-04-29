@@ -70,8 +70,11 @@ export function ReallocateDialog({ open, onOpenChange, part, machines, schedule,
       backendLeadTime: 0,
       bestCommenceDate: part.best_commence_date ? new Date(part.best_commence_date) : null,
       committedDate: part.committed_date ? new Date(part.committed_date) : null,
+      calendar: calendar || DEFAULT_CALENDAR,
+      devAllowWeekends: !!(part as any).dev_allow_weekends,
+      prodAllowWeekends: (part as any).prod_allow_weekends !== false,
     }).slice(0, 5);
-  }, [part, candidateIds, machines, schedule, availability]);
+  }, [part, candidateIds, machines, schedule, availability, calendar]);
 
   const apply = async (opt: AllocationOption) => {
     if (!part) return;
