@@ -152,11 +152,12 @@ export const useNPIPlanning = () => {
   const [materialsCatalog, setMaterialsCatalog] = useState<any[]>([]);
   const [recipients, setRecipients] = useState<EmailRecipient[]>([]);
   const [availability, setAvailability] = useState<MachineAvailability[]>([]);
+  const [calendarSettings, setCalendarSettings] = useState<CalendarSettings>(DEFAULT_CALENDAR);
   const [loading, setLoading] = useState(true);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [c, p, m, pa, s, t, tc, pt, mc, r, a] = await Promise.all([
+    const [c, p, m, pa, s, t, tc, pt, mc, r, a, cs] = await Promise.all([
       supabase.from('npi_customers').select('*').order('customer_name'),
       supabase.from('npi_projects_planning').select('*').order('project_name'),
       supabase.from('npi_machines').select('*').order('machine_name'),
@@ -168,6 +169,7 @@ export const useNPIPlanning = () => {
       supabase.from('npi_materials_catalog').select('*').order('material_description'),
       supabase.from('npi_email_recipients').select('*').order('role'),
       supabase.from('npi_machine_availability').select('*').order('start_date'),
+      supabase.from('npi_planner_settings').select('*').eq('is_active', true).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
     setCustomers((c.data as any) || []);
     setProjects((p.data as any) || []);
@@ -180,6 +182,13 @@ export const useNPIPlanning = () => {
     setMaterialsCatalog((mc.data as any) || []);
     setRecipients((r.data as any) || []);
     setAvailability((a.data as any) || []);
+    if (cs.data) {
+      setCalendarSettings({
+        countryCode: (cs.data as any).country_code,
+        countryLabel: (cs.data as any).country_label,
+        weekendDays: (cs.data as any).weekend_days || [0, 6],
+      });
+    }
     setLoading(false);
   }, []);
 
@@ -189,6 +198,7 @@ export const useNPIPlanning = () => {
 
   return {
     customers, projects, machines, parts, schedule, tooling, toolingCatalog, partTooling, materialsCatalog, recipients, availability,
+    calendarSettings,
     loading, reload: loadAll,
     setCustomers, setProjects, setMachines, setParts, setSchedule, setTooling, setRecipients,
   };
