@@ -137,19 +137,23 @@ export const useNPIPlanning = () => {
   const [parts, setParts] = useState<Part[]>([]);
   const [schedule, setSchedule] = useState<ScheduleEntry[]>([]);
   const [tooling, setTooling] = useState<ToolingItem[]>([]);
+  const [toolingCatalog, setToolingCatalog] = useState<any[]>([]);
+  const [partTooling, setPartTooling] = useState<any[]>([]);
   const [recipients, setRecipients] = useState<EmailRecipient[]>([]);
   const [availability, setAvailability] = useState<MachineAvailability[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
-    const [c, p, m, pa, s, t, r, a] = await Promise.all([
+    const [c, p, m, pa, s, t, tc, pt, r, a] = await Promise.all([
       supabase.from('npi_customers').select('*').order('customer_name'),
       supabase.from('npi_projects_planning').select('*').order('project_name'),
       supabase.from('npi_machines').select('*').order('machine_name'),
       supabase.from('npi_parts').select('*').order('created_at', { ascending: false }),
       supabase.from('npi_machine_schedule').select('*').order('start_date'),
       supabase.from('npi_tooling_tracker').select('*').order('expected_delivery_date'),
+      supabase.from('npi_tooling_catalog').select('*').order('tooling_description'),
+      supabase.from('npi_part_tooling').select('*').order('created_at', { ascending: false }),
       supabase.from('npi_email_recipients').select('*').order('role'),
       supabase.from('npi_machine_availability').select('*').order('start_date'),
     ]);
@@ -159,6 +163,8 @@ export const useNPIPlanning = () => {
     setParts((pa.data as any) || []);
     setSchedule((s.data as any) || []);
     setTooling((t.data as any) || []);
+    setToolingCatalog((tc.data as any) || []);
+    setPartTooling((pt.data as any) || []);
     setRecipients((r.data as any) || []);
     setAvailability((a.data as any) || []);
     setLoading(false);
@@ -169,7 +175,7 @@ export const useNPIPlanning = () => {
   }, [loadAll]);
 
   return {
-    customers, projects, machines, parts, schedule, tooling, recipients, availability,
+    customers, projects, machines, parts, schedule, tooling, toolingCatalog, partTooling, recipients, availability,
     loading, reload: loadAll,
     setCustomers, setProjects, setMachines, setParts, setSchedule, setTooling, setRecipients,
   };
