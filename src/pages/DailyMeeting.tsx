@@ -124,7 +124,7 @@ const DailyMeeting = () => {
   
   // Track if initial load is complete to avoid auto-saving on mount
   const isInitialLoadComplete = useRef(false);
-  const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   // Action items state
   const [actions, setActions] = useState<ActionItem[]>([]);
@@ -154,7 +154,7 @@ const DailyMeeting = () => {
 
   // AI action generation state
   const [aiProcessing, setAiProcessing] = useState<string | null>(null);
-  const aiTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const aiTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   // For today/future: show active items only
   // For past: show items that were active on that date (created before/on and not deactivated yet or deactivated after)
   const { topics, customers, isPastDate } = useMemo(() => {

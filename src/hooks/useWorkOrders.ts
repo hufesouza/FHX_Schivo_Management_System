@@ -120,7 +120,7 @@ export function useWorkOrders() {
     
     const { error } = await supabase
       .from('work_orders')
-      .update(dbUpdates)
+      .update(dbUpdates as any)
       .eq('id', id);
     
     if (error) {
@@ -200,7 +200,7 @@ export function useWorkOrder(id: string | undefined) {
     
     const { error } = await supabase
       .from('work_orders')
-      .update(dbUpdates)
+      .update(dbUpdates as any)
       .eq('id', id);
     
     if (error) {
