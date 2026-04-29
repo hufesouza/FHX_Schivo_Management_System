@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,7 +54,7 @@ function MachinesTab({ machines, reload }: any) {
     const { data } = await supabase.from('npi_machine_availability').select('*').order('start_date');
     setWindows(data || []);
   };
-  useState(() => { loadWindows(); return undefined; });
+  useEffect(() => { loadWindows(); }, []);
 
   const add = async () => {
     if (!form.machine_name) return toast.error('Name required');
