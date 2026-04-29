@@ -146,9 +146,10 @@ export default function MachineCalendar() {
                             const part = parts.find(p => p.id === e.part_id);
                             const report = part ? buildReport(e, part) : null;
                             const flagged = report && (report.driftDays > 0 || report.hasOverlap);
+                            const notReady = report && (!report.matReady || !report.toolReady);
                             const tone = !report ? 'bg-primary/15 text-primary'
                               : report.hasOverlap ? 'bg-destructive/20 text-destructive border border-destructive/40'
-                              : report.driftDays > 0 ? 'bg-amber-500/20 text-amber-800 border border-amber-500/40'
+                              : (notReady || report.driftDays > 0) ? 'bg-destructive/15 text-destructive border border-destructive/40'
                               : 'bg-emerald-500/15 text-emerald-700 border border-emerald-500/30';
                             const titleText = !report ? `${e.part_number}` :
                               `${e.part_number} — ${e.customer_name || ''}\n` +
