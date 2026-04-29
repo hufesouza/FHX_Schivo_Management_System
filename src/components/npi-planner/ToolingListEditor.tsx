@@ -29,8 +29,8 @@ type CatalogTool = {
   description: string;
   supplier: string | null;
   supplier_id: string | null;
-  unit_cost: number | null;
-  lead_time_days: number | null;
+  default_unit_cost: number | null;
+  default_lead_time_days: number | null;
 };
 
 const STATUSES = ['Not Ordered', 'Ordered', 'Received', 'Delayed', 'Issue'];
@@ -49,10 +49,18 @@ export function ToolingListEditor({
 
   const loadCatalog = useCallback(async () => {
     const { data } = await supabase
-      .from('npi_tools_catalog')
-      .select('id, tool_code, description, supplier, supplier_id, unit_cost, lead_time_days')
-      .order('description');
-    setCatalog((data as any) || []);
+      .from('npi_tooling_catalog')
+      .select('id, tool_code, tooling_description, supplier, supplier_id, default_unit_cost, default_lead_time_days')
+      .order('tooling_description');
+    setCatalog(((data as any) || []).map((t: any) => ({
+      id: t.id,
+      tool_code: t.tool_code,
+      description: t.tooling_description,
+      supplier: t.supplier,
+      supplier_id: t.supplier_id,
+      default_unit_cost: t.default_unit_cost,
+      default_lead_time_days: t.default_lead_time_days,
+    })));
   }, []);
 
   const loadSuppliers = useCallback(async () => {
@@ -86,8 +94,8 @@ export function ToolingListEditor({
       tooling_description: tool.description,
       supplier: tool.supplier,
       supplier_id: tool.supplier_id,
-      unit_cost: Number(tool.unit_cost) || 0,
-      lead_time_days: tool.lead_time_days ?? 0,
+      unit_cost: Number(tool.default_unit_cost) || 0,
+      lead_time_days: tool.default_lead_time_days ?? 0,
     });
   };
 
@@ -241,7 +249,7 @@ function CatalogPicker({ catalog, onPick }: { catalog: CatalogTool[]; onPick: (t
                       {t.tool_code ? `${t.tool_code} · ` : ''}{t.description}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {t.supplier || '—'} · €{Number(t.unit_cost || 0).toFixed(2)} · {t.lead_time_days ?? 0}d
+                      {t.supplier || '—'} · €{Number(t.default_unit_cost || 0).toFixed(2)} · {t.default_lead_time_days ?? 0}d (default)
                     </span>
                   </div>
                 </CommandItem>
