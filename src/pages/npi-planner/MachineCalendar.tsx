@@ -96,7 +96,12 @@ export default function MachineCalendar() {
       bestCommenceDate: null,
     });
     const scheduledStart = new Date(entry.start_date);
-    const driftDays = (earliest.getTime() - scheduledStart.getTime()) / (24 * 3600 * 1000);
+    // Compare on calendar-day granularity — sub-day differences (e.g. ordered 21:12 vs scheduled 23:00)
+    // shouldn't be treated as a "1 day slip". A job ready any time on its scheduled day = on time.
+    const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+    const driftDays = Math.round(
+      (startOfDay(earliest).getTime() - startOfDay(scheduledStart).getTime()) / (24 * 3600 * 1000)
+    );
 
     // Overlap: any other booking on same machine whose interval intersects this one
     const others = (machineBookings[entry.machine_id || ''] || []).filter(b => b.id !== entry.id);
