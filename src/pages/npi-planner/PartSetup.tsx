@@ -272,6 +272,19 @@ export default function PartSetup() {
           <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save part'}</Button>
         </div>
       </main>
+
+      <QuickCustomerDialog
+        open={customerDialogOpen}
+        onOpenChange={setCustomerDialogOpen}
+        onCreated={async (c) => { await reload(); set('customer_id', c.id); set('project_id', ''); }}
+      />
+      <QuickProjectDialog
+        open={projectDialogOpen}
+        onOpenChange={setProjectDialogOpen}
+        customerId={form.customer_id || null}
+        customerName={customers.find(c => c.id === form.customer_id)?.customer_name || null}
+        onCreated={async (p) => { await reload(); set('project_id', p.id); }}
+      />
     </AppLayout>
   );
 }
