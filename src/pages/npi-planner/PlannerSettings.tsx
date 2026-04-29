@@ -22,19 +22,21 @@ export default function PlannerSettings() {
   if (loading) return <AppLayout title="Settings" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin"/></div></AppLayout>;
 
   return (
-    <AppLayout title="Settings" subtitle="Master data & email recipients" showBackButton backTo="/npi/capacity-planner">
+    <AppLayout title="Settings" subtitle="Master data, calendar & email recipients" showBackButton backTo="/npi/capacity-planner">
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue={initialTab}>
           <TabsList>
             <TabsTrigger value="machines">Machines</TabsTrigger>
             <TabsTrigger value="customers">Customers</TabsTrigger>
             <TabsTrigger value="projects">Projects</TabsTrigger>
+            <TabsTrigger value="calendar">Calendar</TabsTrigger>
             <TabsTrigger value="emails">Email recipients</TabsTrigger>
           </TabsList>
 
           <TabsContent value="machines"><MachinesTab machines={machines} reload={reload} /></TabsContent>
           <TabsContent value="customers"><CustomersTab customers={customers} reload={reload} /></TabsContent>
           <TabsContent value="projects"><ProjectsTab projects={projects} customers={customers} reload={reload} /></TabsContent>
+          <TabsContent value="calendar"><CalendarTab reload={reload} /></TabsContent>
           <TabsContent value="emails"><EmailsTab recipients={recipients} reload={reload} /></TabsContent>
         </Tabs>
       </main>
