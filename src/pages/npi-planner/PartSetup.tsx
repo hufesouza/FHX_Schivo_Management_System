@@ -27,7 +27,7 @@ const OVERALL_STATUSES = ['Not Started','Awaiting Material','Awaiting Tooling','
 
 export default function PartSetup() {
   const navigate = useNavigate();
-  const { customers, projects, machines, schedule, loading, reload } = useNPIPlanning();
+  const { customers, projects, machines, schedule, availability, loading, reload } = useNPIPlanning();
   const [saving, setSaving] = useState(false);
   const [options, setOptions] = useState<AllocationOption[]>([]);
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
@@ -69,11 +69,14 @@ export default function PartSetup() {
     }
     const candidates = machines.filter(m => machineOptionIds.includes(m.id));
     const opts = recommendAllocations(
-      candidates, schedule, totalRequired,
+      candidates, schedule, availability, totalRequired,
       form.best_commence_date ? new Date(form.best_commence_date) : null,
       form.committed_date ? new Date(form.committed_date) : null,
     );
     setOptions(opts);
+    if (opts.length === 0) {
+      toast.warning('No machine has an NPI availability window that fits this job. Add a window in Settings → Machines.');
+    }
     if (opts[0]) setSelectedMachineId(opts[0].machine.id);
   };
 

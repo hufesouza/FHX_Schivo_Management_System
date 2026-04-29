@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -42,15 +42,38 @@ export default function PlannerSettings() {
   );
 }
 
+const MACHINE_TYPES = ['Mill', 'Turn', 'Mill/Turn', 'Swiss Turn'];
+
 function MachinesTab({ machines, reload }: any) {
-  const [form, setForm] = useState({ machine_name: '', machine_type: '', daily_available_hours: 24, shift_pattern: '', status: 'Available' });
+  const [form, setForm] = useState({ machine_name: '', machine_type: 'Mill', daily_available_hours: 24, shift_pattern: '', status: 'Available' });
+  const [windows, setWindows] = useState<any[]>([]);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [winForm, setWinForm] = useState<{ start_date: string; end_date: string; notes: string }>({ start_date: '', end_date: '', notes: '' });
+
+  const loadWindows = async () => {
+    const { data } = await supabase.from('npi_machine_availability').select('*').order('start_date');
+    setWindows(data || []);
+  };
+  useEffect(() => { loadWindows(); }, []);
+
   const add = async () => {
     if (!form.machine_name) return toast.error('Name required');
     const { error } = await supabase.from('npi_machines').insert(form);
     if (error) return toast.error(error.message);
-    toast.success('Added'); setForm({ machine_name: '', machine_type: '', daily_available_hours: 24, shift_pattern: '', status: 'Available' }); reload();
+    toast.success('Added'); setForm({ machine_name: '', machine_type: 'Mill', daily_available_hours: 24, shift_pattern: '', status: 'Available' }); reload();
   };
   const del = async (id: string) => { if (!confirm('Delete?')) return; await supabase.from('npi_machines').delete().eq('id', id); reload(); };
+
+  const addWindow = async (machine_id: string) => {
+    if (!winForm.start_date || !winForm.end_date) return toast.error('Start and end date required');
+    if (winForm.end_date < winForm.start_date) return toast.error('End date must be after start');
+    const { error } = await supabase.from('npi_machine_availability').insert({ machine_id, ...winForm });
+    if (error) return toast.error(error.message);
+    setWinForm({ start_date: '', end_date: '', notes: '' });
+    loadWindows();
+    toast.success('Availability window added');
+  };
+  const delWindow = async (id: string) => { if (!confirm('Remove window?')) return; await supabase.from('npi_machine_availability').delete().eq('id', id); loadWindows(); };
 
   return (
     <Card className="mt-4">
@@ -58,24 +81,65 @@ function MachinesTab({ machines, reload }: any) {
       <CardContent className="space-y-4">
         <div className="grid md:grid-cols-5 gap-2 items-end">
           <div><Label className="text-xs">Name *</Label><Input value={form.machine_name} onChange={e => setForm({ ...form, machine_name: e.target.value })} /></div>
-          <div><Label className="text-xs">Type</Label><Input value={form.machine_type} onChange={e => setForm({ ...form, machine_type: e.target.value })} /></div>
+          <div><Label className="text-xs">Type</Label>
+            <Select value={form.machine_type} onValueChange={v => setForm({ ...form, machine_type: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>{MACHINE_TYPES.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
+            </Select>
+          </div>
           <div><Label className="text-xs">Daily hrs</Label><Input type="number" value={form.daily_available_hours} onChange={e => setForm({ ...form, daily_available_hours: +e.target.value })} /></div>
           <div><Label className="text-xs">Shift pattern</Label><Input value={form.shift_pattern} onChange={e => setForm({ ...form, shift_pattern: e.target.value })} /></div>
           <Button onClick={add}><Plus className="h-4 w-4 mr-2" />Add</Button>
         </div>
         <Table>
-          <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Daily hrs</TableHead><TableHead>Shift</TableHead><TableHead>Status</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Type</TableHead><TableHead>Daily hrs</TableHead><TableHead>NPI availability</TableHead><TableHead>Status</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>
-            {machines.map((m: any) => (
-              <TableRow key={m.id}>
-                <TableCell className="font-medium">{m.machine_name}</TableCell>
-                <TableCell>{m.machine_type || '-'}</TableCell>
-                <TableCell>{m.daily_available_hours}</TableCell>
-                <TableCell>{m.shift_pattern || '-'}</TableCell>
-                <TableCell>{m.status}</TableCell>
-                <TableCell><Button size="icon" variant="ghost" onClick={() => del(m.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
-              </TableRow>
-            ))}
+            {machines.map((m: any) => {
+              const mw = windows.filter(w => w.machine_id === m.id);
+              const isOpen = expanded === m.id;
+              return (
+                <>
+                  <TableRow key={m.id}>
+                    <TableCell className="font-medium">{m.machine_name}</TableCell>
+                    <TableCell>{m.machine_type || '-'}</TableCell>
+                    <TableCell>{m.daily_available_hours}</TableCell>
+                    <TableCell>
+                      <Button variant="link" size="sm" className="h-auto p-0" onClick={() => setExpanded(isOpen ? null : m.id)}>
+                        {mw.length} window{mw.length === 1 ? '' : 's'} {isOpen ? '▴' : '▾'}
+                      </Button>
+                    </TableCell>
+                    <TableCell>{m.status}</TableCell>
+                    <TableCell><Button size="icon" variant="ghost" onClick={() => del(m.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></TableCell>
+                  </TableRow>
+                  {isOpen && (
+                    <TableRow key={m.id + '-windows'}>
+                      <TableCell colSpan={6} className="bg-muted/30">
+                        <div className="space-y-3 p-2">
+                          <div className="text-xs text-muted-foreground">Periods when Supply Chain has assigned this machine to NPI. Allocation will only schedule jobs inside these windows.</div>
+                          {mw.length > 0 && (
+                            <div className="space-y-1">
+                              {mw.map(w => (
+                                <div key={w.id} className="flex items-center gap-2 text-sm bg-background border rounded px-3 py-1.5">
+                                  <Badge variant="outline">{w.start_date} → {w.end_date}</Badge>
+                                  {w.notes && <span className="text-muted-foreground text-xs">{w.notes}</span>}
+                                  <Button size="icon" variant="ghost" className="ml-auto h-7 w-7" onClick={() => delWindow(w.id)}><Trash2 className="h-3.5 w-3.5 text-destructive" /></Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <div className="grid md:grid-cols-4 gap-2 items-end">
+                            <div><Label className="text-xs">From</Label><Input type="date" value={winForm.start_date} onChange={e => setWinForm({ ...winForm, start_date: e.target.value })} /></div>
+                            <div><Label className="text-xs">To</Label><Input type="date" value={winForm.end_date} onChange={e => setWinForm({ ...winForm, end_date: e.target.value })} /></div>
+                            <div><Label className="text-xs">Notes</Label><Input value={winForm.notes} onChange={e => setWinForm({ ...winForm, notes: e.target.value })} placeholder="Optional" /></div>
+                            <Button size="sm" onClick={() => addWindow(m.id)}><Plus className="h-4 w-4 mr-1" />Add window</Button>
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </>
+              );
+            })}
           </TableBody>
         </Table>
       </CardContent>

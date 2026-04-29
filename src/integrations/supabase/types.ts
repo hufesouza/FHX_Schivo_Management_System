@@ -1741,6 +1741,47 @@ export type Database = {
           },
         ]
       }
+      npi_machine_availability: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          end_date: string
+          id: string
+          machine_id: string
+          notes: string | null
+          start_date: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          end_date: string
+          id?: string
+          machine_id: string
+          notes?: string | null
+          start_date: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          end_date?: string
+          id?: string
+          machine_id?: string
+          notes?: string | null
+          start_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "npi_machine_availability_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "npi_machines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       npi_machine_schedule: {
         Row: {
           allocation_status: string
