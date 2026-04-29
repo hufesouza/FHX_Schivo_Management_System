@@ -66,9 +66,9 @@ export function JobActionDialog({ open, onOpenChange, part, report, onReallocate
             <div className="flex items-center gap-2">
               <Clock className="h-3.5 w-3.5" />
               <span>Feasible earliest start: <strong>{format(report.earliest, 'MMM d, yyyy')}</strong></span>
-              {report.driftDays > 0 && (
+              {slipped && (
                 <Badge variant="outline" className="bg-amber-500/15 text-amber-800 border-amber-500/30">
-                  +{Math.ceil(report.driftDays)}d slip
+                  +{driftWholeDays}d slip
                 </Badge>
               )}
             </div>
