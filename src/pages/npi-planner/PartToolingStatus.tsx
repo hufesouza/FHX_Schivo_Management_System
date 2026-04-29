@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { useNPIPlanning } from '@/hooks/useNPIPlanning';
-import { Loader2, Mail, Phone, ExternalLink, Copy } from 'lucide-react';
+import { Loader2, Mail, Phone, ExternalLink, Copy, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { addDays, format, parseISO } from 'date-fns';
@@ -27,72 +28,137 @@ const TONE: Record<string, string> = {
 };
 
 export default function PartToolingStatus() {
-  const { parts, tooling, loading, reload } = useNPIPlanning();
+  const { parts, partTooling, toolingCatalog, loading, reload } = useNPIPlanning();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [savingId, setSavingId] = useState<string | null>(null);
   const [detailPart, setDetailPart] = useState<any | null>(null);
   const [suppliers, setSuppliers] = useState<any[]>([]);
 
+  // Add-tool-to-part dialog state
+  const [addCatalogId, setAddCatalogId] = useState<string>('');
+  const [addQty, setAddQty] = useState<number>(1);
+
   useEffect(() => {
     supabase.from('npi_suppliers').select('*').then(({ data }) => setSuppliers(data || []));
   }, []);
 
-  const filtered = useMemo(() => parts.filter(p => {
-    if (search && !`${p.part_number} ${p.tooling || ''}`.toLowerCase().includes(search.toLowerCase())) return false;
-    if (statusFilter !== 'all' && (p.tooling_status || 'Required') !== statusFilter) return false;
-    return true;
-  }), [parts, search, statusFilter]);
+  // Index part-tooling by part for fast lookup
+  const linksByPart = useMemo(() => {
+    const map = new Map<string, any[]>();
+    for (const l of partTooling) {
+      const arr = map.get(l.part_id) || [];
+      arr.push(l);
+      map.set(l.part_id, arr);
+    }
+    return map;
+  }, [partTooling]);
 
-  const updateStatus = async (partId: string, value: string) => {
-    setSavingId(partId);
-    const patch: any = { tooling_status: value };
+  // Aggregated per-part status: worst-case across linked tools
+  const partAggregate = (p: any) => {
+    const links = linksByPart.get(p.id) || [];
+    if (links.length === 0) return { status: 'Not Required', leadTime: 0 };
+    const order = ['Issue', 'Delayed', 'Required', 'Not Ordered', 'Ordered', 'Received', 'Not Required'];
+    let worst = 'Not Required';
+    let lead = 0;
+    for (const l of links) {
+      const s = l.ordered_status || 'Not Ordered';
+      if (order.indexOf(s) < order.indexOf(worst)) worst = s;
+      if (l.lead_time_days && l.lead_time_days > lead) lead = l.lead_time_days;
+    }
+    return { status: worst, leadTime: lead };
+  };
+
+  const filtered = useMemo(() => parts.filter(p => {
+    if (search && !`${p.part_number} ${p.customer_name || ''}`.toLowerCase().includes(search.toLowerCase())) return false;
+    if (statusFilter !== 'all' && partAggregate(p).status !== statusFilter) return false;
+    return true;
+  }), [parts, search, statusFilter, linksByPart]);
+
+  const updateLinkStatus = async (linkId: string, value: string) => {
+    setSavingId(linkId);
+    const patch: any = { ordered_status: value };
     const now = new Date().toISOString();
-    if (value === 'Ordered') patch.tooling_ordered_at = now;
-    if (value === 'Received') patch.tooling_received_at = now;
-    const { error } = await supabase.from('npi_parts').update(patch).eq('id', partId);
+    if (value === 'Ordered') patch.ordered_at = now;
+    if (value === 'Received') patch.received_at = now;
+    const { error } = await supabase.from('npi_part_tooling').update(patch).eq('id', linkId);
     setSavingId(null);
     if (error) return toast.error(error.message);
-    toast.success(`Tooling → ${value}`);
+    toast.success(`Tool → ${value}`);
     reload();
   };
 
-  const expectedDate = (p: any) => {
-    if (p.tooling_status === 'Received' && p.tooling_received_at) {
-      return `Received ${format(parseISO(p.tooling_received_at), 'MMM d')}`;
+  const updateLinkField = async (linkId: string, patch: any) => {
+    const { error } = await supabase.from('npi_part_tooling').update(patch).eq('id', linkId);
+    if (error) return toast.error(error.message);
+    reload();
+  };
+
+  const removeLink = async (linkId: string) => {
+    if (!confirm('Unlink this tool from the part?')) return;
+    const { error } = await supabase.from('npi_part_tooling').delete().eq('id', linkId);
+    if (error) return toast.error(error.message);
+    toast.success('Unlinked');
+    reload();
+  };
+
+  const addToolToPart = async () => {
+    if (!detailPart || !addCatalogId) return toast.error('Pick a tool from the catalog');
+    const tool = toolingCatalog.find((t: any) => t.id === addCatalogId);
+    if (!tool) return;
+    const { error } = await supabase.from('npi_part_tooling').insert({
+      part_id: detailPart.id,
+      catalog_tool_id: tool.id,
+      tooling_description: tool.tooling_description,
+      supplier: tool.supplier,
+      supplier_id: tool.supplier_id,
+      qty: addQty || 1,
+      unit_cost: tool.default_unit_cost || 0,
+      total_cost: (tool.default_unit_cost || 0) * (addQty || 1),
+      lead_time_days: tool.default_lead_time_days,
+      ordered_status: 'Not Ordered',
+    });
+    if (error) return toast.error(error.message);
+    toast.success('Tool linked');
+    setAddCatalogId('');
+    setAddQty(1);
+    reload();
+  };
+
+  const expectedDate = (l: any) => {
+    if (l.ordered_status === 'Received' && l.received_at) {
+      return `Received ${format(parseISO(l.received_at), 'MMM d')}`;
     }
-    if (p.tooling_status === 'Ordered' && p.tooling_ordered_at && p.tooling_lead_time) {
-      const eta = addDays(parseISO(p.tooling_ordered_at), Number(p.tooling_lead_time));
+    if (l.ordered_status === 'Ordered' && l.ordered_at && l.lead_time_days) {
+      const eta = addDays(parseISO(l.ordered_at), Number(l.lead_time_days));
       return `ETA ${format(eta, 'MMM d, yyyy')}`;
     }
-    if (p.tooling_lead_time) return `${p.tooling_lead_time}d lead (clock not started)`;
+    if (l.expected_delivery_date) return l.expected_delivery_date;
+    if (l.lead_time_days) return `${l.lead_time_days}d lead (clock not started)`;
     return '-';
   };
 
-  const partTools = useMemo(() => {
-    if (!detailPart) return [];
-    return tooling.filter(t => t.part_id === detailPart.id || (t.part_number && t.part_number === detailPart.part_number));
-  }, [detailPart, tooling]);
+  const partLinks = useMemo(() => (detailPart ? (linksByPart.get(detailPart.id) || []) : []), [detailPart, linksByPart]);
 
-  const supplierFor = (t: any) =>
-    suppliers.find(s => s.id === t.supplier_id) ||
-    suppliers.find(s => s.supplier_name && t.supplier && s.supplier_name.toLowerCase() === String(t.supplier).toLowerCase());
+  const supplierFor = (l: any) =>
+    suppliers.find(s => s.id === l.supplier_id) ||
+    suppliers.find(s => s.supplier_name && l.supplier && s.supplier_name.toLowerCase() === String(l.supplier).toLowerCase());
 
   const toolsBySupplier = useMemo(() => {
     const groups = new Map<string, { name: string; email?: string; tools: any[] }>();
-    for (const t of partTools) {
-      const sup = supplierFor(t);
-      const name = sup?.supplier_name || t.supplier || 'Unknown supplier';
+    for (const l of partLinks) {
+      const sup = supplierFor(l);
+      const name = sup?.supplier_name || l.supplier || 'Unknown supplier';
       const key = (sup?.id || name).toString();
       if (!groups.has(key)) groups.set(key, { name, email: sup?.email, tools: [] });
-      groups.get(key)!.tools.push(t);
+      groups.get(key)!.tools.push(l);
     }
     return Array.from(groups.values());
-  }, [partTools, suppliers]);
+  }, [partLinks, suppliers]);
 
   const buildRFQ = (supplierName: string, tools: any[]) => {
     const lines = tools.map((t, i) =>
-      `${i + 1}. Tool Description: ${t.tooling_description || '-'}\n   Quantity: ${t.qty || 1}\n   Material / Specification: ${t.material_spec || t.notes || '-'}\n   Drawing / Reference: ${detailPart?.part_number || '-'}${t.drawing_reference ? ` / ${t.drawing_reference}` : ''}`
+      `${i + 1}. Tool Description: ${t.tooling_description || '-'}\n   Quantity: ${t.qty || 1}\n   Drawing / Reference: ${detailPart?.part_number || '-'}`
     ).join('\n\n');
     return `Hi ${supplierName},
 
@@ -124,16 +190,25 @@ Kind regards,`;
     }
   };
 
-  if (loading) return <AppLayout title="Tooling Status" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin" /></div></AppLayout>;
+  if (loading) return (
+    <AppLayout title="Tooling Status" showBackButton backTo="/npi/capacity-planner">
+      <div className="flex items-center justify-center h-96"><Loader2 className="animate-spin" /></div>
+    </AppLayout>
+  );
 
   return (
-    <AppLayout title="Tooling Status (per part)" subtitle="Mark Ordered to start lead-time clock; Received frees the part for production" showBackButton backTo="/npi/capacity-planner">
+    <AppLayout
+      title="Tooling Status (per part)"
+      subtitle="Link tools from the catalog to a PN, then track status. Mark Ordered to start lead-time clock; Received frees the part for production."
+      showBackButton
+      backTo="/npi/capacity-planner"
+    >
       <main className="container mx-auto px-4 py-8 space-y-4">
         <Card>
           <CardHeader><CardTitle className="text-base">Parts ({filtered.length})</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="grid md:grid-cols-3 gap-2">
-              <Input placeholder="Search part / tooling" value={search} onChange={e => setSearch(e.target.value)} />
+              <Input placeholder="Search part / customer" value={search} onChange={e => setSearch(e.target.value)} />
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -149,46 +224,33 @@ Kind regards,`;
                   <TableRow>
                     <TableHead>Part #</TableHead>
                     <TableHead>Customer</TableHead>
-                    <TableHead>Tooling</TableHead>
-                    <TableHead>Lead time</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Ordered</TableHead>
-                    <TableHead>Received / ETA</TableHead>
+                    <TableHead>Tools linked</TableHead>
+                    <TableHead>Max lead</TableHead>
+                    <TableHead>Aggregate status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No parts.</TableCell></TableRow>
-                  ) : filtered.map((p: any) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium">
-                        <button
-                          type="button"
-                          onClick={() => setDetailPart(p)}
-                          className="text-primary hover:underline"
-                        >
-                          {p.part_number}
-                        </button>
-                      </TableCell>
-                      <TableCell>{p.customer_name || '-'}</TableCell>
-                      <TableCell>{p.tooling || '-'}</TableCell>
-                      <TableCell>{p.tooling_lead_time ? `${p.tooling_lead_time}d` : '-'}</TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Select value={p.tooling_status || 'Required'} onValueChange={v => updateStatus(p.id, v)}>
-                            <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {TOOLING_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
-                          {savingId === p.id && <Loader2 className="h-4 w-4 animate-spin" />}
-                          <Badge variant="outline" className={TONE[p.tooling_status || 'Required'] || ''}>{p.tooling_status || 'Required'}</Badge>
-                        </div>
-                      </TableCell>
-                      <TableCell>{p.tooling_ordered_at ? format(parseISO(p.tooling_ordered_at), 'MMM d, yyyy') : '-'}</TableCell>
-                      <TableCell>{expectedDate(p)}</TableCell>
-                    </TableRow>
-                  ))}
+                    <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No parts.</TableCell></TableRow>
+                  ) : filtered.map((p: any) => {
+                    const agg = partAggregate(p);
+                    const count = (linksByPart.get(p.id) || []).length;
+                    return (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium">
+                          <button type="button" onClick={() => setDetailPart(p)} className="text-primary hover:underline">
+                            {p.part_number}
+                          </button>
+                        </TableCell>
+                        <TableCell>{p.customer_name || '-'}</TableCell>
+                        <TableCell>{count}</TableCell>
+                        <TableCell>{agg.leadTime ? `${agg.leadTime}d` : '-'}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={TONE[agg.status] || ''}>{agg.status}</Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -197,44 +259,69 @@ Kind regards,`;
       </main>
 
       <Dialog open={!!detailPart} onOpenChange={o => !o && setDetailPart(null)}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-4xl">
           <DialogHeader>
-            <DialogTitle>{detailPart?.part_number} — Tooling details</DialogTitle>
-            <DialogDescription>
-              {detailPart?.customer_name || '—'}
-              {detailPart?.tooling_lead_time ? ` · max lead ${detailPart.tooling_lead_time}d` : ''}
-              {detailPart?.tooling_status ? ` · ${detailPart.tooling_status}` : ''}
-            </DialogDescription>
+            <DialogTitle>{detailPart?.part_number} — Tooling</DialogTitle>
+            <DialogDescription>{detailPart?.customer_name || '—'}</DialogDescription>
           </DialogHeader>
 
-          {partTools.length === 0 ? (
+          {/* Add from catalog */}
+          <div className="border rounded-md p-3 space-y-2 bg-muted/30">
+            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Link a tool from catalog</div>
+            <div className="flex gap-2 items-end flex-wrap">
+              <div className="flex-1 min-w-[240px]">
+                <Label className="text-xs">Tool</Label>
+                <Select value={addCatalogId} onValueChange={setAddCatalogId}>
+                  <SelectTrigger><SelectValue placeholder="Select catalog tool" /></SelectTrigger>
+                  <SelectContent>
+                    {toolingCatalog.map((t: any) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.tooling_description}{t.supplier ? ` — ${t.supplier}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-24">
+                <Label className="text-xs">Qty</Label>
+                <Input type="number" min={1} value={addQty} onChange={e => setAddQty(Number(e.target.value) || 1)} />
+              </div>
+              <Button onClick={addToolToPart} disabled={!addCatalogId}><Plus className="h-4 w-4 mr-1" />Link</Button>
+              <Button variant="ghost" asChild>
+                <Link to="/npi/capacity-planner/tooling"><ExternalLink className="h-4 w-4 mr-1" />Manage catalog</Link>
+              </Button>
+            </div>
+          </div>
+
+          {partLinks.length === 0 ? (
             <div className="py-6 text-sm text-muted-foreground text-center border rounded-md">
-              No tooling items recorded for this part in the Tooling Tracker.
+              No tools linked to this part yet.
             </div>
           ) : (
-            <div className="border rounded-md overflow-x-auto max-h-[60vh]">
+            <div className="border rounded-md overflow-x-auto max-h-[50vh]">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Tool</TableHead>
                     <TableHead>Supplier / Contact</TableHead>
-                    <TableHead>PO / Qty</TableHead>
+                    <TableHead>Qty / PO</TableHead>
                     <TableHead>Lead</TableHead>
-                    <TableHead>Expected</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Expected</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {partTools.map((t: any) => {
-                    const sup = supplierFor(t);
+                  {partLinks.map((l: any) => {
+                    const sup = supplierFor(l);
                     return (
-                      <TableRow key={t.id} className="align-top">
+                      <TableRow key={l.id} className="align-top">
                         <TableCell className="font-medium">
-                          {t.tooling_description}
-                          {t.notes ? <div className="text-xs text-muted-foreground mt-1">{t.notes}</div> : null}
+                          {l.tooling_description}
+                          {l.notes ? <div className="text-xs text-muted-foreground mt-1">{l.notes}</div> : null}
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium">{sup?.supplier_name || t.supplier || '-'}</div>
+                          <div className="font-medium">{sup?.supplier_name || l.supplier || '-'}</div>
                           {sup?.contact_name && <div className="text-xs text-muted-foreground">{sup.contact_name}</div>}
                           <div className="flex flex-col gap-0.5 mt-1">
                             {sup?.email && (
@@ -250,13 +337,34 @@ Kind regards,`;
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div>{t.po || '-'}</div>
-                          <div className="text-xs text-muted-foreground">{t.qty ? `Qty ${t.qty}` : ''}{t.total_cost ? ` · €${Number(t.total_cost).toFixed(2)}` : ''}</div>
+                          <Input
+                            type="number"
+                            defaultValue={l.qty || 1}
+                            className="h-7 w-20 text-xs"
+                            onBlur={e => updateLinkField(l.id, { qty: Number(e.target.value) || 1, total_cost: (Number(e.target.value) || 1) * (l.unit_cost || 0) })}
+                          />
+                          <Input
+                            placeholder="PO"
+                            defaultValue={l.po || ''}
+                            className="h-7 w-24 text-xs mt-1"
+                            onBlur={e => updateLinkField(l.id, { po: e.target.value || null })}
+                          />
                         </TableCell>
-                        <TableCell>{t.lead_time_days ? `${t.lead_time_days}d` : '-'}</TableCell>
-                        <TableCell>{t.expected_delivery_date || '-'}</TableCell>
+                        <TableCell>{l.lead_time_days ? `${l.lead_time_days}d` : '-'}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={TONE[t.ordered_status || ''] || ''}>{t.ordered_status || '-'}</Badge>
+                          <Select value={l.ordered_status || 'Not Ordered'} onValueChange={v => updateLinkStatus(l.id, v)}>
+                            <SelectTrigger className="h-8 w-[130px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {TOOLING_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                          {savingId === l.id && <Loader2 className="h-4 w-4 animate-spin mt-1" />}
+                        </TableCell>
+                        <TableCell className="text-xs">{expectedDate(l)}</TableCell>
+                        <TableCell>
+                          <Button size="icon" variant="ghost" onClick={() => removeLink(l.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );
@@ -280,10 +388,7 @@ Kind regards,`;
             </div>
           )}
 
-          <DialogFooter className="sm:justify-between">
-            <Button variant="outline" asChild>
-              <Link to="/npi/capacity-planner/tooling"><ExternalLink className="h-4 w-4 mr-2" />Open Tooling Tracker</Link>
-            </Button>
+          <DialogFooter>
             <Button onClick={() => setDetailPart(null)}>Close</Button>
           </DialogFooter>
         </DialogContent>
