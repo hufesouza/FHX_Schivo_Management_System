@@ -29,8 +29,8 @@ type CatalogTool = {
   description: string;
   supplier: string | null;
   supplier_id: string | null;
-  unit_cost: number | null;
-  lead_time_days: number | null;
+  default_unit_cost: number | null;
+  default_lead_time_days: number | null;
 };
 
 const STATUSES = ['Not Ordered', 'Ordered', 'Received', 'Delayed', 'Issue'];
