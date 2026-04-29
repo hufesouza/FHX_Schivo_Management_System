@@ -36,7 +36,7 @@ export default function PartSetup() {
 
   const [form, setForm] = useState<any>({
     customer_id: '', project_id: '', engineer: '',
-    part_number: '', description: '', po: '', qty: 1,
+    part_number: '', part_revision: '', description: '', po: '', qty: 1,
     material: '', material_lead_time: 0, material_status: 'Not Required',
     tooling: '', tooling_lead_time: 0, tooling_status: 'Not Required',
     committed_date: '', best_commence_date: '', ship_date: '',
@@ -190,9 +190,10 @@ export default function PartSetup() {
               <Input value={form.engineer} disabled placeholder="—" />
             </Field>
             <Field label="Part Number *"><Input value={form.part_number} onChange={e => set('part_number', e.target.value)} /></Field>
+            <Field label="Part Revision"><Input value={form.part_revision} onChange={e => set('part_revision', e.target.value)} placeholder="e.g. A" /></Field>
+            <Field label="Part Description"><Input value={form.description} onChange={e => set('description', e.target.value)} placeholder="Short description" /></Field>
             <Field label="PO"><Input value={form.po} onChange={e => set('po', e.target.value)} /></Field>
             <Field label="QTY"><Input type="number" value={form.qty} onChange={e => set('qty', +e.target.value)} /></Field>
-            <Field label="Description" className="md:col-span-2"><Input value={form.description} onChange={e => set('description', e.target.value)} placeholder="Short part description" /></Field>
           </CardContent>
         </Card>
 

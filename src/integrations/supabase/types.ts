@@ -1903,6 +1903,7 @@ export type Database = {
           notes: string | null
           overall_status: string
           part_number: string
+          part_revision: string | null
           po: string | null
           project_id: string | null
           project_name: string | null
@@ -1940,6 +1941,7 @@ export type Database = {
           notes?: string | null
           overall_status?: string
           part_number: string
+          part_revision?: string | null
           po?: string | null
           project_id?: string | null
           project_name?: string | null
@@ -1977,6 +1979,7 @@ export type Database = {
           notes?: string | null
           overall_status?: string
           part_number?: string
+          part_revision?: string | null
           po?: string | null
           project_id?: string | null
           project_name?: string | null
