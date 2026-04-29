@@ -249,7 +249,7 @@ function CatalogPicker({ catalog, onPick }: { catalog: CatalogTool[]; onPick: (t
                       {t.tool_code ? `${t.tool_code} · ` : ''}{t.description}
                     </span>
                     <span className="text-xs text-muted-foreground">
-                      {t.supplier || '—'} · €{Number(t.unit_cost || 0).toFixed(2)} · {t.lead_time_days ?? 0}d
+                      {t.supplier || '—'} · €{Number(t.default_unit_cost || 0).toFixed(2)} · {t.default_lead_time_days ?? 0}d (default)
                     </span>
                   </div>
                 </CommandItem>
