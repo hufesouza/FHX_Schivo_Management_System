@@ -39,10 +39,11 @@ export default function PartSetup() {
     customer_id: '', project_id: '', engineer: '',
     part_number: '', part_revision: '', description: '', po: '', qty: 1,
     material: '', material_lead_time: 0, material_status: 'Not Required',
+    material_supplier_id: '', material_supplier_name: '',
     tooling: '', tooling_lead_time: 0, tooling_status: 'Not Required',
     committed_date: '', best_commence_date: '', ship_date: '',
     cycle_time: 0, development_time: 0,
-    subcon: false, supplier_name: '', type_of_service: '', subcon_lead_time: 0, subcon_status: 'Not Required',
+    subcon_supplier_id: '', supplier_name: '', type_of_service: '', subcon_lead_time: 0, subcon_status: 'Not Required',
     sales_price: 0, notes: '', overall_status: 'Not Started',
   });
 
