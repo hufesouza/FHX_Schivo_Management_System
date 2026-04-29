@@ -3,18 +3,19 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   LayoutDashboard, ListChecks, PlusCircle, CalendarRange, Gauge,
-  Wrench, FileBarChart2, Settings as SettingsIcon
+  Wrench, FileBarChart2, Settings as SettingsIcon, Cog
 } from 'lucide-react';
 
 const tiles = [
   { id: 'dashboard', title: 'Dashboard', desc: 'KPIs, bottlenecks, late jobs, capacity, sales by customer', icon: LayoutDashboard, href: '/npi/capacity-planner/dashboard', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
   { id: 'new-part', title: 'New Part / Job', desc: 'Guided form to set up a new NPI part with allocation', icon: PlusCircle, href: '/npi/capacity-planner/parts/new', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
   { id: 'jobs', title: 'Job List', desc: 'All parts/jobs with filters by customer, engineer, status', icon: ListChecks, href: '/npi/capacity-planner/jobs', color: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
+  { id: 'machines', title: 'Machines', desc: 'Set up machines available for NPI (name, type, daily hours)', icon: Cog, href: '/npi/capacity-planner/settings?tab=machines', color: 'bg-teal-500/10 text-teal-600 border-teal-500/20' },
   { id: 'calendar', title: 'Machine Calendar', desc: 'Visual calendar of allocations and free gaps', icon: CalendarRange, href: '/npi/capacity-planner/calendar', color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20' },
   { id: 'capacity', title: 'Machine Capacity', desc: 'Per-machine load, available hours and bottlenecks', icon: Gauge, href: '/npi/capacity-planner/capacity', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
   { id: 'tooling', title: 'Tooling Tracker', desc: 'All tooling requirements and order status', icon: Wrench, href: '/npi/capacity-planner/tooling', color: 'bg-rose-500/10 text-rose-600 border-rose-500/20' },
   { id: 'reports', title: 'Reports', desc: 'Sales, capacity, late jobs, at-risk, project progress', icon: FileBarChart2, href: '/npi/capacity-planner/reports', color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
-  { id: 'settings', title: 'Settings', desc: 'Machines, customers, projects, email recipients', icon: SettingsIcon, href: '/npi/capacity-planner/settings', color: 'bg-slate-500/10 text-slate-600 border-slate-500/20' },
+  { id: 'settings', title: 'Settings', desc: 'Customers, projects, suppliers, email recipients', icon: SettingsIcon, href: '/npi/capacity-planner/settings', color: 'bg-slate-500/10 text-slate-600 border-slate-500/20' },
 ];
 
 export default function NPICapacityPlannerHub() {
