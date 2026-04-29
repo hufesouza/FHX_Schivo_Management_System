@@ -254,9 +254,18 @@ export default function PartSetup() {
 
         <Card>
           <CardHeader><CardTitle className="text-base">Subcon</CardTitle></CardHeader>
-          <CardContent className="grid md:grid-cols-3 gap-4">
-            <Field label="Required"><div className="flex items-center gap-2 h-10"><Checkbox checked={form.subcon} onCheckedChange={v => set('subcon', !!v)} /><span className="text-sm">Has subcon</span></div></Field>
-            <Field label="Supplier name"><Input value={form.supplier_name} onChange={e => set('supplier_name', e.target.value)} /></Field>
+          <CardContent className="grid md:grid-cols-4 gap-4">
+            <Field label="Supplier">
+              <SupplierPicker
+                value={form.subcon_supplier_id || null}
+                displayName={form.supplier_name}
+                onPick={(s) => {
+                  set('subcon_supplier_id', s.id);
+                  set('supplier_name', s.supplier_name);
+                  if (!form.subcon_lead_time && s.default_lead_time_days) set('subcon_lead_time', s.default_lead_time_days);
+                }}
+              />
+            </Field>
             <Field label="Type of service"><Input value={form.type_of_service} onChange={e => set('type_of_service', e.target.value)} /></Field>
             <Field label="Subcon lead time (days)"><Input type="number" value={form.subcon_lead_time} onChange={e => set('subcon_lead_time', +e.target.value)} /></Field>
             <Field label="Subcon status">
