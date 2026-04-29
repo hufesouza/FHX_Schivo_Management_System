@@ -18,6 +18,7 @@ import { QuickCustomerDialog } from '@/components/npi-planner/QuickCustomerDialo
 import { QuickProjectDialog } from '@/components/npi-planner/QuickProjectDialog';
 import { ToolingListEditor, type ToolLine } from '@/components/npi-planner/ToolingListEditor';
 import { SupplierPicker } from '@/components/npi-planner/SupplierPicker';
+import { QuickMachineDialog } from '@/components/npi-planner/QuickMachineDialog';
 
 const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 const TOOLING_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
