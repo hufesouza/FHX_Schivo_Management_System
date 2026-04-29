@@ -22,8 +22,26 @@ const statusLabel = (status: string | null | undefined, orderedAt: string | null
 const isReady = (status: string | null | undefined) =>
   status === 'Received' || status === 'Not Required' || status === 'Ordered';
 
+// Aggregate tooling status from per-part tooling links (worst-case)
+const aggregateTooling = (links: any[]): { status: string; leadTime: number; orderedAt: string | null } => {
+  if (!links || links.length === 0) return { status: 'Not Required', leadTime: 0, orderedAt: null };
+  const order = ['Issue', 'Delayed', 'Required', 'Not Ordered', 'Ordered', 'Received', 'Not Required'];
+  let worst = 'Not Required';
+  let lead = 0;
+  let orderedAt: string | null = null;
+  for (const l of links) {
+    const s = l.ordered_status || 'Not Ordered';
+    if (order.indexOf(s) < order.indexOf(worst)) worst = s;
+    if (l.lead_time_days && l.lead_time_days > lead) lead = l.lead_time_days;
+    if (l.ordered_at && (!orderedAt || new Date(l.ordered_at) < new Date(orderedAt))) orderedAt = l.ordered_at;
+  }
+  // Normalize "Not Ordered" → null-ish so statusLabel renders "Not ordered..."
+  const normalized = worst === 'Not Ordered' ? null : worst;
+  return { status: normalized as any, leadTime: lead, orderedAt };
+};
+
 export default function MachineCalendar() {
-  const { machines, schedule, parts, availability, calendarSettings, reload, loading } = useNPIPlanning();
+  const { machines, schedule, parts, partTooling, availability, calendarSettings, reload, loading } = useNPIPlanning();
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - d.getDay() + 1); // Monday
@@ -58,15 +76,23 @@ export default function MachineCalendar() {
   }, [schedule]);
 
   const buildReport = (entry: typeof schedule[number], part: Part): ReadinessReport => {
+    const links = partTooling.filter((l: any) => l.part_id === part.id);
+    const toolAgg = aggregateTooling(links);
+    // Prefer aggregated link data; fall back to part-level fields if no links exist
+    const effToolStatus = links.length ? toolAgg.status : part.tooling_status;
+    const effToolLead = links.length ? toolAgg.leadTime : part.tooling_lead_time;
+    const effToolOrderedAt = links.length ? toolAgg.orderedAt : part.tooling_ordered_at;
+    const effToolReceivedAt = links.length ? null : part.tooling_received_at;
+
     const earliest = computeEarliestStart({
       materialLeadTime: part.material_lead_time,
       materialStatus: part.material_status,
       materialOrderedAt: part.material_ordered_at,
       materialReceivedAt: part.material_received_at,
-      toolingLeadTime: part.tooling_lead_time,
-      toolingStatus: part.tooling_status,
-      toolingOrderedAt: part.tooling_ordered_at,
-      toolingReceivedAt: part.tooling_received_at,
+      toolingLeadTime: effToolLead,
+      toolingStatus: effToolStatus,
+      toolingOrderedAt: effToolOrderedAt,
+      toolingReceivedAt: effToolReceivedAt,
       bestCommenceDate: null,
     });
     const scheduledStart = new Date(entry.start_date);
@@ -84,8 +110,8 @@ export default function MachineCalendar() {
       driftDays,
       matReady: isReady(part.material_status),
       matLabel: `${part.material || '—'} · ${statusLabel(part.material_status, part.material_ordered_at, part.material_lead_time)}`,
-      toolReady: isReady(part.tooling_status),
-      toolLabel: `${statusLabel(part.tooling_status, part.tooling_ordered_at, part.tooling_lead_time)}`,
+      toolReady: isReady(effToolStatus),
+      toolLabel: `${statusLabel(effToolStatus, effToolOrderedAt, effToolLead)}`,
       hasOverlap: overlaps.length > 0,
       overlapWith: overlaps.map(o => o.part_number || 'Unknown').slice(0, 5),
     };
