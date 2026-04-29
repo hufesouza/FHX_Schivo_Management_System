@@ -191,7 +191,7 @@ Kind regards,`;
   };
 
   if (loading) return (
-    <AppLayout title="Tooling Status" showBackButton backTo="/npi/capacity-planner">
+    <AppLayout title="Tooling Tracker" showBackButton backTo="/npi/capacity-planner">
       <div className="flex items-center justify-center h-96"><Loader2 className="animate-spin" /></div>
     </AppLayout>
   );
