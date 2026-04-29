@@ -108,7 +108,7 @@ export default function ToolingTracker() {
             <div>
               <CardTitle className="text-base">Catalog ({filtered.length})</CardTitle>
               <p className="text-xs text-muted-foreground mt-1">
-                No part links or status here. Link a tool to a part on the Tooling Status page.
+                No part links or status here. Link a tool to a part on the Tooling Tracker page.
               </p>
             </div>
             <Dialog open={open} onOpenChange={setOpen}>

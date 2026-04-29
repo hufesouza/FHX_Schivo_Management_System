@@ -191,14 +191,14 @@ Kind regards,`;
   };
 
   if (loading) return (
-    <AppLayout title="Tooling Status" showBackButton backTo="/npi/capacity-planner">
+    <AppLayout title="Tooling Tracker" showBackButton backTo="/npi/capacity-planner">
       <div className="flex items-center justify-center h-96"><Loader2 className="animate-spin" /></div>
     </AppLayout>
   );
 
   return (
     <AppLayout
-      title="Tooling Status (per part)"
+      title="Tooling Tracker (per part)"
       subtitle="Link tools from the catalog to a PN, then track status. Mark Ordered to start lead-time clock; Received frees the part for production."
       showBackButton
       backTo="/npi/capacity-planner"
