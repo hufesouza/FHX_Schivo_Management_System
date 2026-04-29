@@ -113,18 +113,19 @@ export default function PartSetup() {
         project_id: form.project_id || null,
         committed_date: form.committed_date || null,
         best_commence_date: form.best_commence_date || null,
-        ship_date: form.ship_date || null,
+        ship_date: form.ship_date || (chosen ? chosen.shipDate.toISOString().slice(0, 10) : null),
         customer_name: customer?.customer_name || null,
         project_name: project?.project_name || null,
         machine_id: machine?.id || null,
         machine_name: machine?.machine_name || null,
         tooling_lead_time: maxToolLead || form.tooling_lead_time || 0,
+        total_required_time: totalRequired,
       };
       delete partData.id;
 
       const part = await upsertPart(partData, machineOptionIds);
 
-      // If allocation chosen, create schedule entry
+      // If allocation chosen, create schedule entry (machining window only)
       if (part && chosen) {
         await supabase.from('npi_machine_schedule').insert({
           part_id: part.id,
@@ -133,10 +134,11 @@ export default function PartSetup() {
           project_name: part.project_name,
           machine_id: chosen.machine.id,
           machine_name: chosen.machine.machine_name,
-          start_date: chosen.earliestStart.toISOString(),
-          end_date: chosen.end.toISOString(),
+          start_date: chosen.machiningStart.toISOString(),
+          end_date: chosen.machiningEnd.toISOString(),
           total_required_time: totalRequired,
           allocation_status: 'Confirmed',
+          notes: chosen.reason,
         });
       }
 
