@@ -1940,6 +1940,8 @@ export type Database = {
           machine_name: string | null
           material: string | null
           material_lead_time: number | null
+          material_ordered_at: string | null
+          material_received_at: string | null
           material_status: string | null
           material_supplier_id: string | null
           material_supplier_name: string | null
@@ -1960,6 +1962,8 @@ export type Database = {
           supplier_name: string | null
           tooling: string | null
           tooling_lead_time: number | null
+          tooling_ordered_at: string | null
+          tooling_received_at: string | null
           tooling_status: string | null
           total_required_time: number | null
           type_of_service: string | null
@@ -1981,6 +1985,8 @@ export type Database = {
           machine_name?: string | null
           material?: string | null
           material_lead_time?: number | null
+          material_ordered_at?: string | null
+          material_received_at?: string | null
           material_status?: string | null
           material_supplier_id?: string | null
           material_supplier_name?: string | null
@@ -2001,6 +2007,8 @@ export type Database = {
           supplier_name?: string | null
           tooling?: string | null
           tooling_lead_time?: number | null
+          tooling_ordered_at?: string | null
+          tooling_received_at?: string | null
           tooling_status?: string | null
           total_required_time?: number | null
           type_of_service?: string | null
@@ -2022,6 +2030,8 @@ export type Database = {
           machine_name?: string | null
           material?: string | null
           material_lead_time?: number | null
+          material_ordered_at?: string | null
+          material_received_at?: string | null
           material_status?: string | null
           material_supplier_id?: string | null
           material_supplier_name?: string | null
@@ -2042,6 +2052,8 @@ export type Database = {
           supplier_name?: string | null
           tooling?: string | null
           tooling_lead_time?: number | null
+          tooling_ordered_at?: string | null
+          tooling_received_at?: string | null
           tooling_status?: string | null
           total_required_time?: number | null
           type_of_service?: string | null
