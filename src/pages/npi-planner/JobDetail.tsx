@@ -72,9 +72,8 @@ export default function JobDetail() {
       }
       toast.success('Saved');
       setReason('');
-      const { data: h } = await supabase.from('npi_change_log').select('*').eq('part_id', id).order('created_at', { ascending: false });
-      setHistory((h as any) || []);
       setOriginal(part);
+      navigate('/npi/capacity-planner/jobs');
     } catch (e: any) {
       toast.error(e.message);
     } finally { setSaving(false); }
