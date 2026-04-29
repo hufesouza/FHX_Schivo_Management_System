@@ -169,13 +169,13 @@ export default function PartSetup() {
           .filter(t => !t.catalog_tool_id && t.tooling_description?.trim() && t.save_to_catalog !== false)
           .map(t => ({
             tool_code: t.tool_code || null,
-            description: t.tooling_description,
+            tooling_description: t.tooling_description,
             supplier: t.supplier || null,
             supplier_id: t.supplier_id || null,
-            unit_cost: Number(t.unit_cost) || 0,
-            lead_time_days: Number(t.lead_time_days) || 0,
+            default_unit_cost: Number(t.unit_cost) || 0,
+            default_lead_time_days: Number(t.lead_time_days) || 0,
           }));
-        if (newCatalog.length) await supabase.from('npi_tools_catalog').insert(newCatalog as any);
+        if (newCatalog.length) await supabase.from('npi_tooling_catalog').insert(newCatalog as any);
       }
 
       toast.success('Part created and allocated');
