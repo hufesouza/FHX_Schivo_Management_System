@@ -12,6 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useNPIPlanning } from '@/hooks/useNPIPlanning';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { COUNTRY_OPTIONS } from '@/utils/workingCalendar';
 import { toast } from 'sonner';
 
 export default function PlannerSettings() {
