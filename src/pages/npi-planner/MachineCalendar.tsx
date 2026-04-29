@@ -145,10 +145,11 @@ export default function MachineCalendar() {
                           {entries.map(e => {
                             const part = parts.find(p => p.id === e.part_id);
                             const report = part ? buildReport(e, part) : null;
-                            const flagged = report && (report.driftDays > 0 || report.hasOverlap);
+                            const flagged = report && (report.driftDays > 0 || report.hasOverlap || !report.matReady || !report.toolReady);
+                            const notReady = report && (!report.matReady || !report.toolReady);
                             const tone = !report ? 'bg-primary/15 text-primary'
                               : report.hasOverlap ? 'bg-destructive/20 text-destructive border border-destructive/40'
-                              : report.driftDays > 0 ? 'bg-amber-500/20 text-amber-800 border border-amber-500/40'
+                              : (notReady || report.driftDays > 0) ? 'bg-destructive/15 text-destructive border border-destructive/40'
                               : 'bg-emerald-500/15 text-emerald-700 border border-emerald-500/30';
                             const titleText = !report ? `${e.part_number}` :
                               `${e.part_number} — ${e.customer_name || ''}\n` +
@@ -180,8 +181,9 @@ export default function MachineCalendar() {
           <span><span className="inline-block w-3 h-3 bg-emerald-50 border align-middle mr-1" />Available</span>
           <span><span className="inline-block w-3 h-3 bg-blue-50 border align-middle mr-1" />Allocated</span>
           <span><span className="inline-block w-3 h-3 bg-destructive/10 border align-middle mr-1" />Overloaded</span>
-          <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-amber-600" /> Not ready (lead-time clock not started — slips daily)</span>
+          <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-destructive" /> Not ready — material/tooling not ordered or schedule will slip</span>
           <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3 text-destructive" /> Schedule overlap</span>
+          <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-emerald-500/15 border border-emerald-500/30" /> Ready — on track for scheduled start</span>
         </div>
       </main>
 
