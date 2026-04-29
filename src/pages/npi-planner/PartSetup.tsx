@@ -115,6 +115,8 @@ export default function PartSetup() {
         ...form,
         customer_id: form.customer_id || null,
         project_id: form.project_id || null,
+        material_supplier_id: form.material_supplier_id || null,
+        subcon_supplier_id: form.subcon_supplier_id || null,
         committed_date: form.committed_date || null,
         best_commence_date: chosen ? chosen.earliestStart.toISOString().slice(0, 10) : null,
         ship_date: null,
