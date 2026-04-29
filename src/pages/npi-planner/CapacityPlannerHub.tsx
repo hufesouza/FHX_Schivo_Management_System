@@ -1,9 +1,12 @@
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   LayoutDashboard, ListChecks, PlusCircle, CalendarRange, Gauge,
-  Wrench, FileBarChart2, Settings as SettingsIcon, Cog, Package
+  Wrench, FileBarChart2, Settings as SettingsIcon, Cog, Package,
+  LayoutGrid, List, ChevronRight,
 } from 'lucide-react';
 
 const groups = [
