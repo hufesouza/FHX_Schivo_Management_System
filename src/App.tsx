@@ -46,6 +46,7 @@ import MachineCalendar from "./pages/npi-planner/MachineCalendar";
 import MachineCapacity from "./pages/npi-planner/MachineCapacity";
 import ToolingTracker from "./pages/npi-planner/ToolingTracker";
 import MaterialTracker from "./pages/npi-planner/MaterialTracker";
+import MaterialsCatalog from "./pages/npi-planner/MaterialsCatalog";
 import PartToolingStatus from "./pages/npi-planner/PartToolingStatus";
 import PlannerReports from "./pages/npi-planner/Reports";
 import PlannerSettings from "./pages/npi-planner/PlannerSettings";
