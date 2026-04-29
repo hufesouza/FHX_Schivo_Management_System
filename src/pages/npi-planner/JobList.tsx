@@ -150,15 +150,21 @@ export default function JobList() {
                         <TableCell className="cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>{p.customer_name || '-'}</TableCell>
                         <TableCell>{p.machine_name || '-'}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={MAT_TOOL_TONE[matStatus] || ''}>
-                            {matStatus}
-                          </Badge>
+                          <Select value={matStatus} onValueChange={v => updateStatus(p.id, 'material_status', v)}>
+                            <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {MATERIAL_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                           {p.material_lead_time ? <div className="text-xs text-muted-foreground mt-1">{p.material_lead_time}d lead</div> : null}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={MAT_TOOL_TONE[toolStatus] || ''}>
-                            {toolStatus}
-                          </Badge>
+                          <Select value={toolStatus} onValueChange={v => updateStatus(p.id, 'tooling_status', v)}>
+                            <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {TOOLING_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                           {p.tooling_lead_time ? <div className="text-xs text-muted-foreground mt-1">{p.tooling_lead_time}d lead</div> : null}
                         </TableCell>
                         <TableCell>{p.committed_date || '-'}</TableCell>
