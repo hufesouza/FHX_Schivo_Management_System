@@ -144,20 +144,20 @@ export default function JobList() {
                         <TableCell className="font-medium cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>{p.part_number}</TableCell>
                         <TableCell className="cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>{p.customer_name || '-'}</TableCell>
                         <TableCell>{p.machine_name || '-'}</TableCell>
-                        <TableCell>
+                        <TableCell className="align-top text-left">
                           <div className="flex flex-col items-start gap-0.5">
                             <Badge variant="outline" className={MAT_TOOL_TONE[matStatus] || ''}>{matStatus}</Badge>
                             {p.material_lead_time ? <span className="text-xs text-muted-foreground">{p.material_lead_time}d lead</span> : null}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="align-top text-left">
                           <div className="flex flex-col items-start gap-0.5">
                             <Badge variant="outline" className={MAT_TOOL_TONE[toolStatus] || ''}>{toolStatus}</Badge>
                             {p.tooling_lead_time ? <span className="text-xs text-muted-foreground">{p.tooling_lead_time}d lead</span> : null}
                           </div>
                         </TableCell>
-                        <TableCell>{p.committed_date || '-'}</TableCell>
-                        <TableCell><Badge className={STATUS_TONE[p.overall_status] || ''} variant="outline">{p.overall_status}</Badge></TableCell>
+                        <TableCell className="align-top">{p.committed_date || '-'}</TableCell>
+                        <TableCell className="align-top"><Badge className={STATUS_TONE[p.overall_status] || ''} variant="outline">{p.overall_status}</Badge></TableCell>
                         <TableCell>
                           {p.ship_date ? (
                             <div className="flex items-center gap-1">
