@@ -8,8 +8,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import {
   Part, Machine, ScheduleEntry, MachineAvailability,
-  recommendAllocations, AllocationOption,
+  recommendAllocations, AllocationOption, CalendarSettings,
 } from '@/hooks/useNPIPlanning';
+import { DEFAULT_CALENDAR } from '@/utils/workingCalendar';
 
 interface Props {
   open: boolean;
@@ -18,6 +19,7 @@ interface Props {
   machines: Machine[];
   schedule: ScheduleEntry[];
   availability: MachineAvailability[];
+  calendar?: CalendarSettings;
   onApplied?: () => void;
 }
 
@@ -27,7 +29,7 @@ const STATUS_TONE: Record<string, string> = {
   'Late': 'bg-destructive/15 text-destructive border-destructive/30',
 };
 
-export function ReallocateDialog({ open, onOpenChange, part, machines, schedule, availability, onApplied }: Props) {
+export function ReallocateDialog({ open, onOpenChange, part, machines, schedule, availability, calendar, onApplied }: Props) {
   const [candidateIds, setCandidateIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
