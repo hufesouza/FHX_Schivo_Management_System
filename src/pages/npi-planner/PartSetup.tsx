@@ -36,7 +36,7 @@ export default function PartSetup() {
 
   const [form, setForm] = useState<any>({
     customer_id: '', project_id: '', engineer: '',
-    part_number: '', description: '', po: '', qty: 1,
+    part_number: '', part_revision: '', description: '', po: '', qty: 1,
     material: '', material_lead_time: 0, material_status: 'Not Required',
     tooling: '', tooling_lead_time: 0, tooling_status: 'Not Required',
     committed_date: '', best_commence_date: '', ship_date: '',
