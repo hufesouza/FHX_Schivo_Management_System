@@ -12,8 +12,10 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useNPIPlanning, recommendAllocations, upsertPart, type AllocationOption } from '@/hooks/useNPIPlanning';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Loader2, Sparkles, CheckCircle2, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { QuickCustomerDialog } from '@/components/npi-planner/QuickCustomerDialog';
+import { QuickProjectDialog } from '@/components/npi-planner/QuickProjectDialog';
 
 const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 const TOOLING_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
@@ -27,6 +29,8 @@ export default function PartSetup() {
   const [options, setOptions] = useState<AllocationOption[]>([]);
   const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
   const [machineOptionIds, setMachineOptionIds] = useState<string[]>([]);
+  const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
+  const [projectDialogOpen, setProjectDialogOpen] = useState(false);
 
   const [form, setForm] = useState<any>({
     customer_id: '', project_id: '', engineer: '',
@@ -127,16 +131,22 @@ export default function PartSetup() {
           <CardHeader><CardTitle className="text-base">Part details</CardTitle></CardHeader>
           <CardContent className="grid md:grid-cols-3 gap-4">
             <Field label="Customer">
-              <Select value={form.customer_id} onValueChange={v => set('customer_id', v)}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.customer_name}</SelectItem>)}</SelectContent>
-              </Select>
+              <div className="flex gap-1">
+                <Select value={form.customer_id} onValueChange={v => { set('customer_id', v); set('project_id', ''); }}>
+                  <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
+                  <SelectContent>{customers.map(c => <SelectItem key={c.id} value={c.id}>{c.customer_code ? `${c.customer_code} — ` : ''}{c.customer_name}</SelectItem>)}</SelectContent>
+                </Select>
+                <Button type="button" variant="outline" size="icon" onClick={() => setCustomerDialogOpen(true)} title="New customer"><Plus className="h-4 w-4" /></Button>
+              </div>
             </Field>
             <Field label="Project">
-              <Select value={form.project_id} onValueChange={v => set('project_id', v)}>
-                <SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger>
-                <SelectContent>{filteredProjects.map(p => <SelectItem key={p.id} value={p.id}>{p.project_name}</SelectItem>)}</SelectContent>
-              </Select>
+              <div className="flex gap-1">
+                <Select value={form.project_id} onValueChange={v => set('project_id', v)} disabled={!form.customer_id}>
+                  <SelectTrigger><SelectValue placeholder={form.customer_id ? 'Select' : 'Pick customer first'} /></SelectTrigger>
+                  <SelectContent>{filteredProjects.map(p => <SelectItem key={p.id} value={p.id}>{p.project_name}</SelectItem>)}</SelectContent>
+                </Select>
+                <Button type="button" variant="outline" size="icon" onClick={() => setProjectDialogOpen(true)} disabled={!form.customer_id} title="New project"><Plus className="h-4 w-4" /></Button>
+              </div>
             </Field>
             <Field label="Engineer"><Input value={form.engineer} onChange={e => set('engineer', e.target.value)} /></Field>
             <Field label="Part Number *"><Input value={form.part_number} onChange={e => set('part_number', e.target.value)} /></Field>
@@ -262,6 +272,19 @@ export default function PartSetup() {
           <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save part'}</Button>
         </div>
       </main>
+
+      <QuickCustomerDialog
+        open={customerDialogOpen}
+        onOpenChange={setCustomerDialogOpen}
+        onCreated={async (c) => { await reload(); set('customer_id', c.id); set('project_id', ''); }}
+      />
+      <QuickProjectDialog
+        open={projectDialogOpen}
+        onOpenChange={setProjectDialogOpen}
+        customerId={form.customer_id || null}
+        customerName={customers.find(c => c.id === form.customer_id)?.customer_name || null}
+        onCreated={async (p) => { await reload(); set('project_id', p.id); }}
+      />
     </AppLayout>
   );
 }

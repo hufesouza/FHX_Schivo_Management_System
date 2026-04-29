@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 export type Customer = {
   id: string;
   customer_name: string;
+  customer_code: string | null;
   account_owner: string | null;
   email: string | null;
   notes: string | null;
