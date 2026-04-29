@@ -22,8 +22,26 @@ const statusLabel = (status: string | null | undefined, orderedAt: string | null
 const isReady = (status: string | null | undefined) =>
   status === 'Received' || status === 'Not Required' || status === 'Ordered';
 
+// Aggregate tooling status from per-part tooling links (worst-case)
+const aggregateTooling = (links: any[]): { status: string; leadTime: number; orderedAt: string | null } => {
+  if (!links || links.length === 0) return { status: 'Not Required', leadTime: 0, orderedAt: null };
+  const order = ['Issue', 'Delayed', 'Required', 'Not Ordered', 'Ordered', 'Received', 'Not Required'];
+  let worst = 'Not Required';
+  let lead = 0;
+  let orderedAt: string | null = null;
+  for (const l of links) {
+    const s = l.ordered_status || 'Not Ordered';
+    if (order.indexOf(s) < order.indexOf(worst)) worst = s;
+    if (l.lead_time_days && l.lead_time_days > lead) lead = l.lead_time_days;
+    if (l.ordered_at && (!orderedAt || new Date(l.ordered_at) < new Date(orderedAt))) orderedAt = l.ordered_at;
+  }
+  // Normalize "Not Ordered" → null-ish so statusLabel renders "Not ordered..."
+  const normalized = worst === 'Not Ordered' ? null : worst;
+  return { status: normalized as any, leadTime: lead, orderedAt };
+};
+
 export default function MachineCalendar() {
-  const { machines, schedule, parts, availability, calendarSettings, reload, loading } = useNPIPlanning();
+  const { machines, schedule, parts, partTooling, availability, calendarSettings, reload, loading } = useNPIPlanning();
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() - d.getDay() + 1); // Monday
