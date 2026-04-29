@@ -174,11 +174,42 @@ export const useNPIPlanning = () => {
 // === Allocation logic ===
 export type AllocationOption = {
   machine: Machine;
-  earliestStart: Date;
-  end: Date;
+  earliestStart: Date;        // earliest the job CAN start (constrained by lead times)
+  machiningStart: Date;       // when the machine actually starts running it
+  machiningEnd: Date;         // machining complete
+  backendEnd: Date;           // backend ops complete
+  shipDate: Date;             // = backendEnd
+  end: Date;                  // alias for machiningEnd (back-compat with calendar/schedule code)
   meetsCommittedDate: boolean;
   meetsBestCommence: boolean;
-  score: number; // lower = better
+  status: 'On Track' | 'At Risk' | 'Late';
+  reason: string;
+  score: number;              // lower = better
+};
+
+// Compute the earliest the job can physically start, constrained by material/tooling lead times.
+// Lead times are days from "today" (when material/tooling has not yet been received).
+// If status is "Received", that constraint is treated as already satisfied (0 days).
+export const computeEarliestStart = (params: {
+  materialLeadTime?: number | null;
+  materialStatus?: string | null;
+  toolingLeadTime?: number | null;   // already the MAX across tools
+  toolingStatus?: string | null;
+  bestCommenceDate?: Date | null;
+}): Date => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const matDays = params.materialStatus === 'Received' || params.materialStatus === 'Not Required'
+    ? 0 : Math.max(0, Number(params.materialLeadTime) || 0);
+  const toolDays = params.toolingStatus === 'Received' || params.toolingStatus === 'Not Required'
+    ? 0 : Math.max(0, Number(params.toolingLeadTime) || 0);
+
+  const constraintDays = Math.max(matDays, toolDays);
+  const leadStart = new Date(today.getTime() + constraintDays * 24 * 3600 * 1000);
+
+  if (params.bestCommenceDate && params.bestCommenceDate > leadStart) return params.bestCommenceDate;
+  return leadStart;
 };
 
 // Find next gap that fits required time within machine's existing schedule
@@ -235,34 +266,99 @@ export const findNextGap = (
   return null;
 };
 
+export type AllocationInputs = {
+  qty: number;
+  cycleTimeHrs: number;          // hrs per piece
+  developmentTimeHrs: number;    // one-off setup/dev hrs
+  materialLeadTime: number | null;
+  materialStatus: string | null;
+  toolingLeadTime: number | null;  // already MAX across tools
+  toolingStatus: string | null;
+  subconRequired: boolean;
+  subconLeadTime: number | null;   // days, after machining
+  backendLeadTime?: number | null; // days, deburr/wash/inspection (default 0)
+  bestCommenceDate: Date | null;
+  committedDate: Date | null;
+};
+
 export const recommendAllocations = (
   candidateMachines: Machine[],
   schedule: ScheduleEntry[],
   availability: MachineAvailability[],
-  requiredHours: number,
-  bestCommenceDate: Date | null,
-  committedDate: Date | null,
+  inputs: AllocationInputs,
 ): AllocationOption[] => {
-  const earliest = bestCommenceDate && bestCommenceDate > new Date()
-    ? bestCommenceDate
-    : new Date();
+  const totalMachiningHrs =
+    (Number(inputs.developmentTimeHrs) || 0) +
+    (Number(inputs.cycleTimeHrs) || 0) * (Number(inputs.qty) || 0);
+
+  const earliestStart = computeEarliestStart({
+    materialLeadTime: inputs.materialLeadTime,
+    materialStatus: inputs.materialStatus,
+    toolingLeadTime: inputs.toolingLeadTime,
+    toolingStatus: inputs.toolingStatus,
+    bestCommenceDate: inputs.bestCommenceDate,
+  });
+
+  const backendDays =
+    (Number(inputs.backendLeadTime) || 0) +
+    (inputs.subconRequired ? (Number(inputs.subconLeadTime) || 0) : 0);
+
+  const matDays = Math.max(0, Number(inputs.materialLeadTime) || 0);
+  const toolDays = Math.max(0, Number(inputs.toolingLeadTime) || 0);
+  const constraintLabel = toolDays > matDays ? 'tooling lead time' : (matDays > 0 ? 'material lead time' : null);
 
   const options = candidateMachines
     .filter(m => m.status === 'Available')
     .map(m => {
-      const gap = findNextGap(m, schedule, availability, requiredHours, earliest);
+      const gap = findNextGap(m, schedule, availability, totalMachiningHrs, earliestStart);
       if (!gap) return null;
-      const meetsCommitted = !committedDate || gap.end <= committedDate;
-      const meetsBest = !bestCommenceDate || gap.start <= bestCommenceDate;
-      const score = gap.start.getTime() + (meetsCommitted ? 0 : 1e12);
+
+      const machiningStart = gap.start;
+      const machiningEnd = gap.end;
+      const backendEnd = new Date(machiningEnd.getTime() + backendDays * 24 * 3600 * 1000);
+      const shipDate = backendEnd;
+
+      const meetsCommitted = !inputs.committedDate || shipDate <= inputs.committedDate;
+      const meetsBest = !inputs.bestCommenceDate || machiningStart <= inputs.bestCommenceDate;
+
+      let status: AllocationOption['status'] = 'On Track';
+      if (!meetsCommitted) {
+        const overdueDays = inputs.committedDate
+          ? (shipDate.getTime() - inputs.committedDate.getTime()) / (24 * 3600 * 1000)
+          : 0;
+        status = overdueDays > 3 ? 'Late' : 'At Risk';
+      }
+
+      const reasonParts: string[] = [];
+      if (constraintLabel && earliestStart.getTime() > Date.now()) {
+        reasonParts.push(`Earliest start delayed by ${constraintLabel} (${Math.max(matDays, toolDays)}d)`);
+      }
+      if (machiningStart.getTime() > earliestStart.getTime() + 24 * 3600 * 1000) {
+        reasonParts.push('Waiting for machine availability');
+      }
+      if (backendDays > 0) {
+        reasonParts.push(`+${backendDays}d backend/subcon`);
+      }
+      if (!meetsCommitted) {
+        reasonParts.push('Cannot meet committed date with current constraints');
+      }
+
+      const score = shipDate.getTime() + (meetsCommitted ? 0 : 1e12);
+
       return {
         machine: m,
-        earliestStart: gap.start,
-        end: gap.end,
+        earliestStart,
+        machiningStart,
+        machiningEnd,
+        backendEnd,
+        shipDate,
+        end: machiningEnd,
         meetsCommittedDate: meetsCommitted,
         meetsBestCommence: meetsBest,
+        status,
+        reason: reasonParts.join(' · ') || 'All constraints satisfied',
         score,
-      };
+      } as AllocationOption;
     })
     .filter((o): o is AllocationOption => o !== null)
     .sort((a, b) => a.score - b.score);

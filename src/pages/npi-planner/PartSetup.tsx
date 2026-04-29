@@ -49,7 +49,7 @@ export default function PartSetup() {
     sales_price: 0, notes: '', overall_status: 'Not Started',
   });
 
-  const totalRequired = (Number(form.cycle_time) || 0) + (Number(form.development_time) || 0);
+  const totalRequired = (Number(form.development_time) || 0) + (Number(form.cycle_time) || 0) * (Number(form.qty) || 0);
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
@@ -58,21 +58,37 @@ export default function PartSetup() {
     [projects, form.customer_id],
   );
 
+  const maxToolLeadFromList = useMemo(
+    () => toolLines.reduce((m, t) => Math.max(m, Number(t.lead_time_days) || 0), 0),
+    [toolLines],
+  );
+
   const runAllocation = () => {
     if (machineOptionIds.length === 0) {
       toast.error('Select at least one candidate machine');
       return;
     }
-    if (totalRequired <= 0) {
-      toast.error('Cycle time + development time must be > 0');
+    const qty = Number(form.qty) || 0;
+    const machiningHrs = (Number(form.development_time) || 0) + (Number(form.cycle_time) || 0) * qty;
+    if (machiningHrs <= 0) {
+      toast.error('Cycle time × qty + development time must be > 0');
       return;
     }
     const candidates = machines.filter(m => machineOptionIds.includes(m.id));
-    const opts = recommendAllocations(
-      candidates, schedule, availability, totalRequired,
-      form.best_commence_date ? new Date(form.best_commence_date) : null,
-      form.committed_date ? new Date(form.committed_date) : null,
-    );
+    const opts = recommendAllocations(candidates, schedule, availability, {
+      qty,
+      cycleTimeHrs: Number(form.cycle_time) || 0,
+      developmentTimeHrs: Number(form.development_time) || 0,
+      materialLeadTime: Number(form.material_lead_time) || 0,
+      materialStatus: form.material_status,
+      toolingLeadTime: maxToolLeadFromList || Number(form.tooling_lead_time) || 0,
+      toolingStatus: form.tooling_status,
+      subconRequired: (form.subcon_status && form.subcon_status !== 'Not Required'),
+      subconLeadTime: Number(form.subcon_lead_time) || 0,
+      backendLeadTime: 0,
+      bestCommenceDate: form.best_commence_date ? new Date(form.best_commence_date) : null,
+      committedDate: form.committed_date ? new Date(form.committed_date) : null,
+    });
     setOptions(opts);
     if (opts.length === 0) {
       toast.warning('No machine has an NPI availability window that fits this job. Add a window in Settings → Machines.');
@@ -97,18 +113,19 @@ export default function PartSetup() {
         project_id: form.project_id || null,
         committed_date: form.committed_date || null,
         best_commence_date: form.best_commence_date || null,
-        ship_date: form.ship_date || null,
+        ship_date: form.ship_date || (chosen ? chosen.shipDate.toISOString().slice(0, 10) : null),
         customer_name: customer?.customer_name || null,
         project_name: project?.project_name || null,
         machine_id: machine?.id || null,
         machine_name: machine?.machine_name || null,
         tooling_lead_time: maxToolLead || form.tooling_lead_time || 0,
+        total_required_time: totalRequired,
       };
       delete partData.id;
 
       const part = await upsertPart(partData, machineOptionIds);
 
-      // If allocation chosen, create schedule entry
+      // If allocation chosen, create schedule entry (machining window only)
       if (part && chosen) {
         await supabase.from('npi_machine_schedule').insert({
           part_id: part.id,
@@ -117,10 +134,11 @@ export default function PartSetup() {
           project_name: part.project_name,
           machine_id: chosen.machine.id,
           machine_name: chosen.machine.machine_name,
-          start_date: chosen.earliestStart.toISOString(),
-          end_date: chosen.end.toISOString(),
+          start_date: chosen.machiningStart.toISOString(),
+          end_date: chosen.machiningEnd.toISOString(),
           total_required_time: totalRequired,
           allocation_status: 'Confirmed',
+          notes: chosen.reason,
         });
       }
 
@@ -287,7 +305,7 @@ export default function PartSetup() {
           <CardContent className="grid md:grid-cols-3 gap-4">
             <Field label="Cycle time (hrs)"><Input type="number" step="0.1" value={form.cycle_time} onChange={e => set('cycle_time', +e.target.value)} /></Field>
             <Field label="Development time (hrs)"><Input type="number" step="0.1" value={form.development_time} onChange={e => set('development_time', +e.target.value)} /></Field>
-            <Field label="Total required (auto)"><Input value={totalRequired} disabled /></Field>
+            <Field label="Total machining hrs (dev + cycle × qty)"><Input value={totalRequired} disabled /></Field>
             <Field label="Best commence date"><Input type="date" value={form.best_commence_date} onChange={e => set('best_commence_date', e.target.value)} /></Field>
             <Field label="Committed date"><Input type="date" value={form.committed_date} onChange={e => set('committed_date', e.target.value)} /></Field>
             <Field label="Ship date"><Input type="date" value={form.ship_date} onChange={e => set('ship_date', e.target.value)} /></Field>
@@ -345,24 +363,43 @@ export default function PartSetup() {
               <div className="space-y-2">
                 <Separator />
                 <p className="text-sm font-medium">Recommended options (best first)</p>
-                {options.map((o, i) => (
-                  <label key={o.machine.id} className={`flex items-center justify-between border rounded-md px-3 py-2 cursor-pointer ${selectedMachineId === o.machine.id ? 'border-primary bg-primary/5' : ''}`}>
-                    <div className="flex items-center gap-3">
-                      <input type="radio" checked={selectedMachineId === o.machine.id} onChange={() => setSelectedMachineId(o.machine.id)} />
-                      <div>
-                        <div className="font-medium text-sm">{i === 0 && <Badge variant="default" className="mr-2">Best</Badge>}{o.machine.machine_name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Start: {o.earliestStart.toLocaleString()} · End: {o.end.toLocaleString()}
+                {options.map((o, i) => {
+                  const statusColor = o.status === 'On Track'
+                    ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30'
+                    : o.status === 'At Risk'
+                      ? 'bg-amber-500/10 text-amber-700 border-amber-500/30'
+                      : 'bg-destructive/10 text-destructive border-destructive/30';
+                  const fmt = (d: Date) => d.toLocaleDateString();
+                  return (
+                    <label key={o.machine.id} className={`flex flex-col gap-2 border rounded-md px-3 py-3 cursor-pointer ${selectedMachineId === o.machine.id ? 'border-primary bg-primary/5' : ''}`}>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          <input type="radio" checked={selectedMachineId === o.machine.id} onChange={() => setSelectedMachineId(o.machine.id)} />
+                          <div className="font-medium text-sm">
+                            {i === 0 && <Badge variant="default" className="mr-2">Best</Badge>}
+                            {o.machine.machine_name}
+                          </div>
                         </div>
+                        <Badge variant="outline" className={statusColor}>
+                          {o.status === 'On Track' && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                          {o.status}
+                        </Badge>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {o.meetsCommittedDate
-                        ? <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700 border-emerald-500/30"><CheckCircle2 className="h-3 w-3 mr-1"/>Meets committed</Badge>
-                        : <Badge variant="destructive">Misses committed</Badge>}
-                    </div>
-                  </label>
-                ))}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs pl-6">
+                        <div><span className="text-muted-foreground">Earliest start:</span> <div className="font-medium">{fmt(o.earliestStart)}</div></div>
+                        <div><span className="text-muted-foreground">Machining:</span> <div className="font-medium">{fmt(o.machiningStart)} → {fmt(o.machiningEnd)}</div></div>
+                        <div><span className="text-muted-foreground">Backend done:</span> <div className="font-medium">{fmt(o.backendEnd)}</div></div>
+                        <div><span className="text-muted-foreground">Ship date:</span> <div className="font-medium">{fmt(o.shipDate)}</div></div>
+                      </div>
+                      <div className="text-xs text-muted-foreground pl-6 italic">{o.reason}</div>
+                      {!o.meetsCommittedDate && (
+                        <div className="text-xs text-destructive pl-6">
+                          ⚠ Job cannot meet committed date based on current constraints. Consider renegotiating committed date or expediting constraints.
+                        </div>
+                      )}
+                    </label>
+                  );
+                })}
               </div>
             )}
           </CardContent>
