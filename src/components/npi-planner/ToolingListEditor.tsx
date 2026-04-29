@@ -49,10 +49,18 @@ export function ToolingListEditor({
 
   const loadCatalog = useCallback(async () => {
     const { data } = await supabase
-      .from('npi_tools_catalog')
-      .select('id, tool_code, description, supplier, supplier_id, unit_cost, lead_time_days')
-      .order('description');
-    setCatalog((data as any) || []);
+      .from('npi_tooling_catalog')
+      .select('id, tool_code, tooling_description, supplier, supplier_id, default_unit_cost, default_lead_time_days')
+      .order('tooling_description');
+    setCatalog(((data as any) || []).map((t: any) => ({
+      id: t.id,
+      tool_code: t.tool_code,
+      description: t.tooling_description,
+      supplier: t.supplier,
+      supplier_id: t.supplier_id,
+      default_unit_cost: t.default_unit_cost,
+      default_lead_time_days: t.default_lead_time_days,
+    })));
   }, []);
 
   const loadSuppliers = useCallback(async () => {
