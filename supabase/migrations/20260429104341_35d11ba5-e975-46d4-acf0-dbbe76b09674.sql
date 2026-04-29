@@ -1,0 +1,2 @@
+ALTER TABLE public.npi_customers ADD COLUMN IF NOT EXISTS customer_code TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS npi_customers_code_unique ON public.npi_customers (customer_code) WHERE customer_code IS NOT NULL;

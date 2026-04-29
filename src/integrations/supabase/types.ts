@@ -1562,6 +1562,7 @@ export type Database = {
           account_owner: string | null
           created_at: string
           created_by: string | null
+          customer_code: string | null
           customer_name: string
           email: string | null
           id: string
@@ -1572,6 +1573,7 @@ export type Database = {
           account_owner?: string | null
           created_at?: string
           created_by?: string | null
+          customer_code?: string | null
           customer_name: string
           email?: string | null
           id?: string
@@ -1582,6 +1584,7 @@ export type Database = {
           account_owner?: string | null
           created_at?: string
           created_by?: string | null
+          customer_code?: string | null
           customer_name?: string
           email?: string | null
           id?: string
