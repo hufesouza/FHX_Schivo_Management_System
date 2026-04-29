@@ -124,9 +124,11 @@ export default function PartSetup() {
             po: form.po || null,
             tooling_description: t.tooling_description,
             supplier: t.supplier || null,
+            supplier_id: t.supplier_id || null,
             qty: Number(t.qty) || 1,
             unit_cost: Number(t.unit_cost) || 0,
             total_cost: (Number(t.qty) || 0) * (Number(t.unit_cost) || 0),
+            lead_time_days: Number(t.lead_time_days) || 0,
             expected_delivery_date: t.expected_delivery_date || null,
             ordered_status: t.ordered_status || 'Not Ordered',
             required_status: 'Required',
@@ -141,7 +143,9 @@ export default function PartSetup() {
             tool_code: t.tool_code || null,
             description: t.tooling_description,
             supplier: t.supplier || null,
+            supplier_id: t.supplier_id || null,
             unit_cost: Number(t.unit_cost) || 0,
+            lead_time_days: Number(t.lead_time_days) || 0,
           }));
         if (newCatalog.length) await supabase.from('npi_tools_catalog').insert(newCatalog as any);
       }
