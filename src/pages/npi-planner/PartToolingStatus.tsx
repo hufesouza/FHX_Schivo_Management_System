@@ -266,6 +266,20 @@ Kind regards,`;
             </div>
           )}
 
+          {toolsBySupplier.length > 0 && (
+            <div className="space-y-2">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide">RFQ email (copy & send)</div>
+              <div className="flex flex-wrap gap-2">
+                {toolsBySupplier.map(g => (
+                  <Button key={g.name} size="sm" variant="secondary" onClick={() => copyRFQ(g.name, g.tools)}>
+                    <Copy className="h-3.5 w-3.5 mr-1.5" />
+                    Copy RFQ for {g.name} ({g.tools.length})
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <DialogFooter className="sm:justify-between">
             <Button variant="outline" asChild>
               <Link to="/npi/capacity-planner/tooling"><ExternalLink className="h-4 w-4 mr-2" />Open Tooling Tracker</Link>
