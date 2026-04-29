@@ -48,9 +48,15 @@ export default function JobDetail() {
     if (!part || !original) return;
     setSaving(true);
     try {
-      const { error } = await supabase.from('npi_parts').update({
-        ...part, machine_name: machines.find(m => m.id === part.machine_id)?.machine_name || null,
-      }).eq('id', part.id);
+      const payload: any = {
+        ...part,
+        machine_name: machines.find(m => m.id === part.machine_id)?.machine_name || null,
+      };
+      delete payload.total_required_time;
+      delete payload.id;
+      delete payload.created_at;
+      delete payload.updated_at;
+      const { error } = await supabase.from('npi_parts').update(payload).eq('id', part.id);
       if (error) throw error;
 
       // Log notable changes
