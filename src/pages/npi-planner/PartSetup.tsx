@@ -225,7 +225,9 @@ export default function PartSetup() {
                   <SelectContent>{TOOLING_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
                 </Select>
               </Field>
-              <Field label="Lead time (days)"><Input type="number" value={form.tooling_lead_time} onChange={e => set('tooling_lead_time', +e.target.value)} /></Field>
+              <Field label="Total lead time (days, max of tools)">
+                <Input value={toolLines.reduce((m, t) => Math.max(m, Number(t.lead_time_days) || 0), 0)} disabled />
+              </Field>
               <Field label="Total tooling cost (€)">
                 <Input value={toolLines.reduce((s, t) => s + (Number(t.qty) || 0) * (Number(t.unit_cost) || 0), 0).toFixed(2)} disabled />
               </Field>
