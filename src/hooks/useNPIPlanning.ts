@@ -174,11 +174,42 @@ export const useNPIPlanning = () => {
 // === Allocation logic ===
 export type AllocationOption = {
   machine: Machine;
-  earliestStart: Date;
-  end: Date;
+  earliestStart: Date;        // earliest the job CAN start (constrained by lead times)
+  machiningStart: Date;       // when the machine actually starts running it
+  machiningEnd: Date;         // machining complete
+  backendEnd: Date;           // backend ops complete
+  shipDate: Date;             // = backendEnd
+  end: Date;                  // alias for machiningEnd (back-compat with calendar/schedule code)
   meetsCommittedDate: boolean;
   meetsBestCommence: boolean;
-  score: number; // lower = better
+  status: 'On Track' | 'At Risk' | 'Late';
+  reason: string;
+  score: number;              // lower = better
+};
+
+// Compute the earliest the job can physically start, constrained by material/tooling lead times.
+// Lead times are days from "today" (when material/tooling has not yet been received).
+// If status is "Received", that constraint is treated as already satisfied (0 days).
+export const computeEarliestStart = (params: {
+  materialLeadTime?: number | null;
+  materialStatus?: string | null;
+  toolingLeadTime?: number | null;   // already the MAX across tools
+  toolingStatus?: string | null;
+  bestCommenceDate?: Date | null;
+}): Date => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const matDays = params.materialStatus === 'Received' || params.materialStatus === 'Not Required'
+    ? 0 : Math.max(0, Number(params.materialLeadTime) || 0);
+  const toolDays = params.toolingStatus === 'Received' || params.toolingStatus === 'Not Required'
+    ? 0 : Math.max(0, Number(params.toolingLeadTime) || 0);
+
+  const constraintDays = Math.max(matDays, toolDays);
+  const leadStart = new Date(today.getTime() + constraintDays * 24 * 3600 * 1000);
+
+  if (params.bestCommenceDate && params.bestCommenceDate > leadStart) return params.bestCommenceDate;
+  return leadStart;
 };
 
 // Find next gap that fits required time within machine's existing schedule
