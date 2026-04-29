@@ -144,7 +144,7 @@ export function ReallocateDialog({ open, onOpenChange, part, machines, schedule,
                     <Badge variant="outline" className={STATUS_TONE[opt.status]}>{opt.status}</Badge>
                   </div>
                   <div className="text-xs text-muted-foreground space-x-3">
-                    <span>Earliest start: <strong>{format(opt.earliestStart, 'MMM d, yyyy')}</strong></span>
+                    <span>Materials/tools ready: <strong>{format(opt.earliestStart, 'MMM d, yyyy')}</strong></span>
                     <span>Machining: {format(opt.machiningStart, 'MMM d')} → {format(opt.machiningEnd, 'MMM d')}</span>
                     <span>Ship: <strong>{format(opt.shipDate, 'MMM d, yyyy')}</strong></span>
                   </div>
