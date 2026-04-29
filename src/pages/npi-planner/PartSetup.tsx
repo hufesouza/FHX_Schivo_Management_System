@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { QuickCustomerDialog } from '@/components/npi-planner/QuickCustomerDialog';
 import { QuickProjectDialog } from '@/components/npi-planner/QuickProjectDialog';
 import { ToolingListEditor, type ToolLine } from '@/components/npi-planner/ToolingListEditor';
+import { SupplierPicker } from '@/components/npi-planner/SupplierPicker';
 
 const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 const TOOLING_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
@@ -38,10 +39,11 @@ export default function PartSetup() {
     customer_id: '', project_id: '', engineer: '',
     part_number: '', part_revision: '', description: '', po: '', qty: 1,
     material: '', material_lead_time: 0, material_status: 'Not Required',
+    material_supplier_id: '', material_supplier_name: '',
     tooling: '', tooling_lead_time: 0, tooling_status: 'Not Required',
     committed_date: '', best_commence_date: '', ship_date: '',
     cycle_time: 0, development_time: 0,
-    subcon: false, supplier_name: '', type_of_service: '', subcon_lead_time: 0, subcon_status: 'Not Required',
+    subcon_supplier_id: '', supplier_name: '', type_of_service: '', subcon_lead_time: 0, subcon_status: 'Not Required',
     sales_price: 0, notes: '', overall_status: 'Not Started',
   });
 
@@ -206,8 +208,19 @@ export default function PartSetup() {
 
         <Card>
           <CardHeader><CardTitle className="text-base">Material</CardTitle></CardHeader>
-          <CardContent className="grid md:grid-cols-3 gap-4">
+          <CardContent className="grid md:grid-cols-4 gap-4">
             <Field label="Material"><Input value={form.material} onChange={e => set('material', e.target.value)} /></Field>
+            <Field label="Supplier">
+              <SupplierPicker
+                value={form.material_supplier_id || null}
+                displayName={form.material_supplier_name}
+                onPick={(s) => {
+                  set('material_supplier_id', s.id);
+                  set('material_supplier_name', s.supplier_name);
+                  if (!form.material_lead_time && s.default_lead_time_days) set('material_lead_time', s.default_lead_time_days);
+                }}
+              />
+            </Field>
             <Field label="Lead time (days)"><Input type="number" value={form.material_lead_time} onChange={e => set('material_lead_time', +e.target.value)} /></Field>
             <Field label="Status">
               <Select value={form.material_status} onValueChange={v => set('material_status', v)}>
@@ -241,9 +254,18 @@ export default function PartSetup() {
 
         <Card>
           <CardHeader><CardTitle className="text-base">Subcon</CardTitle></CardHeader>
-          <CardContent className="grid md:grid-cols-3 gap-4">
-            <Field label="Required"><div className="flex items-center gap-2 h-10"><Checkbox checked={form.subcon} onCheckedChange={v => set('subcon', !!v)} /><span className="text-sm">Has subcon</span></div></Field>
-            <Field label="Supplier name"><Input value={form.supplier_name} onChange={e => set('supplier_name', e.target.value)} /></Field>
+          <CardContent className="grid md:grid-cols-4 gap-4">
+            <Field label="Supplier">
+              <SupplierPicker
+                value={form.subcon_supplier_id || null}
+                displayName={form.supplier_name}
+                onPick={(s) => {
+                  set('subcon_supplier_id', s.id);
+                  set('supplier_name', s.supplier_name);
+                  if (!form.subcon_lead_time && s.default_lead_time_days) set('subcon_lead_time', s.default_lead_time_days);
+                }}
+              />
+            </Field>
             <Field label="Type of service"><Input value={form.type_of_service} onChange={e => set('type_of_service', e.target.value)} /></Field>
             <Field label="Subcon lead time (days)"><Input type="number" value={form.subcon_lead_time} onChange={e => set('subcon_lead_time', +e.target.value)} /></Field>
             <Field label="Subcon status">
