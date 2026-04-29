@@ -8,9 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useNPIPlanning } from '@/hooks/useNPIPlanning';
-import { Loader2, Plus, Check } from 'lucide-react';
+import { Loader2, Plus, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
+const TOOLING_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 
 const STATUS_TONE: Record<string, string> = {
   'Not Started': 'bg-slate-200 text-slate-700',
@@ -62,6 +65,25 @@ export default function JobList() {
     if (error) return toast.error(error.message);
     toast.success('Ship date saved');
     setShipDates(prev => { const n = { ...prev }; delete n[partId]; return n; });
+    reload();
+  };
+
+  const unship = async (partId: string) => {
+    if (!confirm('Mark this part as not shipped?')) return;
+    setSavingId(partId);
+    const { error } = await supabase
+      .from('npi_parts')
+      .update({ ship_date: null, overall_status: 'In Production' })
+      .eq('id', partId);
+    setSavingId(null);
+    if (error) return toast.error(error.message);
+    toast.success('Part unshipped');
+    reload();
+  };
+
+  const updateStatus = async (partId: string, field: 'material_status' | 'tooling_status', value: string) => {
+    const { error } = await supabase.from('npi_parts').update({ [field]: value } as any).eq('id', partId);
+    if (error) return toast.error(error.message);
     reload();
   };
 
@@ -128,22 +150,40 @@ export default function JobList() {
                         <TableCell className="cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>{p.customer_name || '-'}</TableCell>
                         <TableCell>{p.machine_name || '-'}</TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={MAT_TOOL_TONE[matStatus] || ''}>
-                            {matStatus}
-                          </Badge>
+                          <Select value={matStatus} onValueChange={v => updateStatus(p.id, 'material_status', v)}>
+                            <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {MATERIAL_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                           {p.material_lead_time ? <div className="text-xs text-muted-foreground mt-1">{p.material_lead_time}d lead</div> : null}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={MAT_TOOL_TONE[toolStatus] || ''}>
-                            {toolStatus}
-                          </Badge>
+                          <Select value={toolStatus} onValueChange={v => updateStatus(p.id, 'tooling_status', v)}>
+                            <SelectTrigger className="h-8 w-[140px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              {TOOLING_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                           {p.tooling_lead_time ? <div className="text-xs text-muted-foreground mt-1">{p.tooling_lead_time}d lead</div> : null}
                         </TableCell>
                         <TableCell>{p.committed_date || '-'}</TableCell>
                         <TableCell><Badge className={STATUS_TONE[p.overall_status] || ''} variant="outline">{p.overall_status}</Badge></TableCell>
                         <TableCell>
                           {p.ship_date ? (
-                            <span className="text-sm font-medium text-emerald-700">Shipped {p.ship_date}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-emerald-700">Shipped {p.ship_date}</span>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-7 w-7"
+                                disabled={savingId === p.id}
+                                onClick={() => unship(p.id)}
+                                title="Unship"
+                              >
+                                {savingId === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
+                              </Button>
+                            </div>
                           ) : (
                             <div className="flex gap-1 items-center">
                               <Input
