@@ -161,11 +161,7 @@ export default function PartSetup() {
             </Field>
             <Field label="Project">
               <div className="flex gap-1">
-                <Select value={form.project_id} onValueChange={v => {
-                  set('project_id', v);
-                  const proj = projects.find(p => p.id === v);
-                  if (proj?.engineer) set('engineer', proj.engineer);
-                }} disabled={!form.customer_id}>
+                <Select value={form.project_id} onValueChange={v => set('project_id', v)} disabled={!form.customer_id}>
                   <SelectTrigger><SelectValue placeholder={form.customer_id ? 'Select' : 'Pick customer first'} /></SelectTrigger>
                   <SelectContent>{filteredProjects.map(p => <SelectItem key={p.id} value={p.id}>{p.project_name}</SelectItem>)}</SelectContent>
                 </Select>
@@ -173,7 +169,7 @@ export default function PartSetup() {
               </div>
             </Field>
             <Field label="Engineer">
-              <Input value={form.engineer} disabled placeholder="—" />
+              <Input value={form.engineer} onChange={e => set('engineer', e.target.value)} placeholder="Engineer name" />
             </Field>
             <Field label="Part Number *"><Input value={form.part_number} onChange={e => set('part_number', e.target.value)} /></Field>
             <Field label="Part Revision"><Input value={form.part_revision} onChange={e => set('part_revision', e.target.value)} placeholder="e.g. A" /></Field>
