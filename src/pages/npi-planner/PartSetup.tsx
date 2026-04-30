@@ -50,7 +50,9 @@ export default function PartSetup() {
     dev_allow_weekends: false, prod_allow_weekends: true,
   });
 
-  const totalRequired = (Number(form.development_time) || 0) + (Number(form.cycle_time) || 0) * (Number(form.qty) || 0);
+  const cycleHrs = (Number(form.cycle_time_min) || 0) / 60;
+  const devHrs = (Number(form.development_time_min) || 0) / 60;
+  const totalRequired = devHrs + cycleHrs * (Number(form.qty) || 0);
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
