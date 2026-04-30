@@ -10,9 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { useNPIPlanning, recommendAllocations, upsertPart, type AllocationOption } from '@/hooks/useNPIPlanning';
+import { useNPIPlanning, upsertPart } from '@/hooks/useNPIPlanning';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, CheckCircle2, Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { QuickCustomerDialog } from '@/components/npi-planner/QuickCustomerDialog';
 import { QuickProjectDialog } from '@/components/npi-planner/QuickProjectDialog';
