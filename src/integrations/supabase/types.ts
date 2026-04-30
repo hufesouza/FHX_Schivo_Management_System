@@ -2057,6 +2057,7 @@ export type Database = {
       }
       npi_parts: {
         Row: {
+          backend_time: number | null
           best_commence_date: string | null
           committed_date: string | null
           created_at: string
@@ -2105,6 +2106,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          backend_time?: number | null
           best_commence_date?: string | null
           committed_date?: string | null
           created_at?: string
@@ -2153,6 +2155,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          backend_time?: number | null
           best_commence_date?: string | null
           committed_date?: string | null
           created_at?: string
