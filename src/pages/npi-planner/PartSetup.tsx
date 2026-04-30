@@ -116,6 +116,9 @@ export default function PartSetup() {
 
       const partData: any = {
         ...form,
+        cycle_time: cycleHrs,
+        development_time: devHrs,
+        backend_time: Number(form.backend_time) || 0,
         customer_id: form.customer_id || null,
         project_id: form.project_id || null,
         material_supplier_id: form.material_supplier_id || null,
@@ -129,6 +132,8 @@ export default function PartSetup() {
         machine_name: machine?.machine_name || null,
         tooling_lead_time: maxToolLead || form.tooling_lead_time || 0,
       };
+      delete partData.cycle_time_min;
+      delete partData.development_time_min;
       delete partData.id;
       delete partData.total_required_time;
 
