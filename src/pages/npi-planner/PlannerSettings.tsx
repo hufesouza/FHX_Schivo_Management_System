@@ -79,10 +79,32 @@ function MachinesTab({ machines, reload }: any) {
   };
   const delWindow = async (id: string) => { if (!confirm('Remove window?')) return; await supabase.from('npi_machine_availability').delete().eq('id', id); loadWindows(); };
 
+  const [bulkWin, setBulkWin] = useState({ start_date: '2026-04-30', end_date: '2026-12-31', notes: '' });
+  const bulkAssign = async () => {
+    if (!bulkWin.start_date || !bulkWin.end_date) return toast.error('Start and end date required');
+    if (bulkWin.end_date < bulkWin.start_date) return toast.error('End date must be after start');
+    if (!machines.length) return toast.error('No machines');
+    if (!confirm(`Assign ${bulkWin.start_date} → ${bulkWin.end_date} to all ${machines.length} machines?`)) return;
+    const rows = machines.map((m: any) => ({ machine_id: m.id, start_date: bulkWin.start_date, end_date: bulkWin.end_date, notes: bulkWin.notes }));
+    const { error } = await supabase.from('npi_machine_availability').insert(rows);
+    if (error) return toast.error(error.message);
+    toast.success(`Window assigned to ${rows.length} machines`);
+    loadWindows();
+  };
+
   return (
     <Card className="mt-4">
       <CardHeader><CardTitle className="text-base">Machines</CardTitle></CardHeader>
       <CardContent className="space-y-4">
+        <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+          <div className="text-sm font-medium">Bulk assign availability window to ALL machines</div>
+          <div className="grid md:grid-cols-4 gap-2 items-end">
+            <div><Label className="text-xs">From</Label><Input type="date" value={bulkWin.start_date} onChange={e => setBulkWin({ ...bulkWin, start_date: e.target.value })} /></div>
+            <div><Label className="text-xs">To</Label><Input type="date" value={bulkWin.end_date} onChange={e => setBulkWin({ ...bulkWin, end_date: e.target.value })} /></div>
+            <div><Label className="text-xs">Notes</Label><Input value={bulkWin.notes} onChange={e => setBulkWin({ ...bulkWin, notes: e.target.value })} placeholder="Optional" /></div>
+            <Button size="sm" onClick={bulkAssign}><Plus className="h-4 w-4 mr-1" />Assign to all</Button>
+          </div>
+        </div>
         <div className="grid md:grid-cols-5 gap-2 items-end">
           <div><Label className="text-xs">Name *</Label><Input value={form.machine_name} onChange={e => setForm({ ...form, machine_name: e.target.value })} /></div>
           <div><Label className="text-xs">Type</Label>
