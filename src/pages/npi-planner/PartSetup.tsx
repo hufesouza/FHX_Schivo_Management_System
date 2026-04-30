@@ -27,10 +27,8 @@ const OVERALL_STATUSES = ['Not Started','Awaiting Material','Awaiting Tooling','
 
 export default function PartSetup() {
   const navigate = useNavigate();
-  const { customers, projects, machines, schedule, availability, calendarSettings, loading, reload } = useNPIPlanning();
+  const { customers, projects, machines, calendarSettings, loading, reload } = useNPIPlanning();
   const [saving, setSaving] = useState(false);
-  const [options, setOptions] = useState<AllocationOption[]>([]);
-  const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
   const [machineOptionIds, setMachineOptionIds] = useState<string[]>([]);
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
