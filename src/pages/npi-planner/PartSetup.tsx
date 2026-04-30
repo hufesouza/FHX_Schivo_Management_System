@@ -44,13 +44,15 @@ export default function PartSetup() {
     material_supplier_id: '', material_supplier_name: '',
     tooling: '', tooling_lead_time: 0, tooling_status: 'Not Required',
     committed_date: '',
-    cycle_time: 0, development_time: 0,
+    cycle_time_min: 0, development_time_min: 0, backend_time: 0,
     subcon_supplier_id: '', supplier_name: '', type_of_service: '', subcon_lead_time: 0, subcon_status: 'Not Required',
     sales_price: 0, notes: '', overall_status: 'Not Started',
     dev_allow_weekends: false, prod_allow_weekends: true,
   });
 
-  const totalRequired = (Number(form.development_time) || 0) + (Number(form.cycle_time) || 0) * (Number(form.qty) || 0);
+  const cycleHrs = (Number(form.cycle_time_min) || 0) / 60;
+  const devHrs = (Number(form.development_time_min) || 0) / 60;
+  const totalRequired = devHrs + cycleHrs * (Number(form.qty) || 0);
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
 
@@ -70,23 +72,24 @@ export default function PartSetup() {
       return;
     }
     const qty = Number(form.qty) || 0;
-    const machiningHrs = (Number(form.development_time) || 0) + (Number(form.cycle_time) || 0) * qty;
+    const machiningHrs = devHrs + cycleHrs * qty;
     if (machiningHrs <= 0) {
       toast.error('Cycle time × qty + development time must be > 0');
       return;
     }
     const candidates = machines.filter(m => machineOptionIds.includes(m.id));
+    const backendHrs = Number(form.backend_time) || 0;
     const opts = recommendAllocations(candidates, schedule, availability, {
       qty,
-      cycleTimeHrs: Number(form.cycle_time) || 0,
-      developmentTimeHrs: Number(form.development_time) || 0,
+      cycleTimeHrs: cycleHrs,
+      developmentTimeHrs: devHrs,
       materialLeadTime: Number(form.material_lead_time) || 0,
       materialStatus: form.material_status,
       toolingLeadTime: maxToolLeadFromList || Number(form.tooling_lead_time) || 0,
       toolingStatus: form.tooling_status,
       subconRequired: (form.subcon_status && form.subcon_status !== 'Not Required'),
       subconLeadTime: Number(form.subcon_lead_time) || 0,
-      backendLeadTime: 0,
+      backendLeadTime: Math.ceil(backendHrs / 24),
       bestCommenceDate: null,
       committedDate: form.committed_date ? new Date(form.committed_date) : null,
       calendar: calendarSettings,
@@ -113,6 +116,9 @@ export default function PartSetup() {
 
       const partData: any = {
         ...form,
+        cycle_time: cycleHrs,
+        development_time: devHrs,
+        backend_time: Number(form.backend_time) || 0,
         customer_id: form.customer_id || null,
         project_id: form.project_id || null,
         material_supplier_id: form.material_supplier_id || null,
@@ -126,6 +132,8 @@ export default function PartSetup() {
         machine_name: machine?.machine_name || null,
         tooling_lead_time: maxToolLead || form.tooling_lead_time || 0,
       };
+      delete partData.cycle_time_min;
+      delete partData.development_time_min;
       delete partData.id;
       delete partData.total_required_time;
 
@@ -309,9 +317,10 @@ export default function PartSetup() {
         <Card>
           <CardHeader><CardTitle className="text-base">Time & dates</CardTitle></CardHeader>
           <CardContent className="grid md:grid-cols-3 gap-4">
-            <Field label="Cycle time (hrs)"><Input type="number" step="0.1" value={form.cycle_time} onChange={e => set('cycle_time', +e.target.value)} /></Field>
-            <Field label="Development time (hrs)"><Input type="number" step="0.1" value={form.development_time} onChange={e => set('development_time', +e.target.value)} /></Field>
-            <Field label="Total machining hrs (dev + cycle × qty)"><Input value={totalRequired} disabled /></Field>
+            <Field label="Cycle time (min)"><Input type="number" step="0.1" value={form.cycle_time_min} onChange={e => set('cycle_time_min', +e.target.value)} /></Field>
+            <Field label="Development time (min)"><Input type="number" step="0.1" value={form.development_time_min} onChange={e => set('development_time_min', +e.target.value)} /></Field>
+            <Field label="Backend time (hrs)"><Input type="number" step="0.1" value={form.backend_time} onChange={e => set('backend_time', +e.target.value)} /></Field>
+            <Field label="Total machining hrs (dev + cycle × qty)"><Input value={totalRequired.toFixed(2)} disabled /></Field>
             <Field label="Committed date"><Input type="date" value={form.committed_date} onChange={e => set('committed_date', e.target.value)} /></Field>
             <Field label="Sales price (€)"><Input type="number" step="0.01" value={form.sales_price} onChange={e => set('sales_price', +e.target.value)} /></Field>
             <Field label="Overall status">

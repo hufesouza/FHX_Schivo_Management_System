@@ -68,6 +68,7 @@ export type Part = {
   cycle_time: number | null;
   development_time: number | null;
   total_required_time: number | null;
+  backend_time: number | null;
   machine_id: string | null;
   machine_name: string | null;
   overall_status: string;

@@ -100,8 +100,9 @@ export default function JobDetail() {
             <Field label="QTY"><Input type="number" value={part.qty || 0} onChange={e => set('qty', +e.target.value)} /></Field>
             <Field label="Description" className="md:col-span-3"><Textarea rows={2} value={part.description || ''} onChange={e => set('description', e.target.value)} /></Field>
             <Field label="Engineer"><Input value={part.engineer || ''} onChange={e => set('engineer', e.target.value)} /></Field>
-            <Field label="Cycle time (h)"><Input type="number" value={part.cycle_time || 0} onChange={e => set('cycle_time', +e.target.value)} /></Field>
-            <Field label="Development time (h)"><Input type="number" value={part.development_time || 0} onChange={e => set('development_time', +e.target.value)} /></Field>
+            <Field label="Cycle time (min)"><Input type="number" step="0.1" value={((Number(part.cycle_time) || 0) * 60).toFixed(2)} onChange={e => set('cycle_time', (+e.target.value) / 60)} /></Field>
+            <Field label="Development time (min)"><Input type="number" step="0.1" value={((Number(part.development_time) || 0) * 60).toFixed(2)} onChange={e => set('development_time', (+e.target.value) / 60)} /></Field>
+            <Field label="Backend time (h)"><Input type="number" step="0.1" value={(part as any).backend_time || 0} onChange={e => set('backend_time' as any, +e.target.value)} /></Field>
             <Field label="Total required (h)"><Input value={part.total_required_time || 0} disabled /></Field>
             <Field label="Best commence"><Input type="date" value={part.best_commence_date || ''} onChange={e => set('best_commence_date', e.target.value)} /></Field>
             <Field label="Committed date *"><Input type="date" value={part.committed_date || ''} onChange={e => set('committed_date', e.target.value)} /></Field>

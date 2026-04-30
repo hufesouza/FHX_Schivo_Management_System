@@ -1,0 +1,1 @@
+ALTER TABLE public.npi_parts ADD COLUMN IF NOT EXISTS backend_time numeric DEFAULT 0;
