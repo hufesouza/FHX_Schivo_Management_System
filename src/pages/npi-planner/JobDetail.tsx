@@ -243,6 +243,17 @@ export default function JobDetail() {
           </CardContent>
         </Card>
       </main>
+      <QuickMachineDialog
+        open={machineDialogOpen}
+        onOpenChange={setMachineDialogOpen}
+        onCreated={async (m) => {
+          if (!part) return;
+          const { data } = await supabase.from('npi_machines').select('*').order('machine_name');
+          setMachines(data || []);
+          await supabase.from('npi_part_machine_options').insert({ part_id: part.id, machine_id: m.id });
+          setMachineOptionIds(ids => ids.includes(m.id) ? ids : [...ids, m.id]);
+        }}
+      />
     </AppLayout>
   );
 }
