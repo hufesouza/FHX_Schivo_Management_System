@@ -294,12 +294,12 @@ export default function PartSetup() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" />Machine allocation</CardTitle>
+            <CardTitle className="text-base">Capable machines</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <div className="flex items-center justify-between gap-2 mb-2">
-                <Label className="text-xs text-muted-foreground">Which machines can run this job? Tick all capable machines.</Label>
+                <Label className="text-xs text-muted-foreground">Which machines can run this job? Tick all capable machines. Allocation is recommended later from the Job Tracker.</Label>
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" size="sm" onClick={() => setMachineOptionIds(machines.map(m => m.id))} disabled={!machines.length}>Select all</Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => setMachineOptionIds([])} disabled={!machineOptionIds.length}>Clear</Button>
@@ -330,50 +330,6 @@ export default function PartSetup() {
                 </>
               )}
             </div>
-            <Button onClick={runAllocation} variant="default" disabled={machineOptionIds.length === 0}><Sparkles className="mr-2 h-4 w-4" />Recommend allocation</Button>
-            {options.length > 0 && (
-              <div className="space-y-2">
-                <Separator />
-                <p className="text-sm font-medium">Recommended options (best first)</p>
-                {options.map((o, i) => {
-                  const statusColor = o.status === 'On Track'
-                    ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30'
-                    : o.status === 'At Risk'
-                      ? 'bg-amber-500/10 text-amber-700 border-amber-500/30'
-                      : 'bg-destructive/10 text-destructive border-destructive/30';
-                  const fmt = (d: Date) => d.toLocaleDateString();
-                  return (
-                    <label key={o.machine.id} className={`flex flex-col gap-2 border rounded-md px-3 py-3 cursor-pointer ${selectedMachineId === o.machine.id ? 'border-primary bg-primary/5' : ''}`}>
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <input type="radio" checked={selectedMachineId === o.machine.id} onChange={() => setSelectedMachineId(o.machine.id)} />
-                          <div className="font-medium text-sm">
-                            {i === 0 && <Badge variant="default" className="mr-2">Best</Badge>}
-                            {o.machine.machine_name}
-                          </div>
-                        </div>
-                        <Badge variant="outline" className={statusColor}>
-                          {o.status === 'On Track' && <CheckCircle2 className="h-3 w-3 mr-1" />}
-                          {o.status}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs pl-6">
-                        <div><span className="text-muted-foreground">Materials/tools ready:</span> <div className="font-medium">{fmt(o.earliestStart)}</div></div>
-                        <div><span className="text-muted-foreground">Machining:</span> <div className="font-medium">{fmt(o.machiningStart)} → {fmt(o.machiningEnd)}</div></div>
-                        <div><span className="text-muted-foreground">Backend done:</span> <div className="font-medium">{fmt(o.backendEnd)}</div></div>
-                        <div><span className="text-muted-foreground">Ship date:</span> <div className="font-medium">{fmt(o.shipDate)}</div></div>
-                      </div>
-                      <div className="text-xs text-muted-foreground pl-6 italic">{o.reason}</div>
-                      {!o.meetsCommittedDate && (
-                        <div className="text-xs text-destructive pl-6">
-                          ⚠ Job cannot meet committed date based on current constraints. Consider renegotiating committed date or expediting constraints.
-                        </div>
-                      )}
-                    </label>
-                  );
-                })}
-              </div>
-            )}
           </CardContent>
         </Card>
 
