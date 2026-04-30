@@ -178,6 +178,40 @@ export default function JobDetail() {
         </Card>
 
         <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center justify-between gap-2">
+              <span>Capable machines</span>
+              <Button type="button" variant="outline" size="sm" onClick={() => setMachineDialogOpen(true)}>
+                <Plus className="h-3 w-3 mr-1" /> Add machine
+              </Button>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">Tick every machine that can run this job. Recommendations on the Job Tracker only consider these.</p>
+            <Input placeholder="Search machines..." value={machineSearch} onChange={e => setMachineSearch(e.target.value)} />
+            <div className="text-xs text-muted-foreground">{machineOptionIds.length} of {machines.length} selected</div>
+            {machines.length === 0 ? (
+              <div className="text-sm text-muted-foreground border rounded-md p-4 text-center">No NPI machines yet.</div>
+            ) : (
+              <div className="grid md:grid-cols-3 gap-2 max-h-72 overflow-auto border rounded-md p-2">
+                {machines
+                  .filter(m => !machineSearch || m.machine_name.toLowerCase().includes(machineSearch.toLowerCase()) || (m.machine_type || '').toLowerCase().includes(machineSearch.toLowerCase()))
+                  .map(m => (
+                    <label key={m.id} className="flex items-center gap-2 text-sm border rounded-md px-2 py-1 cursor-pointer hover:bg-muted/50">
+                      <Checkbox
+                        checked={machineOptionIds.includes(m.id)}
+                        onCheckedChange={(v) => toggleMachineOption(m.id, !!v)}
+                      />
+                      <span className="flex-1 truncate">{m.machine_name}</span>
+                      {m.machine_type && <span className="text-xs text-muted-foreground">{m.machine_type}</span>}
+                    </label>
+                  ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
           <CardHeader><CardTitle className="text-base">Reason for changes (sent in notification)</CardTitle></CardHeader>
           <CardContent>
             <Textarea rows={2} value={reason} onChange={e => setReason(e.target.value)} placeholder="Explain why committed date / machine / status changed…" />
