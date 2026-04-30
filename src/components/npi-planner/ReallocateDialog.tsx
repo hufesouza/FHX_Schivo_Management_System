@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -11,6 +11,7 @@ import {
   recommendAllocations, AllocationOption, CalendarSettings,
 } from '@/hooks/useNPIPlanning';
 import { DEFAULT_CALENDAR } from '@/utils/workingCalendar';
+import { QuickMachineDialog } from '@/components/npi-planner/QuickMachineDialog';
 
 interface Props {
   open: boolean;
@@ -33,6 +34,7 @@ export function ReallocateDialog({ open, onOpenChange, part, machines, schedule,
   const [candidateIds, setCandidateIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
+  const [machineDialogOpen, setMachineDialogOpen] = useState(false);
 
   // Load this part's candidate machine options (fall back to all machines)
   useEffect(() => {
@@ -127,7 +129,12 @@ export function ReallocateDialog({ open, onOpenChange, part, machines, schedule,
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Recommend reallocation — {part?.part_number}</DialogTitle>
+          <DialogTitle className="flex items-center justify-between gap-2">
+            <span>Recommend reallocation — {part?.part_number}</span>
+            <Button type="button" variant="outline" size="sm" onClick={() => setMachineDialogOpen(true)}>
+              <Plus className="h-3 w-3 mr-1" /> Add machine
+            </Button>
+          </DialogTitle>
         </DialogHeader>
         {loading ? (
           <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>
@@ -161,6 +168,17 @@ export function ReallocateDialog({ open, onOpenChange, part, machines, schedule,
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
       </DialogContent>
+      <QuickMachineDialog
+        open={machineDialogOpen}
+        onOpenChange={setMachineDialogOpen}
+        onCreated={async (m) => {
+          if (part) {
+            await supabase.from('npi_part_machine_options').insert({ part_id: part.id, machine_id: m.id });
+            setCandidateIds(ids => ids.includes(m.id) ? ids : [...ids, m.id]);
+          }
+          onApplied?.();
+        }}
+      />
     </Dialog>
   );
 }
