@@ -28,21 +28,43 @@ export default function JobDetail() {
   const [history, setHistory] = useState<ChangeLog[]>([]);
   const [reason, setReason] = useState('');
   const [machines, setMachines] = useState<any[]>([]);
+  const [machineOptionIds, setMachineOptionIds] = useState<string[]>([]);
+  const [machineSearch, setMachineSearch] = useState('');
+  const [machineDialogOpen, setMachineDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const loadMachineOptions = async (partId: string) => {
+    const { data } = await supabase.from('npi_part_machine_options').select('machine_id').eq('part_id', partId);
+    setMachineOptionIds((data || []).map((r: any) => r.machine_id));
+  };
 
   useEffect(() => {
     if (!id) return;
     (async () => {
       const [{ data: p }, { data: m }, { data: h }] = await Promise.all([
         supabase.from('npi_parts').select('*').eq('id', id).single(),
-        supabase.from('npi_machines').select('*'),
+        supabase.from('npi_machines').select('*').order('machine_name'),
         supabase.from('npi_change_log').select('*').eq('part_id', id).order('created_at', { ascending: false }),
       ]);
       setPart(p as any); setOriginal(p as any);
       setMachines(m || []);
       setHistory((h as any) || []);
+      await loadMachineOptions(id);
     })();
   }, [id]);
+
+  const toggleMachineOption = async (machineId: string, checked: boolean) => {
+    if (!part) return;
+    if (checked) {
+      const { error } = await supabase.from('npi_part_machine_options').insert({ part_id: part.id, machine_id: machineId });
+      if (error) return toast.error(error.message);
+      setMachineOptionIds(ids => ids.includes(machineId) ? ids : [...ids, machineId]);
+    } else {
+      const { error } = await supabase.from('npi_part_machine_options').delete().eq('part_id', part.id).eq('machine_id', machineId);
+      if (error) return toast.error(error.message);
+      setMachineOptionIds(ids => ids.filter(x => x !== machineId));
+    }
+  };
 
   const set = (k: keyof Part, v: any) => setPart(p => p ? { ...p, [k]: v } : p);
 
