@@ -85,14 +85,16 @@ export default function PartSetup() {
         material_supplier_id: form.material_supplier_id || null,
         subcon_supplier_id: form.subcon_supplier_id || null,
         committed_date: form.committed_date || null,
-        best_commence_date: null,
+        best_commence_date: manualMachineId && manualStartDate ? manualStartDate : null,
         ship_date: null,
         customer_name: customer?.customer_name || null,
         project_name: project?.project_name || null,
-        machine_id: null,
-        machine_name: null,
+        machine_id: manualMachineId || null,
+        machine_name: manualMachineId ? (machines.find(m => m.id === manualMachineId)?.machine_name || null) : null,
         tooling_lead_time: maxToolLead || form.tooling_lead_time || 0,
       };
+      // If manual allocation set, force status to Scheduled
+      if (manualMachineId && manualStartDate) partData.overall_status = 'Scheduled';
       delete partData.cycle_time_min;
       delete partData.development_time_min;
       delete partData.id;
