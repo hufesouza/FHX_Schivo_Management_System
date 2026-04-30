@@ -59,10 +59,7 @@ export default function PartSetup() {
     [projects, form.customer_id],
   );
 
-  const maxToolLeadFromList = useMemo(
-    () => toolLines.reduce((m, t) => Math.max(m, Number(t.lead_time_days) || 0), 0),
-    [toolLines],
-  );
+
 
   
   const handleSave = async () => {
