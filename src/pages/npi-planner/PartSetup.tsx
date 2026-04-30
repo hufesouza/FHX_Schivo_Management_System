@@ -72,23 +72,24 @@ export default function PartSetup() {
       return;
     }
     const qty = Number(form.qty) || 0;
-    const machiningHrs = (Number(form.development_time) || 0) + (Number(form.cycle_time) || 0) * qty;
+    const machiningHrs = devHrs + cycleHrs * qty;
     if (machiningHrs <= 0) {
       toast.error('Cycle time × qty + development time must be > 0');
       return;
     }
     const candidates = machines.filter(m => machineOptionIds.includes(m.id));
+    const backendHrs = Number(form.backend_time) || 0;
     const opts = recommendAllocations(candidates, schedule, availability, {
       qty,
-      cycleTimeHrs: Number(form.cycle_time) || 0,
-      developmentTimeHrs: Number(form.development_time) || 0,
+      cycleTimeHrs: cycleHrs,
+      developmentTimeHrs: devHrs,
       materialLeadTime: Number(form.material_lead_time) || 0,
       materialStatus: form.material_status,
       toolingLeadTime: maxToolLeadFromList || Number(form.tooling_lead_time) || 0,
       toolingStatus: form.tooling_status,
       subconRequired: (form.subcon_status && form.subcon_status !== 'Not Required'),
       subconLeadTime: Number(form.subcon_lead_time) || 0,
-      backendLeadTime: 0,
+      backendLeadTime: Math.ceil(backendHrs / 24),
       bestCommenceDate: null,
       committedDate: form.committed_date ? new Date(form.committed_date) : null,
       calendar: calendarSettings,
