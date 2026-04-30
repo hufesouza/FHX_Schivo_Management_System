@@ -351,6 +351,39 @@ export default function PartSetup() {
           </CardContent>
         </Card>
 
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Manual allocation (optional)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="text-xs text-muted-foreground">
+              Skip the recommendation engine and assign this job to a specific machine + start date. Leave blank to allocate later from the Job Tracker.
+            </div>
+            <div className="grid md:grid-cols-3 gap-4">
+              <Field label="Machine">
+                <Select value={manualMachineId || 'none'} onValueChange={v => setManualMachineId(v === 'none' ? '' : v)}>
+                  <SelectTrigger><SelectValue placeholder="Select machine" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— None —</SelectItem>
+                    {(machineOptionIds.length ? machines.filter(m => machineOptionIds.includes(m.id)) : machines).map(m => (
+                      <SelectItem key={m.id} value={m.id}>{m.machine_name}{m.machine_type ? ` (${m.machine_type})` : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Start date">
+                <Input type="date" value={manualStartDate} onChange={e => setManualStartDate(e.target.value)} />
+              </Field>
+              <Field label="Total run time (hrs)">
+                <Input value={totalRequired.toFixed(2)} disabled />
+              </Field>
+            </div>
+            {manualMachineId && manualStartDate && (
+              <Badge variant="secondary">Will be scheduled on save</Badge>
+            )}
+          </CardContent>
+        </Card>
+
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={() => navigate('/npi/capacity-planner')}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save part'}</Button>
