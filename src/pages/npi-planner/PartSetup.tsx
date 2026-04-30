@@ -9,10 +9,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { useNPIPlanning, recommendAllocations, upsertPart, type AllocationOption } from '@/hooks/useNPIPlanning';
+
+import { useNPIPlanning, upsertPart } from '@/hooks/useNPIPlanning';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, CheckCircle2, Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { QuickCustomerDialog } from '@/components/npi-planner/QuickCustomerDialog';
 import { QuickProjectDialog } from '@/components/npi-planner/QuickProjectDialog';
@@ -27,10 +27,8 @@ const OVERALL_STATUSES = ['Not Started','Awaiting Material','Awaiting Tooling','
 
 export default function PartSetup() {
   const navigate = useNavigate();
-  const { customers, projects, machines, schedule, availability, calendarSettings, loading, reload } = useNPIPlanning();
+  const { customers, projects, machines, calendarSettings, loading, reload } = useNPIPlanning();
   const [saving, setSaving] = useState(false);
-  const [options, setOptions] = useState<AllocationOption[]>([]);
-  const [selectedMachineId, setSelectedMachineId] = useState<string | null>(null);
   const [machineOptionIds, setMachineOptionIds] = useState<string[]>([]);
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
@@ -61,56 +59,15 @@ export default function PartSetup() {
     [projects, form.customer_id],
   );
 
-  const maxToolLeadFromList = useMemo(
-    () => toolLines.reduce((m, t) => Math.max(m, Number(t.lead_time_days) || 0), 0),
-    [toolLines],
-  );
 
-  const runAllocation = () => {
-    if (machineOptionIds.length === 0) {
-      toast.error('Select at least one candidate machine');
-      return;
-    }
-    const qty = Number(form.qty) || 0;
-    const machiningHrs = devHrs + cycleHrs * qty;
-    if (machiningHrs <= 0) {
-      toast.error('Cycle time × qty + development time must be > 0');
-      return;
-    }
-    const candidates = machines.filter(m => machineOptionIds.includes(m.id));
-    const backendHrs = Number(form.backend_time) || 0;
-    const opts = recommendAllocations(candidates, schedule, availability, {
-      qty,
-      cycleTimeHrs: cycleHrs,
-      developmentTimeHrs: devHrs,
-      materialLeadTime: Number(form.material_lead_time) || 0,
-      materialStatus: form.material_status,
-      toolingLeadTime: maxToolLeadFromList || Number(form.tooling_lead_time) || 0,
-      toolingStatus: form.tooling_status,
-      subconRequired: (form.subcon_status && form.subcon_status !== 'Not Required'),
-      subconLeadTime: Number(form.subcon_lead_time) || 0,
-      backendLeadTime: Math.ceil(backendHrs / 24),
-      bestCommenceDate: null,
-      committedDate: form.committed_date ? new Date(form.committed_date) : null,
-      calendar: calendarSettings,
-      devAllowWeekends: !!form.dev_allow_weekends,
-      prodAllowWeekends: !!form.prod_allow_weekends,
-    });
-    setOptions(opts);
-    if (opts.length === 0) {
-      toast.warning('No machine has an NPI availability window that fits this job. Add a window in Settings → Machines.');
-    }
-    if (opts[0]) setSelectedMachineId(opts[0].machine.id);
-  };
 
+  
   const handleSave = async () => {
     if (!form.part_number.trim()) return toast.error('Part number is required');
     setSaving(true);
     try {
       const customer = customers.find(c => c.id === form.customer_id);
       const project = projects.find(p => p.id === form.project_id);
-      const machine = machines.find(m => m.id === selectedMachineId);
-      const chosen = options.find(o => o.machine.id === selectedMachineId);
 
       const maxToolLead = toolLines.reduce((m, t) => Math.max(m, Number(t.lead_time_days) || 0), 0);
 
@@ -124,12 +81,12 @@ export default function PartSetup() {
         material_supplier_id: form.material_supplier_id || null,
         subcon_supplier_id: form.subcon_supplier_id || null,
         committed_date: form.committed_date || null,
-        best_commence_date: chosen ? chosen.earliestStart.toISOString().slice(0, 10) : null,
+        best_commence_date: null,
         ship_date: null,
         customer_name: customer?.customer_name || null,
         project_name: project?.project_name || null,
-        machine_id: machine?.id || null,
-        machine_name: machine?.machine_name || null,
+        machine_id: null,
+        machine_name: null,
         tooling_lead_time: maxToolLead || form.tooling_lead_time || 0,
       };
       delete partData.cycle_time_min;
@@ -138,23 +95,6 @@ export default function PartSetup() {
       delete partData.total_required_time;
 
       const part = await upsertPart(partData, machineOptionIds);
-
-      // If allocation chosen, create schedule entry (machining window only)
-      if (part && chosen) {
-        await supabase.from('npi_machine_schedule').insert({
-          part_id: part.id,
-          part_number: part.part_number,
-          customer_name: part.customer_name,
-          project_name: part.project_name,
-          machine_id: chosen.machine.id,
-          machine_name: chosen.machine.machine_name,
-          start_date: chosen.machiningStart.toISOString(),
-          end_date: chosen.machiningEnd.toISOString(),
-          total_required_time: totalRequired,
-          allocation_status: 'Confirmed',
-          notes: chosen.reason,
-        });
-      }
 
       // Persist tooling lines + upsert catalog entries
       if (part && toolLines.length > 0) {
@@ -351,12 +291,12 @@ export default function PartSetup() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" />Machine allocation</CardTitle>
+            <CardTitle className="text-base">Capable machines</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
               <div className="flex items-center justify-between gap-2 mb-2">
-                <Label className="text-xs text-muted-foreground">Which machines can run this job? Tick all capable machines.</Label>
+                <Label className="text-xs text-muted-foreground">Which machines can run this job? Tick all capable machines. Allocation is recommended later from the Job Tracker.</Label>
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" size="sm" onClick={() => setMachineOptionIds(machines.map(m => m.id))} disabled={!machines.length}>Select all</Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => setMachineOptionIds([])} disabled={!machineOptionIds.length}>Clear</Button>
@@ -387,50 +327,6 @@ export default function PartSetup() {
                 </>
               )}
             </div>
-            <Button onClick={runAllocation} variant="default" disabled={machineOptionIds.length === 0}><Sparkles className="mr-2 h-4 w-4" />Recommend allocation</Button>
-            {options.length > 0 && (
-              <div className="space-y-2">
-                <Separator />
-                <p className="text-sm font-medium">Recommended options (best first)</p>
-                {options.map((o, i) => {
-                  const statusColor = o.status === 'On Track'
-                    ? 'bg-emerald-500/10 text-emerald-700 border-emerald-500/30'
-                    : o.status === 'At Risk'
-                      ? 'bg-amber-500/10 text-amber-700 border-amber-500/30'
-                      : 'bg-destructive/10 text-destructive border-destructive/30';
-                  const fmt = (d: Date) => d.toLocaleDateString();
-                  return (
-                    <label key={o.machine.id} className={`flex flex-col gap-2 border rounded-md px-3 py-3 cursor-pointer ${selectedMachineId === o.machine.id ? 'border-primary bg-primary/5' : ''}`}>
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3">
-                          <input type="radio" checked={selectedMachineId === o.machine.id} onChange={() => setSelectedMachineId(o.machine.id)} />
-                          <div className="font-medium text-sm">
-                            {i === 0 && <Badge variant="default" className="mr-2">Best</Badge>}
-                            {o.machine.machine_name}
-                          </div>
-                        </div>
-                        <Badge variant="outline" className={statusColor}>
-                          {o.status === 'On Track' && <CheckCircle2 className="h-3 w-3 mr-1" />}
-                          {o.status}
-                        </Badge>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs pl-6">
-                        <div><span className="text-muted-foreground">Materials/tools ready:</span> <div className="font-medium">{fmt(o.earliestStart)}</div></div>
-                        <div><span className="text-muted-foreground">Machining:</span> <div className="font-medium">{fmt(o.machiningStart)} → {fmt(o.machiningEnd)}</div></div>
-                        <div><span className="text-muted-foreground">Backend done:</span> <div className="font-medium">{fmt(o.backendEnd)}</div></div>
-                        <div><span className="text-muted-foreground">Ship date:</span> <div className="font-medium">{fmt(o.shipDate)}</div></div>
-                      </div>
-                      <div className="text-xs text-muted-foreground pl-6 italic">{o.reason}</div>
-                      {!o.meetsCommittedDate && (
-                        <div className="text-xs text-destructive pl-6">
-                          ⚠ Job cannot meet committed date based on current constraints. Consider renegotiating committed date or expediting constraints.
-                        </div>
-                      )}
-                    </label>
-                  );
-                })}
-              </div>
-            )}
           </CardContent>
         </Card>
 
