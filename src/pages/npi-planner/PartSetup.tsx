@@ -317,9 +317,10 @@ export default function PartSetup() {
         <Card>
           <CardHeader><CardTitle className="text-base">Time & dates</CardTitle></CardHeader>
           <CardContent className="grid md:grid-cols-3 gap-4">
-            <Field label="Cycle time (hrs)"><Input type="number" step="0.1" value={form.cycle_time} onChange={e => set('cycle_time', +e.target.value)} /></Field>
-            <Field label="Development time (hrs)"><Input type="number" step="0.1" value={form.development_time} onChange={e => set('development_time', +e.target.value)} /></Field>
-            <Field label="Total machining hrs (dev + cycle × qty)"><Input value={totalRequired} disabled /></Field>
+            <Field label="Cycle time (min)"><Input type="number" step="0.1" value={form.cycle_time_min} onChange={e => set('cycle_time_min', +e.target.value)} /></Field>
+            <Field label="Development time (min)"><Input type="number" step="0.1" value={form.development_time_min} onChange={e => set('development_time_min', +e.target.value)} /></Field>
+            <Field label="Backend time (hrs)"><Input type="number" step="0.1" value={form.backend_time} onChange={e => set('backend_time', +e.target.value)} /></Field>
+            <Field label="Total machining hrs (dev + cycle × qty)"><Input value={totalRequired.toFixed(2)} disabled /></Field>
             <Field label="Committed date"><Input type="date" value={form.committed_date} onChange={e => set('committed_date', e.target.value)} /></Field>
             <Field label="Sales price (€)"><Input type="number" step="0.01" value={form.sales_price} onChange={e => set('sales_price', +e.target.value)} /></Field>
             <Field label="Overall status">
