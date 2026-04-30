@@ -27,8 +27,9 @@ const STATUS_TONE: Record<string, string> = {
 export function ExpediteDialog({ open, onOpenChange, part, scheduledStart, onApplied }: Props) {
   const [matLT, setMatLT] = useState(0);
   const [toolLT, setToolLT] = useState(0);
-  const [cycle, setCycle] = useState(0);
-  const [dev, setDev] = useState(0);
+  const [cycleMin, setCycleMin] = useState(0);
+  const [devMin, setDevMin] = useState(0);
+  const [backendHrs, setBackendHrs] = useState(0);
   const [subconLT, setSubconLT] = useState(0);
   const [saving, setSaving] = useState(false);
 
@@ -36,21 +37,25 @@ export function ExpediteDialog({ open, onOpenChange, part, scheduledStart, onApp
     if (!part) return;
     setMatLT(Number(part.material_lead_time) || 0);
     setToolLT(Number(part.tooling_lead_time) || 0);
-    setCycle(Number(part.cycle_time) || 0);
-    setDev(Number(part.development_time) || 0);
+    setCycleMin((Number(part.cycle_time) || 0) * 60);
+    setDevMin((Number(part.development_time) || 0) * 60);
+    setBackendHrs(Number((part as any).backend_time) || 0);
     setSubconLT(Number(part.subcon_lead_time) || 0);
   }, [part?.id, open]);
 
   const original = useMemo(() => ({
     matLT: Number(part?.material_lead_time) || 0,
     toolLT: Number(part?.tooling_lead_time) || 0,
-    cycle: Number(part?.cycle_time) || 0,
-    dev: Number(part?.development_time) || 0,
+    cycleMin: (Number(part?.cycle_time) || 0) * 60,
+    devMin: (Number(part?.development_time) || 0) * 60,
+    backendHrs: Number((part as any)?.backend_time) || 0,
     subconLT: Number(part?.subcon_lead_time) || 0,
   }), [part]);
 
   const projection = useMemo(() => {
     if (!part) return null;
+    const cycleHrs = cycleMin / 60;
+    const devHrs = devMin / 60;
     const earliest = computeEarliestStart({
       materialLeadTime: matLT,
       materialStatus: part.material_status,
@@ -62,10 +67,10 @@ export function ExpediteDialog({ open, onOpenChange, part, scheduledStart, onApp
       toolingReceivedAt: (part as any).tooling_received_at,
       bestCommenceDate: null,
     });
-    const machiningHrs = dev + cycle * (Number(part.qty) || 0);
+    const machiningHrs = devHrs + cycleHrs * (Number(part.qty) || 0);
     const machiningStart = scheduledStart && scheduledStart > earliest ? scheduledStart : earliest;
-    const machiningEnd = new Date(machiningStart.getTime() + (machiningHrs / 24) * 24 * 3600 * 1000);
-    const backendDays = (part.subcon ? subconLT : 0);
+    const machiningEnd = new Date(machiningStart.getTime() + machiningHrs * 3600 * 1000);
+    const backendDays = (part.subcon ? subconLT : 0) + Math.ceil(backendHrs / 24);
     const ship = new Date(machiningEnd.getTime() + backendDays * 24 * 3600 * 1000);
     const committed = part.committed_date ? new Date(part.committed_date) : null;
     let status: 'On Track' | 'At Risk' | 'Late' = 'On Track';
@@ -74,7 +79,7 @@ export function ExpediteDialog({ open, onOpenChange, part, scheduledStart, onApp
       status = overdue > 3 ? 'Late' : 'At Risk';
     }
     return { earliest, machiningStart, machiningEnd, ship, committed, status };
-  }, [part, matLT, toolLT, cycle, dev, subconLT, scheduledStart]);
+  }, [part, matLT, toolLT, cycleMin, devMin, backendHrs, subconLT, scheduledStart]);
 
   const save = async () => {
     if (!part) return;
