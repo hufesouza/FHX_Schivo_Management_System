@@ -10,8 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { logChange, type Part, type ChangeLog } from '@/hooks/useNPIPlanning';
-import { Loader2, Save, Trash2 } from 'lucide-react';
+import { Loader2, Save, Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import { Checkbox } from '@/components/ui/checkbox';
+import { QuickMachineDialog } from '@/components/npi-planner/QuickMachineDialog';
 
 const OVERALL_STATUSES = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Ready to Schedule','Scheduled','In Development','In Production','Completed','On Hold','At Risk','Late'];
 const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
