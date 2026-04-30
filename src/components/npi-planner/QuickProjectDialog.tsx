@@ -16,10 +16,9 @@ type Props = {
 
 export function QuickProjectDialog({ open, onOpenChange, customerId, customerName, onCreated }: Props) {
   const [name, setName] = useState('');
-  const [engineer, setEngineer] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const reset = () => { setName(''); setEngineer(''); };
+  const reset = () => { setName(''); };
 
   const handleSave = async () => {
     if (!customerId) return toast.error('Select a customer first');
@@ -32,7 +31,6 @@ export function QuickProjectDialog({ open, onOpenChange, customerId, customerNam
         project_name: name.trim(),
         customer_id: customerId,
         customer_name: customerName,
-        engineer: engineer.trim() || null,
         created_by: user?.id,
       })
       .select()
@@ -56,10 +54,6 @@ export function QuickProjectDialog({ open, onOpenChange, customerId, customerNam
           <div>
             <Label className="text-xs">Project name *</Label>
             <Input value={name} onChange={e => setName(e.target.value)} placeholder="Project Alpha" />
-          </div>
-          <div>
-            <Label className="text-xs">Engineer</Label>
-            <Input value={engineer} onChange={e => setEngineer(e.target.value)} />
           </div>
         </div>
         <DialogFooter>
