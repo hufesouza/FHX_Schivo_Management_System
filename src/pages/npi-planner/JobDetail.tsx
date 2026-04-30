@@ -275,6 +275,49 @@ export default function JobDetail() {
         </Card>
 
         <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Manual allocation</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Manually assign this part to a machine and set the start date. Overrides any current allocation.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Field label="Machine">
+                <Select value={allocMachineId} onValueChange={setAllocMachineId}>
+                  <SelectTrigger><SelectValue placeholder="Select machine" /></SelectTrigger>
+                  <SelectContent>
+                    {(() => {
+                      const list = machineOptionIds.length
+                        ? machines.filter(m => machineOptionIds.includes(m.id))
+                        : machines;
+                      if (list.length === 0) {
+                        return <div className="px-2 py-1.5 text-xs text-muted-foreground">No capable machines linked. Add some above.</div>;
+                      }
+                      return list.map(m => <SelectItem key={m.id} value={m.id}>{m.machine_name}</SelectItem>);
+                    })()}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Start date on machine">
+                <Input type="date" value={allocStartDate} onChange={e => setAllocStartDate(e.target.value)} />
+              </Field>
+            </div>
+            {part && (
+              <div className="text-xs text-muted-foreground border rounded-md p-2 bg-muted/30">
+                Total run time: <strong>{((Number(part.development_time) || 0) + (Number(part.cycle_time) || 0) * (Number(part.qty) || 0)).toFixed(1)} hrs</strong>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button onClick={applyManualAllocation} disabled={allocSaving || !allocMachineId || !allocStartDate}>
+                {allocSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Apply allocation
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
           <CardHeader><CardTitle className="text-base">Reason for changes (sent in notification)</CardTitle></CardHeader>
           <CardContent>
             <Textarea rows={2} value={reason} onChange={e => setReason(e.target.value)} placeholder="Explain why committed date / machine / status changed…" />
