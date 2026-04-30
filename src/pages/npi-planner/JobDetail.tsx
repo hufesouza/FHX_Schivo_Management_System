@@ -32,6 +32,65 @@ export default function JobDetail() {
   const [machineSearch, setMachineSearch] = useState('');
   const [machineDialogOpen, setMachineDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [allocMachineId, setAllocMachineId] = useState<string>('');
+  const [allocStartDate, setAllocStartDate] = useState<string>('');
+  const [allocSaving, setAllocSaving] = useState(false);
+
+  const applyManualAllocation = async () => {
+    if (!part) return;
+    if (!allocMachineId) { toast.error('Pick a machine'); return; }
+    if (!allocStartDate) { toast.error('Pick a start date'); return; }
+    const machine = machines.find(m => m.id === allocMachineId);
+    if (!machine) { toast.error('Machine not found'); return; }
+    setAllocSaving(true);
+    try {
+      await supabase.from('npi_machine_schedule')
+        .update({ allocation_status: 'Cancelled' })
+        .eq('part_id', part.id)
+        .in('allocation_status', ['Scheduled', 'In Production']);
+
+      const totalHrs = (Number(part.development_time) || 0) + (Number(part.cycle_time) || 0) * (Number(part.qty) || 0);
+      const start = new Date(`${allocStartDate}T08:00:00`);
+      const end = new Date(start.getTime() + Math.max(1, totalHrs) * 3600 * 1000);
+
+      const { error: schedErr } = await supabase.from('npi_machine_schedule').insert({
+        part_id: part.id,
+        part_number: part.part_number,
+        customer_name: part.customer_name,
+        project_name: part.project_name,
+        machine_id: machine.id,
+        machine_name: machine.machine_name,
+        start_date: start.toISOString(),
+        end_date: end.toISOString(),
+        total_required_time: totalHrs,
+        allocation_status: 'Scheduled',
+      });
+      if (schedErr) throw schedErr;
+
+      const { error: partErr } = await supabase.from('npi_parts')
+        .update({
+          machine_id: machine.id,
+          machine_name: machine.machine_name,
+          best_commence_date: allocStartDate,
+          overall_status: 'Scheduled',
+        })
+        .eq('id', part.id);
+      if (partErr) throw partErr;
+
+      // Ensure machine is in capable list
+      if (!machineOptionIds.includes(machine.id)) {
+        await supabase.from('npi_part_machine_options').insert({ part_id: part.id, machine_id: machine.id });
+        setMachineOptionIds(ids => [...ids, machine.id]);
+      }
+
+      setPart(p => p ? { ...p, machine_id: machine.id, machine_name: machine.machine_name, best_commence_date: allocStartDate, overall_status: 'Scheduled' } : p);
+      toast.success(`Allocated to ${machine.machine_name}`);
+    } catch (e: any) {
+      toast.error(e.message || 'Manual allocation failed');
+    } finally {
+      setAllocSaving(false);
+    }
+  };
 
   const loadMachineOptions = async (partId: string) => {
     const { data } = await supabase.from('npi_part_machine_options').select('machine_id').eq('part_id', partId);
@@ -49,6 +108,10 @@ export default function JobDetail() {
       setPart(p as any); setOriginal(p as any);
       setMachines(m || []);
       setHistory((h as any) || []);
+      if (p) {
+        setAllocMachineId((p as any).machine_id || '');
+        setAllocStartDate((p as any).best_commence_date || new Date().toISOString().slice(0, 10));
+      }
       await loadMachineOptions(id);
     })();
   }, [id]);
@@ -208,6 +271,49 @@ export default function JobDetail() {
                   ))}
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Manual allocation</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Manually assign this part to a machine and set the start date. Overrides any current allocation.
+            </p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Field label="Machine">
+                <Select value={allocMachineId} onValueChange={setAllocMachineId}>
+                  <SelectTrigger><SelectValue placeholder="Select machine" /></SelectTrigger>
+                  <SelectContent>
+                    {(() => {
+                      const list = machineOptionIds.length
+                        ? machines.filter(m => machineOptionIds.includes(m.id))
+                        : machines;
+                      if (list.length === 0) {
+                        return <div className="px-2 py-1.5 text-xs text-muted-foreground">No capable machines linked. Add some above.</div>;
+                      }
+                      return list.map(m => <SelectItem key={m.id} value={m.id}>{m.machine_name}</SelectItem>);
+                    })()}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Start date on machine">
+                <Input type="date" value={allocStartDate} onChange={e => setAllocStartDate(e.target.value)} />
+              </Field>
+            </div>
+            {part && (
+              <div className="text-xs text-muted-foreground border rounded-md p-2 bg-muted/30">
+                Total run time: <strong>{((Number(part.development_time) || 0) + (Number(part.cycle_time) || 0) * (Number(part.qty) || 0)).toFixed(1)} hrs</strong>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button onClick={applyManualAllocation} disabled={allocSaving || !allocMachineId || !allocStartDate}>
+                {allocSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Apply allocation
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
