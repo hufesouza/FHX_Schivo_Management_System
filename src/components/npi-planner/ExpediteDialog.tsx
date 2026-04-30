@@ -88,10 +88,11 @@ export function ExpediteDialog({ open, onOpenChange, part, scheduledStart, onApp
       const { error } = await supabase.from('npi_parts').update({
         material_lead_time: matLT,
         tooling_lead_time: toolLT,
-        cycle_time: cycle,
-        development_time: dev,
+        cycle_time: cycleMin / 60,
+        development_time: devMin / 60,
+        backend_time: backendHrs,
         subcon_lead_time: subconLT,
-      }).eq('id', part.id);
+      } as any).eq('id', part.id);
       if (error) throw error;
       toast.success('Expedite values saved');
       onOpenChange(false);
