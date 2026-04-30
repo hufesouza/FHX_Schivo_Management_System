@@ -64,43 +64,7 @@ export default function PartSetup() {
     [toolLines],
   );
 
-  const runAllocation = () => {
-    if (machineOptionIds.length === 0) {
-      toast.error('Select at least one candidate machine');
-      return;
-    }
-    const qty = Number(form.qty) || 0;
-    const machiningHrs = devHrs + cycleHrs * qty;
-    if (machiningHrs <= 0) {
-      toast.error('Cycle time × qty + development time must be > 0');
-      return;
-    }
-    const candidates = machines.filter(m => machineOptionIds.includes(m.id));
-    const backendHrs = Number(form.backend_time) || 0;
-    const opts = recommendAllocations(candidates, schedule, availability, {
-      qty,
-      cycleTimeHrs: cycleHrs,
-      developmentTimeHrs: devHrs,
-      materialLeadTime: Number(form.material_lead_time) || 0,
-      materialStatus: form.material_status,
-      toolingLeadTime: maxToolLeadFromList || Number(form.tooling_lead_time) || 0,
-      toolingStatus: form.tooling_status,
-      subconRequired: (form.subcon_status && form.subcon_status !== 'Not Required'),
-      subconLeadTime: Number(form.subcon_lead_time) || 0,
-      backendLeadTime: Math.ceil(backendHrs / 24),
-      bestCommenceDate: null,
-      committedDate: form.committed_date ? new Date(form.committed_date) : null,
-      calendar: calendarSettings,
-      devAllowWeekends: !!form.dev_allow_weekends,
-      prodAllowWeekends: !!form.prod_allow_weekends,
-    });
-    setOptions(opts);
-    if (opts.length === 0) {
-      toast.warning('No machine has an NPI availability window that fits this job. Add a window in Settings → Machines.');
-    }
-    if (opts[0]) setSelectedMachineId(opts[0].machine.id);
-  };
-
+  
   const handleSave = async () => {
     if (!form.part_number.trim()) return toast.error('Part number is required');
     setSaving(true);
