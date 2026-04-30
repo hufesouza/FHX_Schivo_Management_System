@@ -340,6 +340,11 @@ export default function PartSetup() {
         onOpenChange={setCustomerDialogOpen}
         onCreated={async (c) => { await reload(); set('customer_id', c.id); set('project_id', ''); }}
       />
+      <QuickMachineDialog
+        open={machineDialogOpen}
+        onOpenChange={setMachineDialogOpen}
+        onCreated={async (m) => { await reload(); setMachineOptionIds(ids => ids.includes(m.id) ? ids : [...ids, m.id]); }}
+      />
       <QuickProjectDialog
         open={projectDialogOpen}
         onOpenChange={setProjectDialogOpen}
