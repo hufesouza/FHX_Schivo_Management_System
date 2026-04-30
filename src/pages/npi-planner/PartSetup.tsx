@@ -71,8 +71,6 @@ export default function PartSetup() {
     try {
       const customer = customers.find(c => c.id === form.customer_id);
       const project = projects.find(p => p.id === form.project_id);
-      const machine = machines.find(m => m.id === selectedMachineId);
-      const chosen = options.find(o => o.machine.id === selectedMachineId);
 
       const maxToolLead = toolLines.reduce((m, t) => Math.max(m, Number(t.lead_time_days) || 0), 0);
 
@@ -86,12 +84,12 @@ export default function PartSetup() {
         material_supplier_id: form.material_supplier_id || null,
         subcon_supplier_id: form.subcon_supplier_id || null,
         committed_date: form.committed_date || null,
-        best_commence_date: chosen ? chosen.earliestStart.toISOString().slice(0, 10) : null,
+        best_commence_date: null,
         ship_date: null,
         customer_name: customer?.customer_name || null,
         project_name: project?.project_name || null,
-        machine_id: machine?.id || null,
-        machine_name: machine?.machine_name || null,
+        machine_id: null,
+        machine_name: null,
         tooling_lead_time: maxToolLead || form.tooling_lead_time || 0,
       };
       delete partData.cycle_time_min;
@@ -100,23 +98,6 @@ export default function PartSetup() {
       delete partData.total_required_time;
 
       const part = await upsertPart(partData, machineOptionIds);
-
-      // If allocation chosen, create schedule entry (machining window only)
-      if (part && chosen) {
-        await supabase.from('npi_machine_schedule').insert({
-          part_id: part.id,
-          part_number: part.part_number,
-          customer_name: part.customer_name,
-          project_name: part.project_name,
-          machine_id: chosen.machine.id,
-          machine_name: chosen.machine.machine_name,
-          start_date: chosen.machiningStart.toISOString(),
-          end_date: chosen.machiningEnd.toISOString(),
-          total_required_time: totalRequired,
-          allocation_status: 'Confirmed',
-          notes: chosen.reason,
-        });
-      }
 
       // Persist tooling lines + upsert catalog entries
       if (part && toolLines.length > 0) {
