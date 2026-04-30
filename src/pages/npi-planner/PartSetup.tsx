@@ -16,6 +16,7 @@ import { Loader2, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { QuickCustomerDialog } from '@/components/npi-planner/QuickCustomerDialog';
 import { QuickProjectDialog } from '@/components/npi-planner/QuickProjectDialog';
+import { QuickMachineDialog } from '@/components/npi-planner/QuickMachineDialog';
 import { ToolingListEditor, type ToolLine } from '@/components/npi-planner/ToolingListEditor';
 import { SupplierPicker } from '@/components/npi-planner/SupplierPicker';
 
