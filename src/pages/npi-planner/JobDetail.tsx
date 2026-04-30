@@ -108,6 +108,10 @@ export default function JobDetail() {
       setPart(p as any); setOriginal(p as any);
       setMachines(m || []);
       setHistory((h as any) || []);
+      if (p) {
+        setAllocMachineId((p as any).machine_id || '');
+        setAllocStartDate((p as any).best_commence_date || new Date().toISOString().slice(0, 10));
+      }
       await loadMachineOptions(id);
     })();
   }, [id]);
