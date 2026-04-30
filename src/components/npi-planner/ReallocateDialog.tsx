@@ -142,45 +142,150 @@ export function ReallocateDialog({ open, onOpenChange, part, machines, schedule,
     }
   };
 
+  const applyManual = async () => {
+    if (!part) return;
+    if (!manualMachineId) { toast.error('Pick a machine'); return; }
+    if (!manualStartDate) { toast.error('Pick a start date'); return; }
+    const machine = machines.find(m => m.id === manualMachineId);
+    if (!machine) { toast.error('Machine not found'); return; }
+    setManualSaving(true);
+    try {
+      await supabase.from('npi_machine_schedule')
+        .update({ allocation_status: 'Cancelled' })
+        .eq('part_id', part.id)
+        .in('allocation_status', ['Scheduled', 'In Production']);
+
+      const totalHrs = (Number(part.development_time) || 0) + (Number(part.cycle_time) || 0) * (Number(part.qty) || 0);
+      const start = new Date(`${manualStartDate}T08:00:00`);
+      const end = addHours(start, Math.max(1, totalHrs));
+
+      const { error: schedErr } = await supabase.from('npi_machine_schedule').insert({
+        part_id: part.id,
+        part_number: part.part_number,
+        customer_name: part.customer_name,
+        project_name: part.project_name,
+        machine_id: machine.id,
+        machine_name: machine.machine_name,
+        start_date: start.toISOString(),
+        end_date: end.toISOString(),
+        total_required_time: totalHrs,
+        allocation_status: 'Scheduled',
+      });
+      if (schedErr) throw schedErr;
+
+      const { error: partErr } = await supabase.from('npi_parts')
+        .update({
+          machine_id: machine.id,
+          machine_name: machine.machine_name,
+          best_commence_date: manualStartDate,
+          overall_status: 'Scheduled',
+        })
+        .eq('id', part.id);
+      if (partErr) throw partErr;
+
+      toast.success(`Manually allocated to ${machine.machine_name}`);
+      onOpenChange(false);
+      onApplied?.();
+    } catch (e: any) {
+      toast.error(e.message || 'Manual allocation failed');
+    } finally {
+      setManualSaving(false);
+    }
+  };
+
+  const candidateMachines = candidateIds.length
+    ? machines.filter(m => candidateIds.includes(m.id))
+    : machines;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between gap-2">
-            <span>Recommend reallocation — {part?.part_number}</span>
+            <span>Allocate — {part?.part_number}</span>
             <Button type="button" variant="outline" size="sm" onClick={() => setMachineDialogOpen(true)}>
               <Plus className="h-3 w-3 mr-1" /> Add machine
             </Button>
           </DialogTitle>
         </DialogHeader>
-        {loading ? (
-          <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>
-        ) : options.length === 0 ? (
-          <div className="text-center text-muted-foreground py-8">No candidate machines/slots available with current constraints.</div>
-        ) : (
-          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-            {options.map((opt, i) => (
-              <div key={opt.machine.id} className="border rounded-md p-3 flex items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    {i === 0 && <Badge variant="secondary">Best</Badge>}
-                    <span className="font-medium">{opt.machine.machine_name}</span>
-                    <Badge variant="outline" className={STATUS_TONE[opt.status]}>{opt.status}</Badge>
+
+        <Tabs value={mode} onValueChange={(v) => setMode(v as any)}>
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="recommend">Recommend</TabsTrigger>
+            <TabsTrigger value="manual">Manual</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="recommend" className="mt-4">
+            {loading ? (
+              <div className="flex items-center justify-center py-12"><Loader2 className="h-6 w-6 animate-spin" /></div>
+            ) : options.length === 0 ? (
+              <div className="text-center text-muted-foreground py-8">No candidate machines/slots available with current constraints.</div>
+            ) : (
+              <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+                {options.map((opt, i) => (
+                  <div key={opt.machine.id} className="border rounded-md p-3 flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        {i === 0 && <Badge variant="secondary">Best</Badge>}
+                        <span className="font-medium">{opt.machine.machine_name}</span>
+                        <Badge variant="outline" className={STATUS_TONE[opt.status]}>{opt.status}</Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground space-x-3">
+                        <span>Materials/tools ready: <strong>{format(opt.earliestStart, 'MMM d, yyyy')}</strong></span>
+                        <span>Machining: {format(opt.machiningStart, 'MMM d')} → {format(opt.machiningEnd, 'MMM d')}</span>
+                        <span>Ship: <strong>{format(opt.shipDate, 'MMM d, yyyy')}</strong></span>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1">{opt.reason}</div>
+                    </div>
+                    <Button size="sm" disabled={applyingId === opt.machine.id} onClick={() => apply(opt)}>
+                      {applyingId === opt.machine.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
+                    </Button>
                   </div>
-                  <div className="text-xs text-muted-foreground space-x-3">
-                    <span>Materials/tools ready: <strong>{format(opt.earliestStart, 'MMM d, yyyy')}</strong></span>
-                    <span>Machining: {format(opt.machiningStart, 'MMM d')} → {format(opt.machiningEnd, 'MMM d')}</span>
-                    <span>Ship: <strong>{format(opt.shipDate, 'MMM d, yyyy')}</strong></span>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">{opt.reason}</div>
-                </div>
-                <Button size="sm" disabled={applyingId === opt.machine.id} onClick={() => apply(opt)}>
-                  {applyingId === opt.machine.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Apply'}
-                </Button>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            )}
+          </TabsContent>
+
+          <TabsContent value="manual" className="mt-4 space-y-4">
+            <div className="text-xs text-muted-foreground">
+              Manually choose a machine and the date the job will start running on it. This will override any current allocation for this part.
+            </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Machine</Label>
+                <Select value={manualMachineId} onValueChange={setManualMachineId}>
+                  <SelectTrigger><SelectValue placeholder="Select machine" /></SelectTrigger>
+                  <SelectContent>
+                    {candidateMachines.length === 0 ? (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">No capable machines linked to this part. Use "Add machine".</div>
+                    ) : candidateMachines.map(m => (
+                      <SelectItem key={m.id} value={m.id}>{m.machine_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Start date on machine</Label>
+                <Input type="date" value={manualStartDate} onChange={e => setManualStartDate(e.target.value)} />
+              </div>
+            </div>
+            {part && (
+              <div className="text-xs text-muted-foreground border rounded-md p-2 bg-muted/30">
+                Total run time: <strong>{((Number(part.development_time) || 0) + (Number(part.cycle_time) || 0) * (Number(part.qty) || 0)).toFixed(1)} hrs</strong>
+                {manualStartDate && (
+                  <> · Estimated end: <strong>{format(addHours(new Date(`${manualStartDate}T08:00:00`), Math.max(1, (Number(part.development_time) || 0) + (Number(part.cycle_time) || 0) * (Number(part.qty) || 0))), 'MMM d, yyyy HH:mm')}</strong></>
+                )}
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button onClick={applyManual} disabled={manualSaving || !manualMachineId || !manualStartDate}>
+                {manualSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Apply manual allocation
+              </Button>
+            </div>
+          </TabsContent>
+        </Tabs>
+
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
         </DialogFooter>
