@@ -39,6 +39,19 @@ export function ReallocateDialog({ open, onOpenChange, part, machines, schedule,
   const [loading, setLoading] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
   const [machineDialogOpen, setMachineDialogOpen] = useState(false);
+  const [mode, setMode] = useState<'recommend' | 'manual'>('recommend');
+  const [manualMachineId, setManualMachineId] = useState<string>('');
+  const [manualStartDate, setManualStartDate] = useState<string>('');
+  const [manualSaving, setManualSaving] = useState(false);
+
+  // Reset manual form when dialog opens
+  useEffect(() => {
+    if (open && part) {
+      setManualMachineId(part.machine_id || '');
+      setManualStartDate(part.best_commence_date || new Date().toISOString().slice(0, 10));
+      setMode('recommend');
+    }
+  }, [open, part?.id]);
 
   // Load this part's candidate machine options (fall back to all machines)
   useEffect(() => {
