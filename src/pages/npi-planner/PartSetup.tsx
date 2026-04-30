@@ -36,6 +36,8 @@ export default function PartSetup() {
   const [machineDialogOpen, setMachineDialogOpen] = useState(false);
   const [toolLines, setToolLines] = useState<ToolLine[]>([]);
   const [machineSearch, setMachineSearch] = useState('');
+  const [manualMachineId, setManualMachineId] = useState<string>('');
+  const [manualStartDate, setManualStartDate] = useState<string>('');
 
   const [form, setForm] = useState<any>({
     customer_id: '', project_id: '', engineer: '',
