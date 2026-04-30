@@ -147,8 +147,9 @@ export function ExpediteDialog({ open, onOpenChange, part, scheduledStart, onApp
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mt-2">
           <Field label="Material lead time" value={matLT} setValue={setMatLT} originalValue={original.matLT} suffix="d" />
           <Field label="Tooling lead time" value={toolLT} setValue={setToolLT} originalValue={original.toolLT} suffix="d" />
-          <Field label="Cycle time / pc" value={cycle} setValue={setCycle} originalValue={original.cycle} suffix="h" />
-          <Field label="Development time" value={dev} setValue={setDev} originalValue={original.dev} suffix="h" />
+          <Field label="Cycle time / pc" value={cycleMin} setValue={setCycleMin} originalValue={original.cycleMin} suffix="min" />
+          <Field label="Development time" value={devMin} setValue={setDevMin} originalValue={original.devMin} suffix="min" />
+          <Field label="Backend time" value={backendHrs} setValue={setBackendHrs} originalValue={original.backendHrs} suffix="h" />
           {part?.subcon && (
             <Field label="Subcon / backend" value={subconLT} setValue={setSubconLT} originalValue={original.subconLT} suffix="d" />
           )}
