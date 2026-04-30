@@ -16,6 +16,7 @@ import { Loader2, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { QuickCustomerDialog } from '@/components/npi-planner/QuickCustomerDialog';
 import { QuickProjectDialog } from '@/components/npi-planner/QuickProjectDialog';
+import { QuickMachineDialog } from '@/components/npi-planner/QuickMachineDialog';
 import { ToolingListEditor, type ToolLine } from '@/components/npi-planner/ToolingListEditor';
 import { SupplierPicker } from '@/components/npi-planner/SupplierPicker';
 
@@ -34,6 +35,7 @@ export default function PartSetup() {
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [toolLines, setToolLines] = useState<ToolLine[]>([]);
   const [machineSearch, setMachineSearch] = useState('');
+  const [machineDialogOpen, setMachineDialogOpen] = useState(false);
 
   const [form, setForm] = useState<any>({
     customer_id: '', project_id: '', engineer: '',
@@ -294,6 +296,9 @@ export default function PartSetup() {
               <div className="flex items-center justify-between gap-2 mb-2">
                 <Label className="text-xs text-muted-foreground">Which machines can run this job? Tick all capable machines. Allocation is recommended later from the Job Tracker.</Label>
                 <div className="flex gap-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => setMachineDialogOpen(true)}>
+                    <Plus className="h-3 w-3 mr-1" /> Add machine
+                  </Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => setMachineOptionIds(machines.map(m => m.id))} disabled={!machines.length}>Select all</Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => setMachineOptionIds([])} disabled={!machineOptionIds.length}>Clear</Button>
                 </div>
