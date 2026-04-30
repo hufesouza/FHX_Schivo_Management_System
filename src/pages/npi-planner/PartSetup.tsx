@@ -36,6 +36,8 @@ export default function PartSetup() {
   const [machineDialogOpen, setMachineDialogOpen] = useState(false);
   const [toolLines, setToolLines] = useState<ToolLine[]>([]);
   const [machineSearch, setMachineSearch] = useState('');
+  const [manualMachineId, setManualMachineId] = useState<string>('');
+  const [manualStartDate, setManualStartDate] = useState<string>('');
 
   const [form, setForm] = useState<any>({
     customer_id: '', project_id: '', engineer: '',
@@ -83,20 +85,40 @@ export default function PartSetup() {
         material_supplier_id: form.material_supplier_id || null,
         subcon_supplier_id: form.subcon_supplier_id || null,
         committed_date: form.committed_date || null,
-        best_commence_date: null,
+        best_commence_date: manualMachineId && manualStartDate ? manualStartDate : null,
         ship_date: null,
         customer_name: customer?.customer_name || null,
         project_name: project?.project_name || null,
-        machine_id: null,
-        machine_name: null,
+        machine_id: manualMachineId || null,
+        machine_name: manualMachineId ? (machines.find(m => m.id === manualMachineId)?.machine_name || null) : null,
         tooling_lead_time: maxToolLead || form.tooling_lead_time || 0,
       };
+      // If manual allocation set, force status to Scheduled
+      if (manualMachineId && manualStartDate) partData.overall_status = 'Scheduled';
       delete partData.cycle_time_min;
       delete partData.development_time_min;
       delete partData.id;
       delete partData.total_required_time;
 
-      const part = await upsertPart(partData, machineOptionIds);
+      // Ensure manual machine is in capable list
+      const capableIds = manualMachineId && !machineOptionIds.includes(manualMachineId)
+        ? [...machineOptionIds, manualMachineId]
+        : machineOptionIds;
+
+      const part = await upsertPart(partData, capableIds);
+
+      // Manual allocation: create schedule record
+      if (part && manualMachineId && manualStartDate) {
+        const totalHrs = devHrs + cycleHrs * (Number(form.qty) || 0);
+        const start = new Date(`${manualStartDate}T08:00:00`);
+        await supabase.from('npi_machine_schedule').insert({
+          part_id: part.id,
+          machine_id: manualMachineId,
+          start_date: start.toISOString(),
+          total_required_time: Math.max(1, totalHrs),
+          allocation_status: 'Scheduled',
+        } as any);
+      }
 
       // Persist tooling lines + upsert catalog entries
       if (part && toolLines.length > 0) {
@@ -326,6 +348,39 @@ export default function PartSetup() {
                 </>
               )}
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Manual allocation (optional)</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="text-xs text-muted-foreground">
+              Skip the recommendation engine and assign this job to a specific machine + start date. Leave blank to allocate later from the Job Tracker.
+            </div>
+            <div className="grid md:grid-cols-3 gap-4">
+              <Field label="Machine">
+                <Select value={manualMachineId || 'none'} onValueChange={v => setManualMachineId(v === 'none' ? '' : v)}>
+                  <SelectTrigger><SelectValue placeholder="Select machine" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">— None —</SelectItem>
+                    {(machineOptionIds.length ? machines.filter(m => machineOptionIds.includes(m.id)) : machines).map(m => (
+                      <SelectItem key={m.id} value={m.id}>{m.machine_name}{m.machine_type ? ` (${m.machine_type})` : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+              <Field label="Start date">
+                <Input type="date" value={manualStartDate} onChange={e => setManualStartDate(e.target.value)} />
+              </Field>
+              <Field label="Total run time (hrs)">
+                <Input value={totalRequired.toFixed(2)} disabled />
+              </Field>
+            </div>
+            {manualMachineId && manualStartDate && (
+              <Badge variant="secondary">Will be scheduled on save</Badge>
+            )}
           </CardContent>
         </Card>
 
