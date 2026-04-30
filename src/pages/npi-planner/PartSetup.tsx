@@ -100,7 +100,25 @@ export default function PartSetup() {
       delete partData.id;
       delete partData.total_required_time;
 
-      const part = await upsertPart(partData, machineOptionIds);
+      // Ensure manual machine is in capable list
+      const capableIds = manualMachineId && !machineOptionIds.includes(manualMachineId)
+        ? [...machineOptionIds, manualMachineId]
+        : machineOptionIds;
+
+      const part = await upsertPart(partData, capableIds);
+
+      // Manual allocation: create schedule record
+      if (part && manualMachineId && manualStartDate) {
+        const totalHrs = devHrs + cycleHrs * (Number(form.qty) || 0);
+        const start = new Date(`${manualStartDate}T08:00:00`);
+        await supabase.from('npi_machine_schedule').insert({
+          part_id: part.id,
+          machine_id: manualMachineId,
+          start_date: start.toISOString(),
+          total_required_time: Math.max(1, totalHrs),
+          allocation_status: 'Scheduled',
+        } as any);
+      }
 
       // Persist tooling lines + upsert catalog entries
       if (part && toolLines.length > 0) {
