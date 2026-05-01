@@ -158,6 +158,7 @@ export default function JobList() {
                     const pendingShip = shipDates[p.id];
                     return (
                       <TableRow key={p.id}>
+                        <TableCell className="font-mono text-xs">{p.po || '-'}</TableCell>
                         <TableCell className="font-medium cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>{p.part_number}</TableCell>
                         <TableCell className="cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>{p.customer_name || '-'}</TableCell>
                         <TableCell>{p.machine_name || '-'}</TableCell>
