@@ -45,7 +45,7 @@ export default function JobList() {
   const [reallocPart, setReallocPart] = useState<Part | null>(null);
 
   const filtered = useMemo(() => parts.filter(p => {
-    if (search && !`${p.part_number} ${p.description}`.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !`${p.part_number} ${p.description} ${p.po || ''}`.toLowerCase().includes(search.toLowerCase())) return false;
     if (statusFilter !== 'all' && p.overall_status !== statusFilter) return false;
     if (customerFilter !== 'all' && p.customer_id !== customerFilter) return false;
     if (machineFilter !== 'all' && p.machine_id !== machineFilter) return false;
@@ -138,6 +138,7 @@ export default function JobList() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>PO #</TableHead>
                     <TableHead>Part #</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Machine</TableHead>
@@ -150,13 +151,14 @@ export default function JobList() {
                 </TableHeader>
                 <TableBody>
                   {filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
                   ) : filtered.map(p => {
                     const matStatus = p.material_status || 'Required';
                     const toolStatus = p.tooling_status || 'Required';
                     const pendingShip = shipDates[p.id];
                     return (
                       <TableRow key={p.id}>
+                        <TableCell className="font-mono text-xs">{p.po || '-'}</TableCell>
                         <TableCell className="font-medium cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>{p.part_number}</TableCell>
                         <TableCell className="cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>{p.customer_name || '-'}</TableCell>
                         <TableCell>{p.machine_name || '-'}</TableCell>
