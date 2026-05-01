@@ -89,7 +89,7 @@ export default function MachineCalendar() {
     const effToolOrderedAt = links.length ? toolAgg.orderedAt : part.tooling_ordered_at;
     const effToolReceivedAt = links.length ? null : part.tooling_received_at;
 
-    const earliest = computeEarliestStart({
+    let earliest = computeEarliestStart({
       materialLeadTime: part.material_lead_time,
       materialStatus: part.material_status,
       materialOrderedAt: part.material_ordered_at,
@@ -101,6 +101,14 @@ export default function MachineCalendar() {
       bestCommenceDate: null,
     });
     const scheduledStart = new Date(entry.start_date);
+    // If both inputs are already ready (Received / Not Required) AND the job was scheduled
+    // in the past (i.e. it's already running or being back-logged), there's nothing left to
+    // wait for — clamp earliest to the scheduled start so we don't show a phantom slip.
+    const matIsReady = isReady(part.material_status);
+    const toolIsReady = isReady(effToolStatus);
+    if (matIsReady && toolIsReady && scheduledStart < earliest) {
+      earliest = scheduledStart;
+    }
     // Compare on calendar-day granularity — sub-day differences (e.g. ordered 21:12 vs scheduled 23:00)
     // shouldn't be treated as a "1 day slip". A job ready any time on its scheduled day = on time.
     const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
