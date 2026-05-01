@@ -148,6 +148,62 @@ export default function MachineCalendar() {
     setActionOpen(true);
   };
 
+  const handleDrop = async (scheduleId: string, targetMachineId: string, targetDay: Date) => {
+    const entry = schedule.find(s => s.id === scheduleId);
+    if (!entry) return;
+    const part = entry.part_id ? parts.find(p => p.id === entry.part_id) : null;
+    const fromMachine = machines.find(m => m.id === entry.machine_id);
+    const toMachine = machines.find(m => m.id === targetMachineId);
+    if (!toMachine) return;
+
+    // If moving to a different machine, check capability
+    if (entry.machine_id !== targetMachineId && part) {
+      const { data: capable } = await supabase
+        .from('npi_part_machine_options')
+        .select('machine_id')
+        .eq('part_id', part.id);
+      const capableIds = (capable || []).map((r: any) => r.machine_id);
+      if (capableIds.length > 0 && !capableIds.includes(targetMachineId)) {
+        const proceed = window.confirm(
+          `${toMachine.machine_name} is not in the capable machines for ${part.part_number}. Add it and continue?`
+        );
+        if (!proceed) return;
+      }
+    }
+
+    // Compute new start/end. Preserve time-of-day from old start, switch the date to targetDay.
+    const oldStart = new Date(entry.start_date);
+    const newStart = new Date(targetDay);
+    newStart.setHours(oldStart.getHours(), oldStart.getMinutes(), 0, 0);
+    const totalHours = Number(entry.total_required_time) || 1;
+    const newEnd = new Date(newStart.getTime() + totalHours * 3600 * 1000);
+
+    // Detect overlaps on target machine (excluding this entry)
+    const overlaps = (machineBookings[targetMachineId] || [])
+      .filter(b => b.id !== entry.id)
+      .filter(b => b.start < newEnd && b.end > newStart)
+      .map(b => b.part_number || 'Unknown')
+      .slice(0, 5);
+
+    setReschedulePayload({
+      scheduleId: entry.id,
+      partId: entry.part_id,
+      partNumber: entry.part_number,
+      fromMachineId: entry.machine_id || '',
+      fromMachineName: fromMachine?.machine_name || entry.machine_name || '—',
+      toMachineId: targetMachineId,
+      toMachineName: toMachine.machine_name,
+      oldStart,
+      newStart,
+      newEnd,
+      totalHours,
+      committedDate: part?.committed_date ? new Date(part.committed_date) : null,
+      shipDate: part?.ship_date ? new Date(part.ship_date) : null,
+      overlapsWith: overlaps,
+    });
+    setRescheduleOpen(true);
+  };
+
   if (loading) return <AppLayout title="Calendar" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin"/></div></AppLayout>;
 
   return (
