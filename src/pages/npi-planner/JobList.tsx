@@ -80,6 +80,21 @@ export default function JobList() {
     reload();
   };
 
+  const updateStatus = async (partId: string, newStatus: string) => {
+    setSavingId(partId);
+    // If marking complete, stamp today's ship_date; if reopening from Completed, clear it.
+    const patch: Record<string, any> = { overall_status: newStatus };
+    if (newStatus === 'Completed') patch.ship_date = new Date().toISOString().slice(0, 10);
+    else patch.ship_date = null;
+    const { error } = await supabase.from('npi_parts').update(patch).eq('id', partId);
+    setSavingId(null);
+    if (error) return toast.error(error.message);
+    toast.success(`Status set to ${newStatus}`);
+    reload();
+  };
+
+  const STATUS_OPTIONS = ['Not Started', 'Scheduled', 'In Production', 'At Risk', 'Late', 'On Hold', 'Completed'];
+
   // Material & tooling status are read-only on the tracker — managed on dedicated tiles.
 
   if (loading) return <AppLayout title="Jobs" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin" /></div></AppLayout>;
