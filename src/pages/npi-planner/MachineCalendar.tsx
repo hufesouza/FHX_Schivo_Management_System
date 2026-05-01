@@ -8,7 +8,9 @@ import { Loader2, ChevronLeft, ChevronRight, AlertTriangle, CalendarOff } from '
 import { JobActionDialog, ReadinessReport } from '@/components/npi-planner/JobActionDialog';
 import { ExpediteDialog } from '@/components/npi-planner/ExpediteDialog';
 import { ReallocateDialog } from '@/components/npi-planner/ReallocateDialog';
+import { RescheduleConfirmDialog, ReschedulePayload } from '@/components/npi-planner/RescheduleConfirmDialog';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
 
 const statusLabel = (status: string | null | undefined, orderedAt: string | null | undefined, leadTime: number | null | undefined) => {
   if (status === 'Received') return 'Received';
@@ -54,6 +56,9 @@ export default function MachineCalendar() {
   const [expediteOpen, setExpediteOpen] = useState(false);
   const [activePart, setActivePart] = useState<Part | null>(null);
   const [activeReport, setActiveReport] = useState<ReadinessReport | null>(null);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [reschedulePayload, setReschedulePayload] = useState<ReschedulePayload | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null); // `${machineId}|${dayISO}`
 
   const days = useMemo(() => {
     return Array.from({length: 14}, (_, i) => {
@@ -142,6 +147,62 @@ export default function MachineCalendar() {
     setActionOpen(true);
   };
 
+  const handleDrop = async (scheduleId: string, targetMachineId: string, targetDay: Date) => {
+    const entry = schedule.find(s => s.id === scheduleId);
+    if (!entry) return;
+    const part = entry.part_id ? parts.find(p => p.id === entry.part_id) : null;
+    const fromMachine = machines.find(m => m.id === entry.machine_id);
+    const toMachine = machines.find(m => m.id === targetMachineId);
+    if (!toMachine) return;
+
+    // If moving to a different machine, check capability
+    if (entry.machine_id !== targetMachineId && part) {
+      const { data: capable } = await supabase
+        .from('npi_part_machine_options')
+        .select('machine_id')
+        .eq('part_id', part.id);
+      const capableIds = (capable || []).map((r: any) => r.machine_id);
+      if (capableIds.length > 0 && !capableIds.includes(targetMachineId)) {
+        const proceed = window.confirm(
+          `${toMachine.machine_name} is not in the capable machines for ${part.part_number}. Add it and continue?`
+        );
+        if (!proceed) return;
+      }
+    }
+
+    // Compute new start/end. Preserve time-of-day from old start, switch the date to targetDay.
+    const oldStart = new Date(entry.start_date);
+    const newStart = new Date(targetDay);
+    newStart.setHours(oldStart.getHours(), oldStart.getMinutes(), 0, 0);
+    const totalHours = Number(entry.total_required_time) || 1;
+    const newEnd = new Date(newStart.getTime() + totalHours * 3600 * 1000);
+
+    // Detect overlaps on target machine (excluding this entry)
+    const overlaps = (machineBookings[targetMachineId] || [])
+      .filter(b => b.id !== entry.id)
+      .filter(b => b.start < newEnd && b.end > newStart)
+      .map(b => b.part_number || 'Unknown')
+      .slice(0, 5);
+
+    setReschedulePayload({
+      scheduleId: entry.id,
+      partId: entry.part_id,
+      partNumber: entry.part_number,
+      fromMachineId: entry.machine_id || '',
+      fromMachineName: fromMachine?.machine_name || entry.machine_name || '—',
+      toMachineId: targetMachineId,
+      toMachineName: toMachine.machine_name,
+      oldStart,
+      newStart,
+      newEnd,
+      totalHours,
+      committedDate: part?.committed_date ? new Date(part.committed_date) : null,
+      shipDate: part?.ship_date ? new Date(part.ship_date) : null,
+      overlapsWith: overlaps,
+    });
+    setRescheduleOpen(true);
+  };
+
   if (loading) return <AppLayout title="Calendar" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin"/></div></AppLayout>;
 
   return (
@@ -204,7 +265,19 @@ export default function MachineCalendar() {
                         ? 'bg-muted-foreground/10'
                         : entries.length === 0 ? 'bg-emerald-50' : entries.length > 1 ? 'bg-destructive/10' : 'bg-blue-50';
                       return (
-                        <td key={d.toISOString()} className={`border p-1 align-top ${baseBg}`} style={{minWidth:80}}>
+                        <td
+                          key={d.toISOString()}
+                          className={`border p-1 align-top ${baseBg} ${dragOver === `${m.id}|${d.toISOString()}` ? 'ring-2 ring-primary ring-inset' : ''}`}
+                          style={{minWidth:80}}
+                          onDragOver={(ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; setDragOver(`${m.id}|${d.toISOString()}`); }}
+                          onDragLeave={() => setDragOver(prev => prev === `${m.id}|${d.toISOString()}` ? null : prev)}
+                          onDrop={(ev) => {
+                            ev.preventDefault();
+                            const id = ev.dataTransfer.getData('text/schedule-id');
+                            setDragOver(null);
+                            if (id) handleDrop(id, m.id, d);
+                          }}
+                        >
                           {entries.map(e => {
                             const part = parts.find(p => p.id === e.part_id);
                             const report = part ? buildReport(e, part) : null;
@@ -215,20 +288,31 @@ export default function MachineCalendar() {
                               : report.hasOverlap ? 'bg-destructive/20 text-destructive border border-destructive/40'
                               : (notReady || driftWhole > 0) ? 'bg-destructive/15 text-destructive border border-destructive/40'
                               : 'bg-emerald-500/15 text-emerald-700 border border-emerald-500/30';
+                            // Only render the job button on its actual start day to avoid showing
+                            // the same draggable card across every day it spans.
+                            const entryStart = new Date(e.start_date);
+                            const cellStart = new Date(d); cellStart.setHours(0,0,0,0);
+                            const cellEnd = new Date(d); cellEnd.setHours(23,59,59,999);
+                            const isStartCell = entryStart >= cellStart && entryStart <= cellEnd;
                             const titleText = !report ? `${e.part_number}` :
                               `${e.part_number} — ${e.customer_name || ''}\n` +
                               (report.hasOverlap ? `⚠ Overlap with: ${report.overlapWith.join(', ')}\n` : '') +
                               (driftWhole > 0 ? `⚠ Not ready — earliest ${format(report.earliest, 'MMM d')} (+${driftWhole}d)\n` : '') +
-                              `Material: ${report.matLabel}\nTooling: ${report.toolLabel}`;
+                              `Material: ${report.matLabel}\nTooling: ${report.toolLabel}\n\nDrag to reschedule.`;
                             return (
                               <button
                                 key={e.id}
+                                draggable
+                                onDragStart={(ev) => {
+                                  ev.dataTransfer.setData('text/schedule-id', e.id);
+                                  ev.dataTransfer.effectAllowed = 'move';
+                                }}
                                 onClick={() => openAction(e)}
                                 title={titleText}
-                                className={`w-full text-left text-[10px] rounded px-1 py-0.5 mb-1 truncate flex items-center gap-1 hover:opacity-80 ${tone}`}
+                                className={`w-full text-left text-[10px] rounded px-1 py-0.5 mb-1 truncate flex items-center gap-1 hover:opacity-80 cursor-grab active:cursor-grabbing ${tone} ${isStartCell ? '' : 'opacity-60'}`}
                               >
                                 {flagged && <AlertTriangle className="h-2.5 w-2.5 shrink-0" />}
-                                <span className="truncate">{e.part_number}</span>
+                                <span className="truncate">{e.part_number}{!isStartCell && ' →'}</span>
                               </button>
                             );
                           })}
@@ -279,6 +363,13 @@ export default function MachineCalendar() {
         onOpenChange={setExpediteOpen}
         part={activePart}
         scheduledStart={activeReport?.scheduledStart || null}
+        onApplied={reload}
+      />
+
+      <RescheduleConfirmDialog
+        open={rescheduleOpen}
+        onOpenChange={setRescheduleOpen}
+        payload={reschedulePayload}
         onApplied={reload}
       />
     </AppLayout>
