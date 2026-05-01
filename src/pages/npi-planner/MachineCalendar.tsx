@@ -8,7 +8,10 @@ import { Loader2, ChevronLeft, ChevronRight, AlertTriangle, CalendarOff } from '
 import { JobActionDialog, ReadinessReport } from '@/components/npi-planner/JobActionDialog';
 import { ExpediteDialog } from '@/components/npi-planner/ExpediteDialog';
 import { ReallocateDialog } from '@/components/npi-planner/ReallocateDialog';
+import { RescheduleConfirmDialog, ReschedulePayload } from '@/components/npi-planner/RescheduleConfirmDialog';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const statusLabel = (status: string | null | undefined, orderedAt: string | null | undefined, leadTime: number | null | undefined) => {
   if (status === 'Received') return 'Received';
