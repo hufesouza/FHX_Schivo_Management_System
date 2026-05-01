@@ -366,6 +366,13 @@ export default function MachineCalendar() {
         scheduledStart={activeReport?.scheduledStart || null}
         onApplied={reload}
       />
+
+      <RescheduleConfirmDialog
+        open={rescheduleOpen}
+        onOpenChange={setRescheduleOpen}
+        payload={reschedulePayload}
+        onApplied={reload}
+      />
     </AppLayout>
   );
 }
