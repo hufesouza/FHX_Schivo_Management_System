@@ -57,6 +57,9 @@ export default function MachineCalendar() {
   const [expediteOpen, setExpediteOpen] = useState(false);
   const [activePart, setActivePart] = useState<Part | null>(null);
   const [activeReport, setActiveReport] = useState<ReadinessReport | null>(null);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
+  const [reschedulePayload, setReschedulePayload] = useState<ReschedulePayload | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null); // `${machineId}|${dayISO}`
 
   const days = useMemo(() => {
     return Array.from({length: 14}, (_, i) => {
