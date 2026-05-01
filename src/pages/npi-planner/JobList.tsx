@@ -138,6 +138,7 @@ export default function JobList() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>PO #</TableHead>
                     <TableHead>Part #</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Machine</TableHead>
