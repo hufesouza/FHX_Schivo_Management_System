@@ -288,31 +288,39 @@ export default function MachineCalendar() {
                               : report.hasOverlap ? 'bg-destructive/20 text-destructive border border-destructive/40'
                               : (notReady || driftWhole > 0) ? 'bg-destructive/15 text-destructive border border-destructive/40'
                               : 'bg-emerald-500/15 text-emerald-700 border border-emerald-500/30';
-                            // Only render the job button on its actual start day to avoid showing
-                            // the same draggable card across every day it spans.
+                            // Show the card on every day the job spans (so duration is visible),
+                            // but only the start-day card is draggable. Continuation cells get a
+                            // lighter visual and a leading arrow.
                             const entryStart = new Date(e.start_date);
+                            const entryEnd = new Date(e.end_date);
                             const cellStart = new Date(d); cellStart.setHours(0,0,0,0);
                             const cellEnd = new Date(d); cellEnd.setHours(23,59,59,999);
                             const isStartCell = entryStart >= cellStart && entryStart <= cellEnd;
+                            const isEndCell = entryEnd >= cellStart && entryEnd <= cellEnd;
                             const titleText = !report ? `${e.part_number}` :
                               `${e.part_number} — ${e.customer_name || ''}\n` +
+                              `${format(entryStart, 'MMM d HH:mm')} → ${format(entryEnd, 'MMM d HH:mm')}\n` +
                               (report.hasOverlap ? `⚠ Overlap with: ${report.overlapWith.join(', ')}\n` : '') +
                               (driftWhole > 0 ? `⚠ Not ready — earliest ${format(report.earliest, 'MMM d')} (+${driftWhole}d)\n` : '') +
-                              `Material: ${report.matLabel}\nTooling: ${report.toolLabel}\n\nDrag to reschedule.`;
+                              `Material: ${report.matLabel}\nTooling: ${report.toolLabel}` +
+                              (isStartCell ? `\n\nDrag from this cell to reschedule.` : '');
                             return (
                               <button
                                 key={e.id}
-                                draggable
+                                draggable={isStartCell}
                                 onDragStart={(ev) => {
+                                  if (!isStartCell) { ev.preventDefault(); return; }
                                   ev.dataTransfer.setData('text/schedule-id', e.id);
                                   ev.dataTransfer.effectAllowed = 'move';
                                 }}
                                 onClick={() => openAction(e)}
                                 title={titleText}
-                                className={`w-full text-left text-[10px] rounded px-1 py-0.5 mb-1 truncate flex items-center gap-1 hover:opacity-80 cursor-grab active:cursor-grabbing ${tone} ${isStartCell ? '' : 'opacity-60'}`}
+                                className={`w-full text-left text-[10px] px-1 py-0.5 mb-1 truncate flex items-center gap-1 hover:opacity-80 ${tone} ${isStartCell ? 'cursor-grab active:cursor-grabbing rounded-l' : 'cursor-pointer border-l-0'} ${isEndCell ? 'rounded-r' : 'border-r-0'}`}
                               >
-                                {flagged && <AlertTriangle className="h-2.5 w-2.5 shrink-0" />}
-                                <span className="truncate">{e.part_number}{!isStartCell && ' →'}</span>
+                                {isStartCell && flagged && <AlertTriangle className="h-2.5 w-2.5 shrink-0" />}
+                                <span className="truncate">
+                                  {isStartCell ? e.part_number : <span className="opacity-60">↳ {e.part_number}</span>}
+                                </span>
                               </button>
                             );
                           })}
