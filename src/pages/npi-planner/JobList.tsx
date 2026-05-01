@@ -83,9 +83,10 @@ export default function JobList() {
   const updateStatus = async (partId: string, newStatus: string) => {
     setSavingId(partId);
     // If marking complete, stamp today's ship_date; if reopening from Completed, clear it.
-    const patch: Record<string, any> = { overall_status: newStatus };
-    if (newStatus === 'Completed') patch.ship_date = new Date().toISOString().slice(0, 10);
-    else patch.ship_date = null;
+    const patch: { overall_status: string; ship_date: string | null } = {
+      overall_status: newStatus,
+      ship_date: newStatus === 'Completed' ? new Date().toISOString().slice(0, 10) : null,
+    };
     const { error } = await supabase.from('npi_parts').update(patch).eq('id', partId);
     setSavingId(null);
     if (error) return toast.error(error.message);
