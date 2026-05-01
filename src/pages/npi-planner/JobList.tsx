@@ -80,6 +80,22 @@ export default function JobList() {
     reload();
   };
 
+  const updateStatus = async (partId: string, newStatus: string) => {
+    setSavingId(partId);
+    // If marking complete, stamp today's ship_date; if reopening from Completed, clear it.
+    const patch: { overall_status: string; ship_date: string | null } = {
+      overall_status: newStatus,
+      ship_date: newStatus === 'Completed' ? new Date().toISOString().slice(0, 10) : null,
+    };
+    const { error } = await supabase.from('npi_parts').update(patch).eq('id', partId);
+    setSavingId(null);
+    if (error) return toast.error(error.message);
+    toast.success(`Status set to ${newStatus}`);
+    reload();
+  };
+
+  const STATUS_OPTIONS = ['Not Started', 'Scheduled', 'In Production', 'At Risk', 'Late', 'On Hold', 'Completed'];
+
   // Material & tooling status are read-only on the tracker — managed on dedicated tiles.
 
   if (loading) return <AppLayout title="Jobs" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin" /></div></AppLayout>;
@@ -157,7 +173,22 @@ export default function JobList() {
                           </div>
                         </TableCell>
                         <TableCell className="align-top">{p.committed_date || '-'}</TableCell>
-                        <TableCell className="align-top"><Badge className={STATUS_TONE[p.overall_status] || ''} variant="outline">{p.overall_status}</Badge></TableCell>
+                        <TableCell className="align-top">
+                          <Select
+                            value={p.overall_status}
+                            onValueChange={(v) => updateStatus(p.id, v)}
+                            disabled={savingId === p.id}
+                          >
+                            <SelectTrigger className={`h-7 w-[140px] text-xs border ${STATUS_TONE[p.overall_status] || ''}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {STATUS_OPTIONS.map(s => (
+                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
                         <TableCell>
                           {p.ship_date ? (
                             <div className="flex items-center gap-1">
