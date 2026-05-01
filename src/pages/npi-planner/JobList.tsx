@@ -173,7 +173,22 @@ export default function JobList() {
                           </div>
                         </TableCell>
                         <TableCell className="align-top">{p.committed_date || '-'}</TableCell>
-                        <TableCell className="align-top"><Badge className={STATUS_TONE[p.overall_status] || ''} variant="outline">{p.overall_status}</Badge></TableCell>
+                        <TableCell className="align-top">
+                          <Select
+                            value={p.overall_status}
+                            onValueChange={(v) => updateStatus(p.id, v)}
+                            disabled={savingId === p.id}
+                          >
+                            <SelectTrigger className={`h-7 w-[140px] text-xs border ${STATUS_TONE[p.overall_status] || ''}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {STATUS_OPTIONS.map(s => (
+                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
                         <TableCell>
                           {p.ship_date ? (
                             <div className="flex items-center gap-1">
