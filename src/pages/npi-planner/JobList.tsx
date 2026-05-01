@@ -151,7 +151,7 @@ export default function JobList() {
                 </TableHeader>
                 <TableBody>
                   {filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
                   ) : filtered.map(p => {
                     const matStatus = p.material_status || 'Required';
                     const toolStatus = p.tooling_status || 'Required';
