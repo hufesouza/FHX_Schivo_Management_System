@@ -266,7 +266,19 @@ export default function MachineCalendar() {
                         ? 'bg-muted-foreground/10'
                         : entries.length === 0 ? 'bg-emerald-50' : entries.length > 1 ? 'bg-destructive/10' : 'bg-blue-50';
                       return (
-                        <td key={d.toISOString()} className={`border p-1 align-top ${baseBg}`} style={{minWidth:80}}>
+                        <td
+                          key={d.toISOString()}
+                          className={`border p-1 align-top ${baseBg} ${dragOver === `${m.id}|${d.toISOString()}` ? 'ring-2 ring-primary ring-inset' : ''}`}
+                          style={{minWidth:80}}
+                          onDragOver={(ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'move'; setDragOver(`${m.id}|${d.toISOString()}`); }}
+                          onDragLeave={() => setDragOver(prev => prev === `${m.id}|${d.toISOString()}` ? null : prev)}
+                          onDrop={(ev) => {
+                            ev.preventDefault();
+                            const id = ev.dataTransfer.getData('text/schedule-id');
+                            setDragOver(null);
+                            if (id) handleDrop(id, m.id, d);
+                          }}
+                        >
                           {entries.map(e => {
                             const part = parts.find(p => p.id === e.part_id);
                             const report = part ? buildReport(e, part) : null;
@@ -277,20 +289,31 @@ export default function MachineCalendar() {
                               : report.hasOverlap ? 'bg-destructive/20 text-destructive border border-destructive/40'
                               : (notReady || driftWhole > 0) ? 'bg-destructive/15 text-destructive border border-destructive/40'
                               : 'bg-emerald-500/15 text-emerald-700 border border-emerald-500/30';
+                            // Only render the job button on its actual start day to avoid showing
+                            // the same draggable card across every day it spans.
+                            const entryStart = new Date(e.start_date);
+                            const cellStart = new Date(d); cellStart.setHours(0,0,0,0);
+                            const cellEnd = new Date(d); cellEnd.setHours(23,59,59,999);
+                            const isStartCell = entryStart >= cellStart && entryStart <= cellEnd;
                             const titleText = !report ? `${e.part_number}` :
                               `${e.part_number} — ${e.customer_name || ''}\n` +
                               (report.hasOverlap ? `⚠ Overlap with: ${report.overlapWith.join(', ')}\n` : '') +
                               (driftWhole > 0 ? `⚠ Not ready — earliest ${format(report.earliest, 'MMM d')} (+${driftWhole}d)\n` : '') +
-                              `Material: ${report.matLabel}\nTooling: ${report.toolLabel}`;
+                              `Material: ${report.matLabel}\nTooling: ${report.toolLabel}\n\nDrag to reschedule.`;
                             return (
                               <button
                                 key={e.id}
+                                draggable
+                                onDragStart={(ev) => {
+                                  ev.dataTransfer.setData('text/schedule-id', e.id);
+                                  ev.dataTransfer.effectAllowed = 'move';
+                                }}
                                 onClick={() => openAction(e)}
                                 title={titleText}
-                                className={`w-full text-left text-[10px] rounded px-1 py-0.5 mb-1 truncate flex items-center gap-1 hover:opacity-80 ${tone}`}
+                                className={`w-full text-left text-[10px] rounded px-1 py-0.5 mb-1 truncate flex items-center gap-1 hover:opacity-80 cursor-grab active:cursor-grabbing ${tone} ${isStartCell ? '' : 'opacity-60'}`}
                               >
                                 {flagged && <AlertTriangle className="h-2.5 w-2.5 shrink-0" />}
-                                <span className="truncate">{e.part_number}</span>
+                                <span className="truncate">{e.part_number}{!isStartCell && ' →'}</span>
                               </button>
                             );
                           })}
