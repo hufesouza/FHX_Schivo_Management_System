@@ -199,17 +199,17 @@ export default function JobDetail() {
           <CardContent className="grid md:grid-cols-3 gap-4">
             <Field label="Part Number"><Input value={part.part_number} onChange={e => set('part_number', e.target.value)} /></Field>
             <Field label="PO"><Input value={part.po || ''} onChange={e => set('po', e.target.value)} /></Field>
-            <Field label="QTY"><Input type="number" value={part.qty || 0} onChange={e => set('qty', +e.target.value)} /></Field>
+            <Field label="QTY"><Input {...numericInput('qty', Number(part.qty) || 0, v => set('qty', v))} /></Field>
             <Field label="Description" className="md:col-span-3"><Textarea rows={2} value={part.description || ''} onChange={e => set('description', e.target.value)} /></Field>
             <Field label="Engineer"><Input value={part.engineer || ''} onChange={e => set('engineer', e.target.value)} /></Field>
-            <Field label="Cycle time (min)"><Input type="number" step="0.1" value={((Number(part.cycle_time) || 0) * 60).toFixed(2)} onChange={e => set('cycle_time', (+e.target.value) / 60)} /></Field>
-            <Field label="Development time (min)"><Input type="number" step="0.1" value={((Number(part.development_time) || 0) * 60).toFixed(2)} onChange={e => set('development_time', (+e.target.value) / 60)} /></Field>
-            <Field label="Backend time (h)"><Input type="number" step="0.1" value={(part as any).backend_time || 0} onChange={e => set('backend_time' as any, +e.target.value)} /></Field>
-            <Field label="Total required (h)"><Input value={part.total_required_time || 0} disabled /></Field>
+            <Field label="Cycle time (min)"><Input {...numericInput('cycle_time_min', (Number(part.cycle_time) || 0) * 60, v => set('cycle_time', v / 60))} /></Field>
+            <Field label="Development time (min)"><Input {...numericInput('development_time_min', (Number(part.development_time) || 0) * 60, v => set('development_time', v / 60))} /></Field>
+            <Field label="Backend time (h)"><Input {...numericInput('backend_time', Number((part as any).backend_time) || 0, v => set('backend_time' as any, v))} /></Field>
+            <Field label="Total required (h)"><Input value={totalRequired.toFixed(2)} disabled /></Field>
             <Field label="Best commence"><Input type="date" value={part.best_commence_date || ''} onChange={e => set('best_commence_date', e.target.value)} /></Field>
             <Field label="Committed date *"><Input type="date" value={part.committed_date || ''} onChange={e => set('committed_date', e.target.value)} /></Field>
             <Field label="Ship date"><Input type="date" value={part.ship_date || ''} onChange={e => set('ship_date', e.target.value)} /></Field>
-            <Field label="Sales price (€)"><Input type="number" value={part.sales_price || 0} onChange={e => set('sales_price', +e.target.value)} /></Field>
+            <Field label="Sales price (€)"><Input {...numericInput('sales_price', Number(part.sales_price) || 0, v => set('sales_price', v))} /></Field>
             <Field label="Machine *">
               <Select value={part.machine_id || ''} onValueChange={v => set('machine_id', v)}>
                 <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
@@ -229,7 +229,7 @@ export default function JobDetail() {
           <CardHeader><CardTitle className="text-base">Material / Tooling / Subcon</CardTitle></CardHeader>
           <CardContent className="grid md:grid-cols-3 gap-4">
             <Field label="Material"><Input value={part.material || ''} onChange={e => set('material', e.target.value)} /></Field>
-            <Field label="Material lead time"><Input type="number" value={part.material_lead_time || 0} onChange={e => set('material_lead_time', +e.target.value)} /></Field>
+            <Field label="Material lead time"><Input {...numericInput('material_lead_time', Number(part.material_lead_time) || 0, v => set('material_lead_time', v))} /></Field>
             <Field label="Material status">
               <Select value={part.material_status || ''} onValueChange={v => set('material_status', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -237,7 +237,7 @@ export default function JobDetail() {
               </Select>
             </Field>
             <Field label="Tooling"><Input value={part.tooling || ''} onChange={e => set('tooling', e.target.value)} /></Field>
-            <Field label="Tooling lead time"><Input type="number" value={part.tooling_lead_time || 0} onChange={e => set('tooling_lead_time', +e.target.value)} /></Field>
+            <Field label="Tooling lead time"><Input {...numericInput('tooling_lead_time', Number(part.tooling_lead_time) || 0, v => set('tooling_lead_time', v))} /></Field>
             <Field label="Tooling status">
               <Select value={part.tooling_status || ''} onValueChange={v => set('tooling_status', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
