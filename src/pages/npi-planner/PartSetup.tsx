@@ -223,6 +223,47 @@ export default function PartSetup() {
         if (newCatalog.length) await supabase.from('npi_tooling_catalog').insert(newCatalog as any);
       }
 
+      // Save/refresh part library entry so this part can be reused later
+      if (part && saveToLibrary && form.part_number?.trim()) {
+        const customer = customers.find(c => c.id === form.customer_id);
+        const catalogRow: any = {
+          part_number: part.part_number,
+          part_revision: form.part_revision || null,
+          description: form.description || null,
+          customer_id: form.customer_id || null,
+          customer_name: customer?.customer_name || null,
+          material: form.material || null,
+          material_lead_time: Number(form.material_lead_time) || 0,
+          material_supplier_id: form.material_supplier_id || null,
+          material_supplier_name: form.material_supplier_name || null,
+          tooling: form.tooling || null,
+          tooling_lead_time: Number(partData.tooling_lead_time) || 0,
+          cycle_time: cycleHrs,
+          development_time: devHrs,
+          backend_time: Number(form.backend_time) || 0,
+          subcon_supplier_id: form.subcon_supplier_id || null,
+          supplier_name: form.supplier_name || null,
+          type_of_service: form.type_of_service || null,
+          subcon_lead_time: Number(form.subcon_lead_time) || 0,
+          sales_price: Number(form.sales_price) || 0,
+          notes: form.notes || null,
+          dev_allow_weekends: !!form.dev_allow_weekends,
+          prod_allow_weekends: !!form.prod_allow_weekends,
+        };
+        // Try to update existing first; insert if missing
+        const { data: existing } = await supabase
+          .from('npi_parts_catalog')
+          .select('id')
+          .eq('part_number', catalogRow.part_number)
+          .eq('part_revision', catalogRow.part_revision || '')
+          .maybeSingle();
+        if (existing?.id) {
+          await supabase.from('npi_parts_catalog').update(catalogRow).eq('id', existing.id);
+        } else {
+          await supabase.from('npi_parts_catalog').insert(catalogRow as any);
+        }
+      }
+
       toast.success('Part created and allocated');
       reload();
       navigate('/npi/capacity-planner/jobs');
