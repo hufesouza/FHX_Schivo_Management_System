@@ -50,7 +50,10 @@ export default function PartSetup() {
     subcon_supplier_id: '', supplier_name: '', type_of_service: '', subcon_lead_time: 0, subcon_status: 'Not Required',
     sales_price: 0, notes: '', overall_status: 'Not Started',
     dev_allow_weekends: false, prod_allow_weekends: true,
+    part_level: 'Top Level', parent_part_id: '',
   });
+
+  const topLevelParts = useMemo(() => parts.filter(p => (p.part_level || 'Top Level') === 'Top Level'), [parts]);
 
   const cycleHrs = (Number(form.cycle_time_min) || 0) / 60;
   const devHrs = (Number(form.development_time_min) || 0) / 60;
