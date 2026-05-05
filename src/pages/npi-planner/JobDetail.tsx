@@ -267,13 +267,37 @@ export default function JobDetail() {
               const children = allParts.filter(p => p.parent_part_id === part.id);
               const todayMs = Date.now();
               const delayed = children.filter(c => c.overall_status !== 'Completed' && c.committed_date && new Date(c.committed_date).getTime() < todayMs);
+              const candidateChildren = allParts.filter(p =>
+                p.id !== part.id &&
+                !p.parent_part_id &&
+                (p.part_level || 'Top Level') !== 'Top Level' || (p.id !== part.id && !p.parent_part_id && (p as any).part_level === 'Sub Level')
+              );
               return (
                 <div className="border rounded-md p-3 space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
                     <span className="text-sm font-medium">Child Parts ({children.length})</span>
-                    <Button size="sm" variant="outline" onClick={() => navigate('/npi/capacity-planner/parts/new')}>
-                      <Plus className="h-3 w-3 mr-1" /> New Sub Level part
-                    </Button>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Select value="" onValueChange={async (childId) => {
+                        if (!childId) return;
+                        const { error } = await supabase.from('npi_parts').update({ parent_part_id: part.id, part_level: 'Sub Level' }).eq('id', childId);
+                        if (error) { toast.error(error.message); return; }
+                        toast.success('Linked as child');
+                        const { data } = await supabase.from('npi_parts').select('*');
+                        setAllParts((data as any) || []);
+                      }}>
+                        <SelectTrigger className="h-8 w-[220px] text-xs"><SelectValue placeholder="Link existing part…" /></SelectTrigger>
+                        <SelectContent>
+                          {allParts.filter(p => p.id !== part.id && !p.parent_part_id).length === 0 ? (
+                            <div className="px-2 py-1.5 text-xs text-muted-foreground">No unassigned parts available</div>
+                          ) : allParts.filter(p => p.id !== part.id && !p.parent_part_id).map(p => (
+                            <SelectItem key={p.id} value={p.id}>{p.part_number}{p.description ? ` — ${p.description}` : ''}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/npi/capacity-planner/parts/new?parent=${part.id}&level=Sub%20Level`)}>
+                        <Plus className="h-3 w-3 mr-1" /> New Sub Level part
+                      </Button>
+                    </div>
                   </div>
                   {delayed.length > 0 && (
                     <div className="text-xs text-destructive border border-destructive/30 bg-destructive/10 rounded px-2 py-1.5">
@@ -281,7 +305,7 @@ export default function JobDetail() {
                     </div>
                   )}
                   {children.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">No Sub Level parts linked.</p>
+                    <p className="text-xs text-muted-foreground">No Sub Level parts linked. Pick "Link existing part" to reuse a saved part, or create a new one.</p>
                   ) : (
                     <ul className="text-sm space-y-1">
                       {children.map(c => (
@@ -293,6 +317,13 @@ export default function JobDetail() {
                           <div className="flex items-center gap-2">
                             <Badge variant="outline">{c.overall_status}</Badge>
                             {c.committed_date && <span className="text-xs text-muted-foreground">due {c.committed_date}</span>}
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={async () => {
+                              const { error } = await supabase.from('npi_parts').update({ parent_part_id: null }).eq('id', c.id);
+                              if (error) { toast.error(error.message); return; }
+                              toast.success('Unlinked');
+                              const { data } = await supabase.from('npi_parts').select('*');
+                              setAllParts((data as any) || []);
+                            }}>Unlink</Button>
                           </div>
                         </li>
                       ))}
