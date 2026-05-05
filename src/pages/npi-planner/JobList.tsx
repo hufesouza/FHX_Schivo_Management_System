@@ -142,7 +142,7 @@ export default function JobList() {
       <main className="container mx-auto px-4 py-8 space-y-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Jobs ({filtered.length})</CardTitle>
+            <CardTitle className="text-base">Jobs ({ordered.length})</CardTitle>
             <Button onClick={() => navigate('/npi/capacity-planner/parts/new')}><Plus className="h-4 w-4 mr-2" />New part</Button>
           </CardHeader>
           <CardContent className="space-y-3">
