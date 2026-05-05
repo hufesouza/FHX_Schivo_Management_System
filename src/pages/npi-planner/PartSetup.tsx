@@ -251,12 +251,13 @@ export default function PartSetup() {
           prod_allow_weekends: !!form.prod_allow_weekends,
         };
         // Try to update existing first; insert if missing
-        const { data: existing } = await supabase
+        const revQuery = supabase
           .from('npi_parts_catalog')
           .select('id')
-          .eq('part_number', catalogRow.part_number)
-          .eq('part_revision', catalogRow.part_revision || '')
-          .maybeSingle();
+          .eq('part_number', catalogRow.part_number);
+        const { data: existing } = catalogRow.part_revision
+          ? await revQuery.eq('part_revision', catalogRow.part_revision).maybeSingle()
+          : await revQuery.is('part_revision', null).maybeSingle();
         if (existing?.id) {
           await supabase.from('npi_parts_catalog').update(catalogRow).eq('id', existing.id);
         } else {
