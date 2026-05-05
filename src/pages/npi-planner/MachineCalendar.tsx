@@ -253,7 +253,7 @@ export default function MachineCalendar() {
                 {machines.map(m => {
                   // Detect "idle weekend" risk for this row
                   const machineEntries = schedule
-                    .filter(s => s.machine_id === m.id && s.allocation_status !== 'Cancelled' && s.allocation_status !== 'Completed')
+                    .filter(s => s.machine_id === m.id && !isHiddenEntry(s))
                     .map(s => ({ ...s, _start: new Date(s.start_date), _end: new Date(s.end_date) }))
                     .sort((a, b) => a._start.getTime() - b._start.getTime());
                   const idleSpans: { after: Date; days: number }[] = [];
