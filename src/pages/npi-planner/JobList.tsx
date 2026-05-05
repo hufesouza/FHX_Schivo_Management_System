@@ -307,6 +307,7 @@ export default function JobList() {
           machines={machines}
           schedule={schedule}
           availability={availability}
+          parts={parts}
           onApplied={reload}
         />
       </main>
