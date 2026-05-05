@@ -58,7 +58,7 @@ export default function PartSetup() {
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
   const numericInput = (key: string) => ({
-    type: 'text',
+    type: 'text' as const,
     inputMode: 'decimal' as const,
     value: form[key] ?? '',
     onFocus: () => set(key, ''),
