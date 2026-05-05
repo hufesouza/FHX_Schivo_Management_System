@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import {
   Part, Machine, ScheduleEntry, MachineAvailability,
   recommendAllocations, AllocationOption, CalendarSettings,
+  childrenLatestCompletion,
 } from '@/hooks/useNPIPlanning';
 import { DEFAULT_CALENDAR } from '@/utils/workingCalendar';
 import { QuickMachineDialog } from '@/components/npi-planner/QuickMachineDialog';
@@ -25,6 +26,7 @@ interface Props {
   schedule: ScheduleEntry[];
   availability: MachineAvailability[];
   calendar?: CalendarSettings;
+  parts?: Part[];
   onApplied?: () => void;
 }
 
@@ -34,7 +36,7 @@ const STATUS_TONE: Record<string, string> = {
   'Late': 'bg-destructive/15 text-destructive border-destructive/30',
 };
 
-export function ReallocateDialog({ open, onOpenChange, part, machines, schedule, availability, calendar, onApplied }: Props) {
+export function ReallocateDialog({ open, onOpenChange, part, machines, schedule, availability, calendar, parts, onApplied }: Props) {
   const [candidateIds, setCandidateIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
@@ -92,8 +94,11 @@ export function ReallocateDialog({ open, onOpenChange, part, machines, schedule,
       calendar: calendar || DEFAULT_CALENDAR,
       devAllowWeekends: !!(part as any).dev_allow_weekends,
       prodAllowWeekends: (part as any).prod_allow_weekends !== false,
+      childrenReadyDate: parts && part.part_level === 'Top Level'
+        ? childrenLatestCompletion(part.id, parts, schedule)
+        : null,
     }).slice(0, 5);
-  }, [part, candidateIds, machines, schedule, availability, calendar]);
+  }, [part, candidateIds, machines, schedule, availability, calendar, parts]);
 
   const apply = async (opt: AllocationOption) => {
     if (!part) return;

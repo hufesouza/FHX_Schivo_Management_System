@@ -53,6 +53,42 @@ export default function JobList() {
     return true;
   }), [parts, search, statusFilter, customerFilter, machineFilter]);
 
+  // Build hierarchical view: parents first, then their children indented.
+  // Sub Level parts whose parent is in the filtered set appear nested. Orphan sub-levels appear standalone.
+  const ordered = useMemo(() => {
+    const out: Array<Part & { _depth: number; _hasChildren: boolean; _delayedByChild: boolean }> = [];
+    const byParent = new Map<string, Part[]>();
+    parts.forEach(p => {
+      if (p.parent_part_id) {
+        const arr = byParent.get(p.parent_part_id) || [];
+        arr.push(p); byParent.set(p.parent_part_id, arr);
+      }
+    });
+    const isLevelTop = (p: Part) => (p.part_level || 'Top Level') === 'Top Level';
+    const today = Date.now();
+    const childIsDelayed = (c: Part) =>
+      c.overall_status !== 'Completed' &&
+      ((c.committed_date && new Date(c.committed_date).getTime() < today) ||
+        c.overall_status === 'Late' || c.overall_status === 'At Risk');
+
+    const filteredIds = new Set(filtered.map(p => p.id));
+    // Top-level parents shown if they themselves match OR any of their children match
+    const tops = parts.filter(p => isLevelTop(p) && (filteredIds.has(p.id) || (byParent.get(p.id) || []).some(c => filteredIds.has(c.id))));
+    tops.forEach(top => {
+      const kids = byParent.get(top.id) || [];
+      const delayedByChild = kids.some(childIsDelayed);
+      out.push({ ...top, _depth: 0, _hasChildren: kids.length > 0, _delayedByChild: delayedByChild });
+      kids.filter(k => filteredIds.has(k.id)).forEach(k => out.push({ ...k, _depth: 1, _hasChildren: false, _delayedByChild: false }));
+    });
+    // Orphan sub-levels (parent not loaded) that match filter
+    filtered.forEach(p => {
+      if (!isLevelTop(p) && !parts.some(t => t.id === p.parent_part_id)) {
+        out.push({ ...p, _depth: 0, _hasChildren: false, _delayedByChild: false });
+      }
+    });
+    return out;
+  }, [parts, filtered]);
+
   const saveShipDate = async (partId: string) => {
     const value = shipDates[partId];
     if (!value) return;
@@ -106,7 +142,7 @@ export default function JobList() {
       <main className="container mx-auto px-4 py-8 space-y-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-base">Jobs ({filtered.length})</CardTitle>
+            <CardTitle className="text-base">Jobs ({ordered.length})</CardTitle>
             <Button onClick={() => navigate('/npi/capacity-planner/parts/new')}><Plus className="h-4 w-4 mr-2" />New part</Button>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -151,16 +187,25 @@ export default function JobList() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.length === 0 ? (
+                  {ordered.length === 0 ? (
                     <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
-                  ) : filtered.map(p => {
+                  ) : ordered.map(p => {
                     const matStatus = p.material_status || 'Required';
                     const toolStatus = p.tooling_status || 'Required';
                     const pendingShip = shipDates[p.id];
+                    const isChild = p._depth > 0;
                     return (
-                      <TableRow key={p.id}>
+                      <TableRow key={p.id} className={isChild ? 'bg-muted/30' : ''}>
                         <TableCell className="font-mono text-xs">{p.po || '-'}</TableCell>
-                        <TableCell className="font-medium cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>{p.part_number}</TableCell>
+                        <TableCell className="font-medium cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>
+                          <div className="flex items-center gap-1.5" style={{ paddingLeft: isChild ? 18 : 0 }}>
+                            {isChild && <span className="text-muted-foreground">↳</span>}
+                            <span>{p.part_number}</span>
+                            {p._hasChildren && <Badge variant="outline" className="text-[10px] h-4 px-1">Top</Badge>}
+                            {isChild && <Badge variant="outline" className="text-[10px] h-4 px-1">Sub</Badge>}
+                            {p._delayedByChild && <Badge variant="outline" className="text-[10px] h-4 px-1 border-destructive/40 text-destructive">Sub-delay</Badge>}
+                          </div>
+                        </TableCell>
                         <TableCell className="cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>{p.customer_name || '-'}</TableCell>
                         <TableCell>{p.machine_name || '-'}</TableCell>
                         <TableCell className="align-top text-left">
@@ -262,6 +307,7 @@ export default function JobList() {
           machines={machines}
           schedule={schedule}
           availability={availability}
+          parts={parts}
           onApplied={reload}
         />
       </main>

@@ -36,6 +36,7 @@ export default function JobDetail() {
   const [allocStartDate, setAllocStartDate] = useState<string>('');
   const [allocSaving, setAllocSaving] = useState(false);
   const [numberDrafts, setNumberDrafts] = useState<Record<string, string>>({});
+  const [allParts, setAllParts] = useState<Part[]>([]);
 
   const applyManualAllocation = async () => {
     if (!part) return;
@@ -101,11 +102,13 @@ export default function JobDetail() {
   useEffect(() => {
     if (!id) return;
     (async () => {
-      const [{ data: p }, { data: m }, { data: h }] = await Promise.all([
+      const [{ data: p }, { data: m }, { data: h }, { data: ap }] = await Promise.all([
         supabase.from('npi_parts').select('*').eq('id', id).single(),
         supabase.from('npi_machines').select('*').order('machine_name'),
         supabase.from('npi_change_log').select('*').eq('part_id', id).order('created_at', { ascending: false }),
+        supabase.from('npi_parts').select('*').order('part_number'),
       ]);
+      setAllParts((ap as any) || []);
       setPart(p as any); setOriginal(p as any);
       setMachines(m || []);
       setHistory((h as any) || []);
@@ -222,6 +225,94 @@ export default function JobDetail() {
                 <SelectContent>{OVERALL_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
             </Field>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle className="text-base">Hierarchy (Top / Sub Level)</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid md:grid-cols-2 gap-4">
+              <Field label="Part Level">
+                <Select
+                  value={(part as any).part_level || 'Top Level'}
+                  onValueChange={v => {
+                    set('part_level' as any, v);
+                    if (v === 'Top Level') set('parent_part_id' as any, null);
+                  }}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Top Level">Top Level (customer part)</SelectItem>
+                    <SelectItem value="Sub Level">Sub Level (component)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+              {(part as any).part_level === 'Sub Level' && (
+                <Field label="Parent Part *">
+                  <Select
+                    value={(part as any).parent_part_id || ''}
+                    onValueChange={v => set('parent_part_id' as any, v)}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Pick parent" /></SelectTrigger>
+                    <SelectContent>
+                      {allParts
+                        .filter(p => p.id !== part.id && (p.part_level || 'Top Level') === 'Top Level')
+                        .map(p => <SelectItem key={p.id} value={p.id}>{p.part_number}{p.description ? ` — ${p.description}` : ''}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
+            </div>
+            {((part as any).part_level || 'Top Level') === 'Top Level' && (() => {
+              const children = allParts.filter(p => p.parent_part_id === part.id);
+              const todayMs = Date.now();
+              const delayed = children.filter(c => c.overall_status !== 'Completed' && c.committed_date && new Date(c.committed_date).getTime() < todayMs);
+              return (
+                <div className="border rounded-md p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Child Parts ({children.length})</span>
+                    <Button size="sm" variant="outline" onClick={() => navigate('/npi/capacity-planner/parts/new')}>
+                      <Plus className="h-3 w-3 mr-1" /> New Sub Level part
+                    </Button>
+                  </div>
+                  {delayed.length > 0 && (
+                    <div className="text-xs text-destructive border border-destructive/30 bg-destructive/10 rounded px-2 py-1.5">
+                      ⚠ Parent job delayed due to dependency on Sub Level part ({delayed.map(d => d.part_number).join(', ')})
+                    </div>
+                  )}
+                  {children.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No Sub Level parts linked.</p>
+                  ) : (
+                    <ul className="text-sm space-y-1">
+                      {children.map(c => (
+                        <li key={c.id} className="flex items-center justify-between border-b pb-1">
+                          <button className="text-left hover:underline" onClick={() => navigate(`/npi/capacity-planner/parts/${c.id}`)}>
+                            <span className="font-medium">{c.part_number}</span>
+                            {c.description && <span className="text-muted-foreground ml-2">{c.description}</span>}
+                          </button>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline">{c.overall_status}</Badge>
+                            {c.committed_date && <span className="text-xs text-muted-foreground">due {c.committed_date}</span>}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })()}
+            {(part as any).parent_part_id && (() => {
+              const parent = allParts.find(p => p.id === (part as any).parent_part_id);
+              if (!parent) return null;
+              return (
+                <div className="border rounded-md p-3 text-sm">
+                  <span className="text-muted-foreground">Parent:</span>{' '}
+                  <button className="font-medium hover:underline" onClick={() => navigate(`/npi/capacity-planner/parts/${parent.id}`)}>
+                    {parent.part_number}{parent.description ? ` — ${parent.description}` : ''}
+                  </button>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
 
