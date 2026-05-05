@@ -53,6 +53,42 @@ export default function JobList() {
     return true;
   }), [parts, search, statusFilter, customerFilter, machineFilter]);
 
+  // Build hierarchical view: parents first, then their children indented.
+  // Sub Level parts whose parent is in the filtered set appear nested. Orphan sub-levels appear standalone.
+  const ordered = useMemo(() => {
+    const out: Array<Part & { _depth: number; _hasChildren: boolean; _delayedByChild: boolean }> = [];
+    const byParent = new Map<string, Part[]>();
+    parts.forEach(p => {
+      if (p.parent_part_id) {
+        const arr = byParent.get(p.parent_part_id) || [];
+        arr.push(p); byParent.set(p.parent_part_id, arr);
+      }
+    });
+    const isLevelTop = (p: Part) => (p.part_level || 'Top Level') === 'Top Level';
+    const today = Date.now();
+    const childIsDelayed = (c: Part) =>
+      c.overall_status !== 'Completed' &&
+      ((c.committed_date && new Date(c.committed_date).getTime() < today) ||
+        c.overall_status === 'Late' || c.overall_status === 'At Risk');
+
+    const filteredIds = new Set(filtered.map(p => p.id));
+    // Top-level parents shown if they themselves match OR any of their children match
+    const tops = parts.filter(p => isLevelTop(p) && (filteredIds.has(p.id) || (byParent.get(p.id) || []).some(c => filteredIds.has(c.id))));
+    tops.forEach(top => {
+      const kids = byParent.get(top.id) || [];
+      const delayedByChild = kids.some(childIsDelayed);
+      out.push({ ...top, _depth: 0, _hasChildren: kids.length > 0, _delayedByChild });
+      kids.filter(k => filteredIds.has(k.id)).forEach(k => out.push({ ...k, _depth: 1, _hasChildren: false, _delayedByChild: false }));
+    });
+    // Orphan sub-levels (parent not loaded) that match filter
+    filtered.forEach(p => {
+      if (!isLevelTop(p) && !parts.some(t => t.id === p.parent_part_id)) {
+        out.push({ ...p, _depth: 0, _hasChildren: false, _delayedByChild: false });
+      }
+    });
+    return out;
+  }, [parts, filtered]);
+
   const saveShipDate = async (partId: string) => {
     const value = shipDates[partId];
     if (!value) return;
