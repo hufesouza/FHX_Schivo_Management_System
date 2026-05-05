@@ -135,7 +135,7 @@ export default function JobDetail() {
     ? (Number(part.development_time) || 0) + (Number(part.cycle_time) || 0) * (Number(part.qty) || 0)
     : 0;
   const numericInput = (key: string, value: number, onValue: (value: number) => void) => ({
-    type: 'text',
+    type: 'text' as const,
     inputMode: 'decimal' as const,
     value: Object.prototype.hasOwnProperty.call(numberDrafts, key) ? numberDrafts[key] : String(value || 0),
     onFocus: () => setNumberDrafts(d => ({ ...d, [key]: '' })),
