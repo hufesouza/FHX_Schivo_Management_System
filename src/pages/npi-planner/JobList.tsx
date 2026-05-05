@@ -77,7 +77,7 @@ export default function JobList() {
     tops.forEach(top => {
       const kids = byParent.get(top.id) || [];
       const delayedByChild = kids.some(childIsDelayed);
-      out.push({ ...top, _depth: 0, _hasChildren: kids.length > 0, _delayedByChild });
+      out.push({ ...top, _depth: 0, _hasChildren: kids.length > 0, _delayedByChild: delayedByChild });
       kids.filter(k => filteredIds.has(k.id)).forEach(k => out.push({ ...k, _depth: 1, _hasChildren: false, _delayedByChild: false }));
     });
     // Orphan sub-levels (parent not loaded) that match filter
