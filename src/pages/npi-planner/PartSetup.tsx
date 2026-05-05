@@ -26,7 +26,7 @@ import { SupplierPicker } from '@/components/npi-planner/SupplierPicker';
 const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 const TOOLING_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 const SUBCON_STATUSES = ['Not Required','Required','Sent Out','In Progress','Returned','Delayed','Issue'];
-const OVERALL_STATUSES = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Ready to Schedule','Scheduled','In Development','In Production','Machined','Completed','On Hold','At Risk','Late'];
+const OVERALL_STATUSES = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Out for Subcon','Ready to Schedule','Scheduled','In Development','In Production','Machined','Completed','On Hold','At Risk','Late'];
 
 export default function PartSetup() {
   const navigate = useNavigate();
