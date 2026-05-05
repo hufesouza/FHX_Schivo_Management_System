@@ -397,6 +397,8 @@ export type AllocationInputs = {
   calendar?: CalendarSettings;
   devAllowWeekends?: boolean;   // if false, dev hours skip non-working days
   prodAllowWeekends?: boolean;  // if false, production hours skip non-working days
+  // Top Level parts may not start before children complete
+  childrenReadyDate?: Date | null;
 };
 
 export const recommendAllocations = (
