@@ -320,7 +320,7 @@ export default function JobDetail() {
             </div>
             {part && (
               <div className="text-xs text-muted-foreground border rounded-md p-2 bg-muted/30">
-                Total run time: <strong>{((Number(part.development_time) || 0) + (Number(part.cycle_time) || 0) * (Number(part.qty) || 0)).toFixed(1)} hrs</strong>
+                Total run time: <strong>{totalRequired.toFixed(1)} hrs</strong>
               </div>
             )}
             <div className="flex justify-end">
