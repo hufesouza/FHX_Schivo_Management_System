@@ -97,6 +97,8 @@ export default function PartSetup() {
         backend_time: Number(form.backend_time) || 0,
         customer_id: form.customer_id || null,
         project_id: form.project_id || null,
+        parent_part_id: form.part_level === 'Sub Level' ? (form.parent_part_id || null) : null,
+        part_level: form.part_level || 'Top Level',
         material_supplier_id: form.material_supplier_id || null,
         subcon_supplier_id: form.subcon_supplier_id || null,
         committed_date: form.committed_date || null,
