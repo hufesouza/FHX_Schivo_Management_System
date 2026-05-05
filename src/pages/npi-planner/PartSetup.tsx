@@ -1,5 +1,7 @@
-import { useState, useMemo, type ChangeEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect, type ChangeEvent } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { PartLibraryDialog, type CatalogPart } from '@/components/npi-planner/PartLibraryDialog';
+import { Library } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,11 +31,16 @@ const OVERALL_STATUSES = ['Not Started','Awaiting Material','Awaiting Tooling','
 export default function PartSetup() {
   const navigate = useNavigate();
   const { customers, projects, machines, parts, calendarSettings, loading, reload } = useNPIPlanning();
+  const [searchParams] = useSearchParams();
+  const presetParentId = searchParams.get('parent');
+  const presetLevel = searchParams.get('level');
   const [saving, setSaving] = useState(false);
   const [machineOptionIds, setMachineOptionIds] = useState<string[]>([]);
   const [customerDialogOpen, setCustomerDialogOpen] = useState(false);
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [machineDialogOpen, setMachineDialogOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+  const [saveToLibrary, setSaveToLibrary] = useState(true);
   const [toolLines, setToolLines] = useState<ToolLine[]>([]);
   const [machineSearch, setMachineSearch] = useState('');
   const [manualMachineId, setManualMachineId] = useState<string>('');
@@ -52,6 +59,49 @@ export default function PartSetup() {
     dev_allow_weekends: false, prod_allow_weekends: true,
     part_level: 'Top Level', parent_part_id: '',
   });
+
+  // Apply preset from URL (e.g. coming from Job Detail "New Sub Level part")
+  useEffect(() => {
+    if (presetParentId) set('parent_part_id', presetParentId);
+    if (presetLevel) set('part_level', presetLevel);
+    // Inherit customer/project from parent for convenience
+    if (presetParentId) {
+      const parent = parts.find(p => p.id === presetParentId);
+      if (parent) {
+        if (parent.customer_id) set('customer_id', parent.customer_id);
+        if (parent.project_id) set('project_id', parent.project_id);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetParentId, presetLevel, parts.length]);
+
+  const applyCatalog = (c: CatalogPart) => {
+    setForm((f: any) => ({
+      ...f,
+      part_number: c.part_number,
+      part_revision: c.part_revision || '',
+      description: c.description || '',
+      customer_id: c.customer_id || f.customer_id,
+      material: c.material || '',
+      material_lead_time: c.material_lead_time || 0,
+      material_supplier_id: c.material_supplier_id || '',
+      material_supplier_name: c.material_supplier_name || '',
+      tooling: c.tooling || '',
+      tooling_lead_time: c.tooling_lead_time || 0,
+      cycle_time_min: Math.round(((c.cycle_time || 0) * 60) * 100) / 100,
+      development_time_min: Math.round(((c.development_time || 0) * 60) * 100) / 100,
+      backend_time: c.backend_time || 0,
+      subcon_supplier_id: c.subcon_supplier_id || '',
+      supplier_name: c.supplier_name || '',
+      type_of_service: c.type_of_service || '',
+      subcon_lead_time: c.subcon_lead_time || 0,
+      sales_price: c.sales_price || 0,
+      notes: c.notes || '',
+      dev_allow_weekends: !!c.dev_allow_weekends,
+      prod_allow_weekends: c.prod_allow_weekends ?? true,
+    }));
+    toast.success(`Loaded "${c.part_number}" from library`);
+  };
 
   const topLevelParts = useMemo(() => parts.filter(p => (p.part_level || 'Top Level') === 'Top Level'), [parts]);
 
@@ -173,6 +223,48 @@ export default function PartSetup() {
         if (newCatalog.length) await supabase.from('npi_tooling_catalog').insert(newCatalog as any);
       }
 
+      // Save/refresh part library entry so this part can be reused later
+      if (part && saveToLibrary && form.part_number?.trim()) {
+        const customer = customers.find(c => c.id === form.customer_id);
+        const catalogRow: any = {
+          part_number: part.part_number,
+          part_revision: form.part_revision || null,
+          description: form.description || null,
+          customer_id: form.customer_id || null,
+          customer_name: customer?.customer_name || null,
+          material: form.material || null,
+          material_lead_time: Number(form.material_lead_time) || 0,
+          material_supplier_id: form.material_supplier_id || null,
+          material_supplier_name: form.material_supplier_name || null,
+          tooling: form.tooling || null,
+          tooling_lead_time: Number(partData.tooling_lead_time) || 0,
+          cycle_time: cycleHrs,
+          development_time: devHrs,
+          backend_time: Number(form.backend_time) || 0,
+          subcon_supplier_id: form.subcon_supplier_id || null,
+          supplier_name: form.supplier_name || null,
+          type_of_service: form.type_of_service || null,
+          subcon_lead_time: Number(form.subcon_lead_time) || 0,
+          sales_price: Number(form.sales_price) || 0,
+          notes: form.notes || null,
+          dev_allow_weekends: !!form.dev_allow_weekends,
+          prod_allow_weekends: !!form.prod_allow_weekends,
+        };
+        // Try to update existing first; insert if missing
+        const revQuery = supabase
+          .from('npi_parts_catalog')
+          .select('id')
+          .eq('part_number', catalogRow.part_number);
+        const { data: existing } = catalogRow.part_revision
+          ? await revQuery.eq('part_revision', catalogRow.part_revision).maybeSingle()
+          : await revQuery.is('part_revision', null).maybeSingle();
+        if (existing?.id) {
+          await supabase.from('npi_parts_catalog').update(catalogRow).eq('id', existing.id);
+        } else {
+          await supabase.from('npi_parts_catalog').insert(catalogRow as any);
+        }
+      }
+
       toast.success('Part created and allocated');
       reload();
       navigate('/npi/capacity-planner/jobs');
@@ -188,6 +280,20 @@ export default function PartSetup() {
   return (
     <AppLayout title="New Part / Job" subtitle="Setup & machine allocation" showBackButton backTo="/npi/capacity-planner">
       <main className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="text-sm text-muted-foreground">
+            {presetParentId && <Badge variant="secondary">Creating Sub Level part for parent</Badge>}
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Checkbox checked={saveToLibrary} onCheckedChange={v => setSaveToLibrary(!!v)} />
+              Save to part library
+            </label>
+            <Button type="button" variant="outline" size="sm" onClick={() => setLibraryOpen(true)}>
+              <Library className="h-3 w-3 mr-1" /> Load from library
+            </Button>
+          </div>
+        </div>
         <Card>
           <CardHeader><CardTitle className="text-base">Part details</CardTitle></CardHeader>
           <CardContent className="grid md:grid-cols-3 gap-4">
@@ -447,6 +553,7 @@ export default function PartSetup() {
         customerName={customers.find(c => c.id === form.customer_id)?.customer_name || null}
         onCreated={async (p) => { await reload(); set('project_id', p.id); }}
       />
+      <PartLibraryDialog open={libraryOpen} onOpenChange={setLibraryOpen} onPick={applyCatalog} />
     </AppLayout>
   );
 }
