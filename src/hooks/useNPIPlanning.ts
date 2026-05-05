@@ -490,6 +490,9 @@ export const recommendAllocations = (
       }
 
       const reasonParts: string[] = [];
+      if (inputs.childrenReadyDate) {
+        reasonParts.push(`Waiting on Sub Level parts (ready ${new Date(inputs.childrenReadyDate).toLocaleDateString()})`);
+      }
       if (constraintLabel && earliestStart.getTime() > Date.now()) {
         reasonParts.push(`Earliest start delayed by ${constraintLabel} (${Math.max(matDays, toolDays)}d)`);
       }
