@@ -77,6 +77,10 @@ export default function PartSetup() {
 
       const partData: any = {
         ...form,
+        qty: Number(form.qty) || 0,
+        material_lead_time: Number(form.material_lead_time) || 0,
+        subcon_lead_time: Number(form.subcon_lead_time) || 0,
+        sales_price: Number(form.sales_price) || 0,
         cycle_time: cycleHrs,
         development_time: devHrs,
         backend_time: Number(form.backend_time) || 0,
@@ -91,7 +95,7 @@ export default function PartSetup() {
         project_name: project?.project_name || null,
         machine_id: manualMachineId || null,
         machine_name: manualMachineId ? (machines.find(m => m.id === manualMachineId)?.machine_name || null) : null,
-        tooling_lead_time: maxToolLead || form.tooling_lead_time || 0,
+        tooling_lead_time: maxToolLead || Number(form.tooling_lead_time) || 0,
       };
       // If manual allocation set, force status to Scheduled
       if (manualMachineId && manualStartDate) partData.overall_status = 'Scheduled';
