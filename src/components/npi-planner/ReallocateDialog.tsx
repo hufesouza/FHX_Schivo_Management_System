@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import {
   Part, Machine, ScheduleEntry, MachineAvailability,
   recommendAllocations, AllocationOption, CalendarSettings,
+  childrenLatestCompletion,
 } from '@/hooks/useNPIPlanning';
 import { DEFAULT_CALENDAR } from '@/utils/workingCalendar';
 import { QuickMachineDialog } from '@/components/npi-planner/QuickMachineDialog';
@@ -25,6 +26,7 @@ interface Props {
   schedule: ScheduleEntry[];
   availability: MachineAvailability[];
   calendar?: CalendarSettings;
+  parts?: Part[];
   onApplied?: () => void;
 }
 
