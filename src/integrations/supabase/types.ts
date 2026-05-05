@@ -2082,6 +2082,8 @@ export type Database = {
           material_supplier_name: string | null
           notes: string | null
           overall_status: string
+          parent_part_id: string | null
+          part_level: string
           part_number: string
           part_revision: string | null
           po: string | null
@@ -2131,6 +2133,8 @@ export type Database = {
           material_supplier_name?: string | null
           notes?: string | null
           overall_status?: string
+          parent_part_id?: string | null
+          part_level?: string
           part_number: string
           part_revision?: string | null
           po?: string | null
@@ -2180,6 +2184,8 @@ export type Database = {
           material_supplier_name?: string | null
           notes?: string | null
           overall_status?: string
+          parent_part_id?: string | null
+          part_level?: string
           part_number?: string
           part_revision?: string | null
           po?: string | null
@@ -2230,6 +2236,13 @@ export type Database = {
             columns: ["material_supplier_id"]
             isOneToOne: false
             referencedRelation: "npi_suppliers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "npi_parts_parent_part_id_fkey"
+            columns: ["parent_part_id"]
+            isOneToOne: false
+            referencedRelation: "npi_parts"
             referencedColumns: ["id"]
           },
           {
