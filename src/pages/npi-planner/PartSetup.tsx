@@ -553,6 +553,7 @@ export default function PartSetup() {
         customerName={customers.find(c => c.id === form.customer_id)?.customer_name || null}
         onCreated={async (p) => { await reload(); set('project_id', p.id); }}
       />
+      <PartLibraryDialog open={libraryOpen} onOpenChange={setLibraryOpen} onPick={applyCatalog} />
     </AppLayout>
   );
 }
