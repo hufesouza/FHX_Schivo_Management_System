@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -62,7 +62,7 @@ export default function PartSetup() {
     inputMode: 'decimal' as const,
     value: form[key] ?? '',
     onFocus: () => set(key, ''),
-    onChange: (e: React.ChangeEvent<HTMLInputElement>) => set(key, e.target.value.replace(',', '.')),
+    onChange: (e: ChangeEvent<HTMLInputElement>) => set(key, e.target.value.replace(',', '.')),
   });
 
   const filteredProjects = useMemo(
