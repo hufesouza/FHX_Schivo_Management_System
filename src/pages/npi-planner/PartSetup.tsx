@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, type ChangeEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,7 +24,7 @@ import { SupplierPicker } from '@/components/npi-planner/SupplierPicker';
 const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 const TOOLING_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 const SUBCON_STATUSES = ['Not Required','Required','Sent Out','In Progress','Returned','Delayed','Issue'];
-const OVERALL_STATUSES = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Ready to Schedule','Scheduled','In Development','In Production','Completed','On Hold','At Risk','Late'];
+const OVERALL_STATUSES = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Ready to Schedule','Scheduled','In Development','In Production','Machined','Completed','On Hold','At Risk','Late'];
 
 export default function PartSetup() {
   const navigate = useNavigate();
@@ -57,6 +57,13 @@ export default function PartSetup() {
   const totalRequired = devHrs + cycleHrs * (Number(form.qty) || 0);
 
   const set = (k: string, v: any) => setForm((f: any) => ({ ...f, [k]: v }));
+  const numericInput = (key: string) => ({
+    type: 'text' as const,
+    inputMode: 'decimal' as const,
+    value: form[key] ?? '',
+    onFocus: () => set(key, ''),
+    onChange: (e: ChangeEvent<HTMLInputElement>) => set(key, e.target.value.replace(',', '.')),
+  });
 
   const filteredProjects = useMemo(
     () => projects.filter(p => !form.customer_id || p.customer_id === form.customer_id),
@@ -203,7 +210,7 @@ export default function PartSetup() {
             <Field label="Part Revision"><Input value={form.part_revision} onChange={e => set('part_revision', e.target.value)} placeholder="e.g. A" /></Field>
             <Field label="Part Description"><Input value={form.description} onChange={e => set('description', e.target.value)} placeholder="Short description" /></Field>
             <Field label="PO"><Input value={form.po} onChange={e => set('po', e.target.value)} /></Field>
-            <Field label="QTY"><Input type="number" value={form.qty} onFocus={(e) => e.currentTarget.select()} onChange={e => set('qty', e.target.value === "" ? "" : e.target.value)} /></Field>
+            <Field label="QTY"><Input {...numericInput('qty')} /></Field>
           </CardContent>
         </Card>
 
@@ -222,7 +229,7 @@ export default function PartSetup() {
                 }}
               />
             </Field>
-            <Field label="Lead time (days)"><Input type="number" value={form.material_lead_time} onFocus={(e) => e.currentTarget.select()} onChange={e => set('material_lead_time', e.target.value === "" ? "" : e.target.value)} /></Field>
+            <Field label="Lead time (days)"><Input {...numericInput('material_lead_time')} /></Field>
             <Field label="Status">
               <Select value={form.material_status} onValueChange={v => set('material_status', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -268,7 +275,7 @@ export default function PartSetup() {
               />
             </Field>
             <Field label="Type of service"><Input value={form.type_of_service} onChange={e => set('type_of_service', e.target.value)} /></Field>
-            <Field label="Subcon lead time (days)"><Input type="number" value={form.subcon_lead_time} onFocus={(e) => e.currentTarget.select()} onChange={e => set('subcon_lead_time', e.target.value === "" ? "" : e.target.value)} /></Field>
+            <Field label="Subcon lead time (days)"><Input {...numericInput('subcon_lead_time')} /></Field>
             <Field label="Subcon status">
               <Select value={form.subcon_status} onValueChange={v => set('subcon_status', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -281,12 +288,12 @@ export default function PartSetup() {
         <Card>
           <CardHeader><CardTitle className="text-base">Time & dates</CardTitle></CardHeader>
           <CardContent className="grid md:grid-cols-3 gap-4">
-            <Field label="Cycle time (min)"><Input type="number" value={form.cycle_time_min} onFocus={(e) => e.currentTarget.select()} onChange={e => set('cycle_time_min', e.target.value === "" ? "" : e.target.value)} /></Field>
-            <Field label="Development time (min)"><Input type="number" value={form.development_time_min} onFocus={(e) => e.currentTarget.select()} onChange={e => set('development_time_min', e.target.value === "" ? "" : e.target.value)} /></Field>
-            <Field label="Backend time (hrs)"><Input type="number" value={form.backend_time} onFocus={(e) => e.currentTarget.select()} onChange={e => set('backend_time', e.target.value === "" ? "" : e.target.value)} /></Field>
+            <Field label="Cycle time (min)"><Input {...numericInput('cycle_time_min')} /></Field>
+            <Field label="Development time (min)"><Input {...numericInput('development_time_min')} /></Field>
+            <Field label="Backend time (hrs)"><Input {...numericInput('backend_time')} /></Field>
             <Field label="Total machining hrs (dev + cycle × qty)"><Input value={totalRequired.toFixed(2)} disabled /></Field>
             <Field label="Committed date"><Input type="date" value={form.committed_date} onChange={e => set('committed_date', e.target.value)} /></Field>
-            <Field label="Sales price (€)"><Input type="number" value={form.sales_price} onFocus={(e) => e.currentTarget.select()} onChange={e => set('sales_price', e.target.value === "" ? "" : e.target.value)} /></Field>
+            <Field label="Sales price (€)"><Input {...numericInput('sales_price')} /></Field>
             <Field label="Overall status">
               <Select value={form.overall_status} onValueChange={v => set('overall_status', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>

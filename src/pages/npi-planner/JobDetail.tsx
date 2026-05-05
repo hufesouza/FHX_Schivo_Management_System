@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ChangeEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { QuickMachineDialog } from '@/components/npi-planner/QuickMachineDialog';
 
-const OVERALL_STATUSES = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Ready to Schedule','Scheduled','In Development','In Production','Completed','On Hold','At Risk','Late'];
+const OVERALL_STATUSES = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Ready to Schedule','Scheduled','In Development','In Production','Machined','Completed','On Hold','At Risk','Late'];
 const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 const TOOLING_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 const SUBCON_STATUSES = ['Not Required','Required','Sent Out','In Progress','Returned','Delayed','Issue'];
@@ -35,6 +35,7 @@ export default function JobDetail() {
   const [allocMachineId, setAllocMachineId] = useState<string>('');
   const [allocStartDate, setAllocStartDate] = useState<string>('');
   const [allocSaving, setAllocSaving] = useState(false);
+  const [numberDrafts, setNumberDrafts] = useState<Record<string, string>>({});
 
   const applyManualAllocation = async () => {
     if (!part) return;
@@ -130,6 +131,20 @@ export default function JobDetail() {
   };
 
   const set = (k: keyof Part, v: any) => setPart(p => p ? { ...p, [k]: v } : p);
+  const totalRequired = part
+    ? (Number(part.development_time) || 0) + (Number(part.cycle_time) || 0) * (Number(part.qty) || 0)
+    : 0;
+  const numericInput = (key: string, value: number, onValue: (value: number) => void) => ({
+    type: 'text' as const,
+    inputMode: 'decimal' as const,
+    value: Object.prototype.hasOwnProperty.call(numberDrafts, key) ? numberDrafts[key] : String(value || 0),
+    onFocus: () => setNumberDrafts(d => ({ ...d, [key]: '' })),
+    onChange: (e: ChangeEvent<HTMLInputElement>) => {
+      const next = e.target.value.replace(',', '.');
+      setNumberDrafts(d => ({ ...d, [key]: next }));
+      onValue(Number(next) || 0);
+    },
+  });
 
   const handleSave = async () => {
     if (!part || !original) return;
@@ -184,17 +199,17 @@ export default function JobDetail() {
           <CardContent className="grid md:grid-cols-3 gap-4">
             <Field label="Part Number"><Input value={part.part_number} onChange={e => set('part_number', e.target.value)} /></Field>
             <Field label="PO"><Input value={part.po || ''} onChange={e => set('po', e.target.value)} /></Field>
-            <Field label="QTY"><Input type="number" value={part.qty || 0} onChange={e => set('qty', +e.target.value)} /></Field>
+            <Field label="QTY"><Input {...numericInput('qty', Number(part.qty) || 0, v => set('qty', v))} /></Field>
             <Field label="Description" className="md:col-span-3"><Textarea rows={2} value={part.description || ''} onChange={e => set('description', e.target.value)} /></Field>
             <Field label="Engineer"><Input value={part.engineer || ''} onChange={e => set('engineer', e.target.value)} /></Field>
-            <Field label="Cycle time (min)"><Input type="number" step="0.1" value={((Number(part.cycle_time) || 0) * 60).toFixed(2)} onChange={e => set('cycle_time', (+e.target.value) / 60)} /></Field>
-            <Field label="Development time (min)"><Input type="number" step="0.1" value={((Number(part.development_time) || 0) * 60).toFixed(2)} onChange={e => set('development_time', (+e.target.value) / 60)} /></Field>
-            <Field label="Backend time (h)"><Input type="number" step="0.1" value={(part as any).backend_time || 0} onChange={e => set('backend_time' as any, +e.target.value)} /></Field>
-            <Field label="Total required (h)"><Input value={part.total_required_time || 0} disabled /></Field>
+            <Field label="Cycle time (min)"><Input {...numericInput('cycle_time_min', (Number(part.cycle_time) || 0) * 60, v => set('cycle_time', v / 60))} /></Field>
+            <Field label="Development time (min)"><Input {...numericInput('development_time_min', (Number(part.development_time) || 0) * 60, v => set('development_time', v / 60))} /></Field>
+            <Field label="Backend time (h)"><Input {...numericInput('backend_time', Number((part as any).backend_time) || 0, v => set('backend_time' as any, v))} /></Field>
+            <Field label="Total required (h)"><Input value={totalRequired.toFixed(2)} disabled /></Field>
             <Field label="Best commence"><Input type="date" value={part.best_commence_date || ''} onChange={e => set('best_commence_date', e.target.value)} /></Field>
             <Field label="Committed date *"><Input type="date" value={part.committed_date || ''} onChange={e => set('committed_date', e.target.value)} /></Field>
             <Field label="Ship date"><Input type="date" value={part.ship_date || ''} onChange={e => set('ship_date', e.target.value)} /></Field>
-            <Field label="Sales price (€)"><Input type="number" value={part.sales_price || 0} onChange={e => set('sales_price', +e.target.value)} /></Field>
+            <Field label="Sales price (€)"><Input {...numericInput('sales_price', Number(part.sales_price) || 0, v => set('sales_price', v))} /></Field>
             <Field label="Machine *">
               <Select value={part.machine_id || ''} onValueChange={v => set('machine_id', v)}>
                 <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
@@ -214,7 +229,7 @@ export default function JobDetail() {
           <CardHeader><CardTitle className="text-base">Material / Tooling / Subcon</CardTitle></CardHeader>
           <CardContent className="grid md:grid-cols-3 gap-4">
             <Field label="Material"><Input value={part.material || ''} onChange={e => set('material', e.target.value)} /></Field>
-            <Field label="Material lead time"><Input type="number" value={part.material_lead_time || 0} onChange={e => set('material_lead_time', +e.target.value)} /></Field>
+            <Field label="Material lead time"><Input {...numericInput('material_lead_time', Number(part.material_lead_time) || 0, v => set('material_lead_time', v))} /></Field>
             <Field label="Material status">
               <Select value={part.material_status || ''} onValueChange={v => set('material_status', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -222,7 +237,7 @@ export default function JobDetail() {
               </Select>
             </Field>
             <Field label="Tooling"><Input value={part.tooling || ''} onChange={e => set('tooling', e.target.value)} /></Field>
-            <Field label="Tooling lead time"><Input type="number" value={part.tooling_lead_time || 0} onChange={e => set('tooling_lead_time', +e.target.value)} /></Field>
+            <Field label="Tooling lead time"><Input {...numericInput('tooling_lead_time', Number(part.tooling_lead_time) || 0, v => set('tooling_lead_time', v))} /></Field>
             <Field label="Tooling status">
               <Select value={part.tooling_status || ''} onValueChange={v => set('tooling_status', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -305,7 +320,7 @@ export default function JobDetail() {
             </div>
             {part && (
               <div className="text-xs text-muted-foreground border rounded-md p-2 bg-muted/30">
-                Total run time: <strong>{((Number(part.development_time) || 0) + (Number(part.cycle_time) || 0) * (Number(part.qty) || 0)).toFixed(1)} hrs</strong>
+                Total run time: <strong>{totalRequired.toFixed(1)} hrs</strong>
               </div>
             )}
             <div className="flex justify-end">
