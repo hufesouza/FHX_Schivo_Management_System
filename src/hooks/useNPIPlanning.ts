@@ -429,6 +429,11 @@ export const recommendAllocations = (
     toolingReceivedAt: inputs.toolingReceivedAt,
     bestCommenceDate: inputs.bestCommenceDate,
   });
+  // Parent depends on children: cannot start before the latest sub-level completion.
+  if ((inputs as any).childrenReadyDate) {
+    const cr = new Date((inputs as any).childrenReadyDate);
+    if (cr > earliestStart) earliestStart = cr;
+  }
   if (calendar && respectCalendar) {
     earliestStart = nextWorkingDay(earliestStart, calendar);
   }
