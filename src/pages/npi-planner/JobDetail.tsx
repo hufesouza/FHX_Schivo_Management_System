@@ -36,6 +36,7 @@ export default function JobDetail() {
   const [allocStartDate, setAllocStartDate] = useState<string>('');
   const [allocSaving, setAllocSaving] = useState(false);
   const [numberDrafts, setNumberDrafts] = useState<Record<string, string>>({});
+  const [allParts, setAllParts] = useState<Part[]>([]);
 
   const applyManualAllocation = async () => {
     if (!part) return;
