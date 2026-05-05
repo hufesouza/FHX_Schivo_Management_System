@@ -18,6 +18,7 @@ const STATUS_TONE: Record<string, string> = {
   'Awaiting Material': 'bg-amber-200 text-amber-800',
   'Awaiting Tooling': 'bg-amber-200 text-amber-800',
   'Awaiting Subcon': 'bg-amber-200 text-amber-800',
+  'Out for Subcon': 'bg-orange-200 text-orange-800',
   'Ready to Schedule': 'bg-cyan-200 text-cyan-800',
   'Scheduled': 'bg-blue-200 text-blue-800',
   'In Development': 'bg-purple-200 text-purple-800',
