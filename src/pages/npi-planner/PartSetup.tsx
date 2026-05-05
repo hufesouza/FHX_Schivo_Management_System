@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 
-import { useNPIPlanning, upsertPart } from '@/hooks/useNPIPlanning';
+import { useNPIPlanning, upsertPart, type Part } from '@/hooks/useNPIPlanning';
 import { toast } from 'sonner';
 import { Loader2, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
