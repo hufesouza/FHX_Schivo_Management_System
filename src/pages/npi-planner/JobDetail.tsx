@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
 import { QuickMachineDialog } from '@/components/npi-planner/QuickMachineDialog';
 
-const OVERALL_STATUSES = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Ready to Schedule','Scheduled','In Development','In Production','Machined','Completed','On Hold','At Risk','Late'];
+const OVERALL_STATUSES = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Out for Subcon','Ready to Schedule','Scheduled','In Development','In Production','Machined','Completed','On Hold','At Risk','Late'];
 const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 const TOOLING_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
 const SUBCON_STATUSES = ['Not Required','Required','Sent Out','In Progress','Returned','Delayed','Issue'];
