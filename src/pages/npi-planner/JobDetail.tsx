@@ -102,11 +102,13 @@ export default function JobDetail() {
   useEffect(() => {
     if (!id) return;
     (async () => {
-      const [{ data: p }, { data: m }, { data: h }] = await Promise.all([
+      const [{ data: p }, { data: m }, { data: h }, { data: ap }] = await Promise.all([
         supabase.from('npi_parts').select('*').eq('id', id).single(),
         supabase.from('npi_machines').select('*').order('machine_name'),
         supabase.from('npi_change_log').select('*').eq('part_id', id).order('created_at', { ascending: false }),
+        supabase.from('npi_parts').select('*').order('part_number'),
       ]);
+      setAllParts((ap as any) || []);
       setPart(p as any); setOriginal(p as any);
       setMachines(m || []);
       setHistory((h as any) || []);
