@@ -187,16 +187,25 @@ export default function JobList() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filtered.length === 0 ? (
+                  {ordered.length === 0 ? (
                     <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
-                  ) : filtered.map(p => {
+                  ) : ordered.map(p => {
                     const matStatus = p.material_status || 'Required';
                     const toolStatus = p.tooling_status || 'Required';
                     const pendingShip = shipDates[p.id];
+                    const isChild = p._depth > 0;
                     return (
-                      <TableRow key={p.id}>
+                      <TableRow key={p.id} className={isChild ? 'bg-muted/30' : ''}>
                         <TableCell className="font-mono text-xs">{p.po || '-'}</TableCell>
-                        <TableCell className="font-medium cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>{p.part_number}</TableCell>
+                        <TableCell className="font-medium cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>
+                          <div className="flex items-center gap-1.5" style={{ paddingLeft: isChild ? 18 : 0 }}>
+                            {isChild && <span className="text-muted-foreground">↳</span>}
+                            <span>{p.part_number}</span>
+                            {p._hasChildren && <Badge variant="outline" className="text-[10px] h-4 px-1">Top</Badge>}
+                            {isChild && <Badge variant="outline" className="text-[10px] h-4 px-1">Sub</Badge>}
+                            {p._delayedByChild && <Badge variant="outline" className="text-[10px] h-4 px-1 border-destructive/40 text-destructive">Sub-delay</Badge>}
+                          </div>
+                        </TableCell>
                         <TableCell className="cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>{p.customer_name || '-'}</TableCell>
                         <TableCell>{p.machine_name || '-'}</TableCell>
                         <TableCell className="align-top text-left">
