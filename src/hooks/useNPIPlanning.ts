@@ -81,8 +81,41 @@ export type Part = {
   notes: string | null;
   dev_allow_weekends: boolean | null;
   prod_allow_weekends: boolean | null;
+  part_level: string | null;
+  parent_part_id: string | null;
   created_at: string;
   updated_at: string;
+};
+
+// Derive a "completion" date for dependency calculations.
+// Used when a Top Level part needs to wait on its Sub Level children.
+export const partCompletionDate = (p: Part, schedule: ScheduleEntry[]): Date | null => {
+  if (p.ship_date) return new Date(p.ship_date);
+  // Find the latest active schedule end for this part
+  const ends = schedule
+    .filter(s => s.part_id === p.id && s.allocation_status !== 'Cancelled')
+    .map(s => new Date(s.end_date).getTime());
+  if (ends.length) return new Date(Math.max(...ends));
+  if (p.committed_date) return new Date(p.committed_date);
+  return null;
+};
+
+// Returns the latest expected completion across a Top Level part's children.
+// Returns null if there are no children (no parent dependency).
+export const childrenLatestCompletion = (
+  parentId: string,
+  parts: Part[],
+  schedule: ScheduleEntry[],
+): Date | null => {
+  const kids = parts.filter(p => p.parent_part_id === parentId);
+  if (!kids.length) return null;
+  let latest: Date | null = null;
+  for (const k of kids) {
+    if (k.overall_status === 'Completed') continue; // already done
+    const d = partCompletionDate(k, schedule);
+    if (d && (!latest || d > latest)) latest = d;
+  }
+  return latest;
 };
 
 export type ScheduleEntry = {
