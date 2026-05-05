@@ -280,6 +280,20 @@ export default function PartSetup() {
   return (
     <AppLayout title="New Part / Job" subtitle="Setup & machine allocation" showBackButton backTo="/npi/capacity-planner">
       <main className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="text-sm text-muted-foreground">
+            {presetParentId && <Badge variant="secondary">Creating Sub Level part for parent</Badge>}
+          </div>
+          <div className="flex items-center gap-2">
+            <label className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Checkbox checked={saveToLibrary} onCheckedChange={v => setSaveToLibrary(!!v)} />
+              Save to part library
+            </label>
+            <Button type="button" variant="outline" size="sm" onClick={() => setLibraryOpen(true)}>
+              <Library className="h-3 w-3 mr-1" /> Load from library
+            </Button>
+          </div>
+        </div>
         <Card>
           <CardHeader><CardTitle className="text-base">Part details</CardTitle></CardHeader>
           <CardContent className="grid md:grid-cols-3 gap-4">
