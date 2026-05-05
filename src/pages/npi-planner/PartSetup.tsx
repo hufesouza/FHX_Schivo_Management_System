@@ -78,6 +78,7 @@ export default function PartSetup() {
   
   const handleSave = async () => {
     if (!form.part_number.trim()) return toast.error('Part number is required');
+    if (form.part_level === 'Sub Level' && !form.parent_part_id) return toast.error('Sub Level parts must be linked to a Parent Part');
     setSaving(true);
     try {
       const customer = customers.find(c => c.id === form.customer_id);
