@@ -267,11 +267,6 @@ export default function JobDetail() {
               const children = allParts.filter(p => p.parent_part_id === part.id);
               const todayMs = Date.now();
               const delayed = children.filter(c => c.overall_status !== 'Completed' && c.committed_date && new Date(c.committed_date).getTime() < todayMs);
-              const candidateChildren = allParts.filter(p =>
-                p.id !== part.id &&
-                !p.parent_part_id &&
-                (p.part_level || 'Top Level') !== 'Top Level' || (p.id !== part.id && !p.parent_part_id && (p as any).part_level === 'Sub Level')
-              );
               return (
                 <div className="border rounded-md p-3 space-y-2">
                   <div className="flex items-center justify-between gap-2 flex-wrap">
