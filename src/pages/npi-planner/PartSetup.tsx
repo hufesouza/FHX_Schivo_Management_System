@@ -199,7 +199,7 @@ export default function PartSetup() {
             <Field label="Part Revision"><Input value={form.part_revision} onChange={e => set('part_revision', e.target.value)} placeholder="e.g. A" /></Field>
             <Field label="Part Description"><Input value={form.description} onChange={e => set('description', e.target.value)} placeholder="Short description" /></Field>
             <Field label="PO"><Input value={form.po} onChange={e => set('po', e.target.value)} /></Field>
-            <Field label="QTY"><Input type="number" value={form.qty} onChange={e => set('qty', +e.target.value)} /></Field>
+            <Field label="QTY"><Input type="number" value={form.qty} onFocus={(e) => e.currentTarget.select()} onChange={e => set('qty', +e.target.value)} /></Field>
           </CardContent>
         </Card>
 
@@ -218,7 +218,7 @@ export default function PartSetup() {
                 }}
               />
             </Field>
-            <Field label="Lead time (days)"><Input type="number" value={form.material_lead_time} onChange={e => set('material_lead_time', +e.target.value)} /></Field>
+            <Field label="Lead time (days)"><Input type="number" value={form.material_lead_time} onFocus={(e) => e.currentTarget.select()} onChange={e => set('material_lead_time', +e.target.value)} /></Field>
             <Field label="Status">
               <Select value={form.material_status} onValueChange={v => set('material_status', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -264,7 +264,7 @@ export default function PartSetup() {
               />
             </Field>
             <Field label="Type of service"><Input value={form.type_of_service} onChange={e => set('type_of_service', e.target.value)} /></Field>
-            <Field label="Subcon lead time (days)"><Input type="number" value={form.subcon_lead_time} onChange={e => set('subcon_lead_time', +e.target.value)} /></Field>
+            <Field label="Subcon lead time (days)"><Input type="number" value={form.subcon_lead_time} onFocus={(e) => e.currentTarget.select()} onChange={e => set('subcon_lead_time', +e.target.value)} /></Field>
             <Field label="Subcon status">
               <Select value={form.subcon_status} onValueChange={v => set('subcon_status', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -277,12 +277,12 @@ export default function PartSetup() {
         <Card>
           <CardHeader><CardTitle className="text-base">Time & dates</CardTitle></CardHeader>
           <CardContent className="grid md:grid-cols-3 gap-4">
-            <Field label="Cycle time (min)"><Input type="number" step="0.1" value={form.cycle_time_min} onChange={e => set('cycle_time_min', +e.target.value)} /></Field>
-            <Field label="Development time (min)"><Input type="number" step="0.1" value={form.development_time_min} onChange={e => set('development_time_min', +e.target.value)} /></Field>
-            <Field label="Backend time (hrs)"><Input type="number" step="0.1" value={form.backend_time} onChange={e => set('backend_time', +e.target.value)} /></Field>
+            <Field label="Cycle time (min)"><Input type="number" step="0.1" value={form.cycle_time_min} onFocus={(e) => e.currentTarget.select()} onChange={e => set('cycle_time_min', +e.target.value)} /></Field>
+            <Field label="Development time (min)"><Input type="number" step="0.1" value={form.development_time_min} onFocus={(e) => e.currentTarget.select()} onChange={e => set('development_time_min', +e.target.value)} /></Field>
+            <Field label="Backend time (hrs)"><Input type="number" step="0.1" value={form.backend_time} onFocus={(e) => e.currentTarget.select()} onChange={e => set('backend_time', +e.target.value)} /></Field>
             <Field label="Total machining hrs (dev + cycle × qty)"><Input value={totalRequired.toFixed(2)} disabled /></Field>
             <Field label="Committed date"><Input type="date" value={form.committed_date} onChange={e => set('committed_date', e.target.value)} /></Field>
-            <Field label="Sales price (€)"><Input type="number" step="0.01" value={form.sales_price} onChange={e => set('sales_price', +e.target.value)} /></Field>
+            <Field label="Sales price (€)"><Input type="number" step="0.01" value={form.sales_price} onFocus={(e) => e.currentTarget.select()} onChange={e => set('sales_price', +e.target.value)} /></Field>
             <Field label="Overall status">
               <Select value={form.overall_status} onValueChange={v => set('overall_status', v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
