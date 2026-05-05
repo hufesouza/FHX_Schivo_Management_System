@@ -217,6 +217,29 @@ export default function PartSetup() {
             <Field label="Part Description"><Input value={form.description} onChange={e => set('description', e.target.value)} placeholder="Short description" /></Field>
             <Field label="PO"><Input value={form.po} onChange={e => set('po', e.target.value)} /></Field>
             <Field label="QTY"><Input {...numericInput('qty')} /></Field>
+            <Field label="Part Level">
+              <Select value={form.part_level} onValueChange={v => { set('part_level', v); if (v === 'Top Level') set('parent_part_id', ''); }}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Top Level">Top Level (customer part)</SelectItem>
+                  <SelectItem value="Sub Level">Sub Level (component)</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            {form.part_level === 'Sub Level' && (
+              <Field label="Parent Part *">
+                <Select value={form.parent_part_id || ''} onValueChange={v => set('parent_part_id', v)}>
+                  <SelectTrigger><SelectValue placeholder="Pick parent (Top Level)" /></SelectTrigger>
+                  <SelectContent>
+                    {topLevelParts.length === 0 ? (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">No Top Level parts yet — create one first.</div>
+                    ) : topLevelParts.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.part_number}{p.description ? ` — ${p.description}` : ''}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+            )}
           </CardContent>
         </Card>
 
