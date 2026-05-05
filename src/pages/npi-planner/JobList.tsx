@@ -19,6 +19,7 @@ const STATUS_TONE: Record<string, string> = {
   'At Risk': 'bg-amber-200 text-amber-800',
   'In Production': 'bg-emerald-200 text-emerald-800',
   'Scheduled': 'bg-blue-200 text-blue-800',
+  'Machined': 'bg-indigo-200 text-indigo-800',
   'Completed': 'bg-muted text-muted-foreground',
   'On Hold': 'bg-slate-300 text-slate-800',
 };
