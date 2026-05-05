@@ -94,8 +94,11 @@ export function ReallocateDialog({ open, onOpenChange, part, machines, schedule,
       calendar: calendar || DEFAULT_CALENDAR,
       devAllowWeekends: !!(part as any).dev_allow_weekends,
       prodAllowWeekends: (part as any).prod_allow_weekends !== false,
+      childrenReadyDate: parts && part.part_level === 'Top Level'
+        ? childrenLatestCompletion(part.id, parts, schedule)
+        : null,
     }).slice(0, 5);
-  }, [part, candidateIds, machines, schedule, availability, calendar]);
+  }, [part, candidateIds, machines, schedule, availability, calendar, parts]);
 
   const apply = async (opt: AllocationOption) => {
     if (!part) return;
