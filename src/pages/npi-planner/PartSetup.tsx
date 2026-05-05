@@ -60,6 +60,49 @@ export default function PartSetup() {
     part_level: 'Top Level', parent_part_id: '',
   });
 
+  // Apply preset from URL (e.g. coming from Job Detail "New Sub Level part")
+  useEffect(() => {
+    if (presetParentId) set('parent_part_id', presetParentId);
+    if (presetLevel) set('part_level', presetLevel);
+    // Inherit customer/project from parent for convenience
+    if (presetParentId) {
+      const parent = parts.find(p => p.id === presetParentId);
+      if (parent) {
+        if (parent.customer_id) set('customer_id', parent.customer_id);
+        if (parent.project_id) set('project_id', parent.project_id);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetParentId, presetLevel, parts.length]);
+
+  const applyCatalog = (c: CatalogPart) => {
+    setForm((f: any) => ({
+      ...f,
+      part_number: c.part_number,
+      part_revision: c.part_revision || '',
+      description: c.description || '',
+      customer_id: c.customer_id || f.customer_id,
+      material: c.material || '',
+      material_lead_time: c.material_lead_time || 0,
+      material_supplier_id: c.material_supplier_id || '',
+      material_supplier_name: c.material_supplier_name || '',
+      tooling: c.tooling || '',
+      tooling_lead_time: c.tooling_lead_time || 0,
+      cycle_time_min: Math.round(((c.cycle_time || 0) * 60) * 100) / 100,
+      development_time_min: Math.round(((c.development_time || 0) * 60) * 100) / 100,
+      backend_time: c.backend_time || 0,
+      subcon_supplier_id: c.subcon_supplier_id || '',
+      supplier_name: c.supplier_name || '',
+      type_of_service: c.type_of_service || '',
+      subcon_lead_time: c.subcon_lead_time || 0,
+      sales_price: c.sales_price || 0,
+      notes: c.notes || '',
+      dev_allow_weekends: !!c.dev_allow_weekends,
+      prod_allow_weekends: c.prod_allow_weekends ?? true,
+    }));
+    toast.success(`Loaded "${c.part_number}" from library`);
+  };
+
   const topLevelParts = useMemo(() => parts.filter(p => (p.part_level || 'Top Level') === 'Top Level'), [parts]);
 
   const cycleHrs = (Number(form.cycle_time_min) || 0) / 60;
