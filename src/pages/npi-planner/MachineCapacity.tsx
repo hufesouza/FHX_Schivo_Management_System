@@ -7,16 +7,21 @@ import { useNPIPlanning } from '@/hooks/useNPIPlanning';
 import { Loader2, AlertTriangle } from 'lucide-react';
 
 export default function MachineCapacity() {
-  const { machines, schedule, loading } = useNPIPlanning();
+  const { machines, schedule, parts, loading } = useNPIPlanning();
+
+  const machinedPartIds = useMemo(
+    () => new Set(parts.filter(p => p.overall_status === 'Machined' || p.overall_status === 'Completed').map(p => p.id)),
+    [parts]
+  );
 
   const rows = useMemo(() => machines.map(m => {
     const used = schedule
-      .filter(s => s.machine_id === m.id && s.allocation_status !== 'Cancelled' && s.allocation_status !== 'Completed')
+      .filter(s => s.machine_id === m.id && s.allocation_status !== 'Cancelled' && s.allocation_status !== 'Completed' && !(s.part_id && machinedPartIds.has(s.part_id)))
       .reduce((sum, s) => sum + Number(s.total_required_time || 0), 0);
     const cap = (Number(m.daily_available_hours) || 24) * 30;
     const util = cap ? Math.round((used / cap) * 100) : 0;
     return { ...m, used, cap, util };
-  }).sort((a, b) => b.util - a.util), [machines, schedule]);
+  }).sort((a, b) => b.util - a.util), [machines, schedule, machinedPartIds]);
 
   if (loading) return <AppLayout title="Capacity" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin"/></div></AppLayout>;
 
