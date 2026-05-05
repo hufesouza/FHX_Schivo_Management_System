@@ -131,6 +131,20 @@ export default function JobDetail() {
   };
 
   const set = (k: keyof Part, v: any) => setPart(p => p ? { ...p, [k]: v } : p);
+  const totalRequired = part
+    ? (Number(part.development_time) || 0) + (Number(part.cycle_time) || 0) * (Number(part.qty) || 0)
+    : 0;
+  const numericInput = (key: string, value: number, onValue: (value: number) => void) => ({
+    type: 'text',
+    inputMode: 'decimal' as const,
+    value: Object.prototype.hasOwnProperty.call(numberDrafts, key) ? numberDrafts[key] : String(value || 0),
+    onFocus: () => setNumberDrafts(d => ({ ...d, [key]: '' })),
+    onChange: (e: ChangeEvent<HTMLInputElement>) => {
+      const next = e.target.value.replace(',', '.');
+      setNumberDrafts(d => ({ ...d, [key]: next }));
+      onValue(Number(next) || 0);
+    },
+  });
 
   const handleSave = async () => {
     if (!part || !original) return;
