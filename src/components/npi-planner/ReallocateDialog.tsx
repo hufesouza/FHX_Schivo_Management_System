@@ -36,7 +36,7 @@ const STATUS_TONE: Record<string, string> = {
   'Late': 'bg-destructive/15 text-destructive border-destructive/30',
 };
 
-export function ReallocateDialog({ open, onOpenChange, part, machines, schedule, availability, calendar, onApplied }: Props) {
+export function ReallocateDialog({ open, onOpenChange, part, machines, schedule, availability, calendar, parts, onApplied }: Props) {
   const [candidateIds, setCandidateIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
