@@ -137,7 +137,7 @@ export default function JobList() {
     reload();
   };
 
-  const STATUS_OPTIONS = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Ready to Schedule','Scheduled','In Development','In Production','Machined','Completed','On Hold','At Risk','Late'];
+  const STATUS_OPTIONS = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Out for Subcon','Ready to Schedule','Scheduled','In Development','In Production','Machined','Completed','On Hold','At Risk','Late'];
 
   // Material & tooling status are read-only on the tracker — managed on dedicated tiles.
 
