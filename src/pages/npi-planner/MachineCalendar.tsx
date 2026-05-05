@@ -151,8 +151,7 @@ export default function MachineCalendar() {
     const end = new Date(day); end.setHours(23,59,59,999);
     return schedule.filter(s =>
       s.machine_id === machineId &&
-      s.allocation_status !== 'Cancelled' &&
-      s.allocation_status !== 'Completed' &&
+      !isHiddenEntry(s) &&
       new Date(s.start_date) <= end &&
       new Date(s.end_date) >= start
     );
