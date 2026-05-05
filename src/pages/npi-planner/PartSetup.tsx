@@ -1,5 +1,7 @@
-import { useState, useMemo, type ChangeEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useMemo, useEffect, type ChangeEvent } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { PartLibraryDialog, type CatalogPart } from '@/components/npi-planner/PartLibraryDialog';
+import { Library } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
