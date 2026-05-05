@@ -66,19 +66,30 @@ export default function MachineCalendar() {
     });
   }, [weekStart]);
 
+  // Parts that have left the machine — their schedule should not appear/block capacity
+  const machinedPartIds = useMemo(
+    () => new Set(parts.filter(p => p.overall_status === 'Machined' || p.overall_status === 'Completed').map(p => p.id)),
+    [parts]
+  );
+
+  const isHiddenEntry = (s: typeof schedule[number]) =>
+    s.allocation_status === 'Cancelled' ||
+    s.allocation_status === 'Completed' ||
+    (s.part_id ? machinedPartIds.has(s.part_id) : false);
+
   // Build a quick lookup of all active schedule rows per machine for overlap detection
   const machineBookings = useMemo(() => {
     const m: Record<string, { id: string; part_number: string | null; start: Date; end: Date }[]> = {};
     schedule.forEach(s => {
       if (!s.machine_id) return;
-      if (s.allocation_status === 'Cancelled' || s.allocation_status === 'Completed') return;
+      if (isHiddenEntry(s)) return;
       (m[s.machine_id] ||= []).push({
         id: s.id, part_number: s.part_number,
         start: new Date(s.start_date), end: new Date(s.end_date),
       });
     });
     return m;
-  }, [schedule]);
+  }, [schedule, machinedPartIds]);
 
   const buildReport = (entry: typeof schedule[number], part: Part): ReadinessReport => {
     const links = partTooling.filter((l: any) => l.part_id === part.id);
@@ -140,8 +151,7 @@ export default function MachineCalendar() {
     const end = new Date(day); end.setHours(23,59,59,999);
     return schedule.filter(s =>
       s.machine_id === machineId &&
-      s.allocation_status !== 'Cancelled' &&
-      s.allocation_status !== 'Completed' &&
+      !isHiddenEntry(s) &&
       new Date(s.start_date) <= end &&
       new Date(s.end_date) >= start
     );
@@ -243,7 +253,7 @@ export default function MachineCalendar() {
                 {machines.map(m => {
                   // Detect "idle weekend" risk for this row
                   const machineEntries = schedule
-                    .filter(s => s.machine_id === m.id && s.allocation_status !== 'Cancelled' && s.allocation_status !== 'Completed')
+                    .filter(s => s.machine_id === m.id && !isHiddenEntry(s))
                     .map(s => ({ ...s, _start: new Date(s.start_date), _end: new Date(s.end_date) }))
                     .sort((a, b) => a._start.getTime() - b._start.getTime());
                   const idleSpans: { after: Date; days: number }[] = [];

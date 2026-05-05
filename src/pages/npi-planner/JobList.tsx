@@ -19,6 +19,7 @@ const STATUS_TONE: Record<string, string> = {
   'At Risk': 'bg-amber-200 text-amber-800',
   'In Production': 'bg-emerald-200 text-emerald-800',
   'Scheduled': 'bg-blue-200 text-blue-800',
+  'Machined': 'bg-indigo-200 text-indigo-800',
   'Completed': 'bg-muted text-muted-foreground',
   'On Hold': 'bg-slate-300 text-slate-800',
 };
@@ -94,7 +95,7 @@ export default function JobList() {
     reload();
   };
 
-  const STATUS_OPTIONS = ['Not Started', 'Scheduled', 'In Production', 'At Risk', 'Late', 'On Hold', 'Completed'];
+  const STATUS_OPTIONS = ['Not Started', 'Scheduled', 'In Production', 'Machined', 'At Risk', 'Late', 'On Hold', 'Completed'];
 
   // Material & tooling status are read-only on the tracker — managed on dedicated tiles.
 
