@@ -2261,6 +2261,96 @@ export type Database = {
           },
         ]
       }
+      npi_parts_catalog: {
+        Row: {
+          backend_time: number | null
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          customer_name: string | null
+          cycle_time: number | null
+          description: string | null
+          dev_allow_weekends: boolean | null
+          development_time: number | null
+          id: string
+          material: string | null
+          material_lead_time: number | null
+          material_supplier_id: string | null
+          material_supplier_name: string | null
+          notes: string | null
+          part_number: string
+          part_revision: string | null
+          prod_allow_weekends: boolean | null
+          sales_price: number | null
+          subcon: boolean | null
+          subcon_lead_time: number | null
+          subcon_supplier_id: string | null
+          supplier_name: string | null
+          tooling: string | null
+          tooling_lead_time: number | null
+          type_of_service: string | null
+          updated_at: string
+        }
+        Insert: {
+          backend_time?: number | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          cycle_time?: number | null
+          description?: string | null
+          dev_allow_weekends?: boolean | null
+          development_time?: number | null
+          id?: string
+          material?: string | null
+          material_lead_time?: number | null
+          material_supplier_id?: string | null
+          material_supplier_name?: string | null
+          notes?: string | null
+          part_number: string
+          part_revision?: string | null
+          prod_allow_weekends?: boolean | null
+          sales_price?: number | null
+          subcon?: boolean | null
+          subcon_lead_time?: number | null
+          subcon_supplier_id?: string | null
+          supplier_name?: string | null
+          tooling?: string | null
+          tooling_lead_time?: number | null
+          type_of_service?: string | null
+          updated_at?: string
+        }
+        Update: {
+          backend_time?: number | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          cycle_time?: number | null
+          description?: string | null
+          dev_allow_weekends?: boolean | null
+          development_time?: number | null
+          id?: string
+          material?: string | null
+          material_lead_time?: number | null
+          material_supplier_id?: string | null
+          material_supplier_name?: string | null
+          notes?: string | null
+          part_number?: string
+          part_revision?: string | null
+          prod_allow_weekends?: boolean | null
+          sales_price?: number | null
+          subcon?: boolean | null
+          subcon_lead_time?: number | null
+          subcon_supplier_id?: string | null
+          supplier_name?: string | null
+          tooling?: string | null
+          tooling_lead_time?: number | null
+          type_of_service?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       npi_phase_gates: {
         Row: {
           all_tasks_complete: boolean | null
