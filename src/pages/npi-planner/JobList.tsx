@@ -15,11 +15,16 @@ import { ReallocateDialog } from '@/components/npi-planner/ReallocateDialog';
 
 const STATUS_TONE: Record<string, string> = {
   'Not Started': 'bg-slate-200 text-slate-700',
+  'Awaiting Material': 'bg-amber-200 text-amber-800',
+  'Awaiting Tooling': 'bg-amber-200 text-amber-800',
+  'Awaiting Subcon': 'bg-amber-200 text-amber-800',
+  'Ready to Schedule': 'bg-cyan-200 text-cyan-800',
+  'Scheduled': 'bg-blue-200 text-blue-800',
+  'In Development': 'bg-purple-200 text-purple-800',
+  'In Production': 'bg-emerald-200 text-emerald-800',
+  'Machined': 'bg-indigo-200 text-indigo-800',
   'Late': 'bg-destructive/15 text-destructive',
   'At Risk': 'bg-amber-200 text-amber-800',
-  'In Production': 'bg-emerald-200 text-emerald-800',
-  'Scheduled': 'bg-blue-200 text-blue-800',
-  'Machined': 'bg-indigo-200 text-indigo-800',
   'Completed': 'bg-muted text-muted-foreground',
   'On Hold': 'bg-slate-300 text-slate-800',
 };
@@ -131,7 +136,7 @@ export default function JobList() {
     reload();
   };
 
-  const STATUS_OPTIONS = ['Not Started', 'Scheduled', 'In Production', 'Machined', 'At Risk', 'Late', 'On Hold', 'Completed'];
+  const STATUS_OPTIONS = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Ready to Schedule','Scheduled','In Development','In Production','Machined','Completed','On Hold','At Risk','Late'];
 
   // Material & tooling status are read-only on the tracker — managed on dedicated tiles.
 
