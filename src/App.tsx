@@ -51,6 +51,7 @@ import PartToolingStatus from "./pages/npi-planner/PartToolingStatus";
 import PlannerReports from "./pages/npi-planner/Reports";
 import PlannerSettings from "./pages/npi-planner/PlannerSettings";
 import CapacityPlannerMVPHub from "./pages/npi-planner-mvp/CapacityPlannerMVPHub";
+import MVPResources from "./pages/npi-planner-mvp/Resources";
 
 
 const queryClient = new QueryClient();
@@ -112,6 +113,7 @@ const App = () => (
           <Route path="/npi/capacity-planner-mvp/parts/:id" element={<JobDetail />} />
           <Route path="/npi/capacity-planner-mvp/jobs" element={<JobList />} />
           <Route path="/npi/capacity-planner-mvp/calendar" element={<MachineCalendar />} />
+          <Route path="/npi/capacity-planner-mvp/resources" element={<MVPResources />} />
           <Route path="/npi/capacity-planner-mvp/settings" element={<PlannerSettings />} />
 
           
