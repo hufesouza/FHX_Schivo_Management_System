@@ -443,8 +443,11 @@ function LookupSection({
     // rename usage on resources rows too
     const { error } = await supabase.from('resource_lookups' as any).update({ name }).eq('id', id);
     if (!error) {
-      const col = kind === 'category' ? 'resource_category' : 'resource_type';
-      await supabase.from('resources').update({ [col]: name }).eq(col, oldName);
+      if (kind === 'category') {
+        await supabase.from('resources').update({ resource_category: name }).eq('resource_category', oldName);
+      } else {
+        await supabase.from('resources').update({ resource_type: name }).eq('resource_type', oldName);
+      }
     }
     setBusy(false);
     if (error) return toast.error(error.message);
