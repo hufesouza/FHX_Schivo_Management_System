@@ -148,7 +148,17 @@ const subModules = [
     color: 'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-500/20',
     available: true,
   },
+  {
+    id: 'capacity-planner-mvp',
+    title: 'MVP Simples Capacity Planner',
+    description: 'Versão simplificada do planner: cadastro de peças, job tracker e calendário das máquinas',
+    icon: Gauge,
+    href: '/npi/capacity-planner-mvp',
+    color: 'bg-pink-500/10 text-pink-600 border-pink-500/20',
+    available: true,
+  },
 ];
+
 
 const NPIHub = () => {
   const navigate = useNavigate();
