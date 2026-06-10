@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   ListChecks, CalendarRange, Settings as SettingsIcon, Cog, Library, Briefcase,
-  LayoutGrid, List, ChevronRight, Zap,
+  LayoutGrid, List, ChevronRight, Zap, GanttChartSquare,
 } from 'lucide-react';
 
 const groups = [
