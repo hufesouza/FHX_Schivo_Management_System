@@ -18,25 +18,17 @@ import {
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Settings2, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-const RESOURCE_CATEGORIES = [
-  'Machining', 'Subcontractor',
-] as const;
-type ResourceCategory = typeof RESOURCE_CATEGORIES[number];
-
-const RESOURCE_TYPES = [
-  'Swiss Turning', 'Turning', 'Milling', 'Inspection',
-  'Deburr', 'Assembly', 'Laser', 'Other',
-] as const;
+type Lookup = { id: string; kind: 'category' | 'type'; name: string };
 
 type Resource = {
   id: string;
   resource_name: string;
   resource_type: string;
-  resource_category: ResourceCategory;
+  resource_category: string;
   available_hours_per_day: number;
   number_of_shifts: number;
   status: 'Active' | 'Inactive';
@@ -44,10 +36,10 @@ type Resource = {
   lead_time_days: number | null;
 };
 
-const blank = (): Omit<Resource, 'id'> => ({
+const blankFor = (cat: string, type: string): Omit<Resource, 'id'> => ({
   resource_name: '',
-  resource_type: 'Milling',
-  resource_category: 'Machining',
+  resource_type: type,
+  resource_category: cat,
   available_hours_per_day: 8,
   number_of_shifts: 1,
   status: 'Active',
@@ -57,26 +49,34 @@ const blank = (): Omit<Resource, 'id'> => ({
 
 export default function Resources() {
   const [rows, setRows] = useState<Resource[]>([]);
+  const [lookups, setLookups] = useState<Lookup[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Resource | null>(null);
-  const [form, setForm] = useState(blank());
+  const [form, setForm] = useState<Omit<Resource, 'id'>>(blankFor('Machining', 'Milling'));
   const [saving, setSaving] = useState(false);
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
+  const [manageOpen, setManageOpen] = useState(false);
+
+  const categories = useMemo(() => lookups.filter(l => l.kind === 'category'), [lookups]);
+  const types = useMemo(() => lookups.filter(l => l.kind === 'type'), [lookups]);
+
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('resources')
-      .select('*')
-      .order('resource_name', { ascending: true });
+    const [res, lk] = await Promise.all([
+      supabase.from('resources').select('*').order('resource_name', { ascending: true }),
+      supabase.from('resource_lookups' as any).select('*').order('name', { ascending: true }),
+    ]);
     setLoading(false);
-    if (error) return toast.error(error.message);
-    setRows((data || []) as Resource[]);
+    if (res.error) return toast.error(res.error.message);
+    if (lk.error) return toast.error(lk.error.message);
+    setRows((res.data || []) as Resource[]);
+    setLookups((lk.data || []) as unknown as Lookup[]);
   };
 
   useEffect(() => { load(); }, []);
@@ -89,13 +89,17 @@ export default function Resources() {
     );
   }, [rows, search, categoryFilter]);
 
-  const openCreate = () => { setEditing(null); setForm(blank()); setDialogOpen(true); };
+  const openCreate = () => {
+    setEditing(null);
+    setForm(blankFor(categories[0]?.name || 'Machining', types[0]?.name || 'Milling'));
+    setDialogOpen(true);
+  };
   const openEdit = (r: Resource) => {
     setEditing(r);
     setForm({
       resource_name: r.resource_name,
       resource_type: r.resource_type,
-      resource_category: r.resource_category || 'Machining',
+      resource_category: r.resource_category || (categories[0]?.name || 'Machining'),
       available_hours_per_day: r.available_hours_per_day,
       number_of_shifts: r.number_of_shifts,
       status: r.status,
@@ -153,9 +157,14 @@ export default function Resources() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-3">
             <CardTitle>Resources</CardTitle>
-            <Button onClick={openCreate}>
-              <Plus className="h-4 w-4 mr-1" /> New resource
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setManageOpen(true)}>
+                <Settings2 className="h-4 w-4 mr-1" /> Manage lists
+              </Button>
+              <Button onClick={openCreate}>
+                <Plus className="h-4 w-4 mr-1" /> New resource
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-2">
@@ -174,8 +183,8 @@ export default function Resources() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All categories</SelectItem>
-                  {RESOURCE_CATEGORIES.map(c => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -253,11 +262,11 @@ export default function Resources() {
             <div>
               <Label>Resource category *</Label>
               <Select value={form.resource_category}
-                onValueChange={(v) => setForm({ ...form, resource_category: v as ResourceCategory })}>
+                onValueChange={(v) => setForm({ ...form, resource_category: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {RESOURCE_CATEGORIES.map(c => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  {categories.map(c => (
+                    <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -290,8 +299,8 @@ export default function Resources() {
                     onValueChange={(v) => setForm({ ...form, resource_type: v })}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {RESOURCE_TYPES.map(t => (
-                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      {types.map(t => (
+                        <SelectItem key={t.id} value={t.name}>{t.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -348,6 +357,170 @@ export default function Resources() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ManageLookupsDialog
+        open={manageOpen}
+        onOpenChange={setManageOpen}
+        lookups={lookups}
+        rows={rows}
+        onChanged={load}
+      />
     </AppLayout>
+  );
+}
+
+function ManageLookupsDialog({
+  open, onOpenChange, lookups, rows, onChanged,
+}: {
+  open: boolean;
+  onOpenChange: (o: boolean) => void;
+  lookups: Lookup[];
+  rows: Resource[];
+  onChanged: () => void;
+}) {
+  const categories = lookups.filter(l => l.kind === 'category');
+  const types = lookups.filter(l => l.kind === 'type');
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Manage categories & types</DialogTitle>
+        </DialogHeader>
+        <div className="grid md:grid-cols-2 gap-6">
+          <LookupSection
+            title="Resource categories"
+            kind="category"
+            items={categories}
+            usedNames={new Set(rows.map(r => r.resource_category))}
+            onChanged={onChanged}
+          />
+          <LookupSection
+            title="Resource types"
+            kind="type"
+            items={types}
+            usedNames={new Set(rows.map(r => r.resource_type))}
+            onChanged={onChanged}
+          />
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function LookupSection({
+  title, kind, items, usedNames, onChanged,
+}: {
+  title: string;
+  kind: 'category' | 'type';
+  items: Lookup[];
+  usedNames: Set<string>;
+  onChanged: () => void;
+}) {
+  const [newName, setNewName] = useState('');
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const add = async () => {
+    const name = newName.trim();
+    if (!name) return;
+    setBusy(true);
+    const { error } = await supabase.from('resource_lookups' as any).insert({ kind, name });
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    setNewName('');
+    onChanged();
+  };
+
+  const saveEdit = async (id: string, oldName: string) => {
+    const name = editValue.trim();
+    if (!name || name === oldName) { setEditId(null); return; }
+    setBusy(true);
+    // rename usage on resources rows too
+    const { error } = await supabase.from('resource_lookups' as any).update({ name }).eq('id', id);
+    if (!error) {
+      if (kind === 'category') {
+        await supabase.from('resources').update({ resource_category: name }).eq('resource_category', oldName);
+      } else {
+        await supabase.from('resources').update({ resource_type: name }).eq('resource_type', oldName);
+      }
+    }
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    setEditId(null);
+    onChanged();
+  };
+
+  const remove = async (id: string, name: string) => {
+    if (usedNames.has(name)) {
+      return toast.error(`"${name}" is in use by one or more resources. Reassign them first.`);
+    }
+    setBusy(true);
+    const { error } = await supabase.from('resource_lookups' as any).delete().eq('id', id);
+    setBusy(false);
+    if (error) return toast.error(error.message);
+    onChanged();
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="font-medium text-sm">{title}</div>
+      <div className="flex gap-2">
+        <Input
+          placeholder={`Add ${kind}…`}
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && add()}
+        />
+        <Button size="sm" onClick={add} disabled={busy || !newName.trim()}>
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="rounded-md border divide-y">
+        {items.length === 0 ? (
+          <div className="p-3 text-sm text-muted-foreground text-center">None yet.</div>
+        ) : items.map(it => (
+          <div key={it.id} className="flex items-center gap-2 px-3 py-2">
+            {editId === it.id ? (
+              <>
+                <Input
+                  autoFocus
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') saveEdit(it.id, it.name);
+                    if (e.key === 'Escape') setEditId(null);
+                  }}
+                />
+                <Button size="icon" variant="ghost" onClick={() => saveEdit(it.id, it.name)}>
+                  <Check className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={() => setEditId(null)}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <span className="flex-1 text-sm">{it.name}</span>
+                {usedNames.has(it.name) && (
+                  <Badge variant="outline" className="text-xs">in use</Badge>
+                )}
+                <Button size="icon" variant="ghost"
+                  onClick={() => { setEditId(it.id); setEditValue(it.name); }}>
+                  <Pencil className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={() => remove(it.id, it.name)}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
