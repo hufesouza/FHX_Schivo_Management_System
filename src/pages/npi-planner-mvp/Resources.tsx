@@ -47,7 +47,7 @@ type Resource = {
 const blank = (): Omit<Resource, 'id'> => ({
   resource_name: '',
   resource_type: 'Milling',
-  resource_category: 'Machine',
+  resource_category: 'Machining',
   available_hours_per_day: 8,
   number_of_shifts: 1,
   status: 'Active',
