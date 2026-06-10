@@ -4513,6 +4513,39 @@ export type Database = {
         }
         Relationships: []
       }
+      resources: {
+        Row: {
+          available_hours_per_day: number
+          created_at: string
+          id: string
+          number_of_shifts: number
+          resource_name: string
+          resource_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          available_hours_per_day?: number
+          created_at?: string
+          id?: string
+          number_of_shifts?: number
+          resource_name: string
+          resource_type: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          available_hours_per_day?: number
+          created_at?: string
+          id?: string
+          number_of_shifts?: number
+          resource_name?: string
+          resource_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       system_quotations: {
         Row: {
           assignment_status: string | null
