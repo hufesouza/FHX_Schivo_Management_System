@@ -1005,6 +1005,122 @@ export type Database = {
           },
         ]
       }
+      job_operations: {
+        Row: {
+          created_at: string
+          cycle_time_seconds: number
+          id: string
+          job_id: string
+          notes: string | null
+          operation_name: string
+          operation_number: number
+          resource_id: string | null
+          sequence_order: number
+          setup_time_hours: number
+          total_time_hours: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cycle_time_seconds?: number
+          id?: string
+          job_id: string
+          notes?: string | null
+          operation_name: string
+          operation_number: number
+          resource_id?: string | null
+          sequence_order: number
+          setup_time_hours?: number
+          total_time_hours?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cycle_time_seconds?: number
+          id?: string
+          job_id?: string
+          notes?: string | null
+          operation_name?: string
+          operation_number?: number
+          resource_id?: string | null
+          sequence_order?: number
+          setup_time_hours?: number
+          total_time_hours?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_operations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_operations_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      jobs: {
+        Row: {
+          created_at: string
+          development_time_hours: number
+          due_date: string
+          id: string
+          job_number: string
+          notes: string | null
+          part_id: string
+          planned_finish: string | null
+          planned_start: string | null
+          priority: string
+          quantity: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          development_time_hours?: number
+          due_date: string
+          id?: string
+          job_number: string
+          notes?: string | null
+          part_id: string
+          planned_finish?: string | null
+          planned_start?: string | null
+          priority?: string
+          quantity?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          development_time_hours?: number
+          due_date?: string
+          id?: string
+          job_number?: string
+          notes?: string | null
+          part_id?: string
+          planned_finish?: string | null
+          planned_start?: string | null
+          priority?: string
+          quantity?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "jobs_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "parts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       machines: {
         Row: {
           created_at: string
