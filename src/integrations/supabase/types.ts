@@ -1010,10 +1010,13 @@ export type Database = {
           created_at: string
           cycle_time_seconds: number
           id: string
+          is_locked: boolean
           job_id: string
           notes: string | null
           operation_name: string
           operation_number: number
+          planned_finish: string | null
+          planned_start: string | null
           resource_id: string | null
           sequence_order: number
           setup_time_hours: number
@@ -1024,10 +1027,13 @@ export type Database = {
           created_at?: string
           cycle_time_seconds?: number
           id?: string
+          is_locked?: boolean
           job_id: string
           notes?: string | null
           operation_name: string
           operation_number: number
+          planned_finish?: string | null
+          planned_start?: string | null
           resource_id?: string | null
           sequence_order: number
           setup_time_hours?: number
@@ -1038,10 +1044,13 @@ export type Database = {
           created_at?: string
           cycle_time_seconds?: number
           id?: string
+          is_locked?: boolean
           job_id?: string
           notes?: string | null
           operation_name?: string
           operation_number?: number
+          planned_finish?: string | null
+          planned_start?: string | null
           resource_id?: string | null
           sequence_order?: number
           setup_time_hours?: number
@@ -1078,6 +1087,7 @@ export type Database = {
           planned_start: string | null
           priority: string
           quantity: number
+          schedule_status: string
           status: string
           updated_at: string
         }
@@ -1093,6 +1103,7 @@ export type Database = {
           planned_start?: string | null
           priority?: string
           quantity?: number
+          schedule_status?: string
           status?: string
           updated_at?: string
         }
@@ -1108,6 +1119,7 @@ export type Database = {
           planned_start?: string | null
           priority?: string
           quantity?: number
+          schedule_status?: string
           status?: string
           updated_at?: string
         }
