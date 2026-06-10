@@ -25,7 +25,7 @@ const groups = [
   {
     title: 'Configuration',
     tiles: [
-      { id: 'machines', title: 'Machines', desc: 'Set up machines available for NPI (name, type, daily hours)', icon: Cog, href: '/npi/capacity-planner-mvp/settings?tab=machines', color: 'bg-teal-500/10 text-teal-600 border-teal-500/20' },
+      { id: 'resources', title: 'Resources', desc: 'Production resources (machines, stations) with hours and shifts', icon: Cog, href: '/npi/capacity-planner-mvp/resources', color: 'bg-teal-500/10 text-teal-600 border-teal-500/20' },
       { id: 'settings', title: 'Settings', desc: 'Customers, projects, calendar, suppliers, email recipients', icon: SettingsIcon, href: '/npi/capacity-planner-mvp/settings', color: 'bg-slate-500/10 text-slate-600 border-slate-500/20' },
     ],
   },

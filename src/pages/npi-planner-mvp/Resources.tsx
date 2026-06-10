@@ -1,0 +1,278 @@
+import { useEffect, useMemo, useState } from 'react';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+const RESOURCE_TYPES = [
+  'Swiss Turning', 'Turning', 'Milling', 'Inspection',
+  'Deburr', 'Assembly', 'Laser', 'Other',
+] as const;
+
+type Resource = {
+  id: string;
+  resource_name: string;
+  resource_type: string;
+  available_hours_per_day: number;
+  number_of_shifts: number;
+  status: 'Active' | 'Inactive';
+};
+
+const blank = (): Omit<Resource, 'id'> => ({
+  resource_name: '',
+  resource_type: 'Milling',
+  available_hours_per_day: 8,
+  number_of_shifts: 1,
+  status: 'Active',
+});
+
+export default function Resources() {
+  const [rows, setRows] = useState<Resource[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Resource | null>(null);
+  const [form, setForm] = useState(blank());
+  const [saving, setSaving] = useState(false);
+
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const load = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('resources')
+      .select('*')
+      .order('resource_name', { ascending: true });
+    setLoading(false);
+    if (error) return toast.error(error.message);
+    setRows((data || []) as Resource[]);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return rows.filter(r =>
+      (typeFilter === 'all' || r.resource_type === typeFilter) &&
+      (!term || r.resource_name.toLowerCase().includes(term))
+    );
+  }, [rows, search, typeFilter]);
+
+  const openCreate = () => { setEditing(null); setForm(blank()); setDialogOpen(true); };
+  const openEdit = (r: Resource) => {
+    setEditing(r);
+    setForm({
+      resource_name: r.resource_name,
+      resource_type: r.resource_type,
+      available_hours_per_day: r.available_hours_per_day,
+      number_of_shifts: r.number_of_shifts,
+      status: r.status,
+    });
+    setDialogOpen(true);
+  };
+
+  const save = async () => {
+    if (!form.resource_name.trim()) return toast.error('Resource name is required');
+    if (!form.available_hours_per_day || form.available_hours_per_day <= 0)
+      return toast.error('Available hours per day must be greater than 0');
+    if (!form.number_of_shifts || form.number_of_shifts <= 0)
+      return toast.error('Number of shifts must be greater than 0');
+
+    setSaving(true);
+    const payload = { ...form, resource_name: form.resource_name.trim() };
+    const { error } = editing
+      ? await supabase.from('resources').update(payload).eq('id', editing.id)
+      : await supabase.from('resources').insert(payload);
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success(editing ? 'Resource updated' : 'Resource created');
+    setDialogOpen(false);
+    load();
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+    const { error } = await supabase.from('resources').delete().eq('id', deleteId);
+    if (error) return toast.error(error.message);
+    toast.success('Resource deleted');
+    setDeleteId(null);
+    load();
+  };
+
+  return (
+    <AppLayout title="Resources" subtitle="Production resources used by the scheduler"
+      showBackButton backTo="/npi/capacity-planner-mvp">
+      <main className="container mx-auto px-4 py-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-3">
+            <CardTitle>Resources</CardTitle>
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4 mr-1" /> New resource
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={typeFilter} onValueChange={setTypeFilter}>
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All types</SelectItem>
+                  {RESOURCE_TYPES.map(t => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Resource Name</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">Hours / Day</TableHead>
+                    <TableHead className="text-right">Shifts</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="w-[120px] text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {loading ? (
+                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                  ) : filtered.length === 0 ? (
+                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                      {rows.length === 0 ? 'No resources yet. Create your first one.' : 'No matches.'}
+                    </TableCell></TableRow>
+                  ) : filtered.map(r => (
+                    <TableRow key={r.id}>
+                      <TableCell className="font-medium">{r.resource_name}</TableCell>
+                      <TableCell>{r.resource_type}</TableCell>
+                      <TableCell className="text-right">{r.available_hours_per_day}</TableCell>
+                      <TableCell className="text-right">{r.number_of_shifts}</TableCell>
+                      <TableCell>
+                        <Badge variant={r.status === 'Active' ? 'default' : 'secondary'}>
+                          {r.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" onClick={() => openEdit(r)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteId(r.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      </main>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editing ? 'Edit resource' : 'New resource'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Resource name *</Label>
+              <Input value={form.resource_name}
+                onChange={(e) => setForm({ ...form, resource_name: e.target.value })} />
+            </div>
+            <div>
+              <Label>Resource type *</Label>
+              <Select value={form.resource_type}
+                onValueChange={(v) => setForm({ ...form, resource_type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {RESOURCE_TYPES.map(t => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Available hours / day *</Label>
+                <Input type="number" min={1} max={24} step={0.5}
+                  value={form.available_hours_per_day}
+                  onChange={(e) => setForm({ ...form, available_hours_per_day: parseFloat(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <Label>Number of shifts *</Label>
+                <Input type="number" min={1} max={3} step={1}
+                  value={form.number_of_shifts}
+                  onChange={(e) => setForm({ ...form, number_of_shifts: parseInt(e.target.value) || 0 })} />
+              </div>
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select value={form.status}
+                onValueChange={(v) => setForm({ ...form, status: v as 'Active' | 'Inactive' })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={save} disabled={saving}>
+              {saving ? 'Saving…' : editing ? 'Save changes' : 'Create resource'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteId} onOpenChange={(o) => !o && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete resource?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The resource will be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </AppLayout>
+  );
+}
