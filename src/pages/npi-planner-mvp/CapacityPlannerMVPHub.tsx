@@ -4,8 +4,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
-  ListChecks, PlusCircle, CalendarRange, Settings as SettingsIcon, Cog, Library, Briefcase,
-  LayoutGrid, List, ChevronRight,
+  ListChecks, CalendarRange, Settings as SettingsIcon, Cog, Library, Briefcase,
+  LayoutGrid, List, ChevronRight, Zap,
 } from 'lucide-react';
 
 const groups = [
