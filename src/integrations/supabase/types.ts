@@ -3087,6 +3087,87 @@ export type Database = {
           },
         ]
       }
+      part_operations: {
+        Row: {
+          created_at: string
+          cycle_time_seconds: number
+          id: string
+          notes: string | null
+          operation_name: string
+          operation_number: number
+          part_id: string
+          resource_id: string | null
+          setup_time_hours: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cycle_time_seconds?: number
+          id?: string
+          notes?: string | null
+          operation_name: string
+          operation_number: number
+          part_id: string
+          resource_id?: string | null
+          setup_time_hours?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cycle_time_seconds?: number
+          id?: string
+          notes?: string | null
+          operation_name?: string
+          operation_number?: number
+          part_id?: string
+          resource_id?: string | null
+          setup_time_hours?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "part_operations_part_id_fkey"
+            columns: ["part_id"]
+            isOneToOne: false
+            referencedRelation: "parts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_operations_resource_id_fkey"
+            columns: ["resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      parts: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          part_number: string
+          revision: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          part_number: string
+          revision?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          part_number?: string
+          revision?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       personal_actions: {
         Row: {
           action: string

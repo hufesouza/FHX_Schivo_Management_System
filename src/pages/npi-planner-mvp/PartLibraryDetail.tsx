@@ -1,0 +1,365 @@
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
+import {
+  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/components/ui/select';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { Plus, Pencil, Trash2, Save, ArrowUp, ArrowDown } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+const OP_NAMES = ['Turning', 'Swiss Turning', 'Milling', 'Inspection', 'Deburr', 'Assembly', 'Laser', 'Other'];
+
+type Resource = { id: string; resource_name: string; resource_type: string };
+type Operation = {
+  id: string;
+  part_id: string;
+  operation_number: number;
+  operation_name: string;
+  resource_id: string | null;
+  setup_time_hours: number;
+  cycle_time_seconds: number;
+  notes: string | null;
+};
+type Part = {
+  id: string;
+  part_number: string;
+  revision: string | null;
+  description: string | null;
+};
+
+const blankOp = (nextNo: number): Omit<Operation, 'id' | 'part_id'> => ({
+  operation_number: nextNo,
+  operation_name: 'Turning',
+  resource_id: null,
+  setup_time_hours: 0,
+  cycle_time_seconds: 0,
+  notes: '',
+});
+
+export default function PartLibraryDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [part, setPart] = useState<Part | null>(null);
+  const [ops, setOps] = useState<Operation[]>([]);
+  const [resources, setResources] = useState<Resource[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [savingHeader, setSavingHeader] = useState(false);
+
+  const [opDialog, setOpDialog] = useState(false);
+  const [editingOp, setEditingOp] = useState<Operation | null>(null);
+  const [opForm, setOpForm] = useState(blankOp(10));
+  const [savingOp, setSavingOp] = useState(false);
+  const [deleteOpId, setDeleteOpId] = useState<string | null>(null);
+
+  const load = async () => {
+    if (!id) return;
+    setLoading(true);
+    const [p, o, r] = await Promise.all([
+      supabase.from('parts').select('*').eq('id', id).single(),
+      supabase.from('part_operations').select('*').eq('part_id', id).order('operation_number'),
+      supabase.from('resources').select('id, resource_name, resource_type').eq('status', 'Active').order('resource_name'),
+    ]);
+    setLoading(false);
+    if (p.error) return toast.error(p.error.message);
+    setPart(p.data as Part);
+    setOps((o.data || []) as Operation[]);
+    setResources((r.data || []) as Resource[]);
+  };
+
+  useEffect(() => { load(); }, [id]);
+
+  const saveHeader = async () => {
+    if (!part) return;
+    if (!part.part_number.trim()) return toast.error('Part number is required');
+    setSavingHeader(true);
+    const { error } = await supabase.from('parts').update({
+      part_number: part.part_number.trim(),
+      revision: part.revision?.trim() || null,
+      description: part.description?.trim() || null,
+    }).eq('id', part.id);
+    setSavingHeader(false);
+    if (error) return toast.error(error.message);
+    toast.success('Header saved');
+  };
+
+  const openAddOp = () => {
+    const nextNo = ops.length === 0 ? 10 : Math.max(...ops.map(o => o.operation_number)) + 10;
+    setEditingOp(null);
+    setOpForm(blankOp(nextNo));
+    setOpDialog(true);
+  };
+
+  const openEditOp = (op: Operation) => {
+    setEditingOp(op);
+    setOpForm({
+      operation_number: op.operation_number,
+      operation_name: op.operation_name,
+      resource_id: op.resource_id,
+      setup_time_hours: op.setup_time_hours,
+      cycle_time_seconds: op.cycle_time_seconds,
+      notes: op.notes || '',
+    });
+    setOpDialog(true);
+  };
+
+  const saveOp = async () => {
+    if (!part) return;
+    if (!opForm.operation_name.trim()) return toast.error('Operation name is required');
+    if (!opForm.resource_id) return toast.error('Resource is required');
+    if (!Number.isInteger(opForm.operation_number) || opForm.operation_number <= 0)
+      return toast.error('Operation number must be a positive integer');
+    // unique within part
+    const conflict = ops.find(o =>
+      o.operation_number === opForm.operation_number && o.id !== editingOp?.id);
+    if (conflict) return toast.error(`Operation #${opForm.operation_number} already exists`);
+
+    setSavingOp(true);
+    const payload = {
+      part_id: part.id,
+      operation_number: opForm.operation_number,
+      operation_name: opForm.operation_name.trim(),
+      resource_id: opForm.resource_id,
+      setup_time_hours: opForm.setup_time_hours || 0,
+      cycle_time_seconds: opForm.cycle_time_seconds || 0,
+      notes: opForm.notes?.trim() || null,
+    };
+    const { error } = editingOp
+      ? await supabase.from('part_operations').update(payload).eq('id', editingOp.id)
+      : await supabase.from('part_operations').insert(payload);
+    setSavingOp(false);
+    if (error) return toast.error(error.message);
+    toast.success(editingOp ? 'Operation updated' : 'Operation added');
+    setOpDialog(false);
+    load();
+  };
+
+  const deleteOp = async () => {
+    if (!deleteOpId) return;
+    const { error } = await supabase.from('part_operations').delete().eq('id', deleteOpId);
+    if (error) return toast.error(error.message);
+    toast.success('Operation deleted');
+    setDeleteOpId(null);
+    load();
+  };
+
+  const reorder = async (index: number, dir: -1 | 1) => {
+    const target = index + dir;
+    if (target < 0 || target >= ops.length) return;
+    const a = ops[index];
+    const b = ops[target];
+    // swap operation_number values via a safe two-step (use negative temp to avoid unique conflict)
+    const temp = -Math.abs(a.operation_number) - 1;
+    const e1 = await supabase.from('part_operations').update({ operation_number: temp }).eq('id', a.id);
+    if (e1.error) return toast.error(e1.error.message);
+    const e2 = await supabase.from('part_operations').update({ operation_number: a.operation_number }).eq('id', b.id);
+    if (e2.error) return toast.error(e2.error.message);
+    const e3 = await supabase.from('part_operations').update({ operation_number: b.operation_number }).eq('id', a.id);
+    if (e3.error) return toast.error(e3.error.message);
+    load();
+  };
+
+  if (loading || !part) {
+    return (
+      <AppLayout title="Part Library" showBackButton backTo="/npi/capacity-planner-mvp/part-library">
+        <main className="container mx-auto px-4 py-8 text-muted-foreground">Loading…</main>
+      </AppLayout>
+    );
+  }
+
+  const resourceName = (rid: string | null) =>
+    resources.find(r => r.id === rid)?.resource_name || (rid ? '— deleted —' : '—');
+
+  return (
+    <AppLayout title={part.part_number} subtitle="Part details and routing"
+      showBackButton backTo="/npi/capacity-planner-mvp/part-library">
+      <main className="container mx-auto px-4 py-8 space-y-6">
+        <Card>
+          <CardHeader><CardTitle>Header</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div>
+                <Label>Part number *</Label>
+                <Input value={part.part_number}
+                  onChange={(e) => setPart({ ...part, part_number: e.target.value })} />
+              </div>
+              <div>
+                <Label>Revision</Label>
+                <Input value={part.revision || ''}
+                  onChange={(e) => setPart({ ...part, revision: e.target.value })} />
+              </div>
+              <div>
+                <Label>Description</Label>
+                <Input value={part.description || ''}
+                  onChange={(e) => setPart({ ...part, description: e.target.value })} />
+              </div>
+            </div>
+            <div className="flex justify-end">
+              <Button onClick={saveHeader} disabled={savingHeader}>
+                <Save className="h-4 w-4 mr-1" />{savingHeader ? 'Saving…' : 'Save header'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Routing ({ops.length} operations)</CardTitle>
+            <Button onClick={openAddOp}><Plus className="h-4 w-4 mr-1" /> Add operation</Button>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[80px]">Op #</TableHead>
+                    <TableHead>Operation</TableHead>
+                    <TableHead>Resource</TableHead>
+                    <TableHead className="text-right">Setup (h)</TableHead>
+                    <TableHead className="text-right">Cycle (s)</TableHead>
+                    <TableHead>Notes</TableHead>
+                    <TableHead className="w-[180px] text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {ops.length === 0 ? (
+                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      No operations yet. Add the first one to define the routing.
+                    </TableCell></TableRow>
+                  ) : ops.map((op, i) => (
+                    <TableRow key={op.id}>
+                      <TableCell className="font-medium">{op.operation_number}</TableCell>
+                      <TableCell>{op.operation_name}</TableCell>
+                      <TableCell>{resourceName(op.resource_id)}</TableCell>
+                      <TableCell className="text-right">{op.setup_time_hours}</TableCell>
+                      <TableCell className="text-right">{op.cycle_time_seconds}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
+                        {op.notes || '—'}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" disabled={i === 0}
+                          onClick={() => reorder(i, -1)}><ArrowUp className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" disabled={i === ops.length - 1}
+                          onClick={() => reorder(i, 1)}><ArrowDown className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => openEditOp(op)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => setDeleteOpId(op.id)}>
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            {resources.length === 0 && (
+              <p className="text-sm text-muted-foreground mt-3">
+                No active resources found. Add one in{' '}
+                <button className="underline" onClick={() => navigate('/npi/capacity-planner-mvp/resources')}>
+                  Resources
+                </button>{' '}
+                before creating operations.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </main>
+
+      <Dialog open={opDialog} onOpenChange={setOpDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{editingOp ? 'Edit operation' : 'Add operation'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Operation number *</Label>
+                <Input type="number" min={1} step={10}
+                  value={opForm.operation_number}
+                  onChange={(e) => setOpForm({ ...opForm, operation_number: parseInt(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <Label>Operation name *</Label>
+                <Select value={opForm.operation_name}
+                  onValueChange={(v) => setOpForm({ ...opForm, operation_name: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {OP_NAMES.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div>
+              <Label>Resource *</Label>
+              <Select value={opForm.resource_id || ''}
+                onValueChange={(v) => setOpForm({ ...opForm, resource_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Select resource" /></SelectTrigger>
+                <SelectContent>
+                  {resources.map(r => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {r.resource_name} <span className="text-muted-foreground">({r.resource_type})</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Setup time (hours)</Label>
+                <Input type="number" min={0} step={0.1}
+                  value={opForm.setup_time_hours}
+                  onChange={(e) => setOpForm({ ...opForm, setup_time_hours: parseFloat(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <Label>Cycle time (seconds)</Label>
+                <Input type="number" min={0} step={1}
+                  value={opForm.cycle_time_seconds}
+                  onChange={(e) => setOpForm({ ...opForm, cycle_time_seconds: parseFloat(e.target.value) || 0 })} />
+              </div>
+            </div>
+            <div>
+              <Label>Notes</Label>
+              <Textarea rows={2} value={opForm.notes || ''}
+                onChange={(e) => setOpForm({ ...opForm, notes: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpDialog(false)}>Cancel</Button>
+            <Button onClick={saveOp} disabled={savingOp}>
+              {savingOp ? 'Saving…' : editingOp ? 'Save changes' : 'Add operation'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteOpId} onOpenChange={(o) => !o && setDeleteOpId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete operation?</AlertDialogTitle>
+            <AlertDialogDescription>This action cannot be undone.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteOp}>Delete</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </AppLayout>
+  );
+}
