@@ -124,6 +124,7 @@ const App = () => (
           <Route path="/npi/capacity-planner-mvp/jobs-mvp" element={<MVPJobEntryList />} />
           <Route path="/npi/capacity-planner-mvp/jobs-mvp/new" element={<MVPJobEntryDetail />} />
           <Route path="/npi/capacity-planner-mvp/jobs-mvp/:id" element={<MVPJobEntryDetail />} />
+          <Route path="/npi/capacity-planner-mvp/scheduling" element={<MVPSchedulingEngine />} />
           <Route path="/npi/capacity-planner-mvp/settings" element={<PlannerSettings />} />
 
           
