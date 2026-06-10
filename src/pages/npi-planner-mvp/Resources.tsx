@@ -22,6 +22,11 @@ import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+const RESOURCE_CATEGORIES = [
+  'Machine', 'Inspection', 'Assembly', 'Secondary Operation', 'Subcontractor',
+] as const;
+type ResourceCategory = typeof RESOURCE_CATEGORIES[number];
+
 const RESOURCE_TYPES = [
   'Swiss Turning', 'Turning', 'Milling', 'Inspection',
   'Deburr', 'Assembly', 'Laser', 'Other',
@@ -31,24 +36,30 @@ type Resource = {
   id: string;
   resource_name: string;
   resource_type: string;
+  resource_category: ResourceCategory;
   available_hours_per_day: number;
   number_of_shifts: number;
   status: 'Active' | 'Inactive';
+  supplier_name: string | null;
+  lead_time_days: number | null;
 };
 
 const blank = (): Omit<Resource, 'id'> => ({
   resource_name: '',
   resource_type: 'Milling',
+  resource_category: 'Machine',
   available_hours_per_day: 8,
   number_of_shifts: 1,
   status: 'Active',
+  supplier_name: null,
+  lead_time_days: null,
 });
 
 export default function Resources() {
   const [rows, setRows] = useState<Resource[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Resource | null>(null);
@@ -73,10 +84,10 @@ export default function Resources() {
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
     return rows.filter(r =>
-      (typeFilter === 'all' || r.resource_type === typeFilter) &&
+      (categoryFilter === 'all' || r.resource_category === categoryFilter) &&
       (!term || r.resource_name.toLowerCase().includes(term))
     );
-  }, [rows, search, typeFilter]);
+  }, [rows, search, categoryFilter]);
 
   const openCreate = () => { setEditing(null); setForm(blank()); setDialogOpen(true); };
   const openEdit = (r: Resource) => {
@@ -84,22 +95,38 @@ export default function Resources() {
     setForm({
       resource_name: r.resource_name,
       resource_type: r.resource_type,
+      resource_category: r.resource_category || 'Machine',
       available_hours_per_day: r.available_hours_per_day,
       number_of_shifts: r.number_of_shifts,
       status: r.status,
+      supplier_name: r.supplier_name,
+      lead_time_days: r.lead_time_days,
     });
     setDialogOpen(true);
   };
 
+  const isSubcon = form.resource_category === 'Subcontractor';
+
   const save = async () => {
     if (!form.resource_name.trim()) return toast.error('Resource name is required');
-    if (!form.available_hours_per_day || form.available_hours_per_day <= 0)
-      return toast.error('Available hours per day must be greater than 0');
-    if (!form.number_of_shifts || form.number_of_shifts <= 0)
-      return toast.error('Number of shifts must be greater than 0');
+    if (isSubcon) {
+      if (!form.supplier_name?.trim()) return toast.error('Supplier name is required');
+      if (!form.lead_time_days || form.lead_time_days <= 0)
+        return toast.error('Lead time (days) must be greater than 0');
+    } else {
+      if (!form.available_hours_per_day || form.available_hours_per_day <= 0)
+        return toast.error('Available hours per day must be greater than 0');
+      if (!form.number_of_shifts || form.number_of_shifts <= 0)
+        return toast.error('Number of shifts must be greater than 0');
+    }
 
     setSaving(true);
-    const payload = { ...form, resource_name: form.resource_name.trim() };
+    const payload = {
+      ...form,
+      resource_name: form.resource_name.trim(),
+      supplier_name: isSubcon ? form.supplier_name?.trim() || null : null,
+      lead_time_days: isSubcon ? form.lead_time_days : null,
+    };
     const { error } = editing
       ? await supabase.from('resources').update(payload).eq('id', editing.id)
       : await supabase.from('resources').insert(payload);
@@ -141,14 +168,14 @@ export default function Resources() {
                   className="pl-9"
                 />
               </div>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger className="w-full sm:w-[200px]">
-                  <SelectValue placeholder="Filter by type" />
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="w-full sm:w-[220px]">
+                  <SelectValue placeholder="Filter by category" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All types</SelectItem>
-                  {RESOURCE_TYPES.map(t => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  <SelectItem value="all">All categories</SelectItem>
+                  {RESOURCE_CATEGORIES.map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -159,7 +186,10 @@ export default function Resources() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Resource Name</TableHead>
+                    <TableHead>Category</TableHead>
                     <TableHead>Type</TableHead>
+                    <TableHead>Supplier</TableHead>
+                    <TableHead className="text-right">Lead Time</TableHead>
                     <TableHead className="text-right">Hours / Day</TableHead>
                     <TableHead className="text-right">Shifts</TableHead>
                     <TableHead>Status</TableHead>
@@ -168,32 +198,40 @@ export default function Resources() {
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                   ) : filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       {rows.length === 0 ? 'No resources yet. Create your first one.' : 'No matches.'}
                     </TableCell></TableRow>
-                  ) : filtered.map(r => (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-medium">{r.resource_name}</TableCell>
-                      <TableCell>{r.resource_type}</TableCell>
-                      <TableCell className="text-right">{r.available_hours_per_day}</TableCell>
-                      <TableCell className="text-right">{r.number_of_shifts}</TableCell>
-                      <TableCell>
-                        <Badge variant={r.status === 'Active' ? 'default' : 'secondary'}>
-                          {r.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(r)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteId(r.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  ) : filtered.map(r => {
+                    const sub = r.resource_category === 'Subcontractor';
+                    return (
+                      <TableRow key={r.id}>
+                        <TableCell className="font-medium">{r.resource_name}</TableCell>
+                        <TableCell>
+                          <Badge variant={sub ? 'secondary' : 'outline'}>{r.resource_category}</Badge>
+                        </TableCell>
+                        <TableCell>{r.resource_type}</TableCell>
+                        <TableCell>{sub ? (r.supplier_name || '—') : '—'}</TableCell>
+                        <TableCell className="text-right">{sub && r.lead_time_days ? `${r.lead_time_days} d` : '—'}</TableCell>
+                        <TableCell className="text-right">{sub ? '—' : r.available_hours_per_day}</TableCell>
+                        <TableCell className="text-right">{sub ? '—' : r.number_of_shifts}</TableCell>
+                        <TableCell>
+                          <Badge variant={r.status === 'Active' ? 'default' : 'secondary'}>
+                            {r.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(r)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteId(r.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -213,31 +251,68 @@ export default function Resources() {
                 onChange={(e) => setForm({ ...form, resource_name: e.target.value })} />
             </div>
             <div>
-              <Label>Resource type *</Label>
-              <Select value={form.resource_type}
-                onValueChange={(v) => setForm({ ...form, resource_type: v })}>
+              <Label>Resource category *</Label>
+              <Select value={form.resource_category}
+                onValueChange={(v) => setForm({ ...form, resource_category: v as ResourceCategory })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {RESOURCE_TYPES.map(t => (
-                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  {RESOURCE_CATEGORIES.map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Available hours / day *</Label>
-                <Input type="number" min={1} max={24} step={0.5}
-                  value={form.available_hours_per_day}
-                  onChange={(e) => setForm({ ...form, available_hours_per_day: parseFloat(e.target.value) || 0 })} />
-              </div>
-              <div>
-                <Label>Number of shifts *</Label>
-                <Input type="number" min={1} max={3} step={1}
-                  value={form.number_of_shifts}
-                  onChange={(e) => setForm({ ...form, number_of_shifts: parseInt(e.target.value) || 0 })} />
-              </div>
-            </div>
+
+            {isSubcon ? (
+              <>
+                <div>
+                  <Label>Supplier name *</Label>
+                  <Input
+                    placeholder="e.g. XYZ Passivation Ltd"
+                    value={form.supplier_name || ''}
+                    onChange={(e) => setForm({ ...form, supplier_name: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Lead time (days) *</Label>
+                  <Input type="number" min={1} step={1}
+                    value={form.lead_time_days ?? ''}
+                    onChange={(e) => setForm({ ...form, lead_time_days: parseFloat(e.target.value) || 0 })} />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    The Scheduling Engine will use this as the operation duration.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <Label>Resource type *</Label>
+                  <Select value={form.resource_type}
+                    onValueChange={(v) => setForm({ ...form, resource_type: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {RESOURCE_TYPES.map(t => (
+                        <SelectItem key={t} value={t}>{t}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label>Available hours / day *</Label>
+                    <Input type="number" min={1} max={24} step={0.5}
+                      value={form.available_hours_per_day}
+                      onChange={(e) => setForm({ ...form, available_hours_per_day: parseFloat(e.target.value) || 0 })} />
+                  </div>
+                  <div>
+                    <Label>Number of shifts *</Label>
+                    <Input type="number" min={1} max={3} step={1}
+                      value={form.number_of_shifts}
+                      onChange={(e) => setForm({ ...form, number_of_shifts: parseInt(e.target.value) || 0 })} />
+                  </div>
+                </div>
+              </>
+            )}
+
             <div>
               <Label>Status</Label>
               <Select value={form.status}

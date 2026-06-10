@@ -4733,30 +4733,39 @@ export type Database = {
           available_hours_per_day: number
           created_at: string
           id: string
+          lead_time_days: number | null
           number_of_shifts: number
+          resource_category: string
           resource_name: string
           resource_type: string
           status: string
+          supplier_name: string | null
           updated_at: string
         }
         Insert: {
           available_hours_per_day?: number
           created_at?: string
           id?: string
+          lead_time_days?: number | null
           number_of_shifts?: number
+          resource_category?: string
           resource_name: string
           resource_type: string
           status?: string
+          supplier_name?: string | null
           updated_at?: string
         }
         Update: {
           available_hours_per_day?: number
           created_at?: string
           id?: string
+          lead_time_days?: number | null
           number_of_shifts?: number
+          resource_category?: string
           resource_name?: string
           resource_type?: string
           status?: string
+          supplier_name?: string | null
           updated_at?: string
         }
         Relationships: []
