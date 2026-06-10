@@ -8,7 +8,7 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Lock, Unlock, AlertTriangle, Calendar as CalIcon, ChevronLeft, ChevronRight, Play, RotateCcw, Trash2 } from 'lucide-react';
+import { Lock, Unlock, AlertTriangle, Calendar as CalIcon, ChevronLeft, ChevronRight, Play, RotateCcw, Trash2, ArrowLeft } from 'lucide-react';
 
 type Resource = { id: string; resource_name: string; resource_type: string | null; available_hours_per_day: number; status: string };
 type Part = { id: string; part_number: string; revision: string | null; description: string | null };
@@ -21,13 +21,28 @@ type JobOp = {
 };
 
 type ViewMode = 'day' | 'week';
+type GroupMode = 'part' | 'resource';
 const ROW_H = 56;
 const HEADER_H = 40;
-const LEFT_W = 200;
+const LEFT_W = 220;
 
-const PRIORITY_COLOR: Record<string, string> = {
-  Urgent: 'bg-red-500', High: 'bg-orange-500', Normal: 'bg-blue-500', Low: 'bg-slate-400',
-};
+// Distinct color palette per operation (cycled by operation number/name)
+const OP_PALETTE = [
+  'bg-sky-500',
+  'bg-emerald-500',
+  'bg-violet-500',
+  'bg-amber-500',
+  'bg-rose-500',
+  'bg-teal-500',
+  'bg-indigo-500',
+  'bg-lime-500',
+  'bg-fuchsia-500',
+  'bg-orange-500',
+  'bg-cyan-500',
+  'bg-pink-500',
+];
+const hashStr = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0; return Math.abs(h); };
+const opColor = (op: JobOp) => OP_PALETTE[hashStr(`${op.operation_name}|${op.operation_number}`) % OP_PALETTE.length];
 
 const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
@@ -37,6 +52,8 @@ const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
 export default function GanttChart() {
   const navigate = useNavigate();
   const [view, setView] = useState<ViewMode>('week');
+  const [groupMode, setGroupMode] = useState<GroupMode>('part');
+  const [drillPartId, setDrillPartId] = useState<string | null>(null);
   const [anchor, setAnchor] = useState<Date>(startOfDay(new Date()));
   const [resources, setResources] = useState<Resource[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -109,9 +126,47 @@ export default function GanttChart() {
   const dateToX = (d: Date) => ((d.getTime() - timelineStart.getTime()) / 3600000) * pxPerHour;
   const xToDate = (x: number) => new Date(timelineStart.getTime() + (x / pxPerHour) * 3600000);
 
+  // Build rows depending on group mode
+  const drillPart = drillPartId ? partsById.get(drillPartId) : null;
+  type Row = { id: string; label: string; sub: string; partId?: string | null; resourceId?: string | null };
+
+  const rows: Row[] = useMemo(() => {
+    if (groupMode === 'part') {
+      // unique parts that have at least one job
+      const partIds = Array.from(new Set(jobs.map(j => j.part_id).filter(Boolean))) as string[];
+      const list = partIds.map(pid => {
+        const p = partsById.get(pid);
+        const jobCount = jobs.filter(j => j.part_id === pid).length;
+        return {
+          id: pid,
+          label: p?.part_number || '(unknown)',
+          sub: `${jobCount} job${jobCount !== 1 ? 's' : ''}${p?.revision ? ` · Rev ${p.revision}` : ''}`,
+          partId: pid,
+        } as Row;
+      });
+      list.sort((a, b) => a.label.localeCompare(b.label));
+      return list;
+    }
+    // resource mode (optionally filtered to drill part)
+    return resources.map(r => ({
+      id: r.id,
+      label: r.resource_name,
+      sub: `${r.resource_type || '—'} · ${r.available_hours_per_day}h/day`,
+      resourceId: r.id,
+    }));
+  }, [groupMode, jobs, parts, resources, partsById]);
+
+  const visibleOps = useMemo(() => {
+    if (groupMode === 'resource' && drillPartId) {
+      const jobIds = new Set(jobs.filter(j => j.part_id === drillPartId).map(j => j.id));
+      return flaggedOps.filter(o => jobIds.has(o.job_id));
+    }
+    return flaggedOps;
+  }, [flaggedOps, groupMode, drillPartId, jobs]);
+
   // Drag state
   const dragRef = useRef<{ opId: string; mode: 'move' | 'resize'; startX: number; startY: number; origStart: Date; origEnd: Date; resourceId: string | null } | null>(null);
-  const [dragPreview, setDragPreview] = useState<{ id: string; startX: number; width: number; resourceId: string | null } | null>(null);
+  const [dragPreview, setDragPreview] = useState<{ id: string; startX: number; width: number; resourceId: string | null; rowKey: string } | null>(null);
 
   const onMouseDown = (e: React.MouseEvent, op: JobOp, mode: 'move' | 'resize') => {
     e.stopPropagation();
@@ -133,21 +188,29 @@ export default function GanttChart() {
     const newStartMs = d.origStart.getTime() + (dx / pxPerHour) * 3600000;
     const startX = dateToX(new Date(newStartMs));
     const width = (durMs / 3600000) * pxPerHour;
-    // vertical: target resource row
+
+    // vertical row change ONLY in resource mode (drag-to-different-resource)
     let targetResource = d.resourceId;
-    if (d.mode === 'move') {
+    let rowKey = d.resourceId || '';
+    if (groupMode === 'resource' && d.mode === 'move') {
       const rowDelta = Math.round(dy / ROW_H);
       const idx = resources.findIndex(r => r.id === d.resourceId);
       const newIdx = Math.max(0, Math.min(resources.length - 1, idx + rowDelta));
       targetResource = resources[newIdx]?.id || d.resourceId;
+      rowKey = targetResource || '';
+    } else if (groupMode === 'part') {
+      const op = ops.find(o => o.id === d.opId);
+      const job = op ? jobsById.get(op.job_id) : null;
+      rowKey = job?.part_id || '';
     }
+
     if (d.mode === 'resize') {
       const newWidth = Math.max(pxPerHour, (durMs / 3600000) * pxPerHour + dx);
-      setDragPreview({ id: d.opId, startX: dateToX(d.origStart), width: newWidth, resourceId: d.resourceId });
+      setDragPreview({ id: d.opId, startX: dateToX(d.origStart), width: newWidth, resourceId: d.resourceId, rowKey });
     } else {
-      setDragPreview({ id: d.opId, startX, width, resourceId: targetResource });
+      setDragPreview({ id: d.opId, startX, width, resourceId: targetResource, rowKey });
     }
-  }, [pxPerHour, resources]);
+  }, [pxPerHour, resources, groupMode, ops, jobsById]);
 
   const onMouseUp = useCallback(async () => {
     window.removeEventListener('mousemove', onMouseMove);
@@ -187,7 +250,6 @@ export default function GanttChart() {
     load();
   };
 
-  // Schedule actions (mirror SchedulingEngine basics)
   const runSchedule = async () => {
     setLoading(true);
     try {
@@ -263,10 +325,26 @@ export default function GanttChart() {
   const today = startOfDay(new Date());
   const dayHeaders: Date[] = Array.from({ length: days }, (_, i) => addDays(timelineStart, i));
 
-  const partLabel = (job?: Job) => job?.part_id ? partsById.get(job.part_id)?.part_number || '' : '';
-
   const goToday = () => setAnchor(startOfDay(new Date()));
   const shift = (n: number) => setAnchor(addDays(anchor, n));
+
+  // Determine if an op belongs in a given row
+  const opInRow = (op: JobOp, row: Row) => {
+    if (groupMode === 'part') {
+      const job = jobsById.get(op.job_id);
+      return job?.part_id === row.partId;
+    }
+    return op.resource_id === row.resourceId;
+  };
+
+  const drillIntoPart = (partId: string) => {
+    setDrillPartId(partId);
+    setGroupMode('resource');
+  };
+  const backToParts = () => {
+    setDrillPartId(null);
+    setGroupMode('part');
+  };
 
   return (
     <AppLayout title="Schedule / Gantt" subtitle="Interactive visual scheduler" showBackButton backTo="/npi/capacity-planner-mvp">
@@ -276,6 +354,15 @@ export default function GanttChart() {
           <Button size="sm" onClick={runSchedule} disabled={loading}><Play className="h-4 w-4" /> Run Schedule</Button>
           <Button size="sm" variant="outline" onClick={runSchedule} disabled={loading}><RotateCcw className="h-4 w-4" /> Re-run</Button>
           <Button size="sm" variant="outline" onClick={clearSchedule}><Trash2 className="h-4 w-4" /> Clear</Button>
+          <div className="h-6 w-px bg-border mx-1" />
+          {/* Group mode toggle */}
+          <Button size="sm" variant={groupMode === 'part' && !drillPartId ? 'default' : 'outline'} onClick={backToParts}>By Part Number</Button>
+          <Button size="sm" variant={groupMode === 'resource' && !drillPartId ? 'default' : 'outline'} onClick={() => { setDrillPartId(null); setGroupMode('resource'); }}>By Resource</Button>
+          {drillPartId && (
+            <Button size="sm" variant="secondary" onClick={backToParts}>
+              <ArrowLeft className="h-4 w-4" /> Back · {drillPart?.part_number}
+            </Button>
+          )}
           <div className="h-6 w-px bg-border mx-1" />
           <Button size="sm" variant={view === 'day' ? 'default' : 'outline'} onClick={() => setView('day')}>Day</Button>
           <Button size="sm" variant={view === 'week' ? 'default' : 'outline'} onClick={() => setView('week')}>Week</Button>
@@ -290,19 +377,33 @@ export default function GanttChart() {
           </div>
         </div>
 
+        {drillPartId && (
+          <div className="text-xs text-muted-foreground px-1">
+            Viewing resource schedule for <span className="font-semibold text-foreground">{drillPart?.part_number}</span>. Double-click the title or press Back to return to the part overview.
+          </div>
+        )}
+
         {/* Gantt */}
         <div className="rounded-lg border bg-card overflow-hidden">
-          <div className="flex" style={{ minHeight: HEADER_H + resources.length * ROW_H }}>
-            {/* Left column: resources */}
+          <div className="flex" style={{ minHeight: HEADER_H + rows.length * ROW_H }}>
+            {/* Left column */}
             <div className="shrink-0 border-r bg-muted/30" style={{ width: LEFT_W }}>
-              <div className="border-b font-semibold text-xs px-3 flex items-center" style={{ height: HEADER_H }}>Resource</div>
-              {resources.map(r => (
-                <div key={r.id} className="border-b px-3 flex flex-col justify-center" style={{ height: ROW_H }}>
-                  <div className="text-sm font-medium truncate">{r.resource_name}</div>
-                  <div className="text-[10px] text-muted-foreground">{r.resource_type || '—'} · {r.available_hours_per_day}h/day</div>
+              <div className="border-b font-semibold text-xs px-3 flex items-center" style={{ height: HEADER_H }}>
+                {groupMode === 'part' ? 'Part Number' : 'Resource'}
+              </div>
+              {rows.map(row => (
+                <div
+                  key={row.id}
+                  className={`border-b px-3 flex flex-col justify-center ${groupMode === 'part' ? 'cursor-pointer hover:bg-accent/40' : ''}`}
+                  style={{ height: ROW_H }}
+                  onDoubleClick={() => { if (groupMode === 'part' && row.partId) drillIntoPart(row.partId); }}
+                  title={groupMode === 'part' ? 'Double-click to drill into resource view' : ''}
+                >
+                  <div className="text-sm font-medium truncate">{row.label}</div>
+                  <div className="text-[10px] text-muted-foreground truncate">{row.sub}</div>
                 </div>
               ))}
-              {resources.length === 0 && <div className="px-3 py-6 text-xs text-muted-foreground">No active resources</div>}
+              {rows.length === 0 && <div className="px-3 py-6 text-xs text-muted-foreground">No data</div>}
             </div>
 
             {/* Timeline */}
@@ -323,59 +424,84 @@ export default function GanttChart() {
                   {/* Day columns background */}
                   <div className="absolute inset-0 flex pointer-events-none">
                     {dayHeaders.map((d, i) => (
-                      <div key={i} className={`border-r ${isWeekend(d) ? 'bg-muted/30' : ''}`} style={{ width: pxPerDay, height: resources.length * ROW_H }} />
+                      <div key={i} className={`border-r ${isWeekend(d) ? 'bg-muted/30' : ''}`} style={{ width: pxPerDay, height: rows.length * ROW_H }} />
                     ))}
                   </div>
                   {/* Today line */}
                   {today >= timelineStart && today < timelineEnd && (
                     <div className="absolute top-0 bottom-0 w-px bg-primary z-20 pointer-events-none" style={{ left: dateToX(new Date()) }} />
                   )}
-                  {/* Resource rows */}
-                  {resources.map((r, ri) => (
-                    <div key={r.id} className="border-b relative" style={{ height: ROW_H }}>
-                      {flaggedOps.filter(o => o.resource_id === r.id && o.planned_start && o.planned_finish).map(op => {
-                        const job = jobsById.get(op.job_id);
-                        const part = job?.part_id ? partsById.get(job.part_id) : null;
-                        const s = new Date(op.planned_start!);
-                        const e = new Date(op.planned_finish!);
-                        if (e <= timelineStart || s >= timelineEnd) return null;
-                        const x = Math.max(0, dateToX(s));
-                        const right = Math.min(totalWidth, dateToX(e));
-                        const w = Math.max(20, right - x);
-                        const isLate = !!(job?.due_date && e > new Date(job.due_date + 'T23:59:59'));
-                        const previewing = dragPreview?.id === op.id;
-                        const usingPreview = previewing && dragPreview!.resourceId === r.id;
-                        const bx = usingPreview ? dragPreview!.startX : x;
-                        const bw = usingPreview ? dragPreview!.width : w;
-                        if (previewing && !usingPreview) return null;
-                        const color = PRIORITY_COLOR[job?.priority || 'Normal'] || 'bg-blue-500';
-                        return (
-                          <div
-                            key={op.id}
-                            onMouseDown={(ev) => onMouseDown(ev, op, 'move')}
-                            onClick={(ev) => { ev.stopPropagation(); setSelectedOp(op); }}
-                            className={`absolute top-2 rounded-md text-white text-[10px] px-2 flex items-center gap-1 cursor-grab active:cursor-grabbing shadow-sm border ${color}
-                              ${showLate && isLate ? 'ring-2 ring-red-600' : ''}
-                              ${showConflicts && op.has_conflict ? 'ring-2 ring-amber-500' : ''}
-                              ${op.is_locked ? 'border-black/40' : 'border-white/20'}`}
-                            style={{ left: bx, width: bw, height: ROW_H - 16 }}
-                            title={`${job?.job_number} | ${part?.part_number || ''} | OP${op.operation_number}`}
-                          >
-                            {op.is_locked && <Lock className="h-3 w-3 shrink-0" />}
-                            {(op.has_conflict || op.sequence_warning) && <AlertTriangle className="h-3 w-3 shrink-0" />}
-                            <span className="truncate font-medium">{job?.job_number} | {part?.part_number || ''} | OP{op.operation_number}</span>
+                  {/* Rows */}
+                  {rows.map(row => {
+                    const rowOps = visibleOps.filter(o => opInRow(o, row) && o.planned_start && o.planned_finish);
+                    // In part mode, multiple ops may overlap horizontally; lay them out in lanes
+                    let lanes: { end: number }[] = [];
+                    const opLanes = new Map<string, number>();
+                    if (groupMode === 'part') {
+                      const sorted = [...rowOps].sort((a, b) => new Date(a.planned_start!).getTime() - new Date(b.planned_start!).getTime());
+                      sorted.forEach(op => {
+                        const s = new Date(op.planned_start!).getTime();
+                        const e = new Date(op.planned_finish!).getTime();
+                        let lane = lanes.findIndex(l => l.end <= s);
+                        if (lane === -1) { lanes.push({ end: e }); lane = lanes.length - 1; }
+                        else lanes[lane].end = e;
+                        opLanes.set(op.id, lane);
+                      });
+                    }
+                    const laneCount = Math.max(1, lanes.length);
+                    const dynRowH = groupMode === 'part' ? Math.max(ROW_H, laneCount * 26 + 8) : ROW_H;
+                    return (
+                      <div key={row.id} className="border-b relative" style={{ height: dynRowH }}>
+                        {rowOps.map(op => {
+                          const job = jobsById.get(op.job_id);
+                          const part = job?.part_id ? partsById.get(job.part_id) : null;
+                          const s = new Date(op.planned_start!);
+                          const e = new Date(op.planned_finish!);
+                          if (e <= timelineStart || s >= timelineEnd) return null;
+                          const x = Math.max(0, dateToX(s));
+                          const right = Math.min(totalWidth, dateToX(e));
+                          const w = Math.max(20, right - x);
+                          const isLate = !!(job?.due_date && e > new Date(job.due_date + 'T23:59:59'));
+                          const previewing = dragPreview?.id === op.id;
+                          const usingPreview = previewing && dragPreview!.rowKey === row.id;
+                          const bx = usingPreview ? dragPreview!.startX : x;
+                          const bw = usingPreview ? dragPreview!.width : w;
+                          if (previewing && !usingPreview) return null;
+                          const color = opColor(op);
+                          const lane = groupMode === 'part' ? (opLanes.get(op.id) ?? 0) : 0;
+                          const topPx = groupMode === 'part' ? 4 + lane * 26 : 8;
+                          const heightPx = groupMode === 'part' ? 22 : ROW_H - 16;
+                          const label = groupMode === 'part'
+                            ? `OP${op.operation_number} ${op.operation_name}${job?.job_number ? ` · ${job.job_number}` : ''}`
+                            : `${job?.job_number || ''} | ${part?.part_number || ''} | OP${op.operation_number} ${op.operation_name}`;
+                          return (
                             <div
-                              onMouseDown={(ev) => onMouseDown(ev, op, 'resize')}
-                              className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/30"
-                            />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+                              key={op.id}
+                              onMouseDown={(ev) => onMouseDown(ev, op, 'move')}
+                              onClick={(ev) => { ev.stopPropagation(); setSelectedOp(op); }}
+                              className={`absolute rounded-md text-white text-[10px] px-2 flex items-center gap-1 cursor-grab active:cursor-grabbing shadow-sm border ${color}
+                                ${showLate && isLate ? 'ring-2 ring-red-600' : ''}
+                                ${showConflicts && op.has_conflict ? 'ring-2 ring-amber-500' : ''}
+                                ${op.is_locked ? 'border-black/40' : 'border-white/20'}`}
+                              style={{ left: bx, width: bw, height: heightPx, top: topPx }}
+                              title={`${job?.job_number} | ${part?.part_number || ''} | OP${op.operation_number} ${op.operation_name}`}
+                            >
+                              {op.is_locked && <Lock className="h-3 w-3 shrink-0" />}
+                              {(op.has_conflict || op.sequence_warning) && <AlertTriangle className="h-3 w-3 shrink-0" />}
+                              <span className="truncate font-medium">{label}</span>
+                              <div
+                                onMouseDown={(ev) => onMouseDown(ev, op, 'resize')}
+                                className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/30"
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
-              {flaggedOps.filter(o => o.planned_start).length === 0 && (
+              {visibleOps.filter(o => o.planned_start).length === 0 && (
                 <div className="absolute inset-0 flex items-center justify-center text-sm text-muted-foreground">
                   No scheduled operations. Click "Run Schedule".
                 </div>
@@ -384,11 +510,18 @@ export default function GanttChart() {
           </div>
         </div>
 
-        <div className="text-xs text-muted-foreground flex flex-wrap gap-4">
-          <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-red-500" />Urgent</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-orange-500" />High</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-blue-500" />Normal</span>
-          <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded bg-slate-400" />Low</span>
+        <div className="text-xs text-muted-foreground flex flex-wrap gap-3">
+          <span className="font-semibold">Operations:</span>
+          {Array.from(new Set(ops.map(o => `${o.operation_number}|${o.operation_name}`))).slice(0, 12).map(key => {
+            const [num, name] = key.split('|');
+            const sample = { operation_number: Number(num), operation_name: name } as JobOp;
+            return (
+              <span key={key} className="flex items-center gap-1">
+                <span className={`inline-block w-3 h-3 rounded ${opColor(sample)}`} />
+                OP{num} {name}
+              </span>
+            );
+          })}
           <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Locked</span>
           <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Conflict / Sequence</span>
           <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded ring-2 ring-red-600" /> Late</span>
@@ -428,6 +561,11 @@ export default function GanttChart() {
                     {selectedOp.sequence_warning && <Badge className="bg-amber-500">Sequence</Badge>}
                   </div>
                   <div className="flex flex-col gap-2 pt-4 border-t">
+                    {part && groupMode === 'part' && (
+                      <Button variant="outline" onClick={() => { setSelectedOp(null); drillIntoPart(part.id); }}>
+                        Drill into {part.part_number} by Resource
+                      </Button>
+                    )}
                     <Button variant="outline" onClick={() => toggleLock(selectedOp)}>
                       {selectedOp.is_locked ? <><Unlock className="h-4 w-4" /> Unlock</> : <><Lock className="h-4 w-4" /> Lock</>}
                     </Button>
