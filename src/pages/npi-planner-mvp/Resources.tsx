@@ -23,7 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const RESOURCE_CATEGORIES = [
-  'Machine', 'Inspection', 'Assembly', 'Secondary Operation', 'Subcontractor',
+  'Machining', 'Subcontractor',
 ] as const;
 type ResourceCategory = typeof RESOURCE_CATEGORIES[number];
 
