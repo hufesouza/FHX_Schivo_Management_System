@@ -23,7 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
 const RESOURCE_CATEGORIES = [
-  'Machine', 'Inspection', 'Assembly', 'Secondary Operation', 'Subcontractor',
+  'Machining', 'Subcontractor',
 ] as const;
 type ResourceCategory = typeof RESOURCE_CATEGORIES[number];
 
@@ -47,7 +47,7 @@ type Resource = {
 const blank = (): Omit<Resource, 'id'> => ({
   resource_name: '',
   resource_type: 'Milling',
-  resource_category: 'Machine',
+  resource_category: 'Machining',
   available_hours_per_day: 8,
   number_of_shifts: 1,
   status: 'Active',
@@ -95,7 +95,7 @@ export default function Resources() {
     setForm({
       resource_name: r.resource_name,
       resource_type: r.resource_type,
-      resource_category: r.resource_category || 'Machine',
+      resource_category: r.resource_category || 'Machining',
       available_hours_per_day: r.available_hours_per_day,
       number_of_shifts: r.number_of_shifts,
       status: r.status,
