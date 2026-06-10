@@ -4,7 +4,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
-  ListChecks, PlusCircle, CalendarRange, Settings as SettingsIcon, Cog, Library,
+  ListChecks, PlusCircle, CalendarRange, Settings as SettingsIcon, Cog, Library, Briefcase,
   LayoutGrid, List, ChevronRight,
 } from 'lucide-react';
 
@@ -12,7 +12,7 @@ const groups = [
   {
     title: 'Quick actions',
     tiles: [
-      { id: 'new-part', title: 'New Part / Job', desc: 'Guided form to set up a new NPI part with allocation', icon: PlusCircle, href: '/npi/capacity-planner-mvp/parts/new', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+      { id: 'jobs-mvp', title: 'Jobs', desc: 'Create production jobs from Part Library templates', icon: Briefcase, href: '/npi/capacity-planner-mvp/jobs-mvp', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
       { id: 'part-library', title: 'Part Library', desc: 'Reusable part templates with routing operations', icon: Library, href: '/npi/capacity-planner-mvp/part-library', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
     ],
   },
