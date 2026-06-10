@@ -50,6 +50,8 @@ import MaterialsCatalog from "./pages/npi-planner/MaterialsCatalog";
 import PartToolingStatus from "./pages/npi-planner/PartToolingStatus";
 import PlannerReports from "./pages/npi-planner/Reports";
 import PlannerSettings from "./pages/npi-planner/PlannerSettings";
+import CapacityPlannerMVPHub from "./pages/npi-planner-mvp/CapacityPlannerMVPHub";
+
 
 const queryClient = new QueryClient();
 
@@ -103,6 +105,15 @@ const App = () => (
           <Route path="/npi/capacity-planner/tooling-status" element={<PartToolingStatus />} />
           <Route path="/npi/capacity-planner/reports" element={<PlannerReports />} />
           <Route path="/npi/capacity-planner/settings" element={<PlannerSettings />} />
+
+          {/* NPI Capacity Planner MVP (simplified) */}
+          <Route path="/npi/capacity-planner-mvp" element={<CapacityPlannerMVPHub />} />
+          <Route path="/npi/capacity-planner-mvp/parts/new" element={<PartSetup />} />
+          <Route path="/npi/capacity-planner-mvp/parts/:id" element={<JobDetail />} />
+          <Route path="/npi/capacity-planner-mvp/jobs" element={<JobList />} />
+          <Route path="/npi/capacity-planner-mvp/calendar" element={<MachineCalendar />} />
+          <Route path="/npi/capacity-planner-mvp/settings" element={<PlannerSettings />} />
+
           
           {/* Change Control Module */}
           <Route path="/change-control" element={<ChangeControlHub />} />
