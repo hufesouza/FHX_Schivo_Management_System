@@ -118,7 +118,7 @@ const App = () => (
           <Route path="/npi/capacity-planner-mvp/parts/new" element={<PartSetup />} />
           <Route path="/npi/capacity-planner-mvp/parts/:id" element={<JobDetail />} />
           <Route path="/npi/capacity-planner-mvp/jobs" element={<JobList />} />
-          <Route path="/npi/capacity-planner-mvp/calendar" element={<MachineCalendar />} />
+          <Route path="/npi/capacity-planner-mvp/gantt" element={<MVPGanttChart />} />
           <Route path="/npi/capacity-planner-mvp/resources" element={<MVPResources />} />
           <Route path="/npi/capacity-planner-mvp/part-library" element={<MVPPartLibrary />} />
           <Route path="/npi/capacity-planner-mvp/part-library/:id" element={<MVPPartLibraryDetail />} />
