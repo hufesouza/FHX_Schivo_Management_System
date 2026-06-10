@@ -56,6 +56,7 @@ import MVPPartLibrary from "./pages/npi-planner-mvp/PartLibrary";
 import MVPPartLibraryDetail from "./pages/npi-planner-mvp/PartLibraryDetail";
 import MVPJobEntryList from "./pages/npi-planner-mvp/JobEntryList";
 import MVPJobEntryDetail from "./pages/npi-planner-mvp/JobEntryDetail";
+import MVPSchedulingEngine from "./pages/npi-planner-mvp/SchedulingEngine";
 
 
 const queryClient = new QueryClient();
@@ -123,6 +124,7 @@ const App = () => (
           <Route path="/npi/capacity-planner-mvp/jobs-mvp" element={<MVPJobEntryList />} />
           <Route path="/npi/capacity-planner-mvp/jobs-mvp/new" element={<MVPJobEntryDetail />} />
           <Route path="/npi/capacity-planner-mvp/jobs-mvp/:id" element={<MVPJobEntryDetail />} />
+          <Route path="/npi/capacity-planner-mvp/scheduling" element={<MVPSchedulingEngine />} />
           <Route path="/npi/capacity-planner-mvp/settings" element={<PlannerSettings />} />
 
           

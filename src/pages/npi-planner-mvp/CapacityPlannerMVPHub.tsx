@@ -4,8 +4,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
-  ListChecks, PlusCircle, CalendarRange, Settings as SettingsIcon, Cog, Library, Briefcase,
-  LayoutGrid, List, ChevronRight,
+  ListChecks, CalendarRange, Settings as SettingsIcon, Cog, Library, Briefcase,
+  LayoutGrid, List, ChevronRight, Zap,
 } from 'lucide-react';
 
 const groups = [
@@ -14,6 +14,7 @@ const groups = [
     tiles: [
       { id: 'jobs-mvp', title: 'Jobs', desc: 'Create production jobs from Part Library templates', icon: Briefcase, href: '/npi/capacity-planner-mvp/jobs-mvp', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
       { id: 'part-library', title: 'Part Library', desc: 'Reusable part templates with routing operations', icon: Library, href: '/npi/capacity-planner-mvp/part-library', color: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
+      { id: 'scheduling', title: 'Scheduling Engine', desc: 'Run forward schedule across jobs & resources', icon: Zap, href: '/npi/capacity-planner-mvp/scheduling', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
     ],
   },
   {
