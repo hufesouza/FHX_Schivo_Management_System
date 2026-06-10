@@ -57,6 +57,7 @@ import MVPPartLibraryDetail from "./pages/npi-planner-mvp/PartLibraryDetail";
 import MVPJobEntryList from "./pages/npi-planner-mvp/JobEntryList";
 import MVPJobEntryDetail from "./pages/npi-planner-mvp/JobEntryDetail";
 import MVPSchedulingEngine from "./pages/npi-planner-mvp/SchedulingEngine";
+import MVPGanttChart from "./pages/npi-planner-mvp/GanttChart";
 
 
 const queryClient = new QueryClient();
