@@ -1009,6 +1009,7 @@ export type Database = {
         Row: {
           created_at: string
           cycle_time_seconds: number
+          has_conflict: boolean
           id: string
           is_locked: boolean
           job_id: string
@@ -1019,6 +1020,7 @@ export type Database = {
           planned_start: string | null
           resource_id: string | null
           sequence_order: number
+          sequence_warning: boolean
           setup_time_hours: number
           total_time_hours: number
           updated_at: string
@@ -1026,6 +1028,7 @@ export type Database = {
         Insert: {
           created_at?: string
           cycle_time_seconds?: number
+          has_conflict?: boolean
           id?: string
           is_locked?: boolean
           job_id: string
@@ -1036,6 +1039,7 @@ export type Database = {
           planned_start?: string | null
           resource_id?: string | null
           sequence_order: number
+          sequence_warning?: boolean
           setup_time_hours?: number
           total_time_hours?: number
           updated_at?: string
@@ -1043,6 +1047,7 @@ export type Database = {
         Update: {
           created_at?: string
           cycle_time_seconds?: number
+          has_conflict?: boolean
           id?: string
           is_locked?: boolean
           job_id?: string
@@ -1053,6 +1058,7 @@ export type Database = {
           planned_start?: string | null
           resource_id?: string | null
           sequence_order?: number
+          sequence_warning?: boolean
           setup_time_hours?: number
           total_time_hours?: number
           updated_at?: string
