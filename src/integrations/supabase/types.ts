@@ -3294,25 +3294,31 @@ export type Database = {
       parts: {
         Row: {
           created_at: string
+          customer: string | null
           description: string | null
           id: string
           part_number: string
+          project: string | null
           revision: string | null
           updated_at: string
         }
         Insert: {
           created_at?: string
+          customer?: string | null
           description?: string | null
           id?: string
           part_number: string
+          project?: string | null
           revision?: string | null
           updated_at?: string
         }
         Update: {
           created_at?: string
+          customer?: string | null
           description?: string | null
           id?: string
           part_number?: string
+          project?: string | null
           revision?: string | null
           updated_at?: string
         }
