@@ -97,7 +97,7 @@ export default function PartLibraryDetail() {
     const [p, o, r] = await Promise.all([
       supabase.from('parts').select('*').eq('id', id).single(),
       supabase.from('part_operations').select('*').eq('part_id', id).order('operation_number'),
-      supabase.from('resources').select('id, resource_name, resource_type').eq('status', 'Active').order('resource_name'),
+      supabase.from('resources').select('id, resource_name, resource_type, resource_category, lead_time_days').eq('status', 'Active').order('resource_name'),
     ]);
     setLoading(false);
     if (p.error) return toast.error(p.error.message);
