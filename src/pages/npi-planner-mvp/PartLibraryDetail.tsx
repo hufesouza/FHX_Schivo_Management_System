@@ -47,6 +47,8 @@ type Part = {
   part_number: string;
   revision: string | null;
   description: string | null;
+  customer: string | null;
+  project: string | null;
 };
 
 const blankOp = (nextNo: number): Omit<Operation, 'id' | 'part_id'> => ({
