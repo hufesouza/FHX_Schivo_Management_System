@@ -20,7 +20,7 @@ type JobOp = {
   is_locked: boolean; has_conflict: boolean; sequence_warning: boolean; sequence_order: number | null;
 };
 
-type ViewMode = 'day' | 'week';
+type ViewMode = 'day' | 'week' | 'month';
 type GroupMode = 'part' | 'resource';
 const ROW_H = 56;
 const HEADER_H = 40;
@@ -116,8 +116,8 @@ export default function GanttChart() {
   }, [ops]);
 
   // Timeline range
-  const days = view === 'day' ? 3 : 21;
-  const pxPerHour = view === 'day' ? 24 : 4;
+  const days = view === 'day' ? 3 : view === 'week' ? 21 : 60;
+  const pxPerHour = view === 'day' ? 24 : view === 'week' ? 4 : 1.5;
   const pxPerDay = pxPerHour * 24;
   const timelineStart = anchor;
   const timelineEnd = addDays(anchor, days);
