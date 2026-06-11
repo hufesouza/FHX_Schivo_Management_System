@@ -25,7 +25,13 @@ import { toast } from 'sonner';
 
 const OP_NAMES = ['Turning', 'Swiss Turning', 'Milling', 'Inspection', 'Deburr', 'Assembly', 'Laser', 'Other'];
 
-type Resource = { id: string; resource_name: string; resource_type: string };
+type Resource = {
+  id: string;
+  resource_name: string;
+  resource_type: string;
+  resource_category?: string | null;
+  lead_time_days?: number | null;
+};
 type Operation = {
   id: string;
   part_id: string;
@@ -91,7 +97,7 @@ export default function PartLibraryDetail() {
     const [p, o, r] = await Promise.all([
       supabase.from('parts').select('*').eq('id', id).single(),
       supabase.from('part_operations').select('*').eq('part_id', id).order('operation_number'),
-      supabase.from('resources').select('id, resource_name, resource_type').eq('status', 'Active').order('resource_name'),
+      supabase.from('resources').select('id, resource_name, resource_type, resource_category, lead_time_days').eq('status', 'Active').order('resource_name'),
     ]);
     setLoading(false);
     if (p.error) return toast.error(p.error.message);
@@ -148,13 +154,18 @@ export default function PartLibraryDetail() {
     if (conflict) return toast.error(`Operation #${opForm.operation_number} already exists`);
 
     setSavingOp(true);
+    const chosen = resources.find(r => r.id === opForm.resource_id);
+    const isSubcon = chosen?.resource_category === 'Subcontractor';
+    const leadDays = chosen?.lead_time_days || 0;
     const payload = {
       part_id: part.id,
       operation_number: opForm.operation_number,
       operation_name: opForm.operation_name.trim(),
       resource_id: opForm.resource_id,
-      setup_time_hours: opForm.setup_time_hours || 0,
-      cycle_time_seconds: opForm.cycle_time_seconds || 0,
+      // For subcon resources, model lead time as setup hours (days × 24) so the
+      // scheduler / totals already in place include the wait window. Cycle = 0.
+      setup_time_hours: isSubcon ? leadDays * 24 : (opForm.setup_time_hours || 0),
+      cycle_time_seconds: isSubcon ? 0 : (opForm.cycle_time_seconds || 0),
       notes: opForm.notes?.trim() || null,
     };
     const { error } = editingOp
@@ -200,8 +211,14 @@ export default function PartLibraryDetail() {
     );
   }
 
+  const resourceById = (rid: string | null) => resources.find(r => r.id === rid);
+  const isSubconResource = (rid: string | null) =>
+    resourceById(rid)?.resource_category === 'Subcontractor';
   const resourceName = (rid: string | null) =>
-    resources.find(r => r.id === rid)?.resource_name || (rid ? '— deleted —' : '—');
+    resourceById(rid)?.resource_name || (rid ? '— deleted —' : '—');
+  const selectedResource = resourceById(opForm.resource_id);
+  const selectedIsSubcon = selectedResource?.resource_category === 'Subcontractor';
+  const selectedLeadDays = selectedResource?.lead_time_days || 0;
 
   return (
     <AppLayout title={part.part_number} subtitle="Part details and routing"
@@ -286,8 +303,16 @@ export default function PartLibraryDetail() {
                       <TableCell className="font-medium">{op.operation_number}</TableCell>
                       <TableCell>{op.operation_name}</TableCell>
                       <TableCell>{resourceName(op.resource_id)}</TableCell>
-                      <TableCell className="text-right">{setupToDisplay(op.setup_time_hours).toFixed(2)}</TableCell>
-                      <TableCell className="text-right">{cycleToDisplay(op.cycle_time_seconds).toFixed(2)}</TableCell>
+                      <TableCell className="text-right">
+                        {isSubconResource(op.resource_id)
+                          ? <span className="text-muted-foreground italic">{(op.setup_time_hours / 24).toFixed(0)}d lead</span>
+                          : setupToDisplay(op.setup_time_hours).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isSubconResource(op.resource_id)
+                          ? <span className="text-muted-foreground">—</span>
+                          : cycleToDisplay(op.cycle_time_seconds).toFixed(2)}
+                      </TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
                         {op.notes || '—'}
                       </TableCell>
@@ -359,20 +384,33 @@ export default function PartLibraryDetail() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Setup time ({setupUnit})</Label>
-                <Input type="number" min={0} step={setupUnit === 'minutes' ? 1 : 0.1}
-                  value={setupToDisplay(opForm.setup_time_hours)}
-                  onChange={(e) => setOpForm({ ...opForm, setup_time_hours: setupFromDisplay(parseFloat(e.target.value) || 0) })} />
+            {selectedIsSubcon ? (
+              <div className="rounded-md border bg-muted/30 p-3">
+                <Label className="text-xs text-muted-foreground">Lead time (from resource)</Label>
+                <div className="text-lg font-semibold">
+                  {selectedLeadDays} {selectedLeadDays === 1 ? 'day' : 'days'}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Subcontractor operations use the lead time defined on the resource itself.
+                  Setup and cycle times do not apply. To change it, edit the resource in Resources.
+                </p>
               </div>
-              <div>
-                <Label>Cycle time ({cycleUnit})</Label>
-                <Input type="number" min={0} step={cycleUnit === 'minutes' ? 0.1 : 1}
-                  value={cycleToDisplay(opForm.cycle_time_seconds)}
-                  onChange={(e) => setOpForm({ ...opForm, cycle_time_seconds: cycleFromDisplay(parseFloat(e.target.value) || 0) })} />
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Setup time ({setupUnit})</Label>
+                  <Input type="number" min={0} step={setupUnit === 'minutes' ? 1 : 0.1}
+                    value={setupToDisplay(opForm.setup_time_hours)}
+                    onChange={(e) => setOpForm({ ...opForm, setup_time_hours: setupFromDisplay(parseFloat(e.target.value) || 0) })} />
+                </div>
+                <div>
+                  <Label>Cycle time ({cycleUnit})</Label>
+                  <Input type="number" min={0} step={cycleUnit === 'minutes' ? 0.1 : 1}
+                    value={cycleToDisplay(opForm.cycle_time_seconds)}
+                    onChange={(e) => setOpForm({ ...opForm, cycle_time_seconds: cycleFromDisplay(parseFloat(e.target.value) || 0) })} />
+                </div>
               </div>
-            </div>
+            )}
             <div>
               <Label>Notes</Label>
               <Textarea rows={2} value={opForm.notes || ''}
