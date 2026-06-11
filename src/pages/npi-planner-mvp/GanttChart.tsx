@@ -181,8 +181,9 @@ export default function GanttChart() {
       list.sort((a, b) => a.label.localeCompare(b.label) || (a.sub || '').localeCompare(b.sub || ''));
       return list;
     }
-    // resource mode (optionally filtered to drill part)
+    // resource mode (optionally filtered to drill part) — hide the Development/Engineering pseudo-resource
     return resources
+      .filter(r => r.resource_name !== 'Development / Engineering')
       .filter(r => !machinesOnly || (r.resource_category || '').toLowerCase() === 'machine')
       .map(r => ({
         id: r.id,
