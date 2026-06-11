@@ -1,0 +1,1 @@
+UPDATE public.resources SET resource_type = 'Subcontractor' WHERE resource_category = 'Subcontractor' AND resource_type IS DISTINCT FROM 'Subcontractor';
