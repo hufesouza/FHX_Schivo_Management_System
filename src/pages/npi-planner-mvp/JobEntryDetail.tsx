@@ -426,18 +426,39 @@ export default function JobEntryDetail() {
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <Input type="number" min={0} step={setupUnit === 'minutes' ? 1 : 0.1}
-                            className="w-[90px] ml-auto text-right"
-                            value={setupToDisplay(op.setup_time_hours)}
-                            onChange={(e) => updateOp(i, { setup_time_hours: setupFromDisplay(parseFloat(e.target.value) || 0) })} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input type="number" min={0} step={cycleUnit === 'minutes' ? 0.1 : 1}
-                            className="w-[100px] ml-auto text-right"
-                            value={cycleToDisplay(op.cycle_time_seconds)}
-                            onChange={(e) => updateOp(i, { cycle_time_seconds: cycleFromDisplay(parseFloat(e.target.value) || 0) })} />
-                        </TableCell>
+                        {(() => {
+                          const res = resources.find(r => r.id === op.resource_id);
+                          const isSubcon = res?.resource_category === 'Subcontractor';
+                          if (isSubcon) {
+                            const days = (op.setup_time_hours || 0) / 24;
+                            return (
+                              <>
+                                <TableCell className="text-right">
+                                  <span className="italic text-muted-foreground">
+                                    {days.toFixed(0)}d lead
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">—</TableCell>
+                              </>
+                            );
+                          }
+                          return (
+                            <>
+                              <TableCell className="text-right">
+                                <Input type="number" min={0} step={setupUnit === 'minutes' ? 1 : 0.1}
+                                  className="w-[90px] ml-auto text-right"
+                                  value={setupToDisplay(op.setup_time_hours)}
+                                  onChange={(e) => updateOp(i, { setup_time_hours: setupFromDisplay(parseFloat(e.target.value) || 0) })} />
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Input type="number" min={0} step={cycleUnit === 'minutes' ? 0.1 : 1}
+                                  className="w-[100px] ml-auto text-right"
+                                  value={cycleToDisplay(op.cycle_time_seconds)}
+                                  onChange={(e) => updateOp(i, { cycle_time_seconds: cycleFromDisplay(parseFloat(e.target.value) || 0) })} />
+                              </TableCell>
+                            </>
+                          );
+                        })()}
                         <TableCell className="text-right font-medium">
                           {totalsByOp[i].toFixed(2)}
                         </TableCell>
