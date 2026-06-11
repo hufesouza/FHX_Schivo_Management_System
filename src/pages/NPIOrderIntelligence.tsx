@@ -403,70 +403,73 @@ export default function NPIOrderIntelligence() {
       pdf.text(`NPI ${fmtEur(kpis.totalRev)}  •  Company ${fmtEur(totalCompanyRevenue)}`, pw - margin - 4, y + 15, { align: 'right' });
       y += 22;
 
-      // Capture chart helper
+      // Capture chart helper — high scale for sharp output
       const capture = async (el: HTMLElement | null): Promise<string | null> => {
         if (!el) return null;
-        const c = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', logging: false });
+        const c = await html2canvas(el, { scale: 3, backgroundColor: '#ffffff', logging: false });
         return c.toDataURL('image/png');
       };
 
-      const sectionTitle = (title: string) => {
-        if (y > ph - 25) { pdf.addPage(); y = margin + 4; }
+      // Chart cell sizing — aspect ratio must match the offscreen chart container (900x513 ≈ 1.755:1)
+      const colW = (pw - margin * 2 - 4) / 2; // ≈ 93mm
+      const chartImgH = (colW - 4) / (900 / 513); // keep aspect 1.755:1
+      const titleH = 7; // header inside card
+      const cellH = titleH + chartImgH + 4; // card height
+      const sectionGap = 8;
+      const sectionTitleH = 7;
+
+      const renderSection = async (
+        title: string,
+        left: { title: string; ref: HTMLElement | null },
+        right: { title: string; ref: HTMLElement | null },
+      ) => {
+        const needed = sectionTitleH + cellH + sectionGap;
+        if (y + needed > ph - 12) { pdf.addPage(); y = margin + 4; }
+        // section title
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(10);
         pdf.setTextColor(15, 23, 42);
         pdf.text(title, margin, y);
-        y += 1.5;
         pdf.setDrawColor(59, 130, 246);
         pdf.setLineWidth(0.6);
-        pdf.line(margin, y, margin + 24, y);
+        pdf.line(margin, y + 1.5, margin + 24, y + 1.5);
         pdf.setLineWidth(0.2);
-        y += 3.5;
-      };
+        y += sectionTitleH;
 
-      // Place charts in 2-col rows
-      const placeChartRow = async (
-        left: { title: string; ref: HTMLElement | null },
-        right: { title: string; ref: HTMLElement | null } | null,
-      ) => {
-        const colW = right ? (pw - margin * 2 - 4) / 2 : pw - margin * 2;
-        const rowH = 62;
-        if (y + rowH > ph - 15) { pdf.addPage(); y = margin + 4; }
-        const items = right ? [left, right] : [left];
+        const items = [left, right];
         for (let i = 0; i < items.length; i++) {
           const x = margin + i * (colW + 4);
           pdf.setDrawColor(226, 232, 240);
           pdf.setFillColor(255, 255, 255);
-          pdf.roundedRect(x, y, colW, rowH, 1.5, 1.5, 'FD');
+          pdf.roundedRect(x, y, colW, cellH, 1.5, 1.5, 'FD');
           pdf.setFontSize(8.5);
           pdf.setFont('helvetica', 'bold');
           pdf.setTextColor(15, 23, 42);
           pdf.text(items[i].title, x + 3, y + 5);
           const img = await capture(items[i].ref);
           if (img) {
-            pdf.addImage(img, 'PNG', x + 2, y + 7, colW - 4, rowH - 9);
+            pdf.addImage(img, 'PNG', x + 2, y + titleH, colW - 4, chartImgH);
           }
         }
-        y += rowH + 4;
+        y += cellH + sectionGap;
       };
 
-      sectionTitle('Customer Performance');
-      await placeChartRow(
+      await renderSection(
+        'Customer Performance',
         { title: 'Revenue by Customer (Top 15)', ref: chartRefs.revByCustomer.current },
         { title: 'Orders by Customer (Top 15)', ref: chartRefs.ordByCustomer.current },
       );
-
-      sectionTitle('Commodity Mix');
-      await placeChartRow(
+      await renderSection(
+        'Commodity Mix',
         { title: 'Revenue by Commodity', ref: chartRefs.revByCommodity.current },
         { title: 'Orders by Commodity', ref: chartRefs.ordByCommodity.current },
       );
-
-      sectionTitle('Monthly Trend');
-      await placeChartRow(
+      await renderSection(
+        'Monthly Trend',
         { title: 'Orders by Month', ref: chartRefs.ordByMonth.current },
         { title: 'Revenue by Month', ref: chartRefs.revByMonth.current },
       );
+
 
       // Footer
       const pageCount = pdf.getNumberOfPages();
