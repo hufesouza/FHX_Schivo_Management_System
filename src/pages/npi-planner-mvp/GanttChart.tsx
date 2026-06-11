@@ -87,9 +87,32 @@ export default function GanttChart() {
   const resourcesById = useMemo(() => new Map(resources.map(r => [r.id, r])), [resources]);
 
   // Recompute conflict + sequence flags client-side for display
+  // Synthetic "Development" ops, one per job that has planned_dev_* set
+  const opsWithDev = useMemo<JobOp[]>(() => {
+    const devOps: JobOp[] = jobs
+      .filter(j => j.planned_dev_start && j.planned_dev_finish)
+      .map(j => ({
+        id: `dev-${j.id}`,
+        job_id: j.id,
+        operation_number: 0,
+        operation_name: 'Development',
+        resource_id: j.dev_resource_id,
+        setup_time_hours: 0,
+        cycle_time_seconds: 0,
+        total_time_hours: Number(j.development_time_hours || 0),
+        planned_start: j.planned_dev_start,
+        planned_finish: j.planned_dev_finish,
+        is_locked: false,
+        has_conflict: false,
+        sequence_warning: false,
+        sequence_order: 0,
+      }));
+    return [...ops, ...devOps];
+  }, [ops, jobs]);
+
   const flaggedOps = useMemo(() => {
     const byRes = new Map<string, JobOp[]>();
-    ops.forEach(o => {
+    opsWithDev.forEach(o => {
       if (!o.resource_id || !o.planned_start || !o.planned_finish) return;
       const arr = byRes.get(o.resource_id) || [];
       arr.push(o); byRes.set(o.resource_id, arr);
@@ -104,7 +127,7 @@ export default function GanttChart() {
     });
     const seqIds = new Set<string>();
     const byJob = new Map<string, JobOp[]>();
-    ops.forEach(o => { const arr = byJob.get(o.job_id) || []; arr.push(o); byJob.set(o.job_id, arr); });
+    opsWithDev.forEach(o => { const arr = byJob.get(o.job_id) || []; arr.push(o); byJob.set(o.job_id, arr); });
     byJob.forEach(arr => {
       const sorted = [...arr].sort((a, b) => (a.sequence_order ?? a.operation_number) - (b.sequence_order ?? b.operation_number));
       for (let i = 1; i < sorted.length; i++) {
@@ -112,8 +135,8 @@ export default function GanttChart() {
         if (prev.planned_finish && cur.planned_start && new Date(cur.planned_start) < new Date(prev.planned_finish)) seqIds.add(cur.id);
       }
     });
-    return ops.map(o => ({ ...o, has_conflict: conflictIds.has(o.id), sequence_warning: seqIds.has(o.id) }));
-  }, [ops]);
+    return opsWithDev.map(o => ({ ...o, has_conflict: conflictIds.has(o.id), sequence_warning: seqIds.has(o.id) }));
+  }, [opsWithDev]);
 
   // Timeline range
   const days = view === 'day' ? 3 : view === 'week' ? 21 : 60;
