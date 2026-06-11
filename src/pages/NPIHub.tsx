@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
-import { ReceiptText, BarChart3 } from 'lucide-react';
+import { ReceiptText, BarChart3, LineChart } from 'lucide-react';
 
 const subModules = [
   {
@@ -146,6 +146,15 @@ const subModules = [
     icon: Gauge,
     href: '/npi/capacity-planner',
     color: 'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-500/20',
+    available: true,
+  },
+  {
+    id: 'order-intelligence',
+    title: 'NPI Order Intelligence Dashboard',
+    description: 'Upload NPI order Excel and get KPIs, NPVI, customer/commodity analysis and monthly trends',
+    icon: LineChart,
+    href: '/npi/order-intelligence',
+    color: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
     available: true,
   },
   {
