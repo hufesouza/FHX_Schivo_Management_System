@@ -396,7 +396,18 @@ export default function NPIOrderIntelligence() {
             {/* Filters */}
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-base">Filters</CardTitle></CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-3 flex-wrap text-xs">
+                  <span className="text-muted-foreground">Revenue column:</span>
+                  <Select value={revenueColOverride || '__auto__'} onValueChange={(v) => setRevenueColOverride(v === '__auto__' ? '' : v)}>
+                    <SelectTrigger className="h-8 w-64"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__auto__">Auto-detect ({autoColMap.revenue || 'none'})</SelectItem>
+                      {cols.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-muted-foreground">Using: <span className="font-medium text-foreground">{colMap.revenue || '—'}</span></span>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   <div>
                     <Label className="text-xs">Customer</Label>
