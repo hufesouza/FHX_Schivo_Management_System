@@ -310,14 +310,6 @@ export default function NPIOrderIntelligence() {
   const exportPdf = async () => {
     try {
       toast.info('Generating PDF report...');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pw = pdf.internal.pageSize.getWidth();
-      const ph = pdf.internal.pageSize.getHeight();
-      const margin = 12;
-      const now = new Date();
-  const exportPdf = async () => {
-    try {
-      toast.info('Generating PDF report...');
       // Wait for offscreen charts to settle
       await new Promise(r => setTimeout(r, 300));
 
