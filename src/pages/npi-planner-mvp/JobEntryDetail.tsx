@@ -120,7 +120,7 @@ export default function JobEntryDetail() {
       setLoading(true);
       const [p, r] = await Promise.all([
         supabase.from('parts').select('id, part_number, revision, description').order('part_number'),
-        supabase.from('resources').select('id, resource_name, resource_type').eq('status', 'Active').order('resource_name'),
+        supabase.from('resources').select('id, resource_name, resource_type, resource_category, lead_time_days').eq('status', 'Active').order('resource_name'),
       ]);
       setParts((p.data || []) as Part[]);
       setResources((r.data || []) as Resource[]);
