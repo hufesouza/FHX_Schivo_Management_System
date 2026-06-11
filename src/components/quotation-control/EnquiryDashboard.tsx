@@ -143,11 +143,10 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
       // Per your requirement: count enquiries by rows that have a Customer Name.
       total: base.length,
       uniqueCustomers,
-      // Open: anything NOT Quoted, Declined, or Cancelled
+      // Open: strictly OPEN or WIP statuses
       open: base.filter(e => {
         const status = (e.status || '').toUpperCase().trim();
-        const closedStatuses = ['QUOTED', 'DECLINED', 'CANCELLED'];
-        return !closedStatuses.includes(status);
+        return openStatuses.includes(status);
       }).length,
       // Quoted: is_quoted flag is true
       quoted: base.filter(e => e.is_quoted === true).length,
@@ -257,15 +256,14 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
 
   // Calculate aging for open enquiries
   const openEnquiriesWithAging = useMemo(() => {
-    // Closed statuses - everything else is considered "Open"
-    const closedStatuses = ['QUOTED', 'DECLINED', 'CANCELLED'];
+    // Open = strictly OPEN or WIP statuses (matches the Open KPI)
+    const openStatusList = ['OPEN', 'WIP'];
     const today = new Date();
     
     return filteredEnquiries
       .filter(e => {
         const status = (e.status || '').toUpperCase().trim();
-        // Open = anything NOT in closedStatuses
-        return !closedStatuses.includes(status) && e.customer;
+        return openStatusList.includes(status) && e.customer;
       })
       .map(e => {
         let agingDays: number | null = null;

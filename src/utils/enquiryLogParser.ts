@@ -20,24 +20,33 @@ function parseExcelDate(value: unknown): string | null {
   if (typeof value === 'string') {
     const trimmed = value.trim();
     if (!trimmed) return null;
-    
-    // Try various date formats
-    const date = new Date(trimmed);
-    if (!isNaN(date.getTime())) {
-      return date.toISOString().split('T')[0];
-    }
-    
-    // Try DD/MM/YYYY or DD/MM/YY format
-    const parts = trimmed.split(/[\/\-\.]/);
-    if (parts.length === 3) {
-      let [d, m, y] = parts.map(Number);
-      // Handle 2-digit year
+
+    // DD/MM, DD/MM/YY or DD/MM/YYYY (European format) — handle FIRST,
+    // otherwise JS Date() misparses year-less dates as 2001.
+    const dmy = trimmed.match(/^(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?$/);
+    if (dmy) {
+      const d = Number(dmy[1]);
+      const mo = Number(dmy[2]);
+      let y = dmy[3] ? Number(dmy[3]) : new Date().getFullYear();
       if (y < 100) {
         y = y > 50 ? 1900 + y : 2000 + y;
       }
-      const parsed = new Date(y, m - 1, d);
+      let parsed = new Date(Date.UTC(y, mo - 1, d));
+      // No year given and date is in the future -> assume previous year
+      if (!dmy[3] && parsed.getTime() > Date.now()) {
+        parsed = new Date(Date.UTC(y - 1, mo - 1, d));
+      }
       if (!isNaN(parsed.getTime())) {
         return parsed.toISOString().split('T')[0];
+      }
+      return null;
+    }
+
+    // Only trust Date() for strings with a month name or 4-digit year
+    if (/[A-Za-z]/.test(trimmed) || /\d{4}/.test(trimmed)) {
+      const date = new Date(trimmed);
+      if (!isNaN(date.getTime())) {
+        return date.toISOString().split('T')[0];
       }
     }
   }
