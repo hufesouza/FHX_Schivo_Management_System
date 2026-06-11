@@ -90,14 +90,12 @@ export default function GanttChart() {
   // Recompute conflict + sequence flags client-side for display
   // Synthetic "Development" ops, one per job that has planned_dev_* set
   const opsWithDev = useMemo<JobOp[]>(() => {
-    const devOps: JobOp[] = jobs
-      .filter(j => j.planned_dev_start && j.planned_dev_finish)
-      .map(j => ({
-        id: `dev-${j.id}`,
+    const devOps: JobOp[] = [];
+    jobs.filter(j => j.planned_dev_start && j.planned_dev_finish).forEach(j => {
+      const base = {
         job_id: j.id,
         operation_number: 0,
         operation_name: 'Development',
-        resource_id: j.dev_resource_id,
         setup_time_hours: 0,
         cycle_time_seconds: 0,
         total_time_hours: Number(j.development_time_hours || 0),
@@ -107,9 +105,22 @@ export default function GanttChart() {
         has_conflict: false,
         sequence_warning: false,
         sequence_order: 0,
-      }));
+      };
+      // Dev resource row
+      devOps.push({ ...base, id: `dev-${j.id}`, resource_id: j.dev_resource_id } as JobOp);
+      // Also mirror onto the first Machine resource of this job (machine is blocked during dev)
+      const jobOps = ops.filter(o => o.job_id === j.id);
+      const firstMachineOp = jobOps.find(o => {
+        const r = o.resource_id ? resourcesById.get(o.resource_id) : null;
+        return r && (r.resource_category || '').toLowerCase() === 'machine';
+      });
+      const machineResId = firstMachineOp?.resource_id || null;
+      if (machineResId && machineResId !== j.dev_resource_id) {
+        devOps.push({ ...base, id: `dev-machine-${j.id}`, resource_id: machineResId } as JobOp);
+      }
+    });
     return [...ops, ...devOps];
-  }, [ops, jobs]);
+  }, [ops, jobs, resourcesById]);
 
   const flaggedOps = useMemo(() => {
     const byRes = new Map<string, JobOp[]>();
