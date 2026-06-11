@@ -384,20 +384,33 @@ export default function PartLibraryDetail() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Setup time ({setupUnit})</Label>
-                <Input type="number" min={0} step={setupUnit === 'minutes' ? 1 : 0.1}
-                  value={setupToDisplay(opForm.setup_time_hours)}
-                  onChange={(e) => setOpForm({ ...opForm, setup_time_hours: setupFromDisplay(parseFloat(e.target.value) || 0) })} />
+            {selectedIsSubcon ? (
+              <div className="rounded-md border bg-muted/30 p-3">
+                <Label className="text-xs text-muted-foreground">Lead time (from resource)</Label>
+                <div className="text-lg font-semibold">
+                  {selectedLeadDays} {selectedLeadDays === 1 ? 'day' : 'days'}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Subcontractor operations use the lead time defined on the resource itself.
+                  Setup and cycle times do not apply. To change it, edit the resource in Resources.
+                </p>
               </div>
-              <div>
-                <Label>Cycle time ({cycleUnit})</Label>
-                <Input type="number" min={0} step={cycleUnit === 'minutes' ? 0.1 : 1}
-                  value={cycleToDisplay(opForm.cycle_time_seconds)}
-                  onChange={(e) => setOpForm({ ...opForm, cycle_time_seconds: cycleFromDisplay(parseFloat(e.target.value) || 0) })} />
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Setup time ({setupUnit})</Label>
+                  <Input type="number" min={0} step={setupUnit === 'minutes' ? 1 : 0.1}
+                    value={setupToDisplay(opForm.setup_time_hours)}
+                    onChange={(e) => setOpForm({ ...opForm, setup_time_hours: setupFromDisplay(parseFloat(e.target.value) || 0) })} />
+                </div>
+                <div>
+                  <Label>Cycle time ({cycleUnit})</Label>
+                  <Input type="number" min={0} step={cycleUnit === 'minutes' ? 0.1 : 1}
+                    value={cycleToDisplay(opForm.cycle_time_seconds)}
+                    onChange={(e) => setOpForm({ ...opForm, cycle_time_seconds: cycleFromDisplay(parseFloat(e.target.value) || 0) })} />
+                </div>
               </div>
-            </div>
+            )}
             <div>
               <Label>Notes</Label>
               <Textarea rows={2} value={opForm.notes || ''}
