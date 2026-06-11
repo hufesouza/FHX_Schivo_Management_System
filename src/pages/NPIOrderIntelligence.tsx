@@ -485,13 +485,6 @@ export default function NPIOrderIntelligence() {
     }
   };
 
-      pdf.save(`npi-order-intelligence-${now.toISOString().slice(0, 10)}.pdf`);
-      toast.success('PDF report generated');
-    } catch (e: any) {
-      toast.error('PDF export failed: ' + e.message);
-    }
-  };
-
   const empty = rows.length === 0;
 
   return (
