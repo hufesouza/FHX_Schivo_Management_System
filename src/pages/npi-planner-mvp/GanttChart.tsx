@@ -324,14 +324,26 @@ export default function GanttChart() {
         let prev = base; let js: Date | null = null; let je: Date | null = null;
         let devStart: Date | null = null; let devEnd: Date | null = null;
 
+        // Find first Machine op of this job — dev will also reserve that machine
+        const firstMachineOp = jobOps.find(o => {
+          const r = o.resource_id ? activeRes.get(o.resource_id) : null;
+          return r && (r.resource_category || '').toLowerCase() === 'machine';
+        });
+        const machineResId = firstMachineOp?.resource_id || null;
+
         // Schedule development time first (if any) on the Development resource
         const devH = Number(job.development_time_hours || 0);
         if (devH > 0 && devResource) {
-          const startAt = new Date(prev.getTime());
+          // If this job will use a machine, dev waits for that machine to be free
+          // and the machine is reserved during dev too
+          const machineFree = machineResId ? (resFree.get(machineResId) || base) : base;
+          const startAt = new Date(Math.max(prev.getTime(), machineFree.getTime()));
           while (isWeekend(startAt)) { startAt.setDate(startAt.getDate() + 1); startAt.setHours(0, 0, 0, 0); }
           const endAt = addH(startAt, devH, devResource.available_hours_per_day || 8);
           devStart = startAt; devEnd = endAt;
           prev = endAt;
+          // Block the target machine through the dev period
+          if (machineResId) resFree.set(machineResId, endAt);
           if (!js || startAt < js) js = startAt; if (!je || endAt > je) je = endAt;
         }
 
