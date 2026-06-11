@@ -12,7 +12,7 @@ import { Lock, Unlock, AlertTriangle, Calendar as CalIcon, ChevronLeft, ChevronR
 
 type Resource = { id: string; resource_name: string; resource_type: string | null; resource_category: string | null; lead_time_days: number | null; available_hours_per_day: number; status: string };
 type Part = { id: string; part_number: string; revision: string | null; description: string | null };
-type Job = { id: string; job_number: string; part_id: string | null; quantity: number; due_date: string | null; priority: string; status: string; planned_start: string | null; planned_finish: string | null; schedule_status: string };
+type Job = { id: string; job_number: string; part_id: string | null; quantity: number; due_date: string | null; priority: string; status: string; planned_start: string | null; planned_finish: string | null; schedule_status: string; development_time_hours: number | null; planned_dev_start: string | null; planned_dev_finish: string | null; dev_resource_id: string | null };
 type JobOp = {
   id: string; job_id: string; operation_number: number; operation_name: string;
   resource_id: string | null; setup_time_hours: number; cycle_time_seconds: number;
@@ -87,9 +87,32 @@ export default function GanttChart() {
   const resourcesById = useMemo(() => new Map(resources.map(r => [r.id, r])), [resources]);
 
   // Recompute conflict + sequence flags client-side for display
+  // Synthetic "Development" ops, one per job that has planned_dev_* set
+  const opsWithDev = useMemo<JobOp[]>(() => {
+    const devOps: JobOp[] = jobs
+      .filter(j => j.planned_dev_start && j.planned_dev_finish)
+      .map(j => ({
+        id: `dev-${j.id}`,
+        job_id: j.id,
+        operation_number: 0,
+        operation_name: 'Development',
+        resource_id: j.dev_resource_id,
+        setup_time_hours: 0,
+        cycle_time_seconds: 0,
+        total_time_hours: Number(j.development_time_hours || 0),
+        planned_start: j.planned_dev_start,
+        planned_finish: j.planned_dev_finish,
+        is_locked: false,
+        has_conflict: false,
+        sequence_warning: false,
+        sequence_order: 0,
+      }));
+    return [...ops, ...devOps];
+  }, [ops, jobs]);
+
   const flaggedOps = useMemo(() => {
     const byRes = new Map<string, JobOp[]>();
-    ops.forEach(o => {
+    opsWithDev.forEach(o => {
       if (!o.resource_id || !o.planned_start || !o.planned_finish) return;
       const arr = byRes.get(o.resource_id) || [];
       arr.push(o); byRes.set(o.resource_id, arr);
@@ -104,7 +127,7 @@ export default function GanttChart() {
     });
     const seqIds = new Set<string>();
     const byJob = new Map<string, JobOp[]>();
-    ops.forEach(o => { const arr = byJob.get(o.job_id) || []; arr.push(o); byJob.set(o.job_id, arr); });
+    opsWithDev.forEach(o => { const arr = byJob.get(o.job_id) || []; arr.push(o); byJob.set(o.job_id, arr); });
     byJob.forEach(arr => {
       const sorted = [...arr].sort((a, b) => (a.sequence_order ?? a.operation_number) - (b.sequence_order ?? b.operation_number));
       for (let i = 1; i < sorted.length; i++) {
@@ -112,8 +135,8 @@ export default function GanttChart() {
         if (prev.planned_finish && cur.planned_start && new Date(cur.planned_start) < new Date(prev.planned_finish)) seqIds.add(cur.id);
       }
     });
-    return ops.map(o => ({ ...o, has_conflict: conflictIds.has(o.id), sequence_warning: seqIds.has(o.id) }));
-  }, [ops]);
+    return opsWithDev.map(o => ({ ...o, has_conflict: conflictIds.has(o.id), sequence_warning: seqIds.has(o.id) }));
+  }, [opsWithDev]);
 
   // Timeline range
   const days = view === 'day' ? 3 : view === 'week' ? 21 : 60;
@@ -170,6 +193,7 @@ export default function GanttChart() {
 
   const onMouseDown = (e: React.MouseEvent, op: JobOp, mode: 'move' | 'resize') => {
     e.stopPropagation();
+    if (op.id.startsWith('dev-')) return; // synthetic dev op — not draggable
     if (!op.planned_start || !op.planned_finish) return;
     dragRef.current = {
       opId: op.id, mode, startX: e.clientX, startY: e.clientY,
@@ -280,11 +304,37 @@ export default function GanttChart() {
         }
         return c;
       };
+      const DEV_RESOURCE_NAME = 'Development / Engineering';
+      let devResource = resources.find(r => r.resource_name === DEV_RESOURCE_NAME && r.status === 'Active');
+      const needsDev = eligible.some(j => Number(j.development_time_hours || 0) > 0);
+      if (needsDev && !devResource) {
+        const { data: created, error: createErr } = await supabase
+          .from('resources')
+          .insert({ resource_name: DEV_RESOURCE_NAME, resource_type: 'Engineering', available_hours_per_day: 8, number_of_shifts: 1, status: 'Active' })
+          .select().single();
+        if (createErr) { toast.error(`Could not create Development resource: ${createErr.message}`); return; }
+        devResource = created as any;
+        if (devResource) activeRes.set(devResource.id, devResource);
+      }
+
       const opUpdates: any[] = []; const jobUpdates: any[] = [];
       for (const job of eligible) {
         const jobOps = ops.filter(o => o.job_id === job.id)
           .sort((a, b) => (a.sequence_order ?? a.operation_number) - (b.sequence_order ?? b.operation_number));
         let prev = base; let js: Date | null = null; let je: Date | null = null;
+        let devStart: Date | null = null; let devEnd: Date | null = null;
+
+        // Schedule development time first (if any) on the Development resource
+        const devH = Number(job.development_time_hours || 0);
+        if (devH > 0 && devResource) {
+          const startAt = new Date(prev.getTime());
+          while (isWeekend(startAt)) { startAt.setDate(startAt.getDate() + 1); startAt.setHours(0, 0, 0, 0); }
+          const endAt = addH(startAt, devH, devResource.available_hours_per_day || 8);
+          devStart = startAt; devEnd = endAt;
+          prev = endAt;
+          if (!js || startAt < js) js = startAt; if (!je || endAt > je) je = endAt;
+        }
+
         for (const op of jobOps) {
           if (op.is_locked && op.planned_start && op.planned_finish) {
             const s = new Date(op.planned_start), e = new Date(op.planned_finish);
@@ -318,10 +368,24 @@ export default function GanttChart() {
           opUpdates.push({ id: op.id, planned_start: startAt.toISOString(), planned_finish: endAt.toISOString() });
         }
         const late = !!(je && job.due_date && je > new Date(job.due_date + 'T23:59:59'));
-        jobUpdates.push({ id: job.id, planned_start: js?.toISOString() || null, planned_finish: je?.toISOString() || null, schedule_status: je ? (late ? 'Late' : 'Scheduled') : 'Unscheduled', status: je ? 'Scheduled' : job.status });
+        jobUpdates.push({
+          id: job.id,
+          planned_start: js?.toISOString() || null,
+          planned_finish: je?.toISOString() || null,
+          schedule_status: je ? (late ? 'Late' : 'Scheduled') : 'Unscheduled',
+          status: je ? 'Scheduled' : job.status,
+          planned_dev_start: devStart?.toISOString() || null,
+          planned_dev_finish: devEnd?.toISOString() || null,
+          dev_resource_id: devStart ? (devResource?.id || null) : null,
+        });
       }
       for (const u of opUpdates) await supabase.from('job_operations').update({ planned_start: u.planned_start, planned_finish: u.planned_finish }).eq('id', u.id);
-      for (const u of jobUpdates) await supabase.from('jobs').update({ planned_start: u.planned_start, planned_finish: u.planned_finish, schedule_status: u.schedule_status, status: u.status }).eq('id', u.id);
+      for (const u of jobUpdates) await supabase.from('jobs').update({
+        planned_start: u.planned_start, planned_finish: u.planned_finish,
+        schedule_status: u.schedule_status, status: u.status,
+        planned_dev_start: u.planned_dev_start, planned_dev_finish: u.planned_dev_finish,
+        dev_resource_id: u.dev_resource_id,
+      }).eq('id', u.id);
       toast.success(`Scheduled ${jobUpdates.length} jobs`);
       load();
     } finally { setLoading(false); }
