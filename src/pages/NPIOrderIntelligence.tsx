@@ -3,7 +3,6 @@ import * as XLSX from 'xlsx';
 import {
   BarChart, Bar, PieChart, Pie, LineChart, Line, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend,
-  RadialBarChart, RadialBar, PolarAngleAxis,
 } from 'recharts';
 import { Upload, Download, FileSpreadsheet, Package, CheckCircle2, Clock, Euro, Search, FileDown, Info } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
