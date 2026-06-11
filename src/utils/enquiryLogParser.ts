@@ -25,8 +25,12 @@ function parseExcelDate(value: unknown): string | null {
     // otherwise JS Date() misparses year-less dates as 2001.
     const dmy = trimmed.match(/^(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?$/);
     if (dmy) {
-      const d = Number(dmy[1]);
-      const mo = Number(dmy[2]);
+      let d = Number(dmy[1]);
+      let mo = Number(dmy[2]);
+      // Guard: if "month" is impossible (>12) the string is US-formatted (MM/DD) — swap
+      if (mo > 12 && d <= 12) {
+        const tmp = d; d = mo; mo = tmp;
+      }
       let y = dmy[3] ? Number(dmy[3]) : new Date().getFullYear();
       if (y < 100) {
         y = y > 50 ? 1900 + y : 2000 + y;
