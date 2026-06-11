@@ -180,6 +180,7 @@ export default function JobEntryDetail() {
       job_number: form.job_number.trim(),
       part_id: form.part_id,
       quantity: form.quantity,
+      planned_start: form.planned_start ? form.planned_start.toISOString() : null,
       due_date: format(form.due_date, 'yyyy-MM-dd'),
       priority: form.priority,
       status: form.status,
