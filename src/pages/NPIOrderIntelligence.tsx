@@ -300,44 +300,193 @@ export default function NPIOrderIntelligence() {
   };
 
   const exportPdf = async () => {
-    if (!dashRef.current) return;
-    toast.info('Generating PDF...');
     try {
-      const canvas = await html2canvas(dashRef.current, { scale: 1.2, backgroundColor: '#ffffff' });
-      const img = canvas.toDataURL('image/png');
+      toast.info('Generating PDF report...');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pw = pdf.internal.pageSize.getWidth();
       const ph = pdf.internal.pageSize.getHeight();
-      const iw = pw - 10;
-      const ih = (canvas.height * iw) / canvas.width;
-      let h = ih;
-      let y = 5;
-      if (ih <= ph - 10) {
-        pdf.addImage(img, 'PNG', 5, y, iw, ih);
-      } else {
-        // paginate
-        let remaining = ih;
-        let offset = 0;
-        const pageImgH = ph - 10;
-        const sliceH = (pageImgH / ih) * canvas.height;
-        while (remaining > 0) {
-          const pageCanvas = document.createElement('canvas');
-          pageCanvas.width = canvas.width;
-          pageCanvas.height = Math.min(sliceH, canvas.height - offset);
-          const ctx = pageCanvas.getContext('2d')!;
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
-          ctx.drawImage(canvas, 0, offset, canvas.width, pageCanvas.height, 0, 0, canvas.width, pageCanvas.height);
-          const slice = pageCanvas.toDataURL('image/png');
-          const sh = (pageCanvas.height * iw) / canvas.width;
-          pdf.addImage(slice, 'PNG', 5, 5, iw, sh);
-          offset += pageCanvas.height;
-          remaining -= pageCanvas.height;
-          if (remaining > 0) pdf.addPage();
-        }
-        h = ih;
+      const margin = 12;
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      const timeStr = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+      // Header
+      pdf.setFillColor(15, 23, 42);
+      pdf.rect(0, 0, pw, 22, 'F');
+      pdf.setTextColor(255, 255, 255);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(15);
+      pdf.text('NPI Order Intelligence Report', margin, 10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(9);
+      pdf.text(`Schivo Waterford  •  Generated ${dateStr} ${timeStr}`, margin, 16);
+      if (fileName) pdf.text(`Source: ${fileName}`, pw - margin, 16, { align: 'right' });
+
+      pdf.setTextColor(15, 23, 42);
+      let y = 30;
+
+      // Filters summary
+      const filterBits: string[] = [];
+      if (fCustomer !== 'all') filterBits.push(`Customer: ${fCustomer}`);
+      if (fCommodity !== 'all') filterBits.push(`Commodity: ${fCommodity}`);
+      if (fStatus !== 'all') filterBits.push(`Status: ${fStatus}`);
+      if (fFrom) filterBits.push(`From: ${fFrom}`);
+      if (fTo) filterBits.push(`To: ${fTo}`);
+      pdf.setFontSize(9);
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(`Filters: ${filterBits.length ? filterBits.join('  •  ') : 'None (full dataset)'}`, margin, y);
+      y += 6;
+
+      // KPI grid (2 rows x 3)
+      const kpiData = [
+        { label: 'Total Orders', value: fmtNum(kpis.total) },
+        { label: 'Open Orders', value: fmtNum(kpis.open) },
+        { label: 'Closed Orders', value: fmtNum(kpis.closed) },
+        { label: 'Total NPI Revenue', value: fmtEur(kpis.totalRev) },
+        { label: 'Open Order Value', value: fmtEur(kpis.openRev) },
+        { label: 'Closed Order Value', value: fmtEur(kpis.closedRev) },
+      ];
+      const cardW = (pw - margin * 2 - 8) / 3;
+      const cardH = 18;
+      kpiData.forEach((k, i) => {
+        const col = i % 3;
+        const row = Math.floor(i / 3);
+        const x = margin + col * (cardW + 4);
+        const cy = y + row * (cardH + 4);
+        pdf.setDrawColor(226, 232, 240);
+        pdf.setFillColor(248, 250, 252);
+        pdf.roundedRect(x, cy, cardW, cardH, 2, 2, 'FD');
+        pdf.setFontSize(8);
+        pdf.setTextColor(100, 116, 139);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(k.label, x + 3, cy + 5);
+        pdf.setFontSize(12);
+        pdf.setTextColor(15, 23, 42);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(k.value, x + 3, cy + 13);
+      });
+      y += cardH * 2 + 4 + 6;
+
+      // NPVI block
+      pdf.setFillColor(239, 246, 255);
+      pdf.setDrawColor(191, 219, 254);
+      pdf.roundedRect(margin, y, pw - margin * 2, 18, 2, 2, 'FD');
+      pdf.setFontSize(10);
+      pdf.setTextColor(30, 64, 175);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('New Product Vitality Index', margin + 4, y + 7);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.setTextColor(71, 85, 105);
+      pdf.text('NPI share of total company revenue', margin + 4, y + 13);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(18);
+      pdf.setTextColor(30, 64, 175);
+      pdf.text(`${npvi.toFixed(1)}%`, pw - margin - 4, y + 9, { align: 'right' });
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.setTextColor(71, 85, 105);
+      pdf.text(`NPI ${fmtEur(kpis.totalRev)}  •  Company ${fmtEur(totalCompanyRevenue)}`, pw - margin - 4, y + 14, { align: 'right' });
+      y += 24;
+
+      const sectionTitle = (title: string) => {
+        if (y > ph - 30) { pdf.addPage(); y = margin; }
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.setTextColor(15, 23, 42);
+        pdf.text(title, margin, y);
+        y += 2;
+        pdf.setDrawColor(59, 130, 246);
+        pdf.setLineWidth(0.5);
+        pdf.line(margin, y, margin + 30, y);
+        y += 4;
+      };
+
+      const tableTheme = {
+        headStyles: { fillColor: [15, 23, 42] as [number, number, number], textColor: 255, fontSize: 9 },
+        bodyStyles: { fontSize: 8.5, textColor: [30, 41, 59] as [number, number, number] },
+        alternateRowStyles: { fillColor: [248, 250, 252] as [number, number, number] },
+        margin: { left: margin, right: margin },
+      };
+
+      // Top customers by revenue
+      sectionTitle('Top Customers by Revenue');
+      autoTable(pdf, {
+        startY: y,
+        head: [['Customer', 'Orders', 'Revenue']],
+        body: customerByRevenue.slice(0, 10).map(c => [c.name, fmtNum(c.orders), fmtEur(c.revenue)]),
+        columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
+        ...tableTheme,
+      });
+      y = (pdf as any).lastAutoTable.finalY + 8;
+
+      // Commodity breakdown
+      if (byCommodity.length) {
+        sectionTitle('Revenue by Commodity');
+        autoTable(pdf, {
+          startY: y,
+          head: [['Commodity', 'Orders', 'Revenue', '% of Total']],
+          body: byCommodity
+            .slice()
+            .sort((a, b) => b.revenue - a.revenue)
+            .map(c => [
+              c.name,
+              fmtNum(c.orders),
+              fmtEur(c.revenue),
+              kpis.totalRev > 0 ? `${((c.revenue / kpis.totalRev) * 100).toFixed(1)}%` : '—',
+            ]),
+          columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' }, 3: { halign: 'right' } },
+          ...tableTheme,
+        });
+        y = (pdf as any).lastAutoTable.finalY + 8;
       }
-      pdf.save('npi-order-intelligence.pdf');
+
+      // Monthly trends
+      if (monthly.length) {
+        sectionTitle('Monthly Trend');
+        autoTable(pdf, {
+          startY: y,
+          head: [['Month', 'Orders', 'Revenue']],
+          body: monthly.map(m => [m.month, fmtNum(m.orders), fmtEur(m.revenue)]),
+          columnStyles: { 1: { halign: 'right' }, 2: { halign: 'right' } },
+          ...tableTheme,
+        });
+        y = (pdf as any).lastAutoTable.finalY + 8;
+      }
+
+      // Top orders
+      sectionTitle('Top 10 Highest Value Orders');
+      autoTable(pdf, {
+        startY: y,
+        head: [['Customer', 'PO', 'Part', 'Revenue', 'Status']],
+        body: topOrders.map(r => [r.customer || '—', r.po || '—', r.part || '—', fmtEur(r.revenue), r.status || '—']),
+        columnStyles: { 3: { halign: 'right' } },
+        ...tableTheme,
+      });
+      y = (pdf as any).lastAutoTable.finalY + 8;
+
+      // Open order book
+      sectionTitle(`Open Order Book (${openOrders.length})`);
+      autoTable(pdf, {
+        startY: y,
+        head: [['Customer', 'PO', 'Part', 'Revenue', 'Status']],
+        body: openOrders.map(r => [r.customer || '—', r.po || '—', r.part || '—', fmtEur(r.revenue), r.status || '—']),
+        columnStyles: { 3: { halign: 'right' } },
+        ...tableTheme,
+      });
+
+      // Footer with page numbers
+      const pageCount = pdf.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(148, 163, 184);
+        pdf.text(`Schivo Medical • FHX Engineering — Confidential`, margin, ph - 5);
+        pdf.text(`Page ${i} of ${pageCount}`, pw - margin, ph - 5, { align: 'right' });
+      }
+
+      pdf.save(`npi-order-intelligence-${now.toISOString().slice(0, 10)}.pdf`);
+      toast.success('PDF report generated');
     } catch (e: any) {
       toast.error('PDF export failed: ' + e.message);
     }
