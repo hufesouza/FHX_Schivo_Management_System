@@ -139,6 +139,7 @@ export default function JobEntryDetail() {
             priority: job.priority,
             status: job.status,
             development_time_hours: Number(job.development_time_hours) || 0,
+            dev_person_id: (job as any).dev_person_id || null,
             notes: job.notes || '',
           });
         }
