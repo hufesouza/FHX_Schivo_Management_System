@@ -294,6 +294,16 @@ export default function Resources() {
                   </p>
                 </div>
               </>
+            ) : isPerson ? (
+              <div>
+                <Label>Working hours / day *</Label>
+                <Input type="number" min={1} max={24} step={0.5}
+                  value={form.available_hours_per_day}
+                  onChange={(e) => setForm({ ...form, available_hours_per_day: parseFloat(e.target.value) || 0 })} />
+                <p className="text-xs text-muted-foreground mt-1">
+                  This person can only be allocated to one development at a time. The Gantt will warn on overlaps.
+                </p>
+              </div>
             ) : (
               <>
                 <div>
