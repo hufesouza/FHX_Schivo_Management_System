@@ -19,7 +19,7 @@ import { Tooltip as ShadcnTooltip, TooltipTrigger, TooltipContent, TooltipProvid
 import { toast } from 'sonner';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 
 type Row = Record<string, any>;
 
