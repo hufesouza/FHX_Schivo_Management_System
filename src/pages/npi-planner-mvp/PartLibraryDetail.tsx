@@ -247,6 +247,16 @@ export default function PartLibraryDetail() {
                 <Input value={part.description || ''}
                   onChange={(e) => setPart({ ...part, description: e.target.value })} />
               </div>
+              <div>
+                <Label>Customer</Label>
+                <Input value={part.customer || ''}
+                  onChange={(e) => setPart({ ...part, customer: e.target.value })} />
+              </div>
+              <div>
+                <Label>Project</Label>
+                <Input value={part.project || ''}
+                  onChange={(e) => setPart({ ...part, project: e.target.value })} />
+              </div>
             </div>
             <div className="flex justify-end">
               <Button onClick={saveHeader} disabled={savingHeader}>
