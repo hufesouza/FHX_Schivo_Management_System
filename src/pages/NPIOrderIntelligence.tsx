@@ -45,8 +45,29 @@ const findCol = (cols: string[], candidates: string[]): string | null => {
 const toNum = (v: any): number => {
   if (v === null || v === undefined || v === '') return 0;
   if (typeof v === 'number') return isFinite(v) ? v : 0;
-  const cleaned = String(v).replace(/[€$,\s]/g, '').replace(/,/g, '');
-  const n = parseFloat(cleaned);
+  let s = String(v).replace(/[€$£\s]/g, '').replace(/[()]/g, m => m === '(' ? '-' : '');
+  // Detect European format: if both '.' and ',' present, the rightmost is the decimal separator.
+  // If only ',' present and it looks like a decimal (e.g. "1234,56"), treat as decimal.
+  const lastDot = s.lastIndexOf('.');
+  const lastComma = s.lastIndexOf(',');
+  if (lastDot !== -1 && lastComma !== -1) {
+    if (lastComma > lastDot) {
+      // European: dots = thousands, comma = decimal
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      // US: commas = thousands, dot = decimal
+      s = s.replace(/,/g, '');
+    }
+  } else if (lastComma !== -1) {
+    // Only commas. If exactly one comma followed by 1-2 digits => decimal, else thousands.
+    const after = s.length - lastComma - 1;
+    if (s.split(',').length === 2 && after > 0 && after <= 2) {
+      s = s.replace(',', '.');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+  }
+  const n = parseFloat(s);
   return isFinite(n) ? n : 0;
 };
 
@@ -115,15 +136,21 @@ export default function NPIOrderIntelligence() {
 
   // detect columns
   const cols = useMemo(() => rows.length ? Object.keys(rows[0]) : [], [rows]);
-  const colMap = useMemo(() => ({
+  const autoColMap = useMemo(() => ({
     customer: findCol(cols, ['customer', 'client', 'customer name', 'account']),
     po: findCol(cols, ['po', 'po number', 'po no', 'purchase order', 'order no', 'order number']),
     part: findCol(cols, ['part', 'part number', 'part no', 'pn', 'item']),
-    revenue: findCol(cols, ['revenue', 'value', 'amount', 'price', 'total', 'po value', 'order value', 'eur', 'euro']),
+    revenue: findCol(cols, ['tl €', 'tl eur', 'tl euro', 'tl(€)', 'tl', 'total €', 'total eur', 'revenue €', 'revenue', 'value', 'amount', 'order value', 'po value', 'eur', 'euro', 'total']),
     status: findCol(cols, ['status', 'state', 'order status']),
     commodity: findCol(cols, ['commodity', 'category', 'type', 'product family', 'process']),
     date: findCol(cols, ['date', 'order date', 'received', 'date received', 'po date', 'received date']),
   }), [cols]);
+
+  const [revenueColOverride, setRevenueColOverride] = useState<string>('');
+  const colMap = useMemo(() => ({
+    ...autoColMap,
+    revenue: revenueColOverride || autoColMap.revenue,
+  }), [autoColMap, revenueColOverride]);
 
   // normalised dataset
   const normalised = useMemo(() => rows.map(r => {
@@ -369,7 +396,18 @@ export default function NPIOrderIntelligence() {
             {/* Filters */}
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-base">Filters</CardTitle></CardHeader>
-              <CardContent>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-3 flex-wrap text-xs">
+                  <span className="text-muted-foreground">Revenue column:</span>
+                  <Select value={revenueColOverride || '__auto__'} onValueChange={(v) => setRevenueColOverride(v === '__auto__' ? '' : v)}>
+                    <SelectTrigger className="h-8 w-64"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__auto__">Auto-detect ({autoColMap.revenue || 'none'})</SelectItem>
+                      {cols.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-muted-foreground">Using: <span className="font-medium text-foreground">{colMap.revenue || '—'}</span></span>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   <div>
                     <Label className="text-xs">Customer</Label>
