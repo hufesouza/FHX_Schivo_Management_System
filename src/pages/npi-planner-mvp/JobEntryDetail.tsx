@@ -49,6 +49,7 @@ type JobForm = {
   job_number: string;
   part_id: string;
   quantity: number;
+  planned_start: Date | null;
   due_date: Date | null;
   priority: string;
   status: string;
@@ -60,6 +61,7 @@ const blankForm = (): JobForm => ({
   job_number: '',
   part_id: '',
   quantity: 1,
+  planned_start: null,
   due_date: null,
   priority: 'Normal',
   status: 'Planned',
@@ -100,6 +102,7 @@ export default function JobEntryDetail() {
             job_number: job.job_number,
             part_id: job.part_id,
             quantity: job.quantity,
+            planned_start: (job as any).planned_start ? new Date((job as any).planned_start) : null,
             due_date: job.due_date ? new Date(job.due_date) : null,
             priority: job.priority,
             status: job.status,
@@ -177,6 +180,7 @@ export default function JobEntryDetail() {
       job_number: form.job_number.trim(),
       part_id: form.part_id,
       quantity: form.quantity,
+      planned_start: form.planned_start ? form.planned_start.toISOString() : null,
       due_date: format(form.due_date, 'yyyy-MM-dd'),
       priority: form.priority,
       status: form.status,
@@ -265,6 +269,25 @@ export default function JobEntryDetail() {
                 <Label>Quantity *</Label>
                 <Input type="number" min={1} value={form.quantity}
                   onChange={(e) => setForm({ ...form, quantity: parseInt(e.target.value) || 0 })} />
+              </div>
+              <div>
+                <Label>Planned start date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline"
+                      className={cn('w-full justify-start text-left font-normal',
+                        !form.planned_start && 'text-muted-foreground')}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {form.planned_start ? format(form.planned_start, 'PPP') : 'Pick a date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={form.planned_start || undefined}
+                      onSelect={(d) => setForm({ ...form, planned_start: d || null })}
+                      initialFocus className={cn('p-3 pointer-events-auto')} />
+                  </PopoverContent>
+                </Popover>
+                <p className="text-xs text-muted-foreground mt-1">Optional. Used by the scheduler / Gantt as the earliest start.</p>
               </div>
               <div>
                 <Label>Due date *</Label>
