@@ -162,13 +162,14 @@ export default function JobEntryDetail() {
 
   // When the user picks a part on a NEW job, load its routing as the seed for overrides
   const onPartChange = async (partId: string) => {
-    setForm({ ...form, part_id: partId });
+    setForm(f => ({ ...f, part_id: partId }));
     if (!isNew) return; // don't overwrite saved overrides
-    const { data, error } = await supabase
-      .from('part_operations')
-      .select('*')
-      .eq('part_id', partId)
-      .order('operation_number');
+    const [{ data, error }, { data: prevJob }] = await Promise.all([
+      supabase.from('part_operations').select('*').eq('part_id', partId).order('operation_number'),
+      supabase.from('jobs').select('development_time_hours')
+        .eq('part_id', partId).gt('development_time_hours', 0)
+        .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    ]);
     if (error) return toast.error(error.message);
     setOps((data || []).map((o: PartOp, i: number) => ({
       operation_number: o.operation_number,
@@ -178,6 +179,9 @@ export default function JobEntryDetail() {
       cycle_time_seconds: Number(o.cycle_time_seconds) || 0,
       sequence_order: i + 1,
     })));
+    if (prevJob?.development_time_hours) {
+      setForm(f => ({ ...f, part_id: partId, development_time_hours: Number(prevJob.development_time_hours) }));
+    }
   };
 
   const updateOp = (idx: number, patch: Partial<JobOp>) => {
