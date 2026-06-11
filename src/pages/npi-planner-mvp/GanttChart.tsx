@@ -155,19 +155,20 @@ export default function GanttChart() {
 
   const rows: Row[] = useMemo(() => {
     if (groupMode === 'part') {
-      // unique parts that have at least one job
-      const partIds = Array.from(new Set(jobs.map(j => j.part_id).filter(Boolean))) as string[];
-      const list = partIds.map(pid => {
-        const p = partsById.get(pid);
-        const jobCount = jobs.filter(j => j.part_id === pid).length;
-        return {
-          id: pid,
-          label: p?.part_number || '(unknown)',
-          sub: `${jobCount} job${jobCount !== 1 ? 's' : ''}${p?.revision ? ` · Rev ${p.revision}` : ''}`,
-          partId: pid,
-        } as Row;
-      });
-      list.sort((a, b) => a.label.localeCompare(b.label));
+      // One row per JOB (so the same part with N jobs shows as N independent rows)
+      const list = jobs
+        .filter(j => j.part_id)
+        .map(j => {
+          const p = partsById.get(j.part_id!);
+          return {
+            id: `job-${j.id}`,
+            label: p?.part_number || '(unknown)',
+            sub: `${j.job_number}${p?.revision ? ` · Rev ${p.revision}` : ''}`,
+            partId: j.part_id,
+            jobId: j.id,
+          } as Row;
+        });
+      list.sort((a, b) => a.label.localeCompare(b.label) || (a.sub || '').localeCompare(b.sub || ''));
       return list;
     }
     // resource mode (optionally filtered to drill part)
