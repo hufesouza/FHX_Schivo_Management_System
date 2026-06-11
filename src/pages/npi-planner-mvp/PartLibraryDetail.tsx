@@ -361,16 +361,16 @@ export default function PartLibraryDetail() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Setup time (hours)</Label>
-                <Input type="number" min={0} step={0.1}
-                  value={opForm.setup_time_hours}
-                  onChange={(e) => setOpForm({ ...opForm, setup_time_hours: parseFloat(e.target.value) || 0 })} />
+                <Label>Setup time ({setupUnit})</Label>
+                <Input type="number" min={0} step={setupUnit === 'minutes' ? 1 : 0.1}
+                  value={setupToDisplay(opForm.setup_time_hours)}
+                  onChange={(e) => setOpForm({ ...opForm, setup_time_hours: setupFromDisplay(parseFloat(e.target.value) || 0) })} />
               </div>
               <div>
-                <Label>Cycle time (seconds)</Label>
-                <Input type="number" min={0} step={1}
-                  value={opForm.cycle_time_seconds}
-                  onChange={(e) => setOpForm({ ...opForm, cycle_time_seconds: parseFloat(e.target.value) || 0 })} />
+                <Label>Cycle time ({cycleUnit})</Label>
+                <Input type="number" min={0} step={cycleUnit === 'minutes' ? 0.1 : 1}
+                  value={cycleToDisplay(opForm.cycle_time_seconds)}
+                  onChange={(e) => setOpForm({ ...opForm, cycle_time_seconds: cycleFromDisplay(parseFloat(e.target.value) || 0) })} />
               </div>
             </div>
             <div>
