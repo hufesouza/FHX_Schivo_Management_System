@@ -303,8 +303,8 @@ export default function GanttChart() {
               : Number(op.setup_time_hours || 0) + (Number(op.cycle_time_seconds || 0) * Number(job.quantity || 0)) / 3600;
           }
           if (dur <= 0) continue;
-          const free = resFree.get(op.resource_id) || base;
-          const startAt = new Date(Math.max(prev.getTime(), free.getTime()));
+          // Ignore cross-job resource conflicts: ops run back-to-back within the job
+          const startAt = new Date(prev.getTime());
           let endAt: Date;
           if (isSubcon) {
             // Subcontractor: calendar time, include weekends, run 24h continuously
