@@ -154,13 +154,18 @@ export default function PartLibraryDetail() {
     if (conflict) return toast.error(`Operation #${opForm.operation_number} already exists`);
 
     setSavingOp(true);
+    const chosen = resources.find(r => r.id === opForm.resource_id);
+    const isSubcon = chosen?.resource_category === 'Subcontractor';
+    const leadDays = chosen?.lead_time_days || 0;
     const payload = {
       part_id: part.id,
       operation_number: opForm.operation_number,
       operation_name: opForm.operation_name.trim(),
       resource_id: opForm.resource_id,
-      setup_time_hours: opForm.setup_time_hours || 0,
-      cycle_time_seconds: opForm.cycle_time_seconds || 0,
+      // For subcon resources, model lead time as setup hours (days × 24) so the
+      // scheduler / totals already in place include the wait window. Cycle = 0.
+      setup_time_hours: isSubcon ? leadDays * 24 : (opForm.setup_time_hours || 0),
+      cycle_time_seconds: isSubcon ? 0 : (opForm.cycle_time_seconds || 0),
       notes: opForm.notes?.trim() || null,
     };
     const { error } = editingOp
