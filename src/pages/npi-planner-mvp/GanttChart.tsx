@@ -635,17 +635,35 @@ export default function GanttChart() {
         </div>
 
         <div className="text-xs text-muted-foreground flex flex-wrap gap-3">
-          <span className="font-semibold">Operations:</span>
-          {Array.from(new Set(ops.map(o => `${o.operation_number}|${o.operation_name}`))).slice(0, 12).map(key => {
-            const [num, name] = key.split('|');
-            const sample = { operation_number: Number(num), operation_name: name } as JobOp;
-            return (
-              <span key={key} className="flex items-center gap-1">
-                <span className={`inline-block w-3 h-3 rounded ${opColor(sample)}`} />
-                OP{num} {name}
-              </span>
-            );
-          })}
+          {machinesOnly ? (
+            <>
+              <span className="font-semibold">Jobs:</span>
+              {Array.from(new Set(visibleOps.map(o => o.job_id))).slice(0, 20).map(jid => {
+                const j = jobsById.get(jid);
+                const p = j?.part_id ? partsById.get(j.part_id) : null;
+                return (
+                  <span key={jid} className="flex items-center gap-1">
+                    <span className={`inline-block w-3 h-3 rounded ${OP_PALETTE[hashStr(jid) % OP_PALETTE.length]}`} />
+                    {j?.job_number || '—'}{p?.part_number ? ` · ${p.part_number}` : ''}
+                  </span>
+                );
+              })}
+            </>
+          ) : (
+            <>
+              <span className="font-semibold">Operations:</span>
+              {Array.from(new Set(ops.map(o => `${o.operation_number}|${o.operation_name}`))).slice(0, 12).map(key => {
+                const [num, name] = key.split('|');
+                const sample = { operation_number: Number(num), operation_name: name } as JobOp;
+                return (
+                  <span key={key} className="flex items-center gap-1">
+                    <span className={`inline-block w-3 h-3 rounded ${opColor(sample)}`} />
+                    OP{num} {name}
+                  </span>
+                );
+              })}
+            </>
+          )}
           <span className="flex items-center gap-1"><Lock className="h-3 w-3" /> Locked</span>
           <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Conflict / Sequence</span>
           <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded ring-2 ring-red-600" /> Late</span>
