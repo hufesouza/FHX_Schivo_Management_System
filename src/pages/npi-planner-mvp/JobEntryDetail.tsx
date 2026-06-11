@@ -396,8 +396,8 @@ export default function JobEntryDetail() {
                       <TableHead>Operation</TableHead>
                       <TableHead>Resource (override)</TableHead>
                       <TableHead className="text-right">Setup ({setupLabel})</TableHead>
-                      <TableHead className="text-right">Cycle ({cycleLabel})</TableHead>
-                      <TableHead className="text-right">Total (h)</TableHead>
+                      <TableHead className="text-right">Cycle ({cycleLabel}/pc)</TableHead>
+                      <TableHead className="text-right">Total (h) = setup + cycle × {form.quantity || 0} pcs</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
