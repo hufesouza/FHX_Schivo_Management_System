@@ -78,17 +78,6 @@ export default function PartLibrary() {
       customer: form.customer.trim() || null,
       project: form.project.trim() || null,
     }).select().single();
-
-  const openCreate = () => { setForm({ part_number: '', revision: '', description: '' }); setDialogOpen(true); };
-
-  const createPart = async () => {
-    if (!form.part_number.trim()) return toast.error('Part number is required');
-    setSaving(true);
-    const { data, error } = await supabase.from('parts').insert({
-      part_number: form.part_number.trim(),
-      revision: form.revision.trim() || null,
-      description: form.description.trim() || null,
-    }).select().single();
     setSaving(false);
     if (error) return toast.error(error.message);
     toast.success('Part created');
