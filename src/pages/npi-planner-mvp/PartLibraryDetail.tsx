@@ -206,8 +206,14 @@ export default function PartLibraryDetail() {
     );
   }
 
+  const resourceById = (rid: string | null) => resources.find(r => r.id === rid);
+  const isSubconResource = (rid: string | null) =>
+    resourceById(rid)?.resource_category === 'Subcontractor';
   const resourceName = (rid: string | null) =>
-    resources.find(r => r.id === rid)?.resource_name || (rid ? '— deleted —' : '—');
+    resourceById(rid)?.resource_name || (rid ? '— deleted —' : '—');
+  const selectedResource = resourceById(opForm.resource_id);
+  const selectedIsSubcon = selectedResource?.resource_category === 'Subcontractor';
+  const selectedLeadDays = selectedResource?.lead_time_days || 0;
 
   return (
     <AppLayout title={part.part_number} subtitle="Part details and routing"
