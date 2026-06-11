@@ -24,7 +24,13 @@ import { format } from 'date-fns';
 const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'] as const;
 const STATUSES = ['Planned', 'Scheduled', 'Completed'] as const;
 
-type Resource = { id: string; resource_name: string; resource_type: string };
+type Resource = {
+  id: string;
+  resource_name: string;
+  resource_type: string;
+  resource_category?: string | null;
+  lead_time_days?: number | null;
+};
 type Part = { id: string; part_number: string; revision: string | null; description: string | null };
 type PartOp = {
   id: string;
