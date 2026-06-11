@@ -193,6 +193,7 @@ export default function GanttChart() {
 
   const onMouseDown = (e: React.MouseEvent, op: JobOp, mode: 'move' | 'resize') => {
     e.stopPropagation();
+    if (op.id.startsWith('dev-')) return; // synthetic dev op — not draggable
     if (!op.planned_start || !op.planned_finish) return;
     dragRef.current = {
       opId: op.id, mode, startX: e.clientX, startY: e.clientY,
