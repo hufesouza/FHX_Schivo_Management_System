@@ -271,6 +271,25 @@ export default function JobEntryDetail() {
                   onChange={(e) => setForm({ ...form, quantity: parseInt(e.target.value) || 0 })} />
               </div>
               <div>
+                <Label>Planned start date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline"
+                      className={cn('w-full justify-start text-left font-normal',
+                        !form.planned_start && 'text-muted-foreground')}>
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {form.planned_start ? format(form.planned_start, 'PPP') : 'Pick a date'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={form.planned_start || undefined}
+                      onSelect={(d) => setForm({ ...form, planned_start: d || null })}
+                      initialFocus className={cn('p-3 pointer-events-auto')} />
+                  </PopoverContent>
+                </Popover>
+                <p className="text-xs text-muted-foreground mt-1">Optional. Used by the scheduler / Gantt as the earliest start.</p>
+              </div>
+              <div>
                 <Label>Due date *</Label>
                 <Popover>
                   <PopoverTrigger asChild>
