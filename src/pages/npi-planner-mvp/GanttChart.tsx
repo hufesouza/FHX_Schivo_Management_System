@@ -226,7 +226,7 @@ export default function GanttChart() {
     } else if (groupMode === 'part') {
       const op = ops.find(o => o.id === d.opId);
       const job = op ? jobsById.get(op.job_id) : null;
-      rowKey = job?.part_id || '';
+      rowKey = op ? `job-${op.job_id}` : '';
     }
 
     if (d.mode === 'resize') {
