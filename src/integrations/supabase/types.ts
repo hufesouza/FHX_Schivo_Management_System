@@ -1083,12 +1083,15 @@ export type Database = {
       jobs: {
         Row: {
           created_at: string
+          dev_resource_id: string | null
           development_time_hours: number
           due_date: string
           id: string
           job_number: string
           notes: string | null
           part_id: string
+          planned_dev_finish: string | null
+          planned_dev_start: string | null
           planned_finish: string | null
           planned_start: string | null
           priority: string
@@ -1099,12 +1102,15 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          dev_resource_id?: string | null
           development_time_hours?: number
           due_date: string
           id?: string
           job_number: string
           notes?: string | null
           part_id: string
+          planned_dev_finish?: string | null
+          planned_dev_start?: string | null
           planned_finish?: string | null
           planned_start?: string | null
           priority?: string
@@ -1115,12 +1121,15 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          dev_resource_id?: string | null
           development_time_hours?: number
           due_date?: string
           id?: string
           job_number?: string
           notes?: string | null
           part_id?: string
+          planned_dev_finish?: string | null
+          planned_dev_start?: string | null
           planned_finish?: string | null
           planned_start?: string | null
           priority?: string
@@ -1130,6 +1139,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "jobs_dev_resource_id_fkey"
+            columns: ["dev_resource_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "jobs_part_id_fkey"
             columns: ["part_id"]
