@@ -147,10 +147,12 @@ export default function NPIOrderIntelligence() {
   }), [cols]);
 
   const [revenueColOverride, setRevenueColOverride] = useState<string>('');
+  const [statusColOverride, setStatusColOverride] = useState<string>('');
   const colMap = useMemo(() => ({
     ...autoColMap,
     revenue: revenueColOverride || autoColMap.revenue,
-  }), [autoColMap, revenueColOverride]);
+    status: statusColOverride || autoColMap.status,
+  }), [autoColMap, revenueColOverride, statusColOverride]);
 
   // normalised dataset
   const normalised = useMemo(() => rows.map(r => {
