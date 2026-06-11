@@ -236,9 +236,31 @@ export default function PartLibraryDetail() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
             <CardTitle>Routing ({ops.length} operations)</CardTitle>
-            <Button onClick={openAddOp}><Plus className="h-4 w-4 mr-1" /> Add operation</Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1">
+                <Label className="text-xs text-muted-foreground">Setup unit</Label>
+                <Select value={setupUnit} onValueChange={(v: 'minutes' | 'hours') => setSetupUnit(v)}>
+                  <SelectTrigger className="h-8 w-[110px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="minutes">Minutes</SelectItem>
+                    <SelectItem value="hours">Hours</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-1">
+                <Label className="text-xs text-muted-foreground">Cycle unit</Label>
+                <Select value={cycleUnit} onValueChange={(v: 'seconds' | 'minutes') => setCycleUnit(v)}>
+                  <SelectTrigger className="h-8 w-[110px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="minutes">Minutes</SelectItem>
+                    <SelectItem value="seconds">Seconds</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={openAddOp}><Plus className="h-4 w-4 mr-1" /> Add operation</Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="rounded-md border">
@@ -248,8 +270,8 @@ export default function PartLibraryDetail() {
                     <TableHead className="w-[80px]">Op #</TableHead>
                     <TableHead>Operation</TableHead>
                     <TableHead>Resource</TableHead>
-                    <TableHead className="text-right">Setup (h)</TableHead>
-                    <TableHead className="text-right">Cycle (s)</TableHead>
+                    <TableHead className="text-right">Setup ({setupLabel})</TableHead>
+                    <TableHead className="text-right">Cycle ({cycleLabel})</TableHead>
                     <TableHead>Notes</TableHead>
                     <TableHead className="w-[180px] text-right">Actions</TableHead>
                   </TableRow>
@@ -264,8 +286,8 @@ export default function PartLibraryDetail() {
                       <TableCell className="font-medium">{op.operation_number}</TableCell>
                       <TableCell>{op.operation_name}</TableCell>
                       <TableCell>{resourceName(op.resource_id)}</TableCell>
-                      <TableCell className="text-right">{op.setup_time_hours}</TableCell>
-                      <TableCell className="text-right">{op.cycle_time_seconds}</TableCell>
+                      <TableCell className="text-right">{setupToDisplay(op.setup_time_hours).toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{cycleToDisplay(op.cycle_time_seconds).toFixed(2)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
                         {op.notes || '—'}
                       </TableCell>
