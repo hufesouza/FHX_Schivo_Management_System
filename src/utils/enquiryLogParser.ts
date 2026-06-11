@@ -42,8 +42,30 @@ function parseExcelDate(value: unknown): string | null {
       return null;
     }
 
-    // Only trust Date() for strings with a month name or 4-digit year
-    if (/[A-Za-z]/.test(trimmed) || /\d{4}/.test(trimmed)) {
+    // "14-Apr", "14 Apr", "Apr 14" (month name, NO year) — JS Date() would assume 2001!
+    const months: Record<string, number> = {
+      JAN: 0, FEB: 1, MAR: 2, APR: 3, MAY: 4, JUN: 5,
+      JUL: 6, AUG: 7, SEP: 8, OCT: 9, NOV: 10, DEC: 11,
+    };
+    const dMon = trimmed.match(/^(\d{1,2})[\s\-./]*([A-Za-z]{3,})$/) 
+      || trimmed.match(/^([A-Za-z]{3,})[\s\-./]*(\d{1,2})$/);
+    if (dMon) {
+      const a = dMon[1], b = dMon[2];
+      const day = Number(/^\d/.test(a) ? a : b);
+      const monKey = (/^\d/.test(a) ? b : a).slice(0, 3).toUpperCase();
+      const mo = months[monKey];
+      if (mo !== undefined && day >= 1 && day <= 31) {
+        const y = new Date().getFullYear();
+        let parsed = new Date(Date.UTC(y, mo, day));
+        if (parsed.getTime() > Date.now()) {
+          parsed = new Date(Date.UTC(y - 1, mo, day));
+        }
+        return parsed.toISOString().split('T')[0];
+      }
+    }
+
+    // Only trust Date() for strings with a 4-digit year (e.g. "14 Apr 2025")
+    if (/\d{4}/.test(trimmed)) {
       const date = new Date(trimmed);
       if (!isNaN(date.getTime())) {
         return date.toISOString().split('T')[0];
