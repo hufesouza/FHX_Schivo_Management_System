@@ -327,7 +327,7 @@ export default function NPIOrderIntelligence() {
       pdf.setTextColor(255, 255, 255);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
-      pdf.text('NPI Order Intelligence', margin, 9);
+      pdf.text('NPI Order', margin, 9);
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(8.5);
       pdf.text(`Schivo Waterford  •  ${dateStr} ${timeStr}`, margin, 15);
@@ -403,70 +403,73 @@ export default function NPIOrderIntelligence() {
       pdf.text(`NPI ${fmtEur(kpis.totalRev)}  •  Company ${fmtEur(totalCompanyRevenue)}`, pw - margin - 4, y + 15, { align: 'right' });
       y += 22;
 
-      // Capture chart helper
+      // Capture chart helper — high scale for sharp output
       const capture = async (el: HTMLElement | null): Promise<string | null> => {
         if (!el) return null;
-        const c = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', logging: false });
+        const c = await html2canvas(el, { scale: 3, backgroundColor: '#ffffff', logging: false });
         return c.toDataURL('image/png');
       };
 
-      const sectionTitle = (title: string) => {
-        if (y > ph - 25) { pdf.addPage(); y = margin + 4; }
+      // Chart cell sizing — aspect ratio must match the offscreen chart container (900x513 ≈ 1.755:1)
+      const colW = (pw - margin * 2 - 4) / 2; // ≈ 93mm
+      const chartImgH = (colW - 4) / (900 / 513); // keep aspect 1.755:1
+      const titleH = 7; // header inside card
+      const cellH = titleH + chartImgH + 4; // card height
+      const sectionGap = 8;
+      const sectionTitleH = 7;
+
+      const renderSection = async (
+        title: string,
+        left: { title: string; ref: HTMLElement | null },
+        right: { title: string; ref: HTMLElement | null },
+      ) => {
+        const needed = sectionTitleH + cellH + sectionGap;
+        if (y + needed > ph - 12) { pdf.addPage(); y = margin + 4; }
+        // section title
         pdf.setFont('helvetica', 'bold');
         pdf.setFontSize(10);
         pdf.setTextColor(15, 23, 42);
         pdf.text(title, margin, y);
-        y += 1.5;
         pdf.setDrawColor(59, 130, 246);
         pdf.setLineWidth(0.6);
-        pdf.line(margin, y, margin + 24, y);
+        pdf.line(margin, y + 1.5, margin + 24, y + 1.5);
         pdf.setLineWidth(0.2);
-        y += 3.5;
-      };
+        y += sectionTitleH;
 
-      // Place charts in 2-col rows
-      const placeChartRow = async (
-        left: { title: string; ref: HTMLElement | null },
-        right: { title: string; ref: HTMLElement | null } | null,
-      ) => {
-        const colW = right ? (pw - margin * 2 - 4) / 2 : pw - margin * 2;
-        const rowH = 62;
-        if (y + rowH > ph - 15) { pdf.addPage(); y = margin + 4; }
-        const items = right ? [left, right] : [left];
+        const items = [left, right];
         for (let i = 0; i < items.length; i++) {
           const x = margin + i * (colW + 4);
           pdf.setDrawColor(226, 232, 240);
           pdf.setFillColor(255, 255, 255);
-          pdf.roundedRect(x, y, colW, rowH, 1.5, 1.5, 'FD');
+          pdf.roundedRect(x, y, colW, cellH, 1.5, 1.5, 'FD');
           pdf.setFontSize(8.5);
           pdf.setFont('helvetica', 'bold');
           pdf.setTextColor(15, 23, 42);
           pdf.text(items[i].title, x + 3, y + 5);
           const img = await capture(items[i].ref);
           if (img) {
-            pdf.addImage(img, 'PNG', x + 2, y + 7, colW - 4, rowH - 9);
+            pdf.addImage(img, 'PNG', x + 2, y + titleH, colW - 4, chartImgH);
           }
         }
-        y += rowH + 4;
+        y += cellH + sectionGap;
       };
 
-      sectionTitle('Customer Performance');
-      await placeChartRow(
+      await renderSection(
+        'Customer Performance',
         { title: 'Revenue by Customer (Top 15)', ref: chartRefs.revByCustomer.current },
         { title: 'Orders by Customer (Top 15)', ref: chartRefs.ordByCustomer.current },
       );
-
-      sectionTitle('Commodity Mix');
-      await placeChartRow(
+      await renderSection(
+        'Commodity Mix',
         { title: 'Revenue by Commodity', ref: chartRefs.revByCommodity.current },
         { title: 'Orders by Commodity', ref: chartRefs.ordByCommodity.current },
       );
-
-      sectionTitle('Monthly Trend');
-      await placeChartRow(
+      await renderSection(
+        'Monthly Trend',
         { title: 'Orders by Month', ref: chartRefs.ordByMonth.current },
         { title: 'Revenue by Month', ref: chartRefs.revByMonth.current },
       );
+
 
       // Footer
       const pageCount = pdf.getNumberOfPages();
@@ -474,7 +477,7 @@ export default function NPIOrderIntelligence() {
         pdf.setPage(i);
         pdf.setFontSize(7.5);
         pdf.setTextColor(148, 163, 184);
-        pdf.text('Schivo Medical • FHX Engineering — Confidential', margin, ph - 4);
+        pdf.text('Schivo Medical — Confidential', margin, ph - 4);
         pdf.text(`Page ${i} of ${pageCount}`, pw - margin, ph - 4, { align: 'right' });
       }
 
@@ -808,7 +811,7 @@ export default function NPIOrderIntelligence() {
           aria-hidden
           style={{ position: 'fixed', left: -10000, top: 0, width: 900, pointerEvents: 'none', background: '#fff' }}
         >
-          <div ref={chartRefs.revByCustomer} style={{ width: 900, height: 420, background: '#fff' }}>
+          <div ref={chartRefs.revByCustomer} style={{ width: 900, height: 513, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={customerByRevenue} layout="vertical" margin={{ left: 100, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -818,7 +821,7 @@ export default function NPIOrderIntelligence() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div ref={chartRefs.ordByCustomer} style={{ width: 900, height: 420, background: '#fff' }}>
+          <div ref={chartRefs.ordByCustomer} style={{ width: 900, height: 513, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={customerByOrders} layout="vertical" margin={{ left: 100, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -828,7 +831,7 @@ export default function NPIOrderIntelligence() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div ref={chartRefs.revByCommodity} style={{ width: 900, height: 420, background: '#fff' }}>
+          <div ref={chartRefs.revByCommodity} style={{ width: 900, height: 513, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={byCommodity} dataKey="revenue" nameKey="name" outerRadius={140} label={(d: any) => d.name}>
@@ -838,7 +841,7 @@ export default function NPIOrderIntelligence() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div ref={chartRefs.ordByCommodity} style={{ width: 900, height: 420, background: '#fff' }}>
+          <div ref={chartRefs.ordByCommodity} style={{ width: 900, height: 513, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={byCommodity} dataKey="orders" nameKey="name" outerRadius={140} label={(d: any) => d.name}>
@@ -848,7 +851,7 @@ export default function NPIOrderIntelligence() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div ref={chartRefs.ordByMonth} style={{ width: 900, height: 420, background: '#fff' }}>
+          <div ref={chartRefs.ordByMonth} style={{ width: 900, height: 513, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthly} margin={{ left: 20, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -858,7 +861,7 @@ export default function NPIOrderIntelligence() {
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <div ref={chartRefs.revByMonth} style={{ width: 900, height: 420, background: '#fff' }}>
+          <div ref={chartRefs.revByMonth} style={{ width: 900, height: 513, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthly} margin={{ left: 20, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
