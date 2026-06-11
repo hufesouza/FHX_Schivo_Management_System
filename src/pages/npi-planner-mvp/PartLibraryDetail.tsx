@@ -303,8 +303,16 @@ export default function PartLibraryDetail() {
                       <TableCell className="font-medium">{op.operation_number}</TableCell>
                       <TableCell>{op.operation_name}</TableCell>
                       <TableCell>{resourceName(op.resource_id)}</TableCell>
-                      <TableCell className="text-right">{setupToDisplay(op.setup_time_hours).toFixed(2)}</TableCell>
-                      <TableCell className="text-right">{cycleToDisplay(op.cycle_time_seconds).toFixed(2)}</TableCell>
+                      <TableCell className="text-right">
+                        {isSubconResource(op.resource_id)
+                          ? <span className="text-muted-foreground italic">{(op.setup_time_hours / 24).toFixed(0)}d lead</span>
+                          : setupToDisplay(op.setup_time_hours).toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {isSubconResource(op.resource_id)
+                          ? <span className="text-muted-foreground">—</span>
+                          : cycleToDisplay(op.cycle_time_seconds).toFixed(2)}
+                      </TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
                         {op.notes || '—'}
                       </TableCell>
