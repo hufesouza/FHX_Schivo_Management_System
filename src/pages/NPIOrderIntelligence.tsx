@@ -118,6 +118,15 @@ export default function NPIOrderIntelligence() {
   const [openSearch, setOpenSearch] = useState<string>('');
 
   const dashRef = useRef<HTMLDivElement>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
+  const chartRefs = {
+    revByCustomer: useRef<HTMLDivElement>(null),
+    ordByCustomer: useRef<HTMLDivElement>(null),
+    revByCommodity: useRef<HTMLDivElement>(null),
+    ordByCommodity: useRef<HTMLDivElement>(null),
+    ordByMonth: useRef<HTMLDivElement>(null),
+    revByMonth: useRef<HTMLDivElement>(null),
+  };
 
   const handleFile = useCallback(async (file: File) => {
     try {
