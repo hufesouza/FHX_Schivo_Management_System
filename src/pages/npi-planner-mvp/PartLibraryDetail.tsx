@@ -67,6 +67,24 @@ export default function PartLibraryDetail() {
   const [savingOp, setSavingOp] = useState(false);
   const [deleteOpId, setDeleteOpId] = useState<string | null>(null);
 
+  // Display units (persisted). DB always stores setup in HOURS and cycle in SECONDS.
+  const [setupUnit, setSetupUnit] = useState<'minutes' | 'hours'>(
+    () => (localStorage.getItem('pl_setupUnit') as 'minutes' | 'hours') || 'minutes'
+  );
+  const [cycleUnit, setCycleUnit] = useState<'seconds' | 'minutes'>(
+    () => (localStorage.getItem('pl_cycleUnit') as 'seconds' | 'minutes') || 'minutes'
+  );
+  useEffect(() => { localStorage.setItem('pl_setupUnit', setupUnit); }, [setupUnit]);
+  useEffect(() => { localStorage.setItem('pl_cycleUnit', cycleUnit); }, [cycleUnit]);
+
+  // Conversions
+  const setupToDisplay = (h: number) => setupUnit === 'minutes' ? h * 60 : h;
+  const setupFromDisplay = (v: number) => setupUnit === 'minutes' ? v / 60 : v;
+  const cycleToDisplay = (s: number) => cycleUnit === 'minutes' ? s / 60 : s;
+  const cycleFromDisplay = (v: number) => cycleUnit === 'minutes' ? v * 60 : v;
+  const setupLabel = setupUnit === 'minutes' ? 'min' : 'h';
+  const cycleLabel = cycleUnit === 'minutes' ? 'min' : 's';
+
   const load = async () => {
     if (!id) return;
     setLoading(true);
