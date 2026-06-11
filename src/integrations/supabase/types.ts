@@ -1083,6 +1083,7 @@ export type Database = {
       jobs: {
         Row: {
           created_at: string
+          dev_person_id: string | null
           dev_resource_id: string | null
           development_time_hours: number
           due_date: string
@@ -1102,6 +1103,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          dev_person_id?: string | null
           dev_resource_id?: string | null
           development_time_hours?: number
           due_date: string
@@ -1121,6 +1123,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          dev_person_id?: string | null
           dev_resource_id?: string | null
           development_time_hours?: number
           due_date?: string
@@ -1139,6 +1142,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "jobs_dev_person_id_fkey"
+            columns: ["dev_person_id"]
+            isOneToOne: false
+            referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "jobs_dev_resource_id_fkey"
             columns: ["dev_resource_id"]

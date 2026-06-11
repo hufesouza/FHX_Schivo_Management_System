@@ -12,7 +12,7 @@ import { Lock, Unlock, AlertTriangle, Calendar as CalIcon, ChevronLeft, ChevronR
 
 type Resource = { id: string; resource_name: string; resource_type: string | null; resource_category: string | null; lead_time_days: number | null; available_hours_per_day: number; status: string };
 type Part = { id: string; part_number: string; revision: string | null; description: string | null };
-type Job = { id: string; job_number: string; part_id: string | null; quantity: number; due_date: string | null; priority: string; status: string; planned_start: string | null; planned_finish: string | null; schedule_status: string; development_time_hours: number | null; planned_dev_start: string | null; planned_dev_finish: string | null; dev_resource_id: string | null };
+type Job = { id: string; job_number: string; part_id: string | null; quantity: number; due_date: string | null; priority: string; status: string; planned_start: string | null; planned_finish: string | null; schedule_status: string; development_time_hours: number | null; planned_dev_start: string | null; planned_dev_finish: string | null; dev_resource_id: string | null; dev_person_id: string | null };
 type JobOp = {
   id: string; job_id: string; operation_number: number; operation_name: string;
   resource_id: string | null; setup_time_hours: number; cycle_time_seconds: number;
@@ -63,6 +63,7 @@ export default function GanttChart() {
   const [showConflicts, setShowConflicts] = useState(true);
   const [showLate, setShowLate] = useState(true);
   const [machinesOnly, setMachinesOnly] = useState(false);
+  const [peopleOnly, setPeopleOnly] = useState(false);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -116,6 +117,10 @@ export default function GanttChart() {
       if (machineResId) {
         devOps.push({ ...base, id: `dev-machine-${j.id}`, resource_id: machineResId } as JobOp);
       }
+      // Mirror onto the assigned Person (so the people view shows the developer's load)
+      if (j.dev_person_id) {
+        devOps.push({ ...base, id: `dev-person-${j.id}`, resource_id: j.dev_person_id } as JobOp);
+      }
     });
     return [...ops, ...devOps];
   }, [ops, jobs, resourcesById]);
@@ -164,7 +169,7 @@ export default function GanttChart() {
   type Row = { id: string; label: string; sub: string; partId?: string | null; resourceId?: string | null; jobId?: string | null };
 
   const rows: Row[] = useMemo(() => {
-    if (groupMode === 'part') {
+    if (groupMode === 'part' && !peopleOnly) {
       // One row per JOB (so the same part with N jobs shows as N independent rows)
       const list = jobs
         .filter(j => j.part_id)
@@ -181,30 +186,39 @@ export default function GanttChart() {
       list.sort((a, b) => a.label.localeCompare(b.label) || (a.sub || '').localeCompare(b.sub || ''));
       return list;
     }
-    // resource mode (optionally filtered to drill part) — hide the Development/Engineering pseudo-resource
+    // resource mode (or peopleOnly)
     return resources
       .filter(r => r.resource_name !== 'Development / Engineering')
-      .filter(r => !machinesOnly || (r.resource_category || '').toLowerCase() === 'machine')
+      .filter(r => {
+        const cat = (r.resource_category || '').toLowerCase();
+        if (peopleOnly) return cat === 'person';
+        if (machinesOnly) return cat === 'machine';
+        return true;
+      })
       .map(r => ({
         id: r.id,
         label: r.resource_name,
         sub: `${r.resource_type || '—'} · ${r.available_hours_per_day}h/day`,
         resourceId: r.id,
       }));
-  }, [groupMode, jobs, parts, resources, partsById, machinesOnly]);
+  }, [groupMode, jobs, parts, resources, partsById, machinesOnly, peopleOnly]);
 
   const visibleOps = useMemo(() => {
     let list = flaggedOps;
-    if (machinesOnly) {
+    if (peopleOnly) {
+      const personIds = new Set(resources.filter(r => (r.resource_category || '').toLowerCase() === 'person').map(r => r.id));
+      // only show dev-person mirrors (one bar per job per person)
+      list = list.filter(o => o.id.startsWith('dev-person-') && o.resource_id && personIds.has(o.resource_id));
+    } else if (machinesOnly) {
       const machineIds = new Set(resources.filter(r => (r.resource_category || '').toLowerCase() === 'machine').map(r => r.id));
       list = list.filter(o => o.resource_id && machineIds.has(o.resource_id));
     }
-    if (groupMode === 'resource' && drillPartId) {
+    if (groupMode === 'resource' && drillPartId && !peopleOnly) {
       const jobIds = new Set(jobs.filter(j => j.part_id === drillPartId).map(j => j.id));
       return list.filter(o => jobIds.has(o.job_id));
     }
     return list;
-  }, [flaggedOps, groupMode, drillPartId, jobs, machinesOnly, resources]);
+  }, [flaggedOps, groupMode, drillPartId, jobs, machinesOnly, peopleOnly, resources]);
 
   // Drag state
   const dragRef = useRef<{ opId: string; mode: 'move' | 'resize'; startX: number; startY: number; origStart: Date; origEnd: Date; resourceId: string | null } | null>(null);
@@ -493,7 +507,8 @@ export default function GanttChart() {
           <div className="h-6 w-px bg-border mx-1" />
           <div className="flex items-center gap-2"><Switch id="sc" checked={showConflicts} onCheckedChange={setShowConflicts} /><Label htmlFor="sc" className="text-xs">Conflicts</Label></div>
           <div className="flex items-center gap-2"><Switch id="sl" checked={showLate} onCheckedChange={setShowLate} /><Label htmlFor="sl" className="text-xs">Late</Label></div>
-          <div className="flex items-center gap-2"><Switch id="mo" checked={machinesOnly} onCheckedChange={(v) => { setMachinesOnly(v); if (v) setGroupMode('resource'); }} /><Label htmlFor="mo" className="text-xs">Machines only</Label></div>
+          <div className="flex items-center gap-2"><Switch id="mo" checked={machinesOnly} onCheckedChange={(v) => { setMachinesOnly(v); if (v) { setGroupMode('resource'); setPeopleOnly(false); } }} /><Label htmlFor="mo" className="text-xs">Machines only</Label></div>
+          <div className="flex items-center gap-2"><Switch id="po" checked={peopleOnly} onCheckedChange={(v) => { setPeopleOnly(v); if (v) { setGroupMode('resource'); setMachinesOnly(false); } }} /><Label htmlFor="po" className="text-xs">People only</Label></div>
           <div className="ml-auto text-xs text-muted-foreground">
             {timelineStart.toLocaleDateString()} → {addDays(timelineEnd, -1).toLocaleDateString()}
           </div>
@@ -589,13 +604,15 @@ export default function GanttChart() {
                           const bx = usingPreview ? dragPreview!.startX : x;
                           const bw = usingPreview ? dragPreview!.width : w;
                           if (previewing && !usingPreview) return null;
-                          const color = machinesOnly
+                          const color = (machinesOnly || peopleOnly)
                             ? OP_PALETTE[hashStr(op.job_id) % OP_PALETTE.length]
                             : opColor(op);
                           const lane = groupMode === 'part' ? (opLanes.get(op.id) ?? 0) : 0;
                           const topPx = groupMode === 'part' ? 4 + lane * 26 : 8;
                           const heightPx = groupMode === 'part' ? 22 : ROW_H - 16;
-                          const label = groupMode === 'part'
+                          const label = peopleOnly
+                            ? `Dev · ${job?.job_number || ''}${part?.part_number ? ` · ${part.part_number}` : ''}`
+                            : groupMode === 'part'
                             ? `OP${op.operation_number} ${op.operation_name}${job?.job_number ? ` · ${job.job_number}` : ''}`
                             : `${job?.job_number || ''} | ${part?.part_number || ''} | OP${op.operation_number} ${op.operation_name}`;
                           return (
@@ -635,7 +652,7 @@ export default function GanttChart() {
         </div>
 
         <div className="text-xs text-muted-foreground flex flex-wrap gap-3">
-          {machinesOnly ? (
+          {(machinesOnly || peopleOnly) ? (
             <>
               <span className="font-semibold">Jobs:</span>
               {Array.from(new Set(visibleOps.map(o => o.job_id))).slice(0, 20).map(jid => {
