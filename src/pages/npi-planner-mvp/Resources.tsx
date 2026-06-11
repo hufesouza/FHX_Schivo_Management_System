@@ -110,6 +110,7 @@ export default function Resources() {
   };
 
   const isSubcon = form.resource_category === 'Subcontractor';
+  const isPerson = form.resource_category === 'Person';
 
   const save = async () => {
     if (!form.resource_name.trim()) return toast.error('Resource name is required');
@@ -120,7 +121,7 @@ export default function Resources() {
     } else {
       if (!form.available_hours_per_day || form.available_hours_per_day <= 0)
         return toast.error('Available hours per day must be greater than 0');
-      if (!form.number_of_shifts || form.number_of_shifts <= 0)
+      if (!isPerson && (!form.number_of_shifts || form.number_of_shifts <= 0))
         return toast.error('Number of shifts must be greater than 0');
     }
 
@@ -128,9 +129,8 @@ export default function Resources() {
     const payload = {
       ...form,
       resource_name: form.resource_name.trim(),
-      // Subcon resources don't have a machining "type" — store the category as type
-      // so the UI doesn't show a misleading value like "Assembly" / "Milling".
-      resource_type: isSubcon ? 'Subcontractor' : form.resource_type,
+      resource_type: isSubcon ? 'Subcontractor' : isPerson ? 'Person' : form.resource_type,
+      number_of_shifts: isPerson ? 1 : form.number_of_shifts,
       supplier_name: isSubcon ? form.supplier_name?.trim() || null : null,
       lead_time_days: isSubcon ? form.lead_time_days : null,
     };
