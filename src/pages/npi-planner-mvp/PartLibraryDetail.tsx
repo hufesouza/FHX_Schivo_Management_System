@@ -25,7 +25,13 @@ import { toast } from 'sonner';
 
 const OP_NAMES = ['Turning', 'Swiss Turning', 'Milling', 'Inspection', 'Deburr', 'Assembly', 'Laser', 'Other'];
 
-type Resource = { id: string; resource_name: string; resource_type: string };
+type Resource = {
+  id: string;
+  resource_name: string;
+  resource_type: string;
+  resource_category?: string | null;
+  lead_time_days?: number | null;
+};
 type Operation = {
   id: string;
   part_id: string;
