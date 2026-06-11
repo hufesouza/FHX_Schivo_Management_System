@@ -477,7 +477,7 @@ export default function NPIOrderIntelligence() {
         pdf.setPage(i);
         pdf.setFontSize(7.5);
         pdf.setTextColor(148, 163, 184);
-        pdf.text('Schivo Medical • FHX Engineering — Confidential', margin, ph - 4);
+        pdf.text('Schivo Medical — Confidential', margin, ph - 4);
         pdf.text(`Page ${i} of ${pageCount}`, pw - margin, ph - 4, { align: 'right' });
       }
 
