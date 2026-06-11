@@ -60,6 +60,7 @@ type JobForm = {
   priority: string;
   status: string;
   development_time_hours: number;
+  dev_person_id: string | null;
   notes: string;
 };
 
@@ -72,6 +73,7 @@ const blankForm = (): JobForm => ({
   priority: 'Normal',
   status: 'Planned',
   development_time_hours: 0,
+  dev_person_id: null,
   notes: '',
 });
 
