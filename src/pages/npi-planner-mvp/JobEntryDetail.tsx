@@ -102,6 +102,7 @@ export default function JobEntryDetail() {
             job_number: job.job_number,
             part_id: job.part_id,
             quantity: job.quantity,
+            planned_start: (job as any).planned_start ? new Date((job as any).planned_start) : null,
             due_date: job.due_date ? new Date(job.due_date) : null,
             priority: job.priority,
             status: job.status,
