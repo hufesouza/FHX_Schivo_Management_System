@@ -181,6 +181,16 @@ export default function PartLibrary() {
               <Input value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })} />
             </div>
+            <div>
+              <Label>Customer</Label>
+              <Input value={form.customer}
+                onChange={(e) => setForm({ ...form, customer: e.target.value })} />
+            </div>
+            <div>
+              <Label>Project</Label>
+              <Input value={form.project}
+                onChange={(e) => setForm({ ...form, project: e.target.value })} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
