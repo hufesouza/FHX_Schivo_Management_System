@@ -67,6 +67,24 @@ export default function PartLibraryDetail() {
   const [savingOp, setSavingOp] = useState(false);
   const [deleteOpId, setDeleteOpId] = useState<string | null>(null);
 
+  // Display units (persisted). DB always stores setup in HOURS and cycle in SECONDS.
+  const [setupUnit, setSetupUnit] = useState<'minutes' | 'hours'>(
+    () => (localStorage.getItem('pl_setupUnit') as 'minutes' | 'hours') || 'minutes'
+  );
+  const [cycleUnit, setCycleUnit] = useState<'seconds' | 'minutes'>(
+    () => (localStorage.getItem('pl_cycleUnit') as 'seconds' | 'minutes') || 'minutes'
+  );
+  useEffect(() => { localStorage.setItem('pl_setupUnit', setupUnit); }, [setupUnit]);
+  useEffect(() => { localStorage.setItem('pl_cycleUnit', cycleUnit); }, [cycleUnit]);
+
+  // Conversions
+  const setupToDisplay = (h: number) => setupUnit === 'minutes' ? h * 60 : h;
+  const setupFromDisplay = (v: number) => setupUnit === 'minutes' ? v / 60 : v;
+  const cycleToDisplay = (s: number) => cycleUnit === 'minutes' ? s / 60 : s;
+  const cycleFromDisplay = (v: number) => cycleUnit === 'minutes' ? v * 60 : v;
+  const setupLabel = setupUnit === 'minutes' ? 'min' : 'h';
+  const cycleLabel = cycleUnit === 'minutes' ? 'min' : 's';
+
   const load = async () => {
     if (!id) return;
     setLoading(true);
@@ -218,9 +236,31 @@ export default function PartLibraryDetail() {
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
+          <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
             <CardTitle>Routing ({ops.length} operations)</CardTitle>
-            <Button onClick={openAddOp}><Plus className="h-4 w-4 mr-1" /> Add operation</Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1">
+                <Label className="text-xs text-muted-foreground">Setup unit</Label>
+                <Select value={setupUnit} onValueChange={(v: 'minutes' | 'hours') => setSetupUnit(v)}>
+                  <SelectTrigger className="h-8 w-[110px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="minutes">Minutes</SelectItem>
+                    <SelectItem value="hours">Hours</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center gap-1">
+                <Label className="text-xs text-muted-foreground">Cycle unit</Label>
+                <Select value={cycleUnit} onValueChange={(v: 'seconds' | 'minutes') => setCycleUnit(v)}>
+                  <SelectTrigger className="h-8 w-[110px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="minutes">Minutes</SelectItem>
+                    <SelectItem value="seconds">Seconds</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button onClick={openAddOp}><Plus className="h-4 w-4 mr-1" /> Add operation</Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="rounded-md border">
@@ -230,8 +270,8 @@ export default function PartLibraryDetail() {
                     <TableHead className="w-[80px]">Op #</TableHead>
                     <TableHead>Operation</TableHead>
                     <TableHead>Resource</TableHead>
-                    <TableHead className="text-right">Setup (h)</TableHead>
-                    <TableHead className="text-right">Cycle (s)</TableHead>
+                    <TableHead className="text-right">Setup ({setupLabel})</TableHead>
+                    <TableHead className="text-right">Cycle ({cycleLabel})</TableHead>
                     <TableHead>Notes</TableHead>
                     <TableHead className="w-[180px] text-right">Actions</TableHead>
                   </TableRow>
@@ -246,8 +286,8 @@ export default function PartLibraryDetail() {
                       <TableCell className="font-medium">{op.operation_number}</TableCell>
                       <TableCell>{op.operation_name}</TableCell>
                       <TableCell>{resourceName(op.resource_id)}</TableCell>
-                      <TableCell className="text-right">{op.setup_time_hours}</TableCell>
-                      <TableCell className="text-right">{op.cycle_time_seconds}</TableCell>
+                      <TableCell className="text-right">{setupToDisplay(op.setup_time_hours).toFixed(2)}</TableCell>
+                      <TableCell className="text-right">{cycleToDisplay(op.cycle_time_seconds).toFixed(2)}</TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">
                         {op.notes || '—'}
                       </TableCell>
@@ -321,16 +361,16 @@ export default function PartLibraryDetail() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Setup time (hours)</Label>
-                <Input type="number" min={0} step={0.1}
-                  value={opForm.setup_time_hours}
-                  onChange={(e) => setOpForm({ ...opForm, setup_time_hours: parseFloat(e.target.value) || 0 })} />
+                <Label>Setup time ({setupUnit})</Label>
+                <Input type="number" min={0} step={setupUnit === 'minutes' ? 1 : 0.1}
+                  value={setupToDisplay(opForm.setup_time_hours)}
+                  onChange={(e) => setOpForm({ ...opForm, setup_time_hours: setupFromDisplay(parseFloat(e.target.value) || 0) })} />
               </div>
               <div>
-                <Label>Cycle time (seconds)</Label>
-                <Input type="number" min={0} step={1}
-                  value={opForm.cycle_time_seconds}
-                  onChange={(e) => setOpForm({ ...opForm, cycle_time_seconds: parseFloat(e.target.value) || 0 })} />
+                <Label>Cycle time ({cycleUnit})</Label>
+                <Input type="number" min={0} step={cycleUnit === 'minutes' ? 0.1 : 1}
+                  value={cycleToDisplay(opForm.cycle_time_seconds)}
+                  onChange={(e) => setOpForm({ ...opForm, cycle_time_seconds: cycleFromDisplay(parseFloat(e.target.value) || 0) })} />
               </div>
             </div>
             <div>
