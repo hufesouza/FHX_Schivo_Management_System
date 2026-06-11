@@ -421,16 +421,16 @@ export default function JobEntryDetail() {
                           </Select>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Input type="number" min={0} step={0.1}
+                          <Input type="number" min={0} step={setupUnit === 'minutes' ? 1 : 0.1}
                             className="w-[90px] ml-auto text-right"
-                            value={op.setup_time_hours}
-                            onChange={(e) => updateOp(i, { setup_time_hours: parseFloat(e.target.value) || 0 })} />
+                            value={setupToDisplay(op.setup_time_hours)}
+                            onChange={(e) => updateOp(i, { setup_time_hours: setupFromDisplay(parseFloat(e.target.value) || 0) })} />
                         </TableCell>
                         <TableCell className="text-right">
-                          <Input type="number" min={0} step={1}
+                          <Input type="number" min={0} step={cycleUnit === 'minutes' ? 0.1 : 1}
                             className="w-[100px] ml-auto text-right"
-                            value={op.cycle_time_seconds}
-                            onChange={(e) => updateOp(i, { cycle_time_seconds: parseFloat(e.target.value) || 0 })} />
+                            value={cycleToDisplay(op.cycle_time_seconds)}
+                            onChange={(e) => updateOp(i, { cycle_time_seconds: cycleFromDisplay(parseFloat(e.target.value) || 0) })} />
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           {totalsByOp[i].toFixed(2)}
