@@ -388,8 +388,8 @@ export default function JobEntryDetail() {
                       <TableHead className="w-[80px]">Op #</TableHead>
                       <TableHead>Operation</TableHead>
                       <TableHead>Resource (override)</TableHead>
-                      <TableHead className="text-right">Setup (h)</TableHead>
-                      <TableHead className="text-right">Cycle (s)</TableHead>
+                      <TableHead className="text-right">Setup ({setupLabel})</TableHead>
+                      <TableHead className="text-right">Cycle ({cycleLabel})</TableHead>
                       <TableHead className="text-right">Total (h)</TableHead>
                     </TableRow>
                   </TableHeader>
