@@ -84,6 +84,30 @@ export default function JobEntryDetail() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Display units (synced with Part Library settings via localStorage)
+  const [setupUnit, setSetupUnit] = useState<'minutes' | 'hours'>(
+    () => (localStorage.getItem('pl_setupUnit') as 'minutes' | 'hours') || 'minutes'
+  );
+  const [cycleUnit, setCycleUnit] = useState<'seconds' | 'minutes'>(
+    () => (localStorage.getItem('pl_cycleUnit') as 'seconds' | 'minutes') || 'minutes'
+  );
+  useEffect(() => { localStorage.setItem('pl_setupUnit', setupUnit); }, [setupUnit]);
+  useEffect(() => { localStorage.setItem('pl_cycleUnit', cycleUnit); }, [cycleUnit]);
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'pl_setupUnit' && e.newValue) setSetupUnit(e.newValue as 'minutes' | 'hours');
+      if (e.key === 'pl_cycleUnit' && e.newValue) setCycleUnit(e.newValue as 'seconds' | 'minutes');
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+  const setupToDisplay = (h: number) => setupUnit === 'minutes' ? h * 60 : h;
+  const setupFromDisplay = (v: number) => setupUnit === 'minutes' ? v / 60 : v;
+  const cycleToDisplay = (s: number) => cycleUnit === 'minutes' ? s / 60 : s;
+  const cycleFromDisplay = (v: number) => cycleUnit === 'minutes' ? v * 60 : v;
+  const setupLabel = setupUnit === 'minutes' ? 'min' : 'h';
+  const cycleLabel = cycleUnit === 'minutes' ? 'min' : 's';
+
   // Load lookups and (if editing) the job
   useEffect(() => {
     (async () => {
