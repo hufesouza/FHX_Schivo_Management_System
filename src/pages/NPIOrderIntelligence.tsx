@@ -136,15 +136,21 @@ export default function NPIOrderIntelligence() {
 
   // detect columns
   const cols = useMemo(() => rows.length ? Object.keys(rows[0]) : [], [rows]);
-  const colMap = useMemo(() => ({
+  const autoColMap = useMemo(() => ({
     customer: findCol(cols, ['customer', 'client', 'customer name', 'account']),
     po: findCol(cols, ['po', 'po number', 'po no', 'purchase order', 'order no', 'order number']),
     part: findCol(cols, ['part', 'part number', 'part no', 'pn', 'item']),
-    revenue: findCol(cols, ['revenue', 'value', 'amount', 'price', 'total', 'po value', 'order value', 'eur', 'euro']),
+    revenue: findCol(cols, ['tl €', 'tl eur', 'tl euro', 'tl(€)', 'tl', 'total €', 'total eur', 'revenue €', 'revenue', 'value', 'amount', 'order value', 'po value', 'eur', 'euro', 'total']),
     status: findCol(cols, ['status', 'state', 'order status']),
     commodity: findCol(cols, ['commodity', 'category', 'type', 'product family', 'process']),
     date: findCol(cols, ['date', 'order date', 'received', 'date received', 'po date', 'received date']),
   }), [cols]);
+
+  const [revenueColOverride, setRevenueColOverride] = useState<string>('');
+  const colMap = useMemo(() => ({
+    ...autoColMap,
+    revenue: revenueColOverride || autoColMap.revenue,
+  }), [autoColMap, revenueColOverride]);
 
   // normalised dataset
   const normalised = useMemo(() => rows.map(r => {
