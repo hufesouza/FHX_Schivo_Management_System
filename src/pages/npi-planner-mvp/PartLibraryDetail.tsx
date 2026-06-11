@@ -118,6 +118,8 @@ export default function PartLibraryDetail() {
       part_number: part.part_number.trim(),
       revision: part.revision?.trim() || null,
       description: part.description?.trim() || null,
+      customer: part.customer?.trim() || null,
+      project: part.project?.trim() || null,
     }).eq('id', part.id);
     setSavingHeader(false);
     if (error) return toast.error(error.message);
