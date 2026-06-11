@@ -63,6 +63,7 @@ export default function GanttChart() {
   const [showConflicts, setShowConflicts] = useState(true);
   const [showLate, setShowLate] = useState(true);
   const [machinesOnly, setMachinesOnly] = useState(false);
+  const [peopleOnly, setPeopleOnly] = useState(false);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
