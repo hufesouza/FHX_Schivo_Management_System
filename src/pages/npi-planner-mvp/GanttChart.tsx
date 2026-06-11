@@ -507,7 +507,8 @@ export default function GanttChart() {
           <div className="h-6 w-px bg-border mx-1" />
           <div className="flex items-center gap-2"><Switch id="sc" checked={showConflicts} onCheckedChange={setShowConflicts} /><Label htmlFor="sc" className="text-xs">Conflicts</Label></div>
           <div className="flex items-center gap-2"><Switch id="sl" checked={showLate} onCheckedChange={setShowLate} /><Label htmlFor="sl" className="text-xs">Late</Label></div>
-          <div className="flex items-center gap-2"><Switch id="mo" checked={machinesOnly} onCheckedChange={(v) => { setMachinesOnly(v); if (v) setGroupMode('resource'); }} /><Label htmlFor="mo" className="text-xs">Machines only</Label></div>
+          <div className="flex items-center gap-2"><Switch id="mo" checked={machinesOnly} onCheckedChange={(v) => { setMachinesOnly(v); if (v) { setGroupMode('resource'); setPeopleOnly(false); } }} /><Label htmlFor="mo" className="text-xs">Machines only</Label></div>
+          <div className="flex items-center gap-2"><Switch id="po" checked={peopleOnly} onCheckedChange={(v) => { setPeopleOnly(v); if (v) { setGroupMode('resource'); setMachinesOnly(false); } }} /><Label htmlFor="po" className="text-xs">People only</Label></div>
           <div className="ml-auto text-xs text-muted-foreground">
             {timelineStart.toLocaleDateString()} → {addDays(timelineEnd, -1).toLocaleDateString()}
           </div>
