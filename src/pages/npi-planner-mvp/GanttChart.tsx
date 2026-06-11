@@ -106,16 +106,14 @@ export default function GanttChart() {
         sequence_warning: false,
         sequence_order: 0,
       };
-      // Dev resource row
-      devOps.push({ ...base, id: `dev-${j.id}`, resource_id: j.dev_resource_id } as JobOp);
-      // Also mirror onto the first Machine resource of this job (machine is blocked during dev)
+      // Mirror onto the first Machine resource of this job (machine is blocked during dev)
       const jobOps = ops.filter(o => o.job_id === j.id);
       const firstMachineOp = jobOps.find(o => {
         const r = o.resource_id ? resourcesById.get(o.resource_id) : null;
         return r && (r.resource_category || '').toLowerCase() === 'machine';
       });
-      const machineResId = firstMachineOp?.resource_id || null;
-      if (machineResId && machineResId !== j.dev_resource_id) {
+      const machineResId = firstMachineOp?.resource_id || j.dev_resource_id;
+      if (machineResId) {
         devOps.push({ ...base, id: `dev-machine-${j.id}`, resource_id: machineResId } as JobOp);
       }
     });
@@ -183,8 +181,9 @@ export default function GanttChart() {
       list.sort((a, b) => a.label.localeCompare(b.label) || (a.sub || '').localeCompare(b.sub || ''));
       return list;
     }
-    // resource mode (optionally filtered to drill part)
+    // resource mode (optionally filtered to drill part) — hide the Development/Engineering pseudo-resource
     return resources
+      .filter(r => r.resource_name !== 'Development / Engineering')
       .filter(r => !machinesOnly || (r.resource_category || '').toLowerCase() === 'machine')
       .map(r => ({
         id: r.id,
