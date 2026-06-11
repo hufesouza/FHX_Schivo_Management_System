@@ -294,13 +294,25 @@ export default function GanttChart() {
           }
           if (!op.resource_id || !activeRes.has(op.resource_id)) continue;
           const r = activeRes.get(op.resource_id)!;
-          const dur = (op.total_time_hours && op.total_time_hours > 0) ? Number(op.total_time_hours)
-            : Number(op.setup_time_hours || 0) + (Number(op.cycle_time_seconds || 0) * Number(job.quantity || 0)) / 3600;
+          const isSubcon = (r.resource_category || '').toLowerCase() === 'subcontractor';
+          let dur: number;
+          if (isSubcon) {
+            dur = Number(r.lead_time_days || 0) * 24;
+          } else {
+            dur = (op.total_time_hours && op.total_time_hours > 0) ? Number(op.total_time_hours)
+              : Number(op.setup_time_hours || 0) + (Number(op.cycle_time_seconds || 0) * Number(job.quantity || 0)) / 3600;
+          }
           if (dur <= 0) continue;
           const free = resFree.get(op.resource_id) || base;
           const startAt = new Date(Math.max(prev.getTime(), free.getTime()));
-          while (isWeekend(startAt)) { startAt.setDate(startAt.getDate() + 1); startAt.setHours(0, 0, 0, 0); }
-          const endAt = addH(startAt, dur, r.available_hours_per_day || 8);
+          let endAt: Date;
+          if (isSubcon) {
+            // Subcontractor: calendar time, include weekends, run 24h continuously
+            endAt = new Date(startAt.getTime() + dur * 3600000);
+          } else {
+            while (isWeekend(startAt)) { startAt.setDate(startAt.getDate() + 1); startAt.setHours(0, 0, 0, 0); }
+            endAt = addH(startAt, dur, r.available_hours_per_day || 8);
+          }
           resFree.set(op.resource_id, endAt); prev = endAt;
           if (!js || startAt < js) js = startAt; if (!je || endAt > je) je = endAt;
           opUpdates.push({ id: op.id, planned_start: startAt.toISOString(), planned_finish: endAt.toISOString() });
