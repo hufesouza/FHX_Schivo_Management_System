@@ -117,6 +117,10 @@ export default function GanttChart() {
       if (machineResId) {
         devOps.push({ ...base, id: `dev-machine-${j.id}`, resource_id: machineResId } as JobOp);
       }
+      // Mirror onto the assigned Person (so the people view shows the developer's load)
+      if (j.dev_person_id) {
+        devOps.push({ ...base, id: `dev-person-${j.id}`, resource_id: j.dev_person_id } as JobOp);
+      }
     });
     return [...ops, ...devOps];
   }, [ops, jobs, resourcesById]);
