@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Lock, Unlock, AlertTriangle, Calendar as CalIcon, ChevronLeft, ChevronRight, Play, RotateCcw, Trash2, ArrowLeft } from 'lucide-react';
 
-type Resource = { id: string; resource_name: string; resource_type: string | null; available_hours_per_day: number; status: string };
+type Resource = { id: string; resource_name: string; resource_type: string | null; resource_category: string | null; lead_time_days: number | null; available_hours_per_day: number; status: string };
 type Part = { id: string; part_number: string; revision: string | null; description: string | null };
 type Job = { id: string; job_number: string; part_id: string | null; quantity: number; due_date: string | null; priority: string; status: string; planned_start: string | null; planned_finish: string | null; schedule_status: string };
 type JobOp = {
