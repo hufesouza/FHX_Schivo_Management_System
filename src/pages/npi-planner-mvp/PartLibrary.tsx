@@ -106,7 +106,7 @@ export default function PartLibrary() {
           <CardContent className="space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search by part number or description…"
+              <Input placeholder="Search by part number, description, customer or project…"
                 value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
 
@@ -116,6 +116,8 @@ export default function PartLibrary() {
                   <TableRow>
                     <TableHead>Part Number</TableHead>
                     <TableHead>Revision</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Project</TableHead>
                     <TableHead className="text-right">Operations</TableHead>
                     <TableHead>Last Updated</TableHead>
                     <TableHead className="w-[120px] text-right">Actions</TableHead>
@@ -123,9 +125,9 @@ export default function PartLibrary() {
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                   ) : filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       {rows.length === 0 ? 'No parts yet. Create your first one.' : 'No matches.'}
                     </TableCell></TableRow>
                   ) : filtered.map(r => (
@@ -136,6 +138,8 @@ export default function PartLibrary() {
                         {r.description && <div className="text-xs text-muted-foreground">{r.description}</div>}
                       </TableCell>
                       <TableCell>{r.revision || '—'}</TableCell>
+                      <TableCell>{r.customer || '—'}</TableCell>
+                      <TableCell>{r.project || '—'}</TableCell>
                       <TableCell className="text-right">{r.op_count}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatDistanceToNow(new Date(r.updated_at), { addSuffix: true })}
