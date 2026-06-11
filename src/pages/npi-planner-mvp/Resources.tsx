@@ -128,6 +128,9 @@ export default function Resources() {
     const payload = {
       ...form,
       resource_name: form.resource_name.trim(),
+      // Subcon resources don't have a machining "type" — store the category as type
+      // so the UI doesn't show a misleading value like "Assembly" / "Milling".
+      resource_type: isSubcon ? 'Subcontractor' : form.resource_type,
       supplier_name: isSubcon ? form.supplier_name?.trim() || null : null,
       lead_time_days: isSubcon ? form.lead_time_days : null,
     };
