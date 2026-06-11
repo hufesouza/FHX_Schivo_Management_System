@@ -84,6 +84,30 @@ export default function JobEntryDetail() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Display units (synced with Part Library settings via localStorage)
+  const [setupUnit, setSetupUnit] = useState<'minutes' | 'hours'>(
+    () => (localStorage.getItem('pl_setupUnit') as 'minutes' | 'hours') || 'minutes'
+  );
+  const [cycleUnit, setCycleUnit] = useState<'seconds' | 'minutes'>(
+    () => (localStorage.getItem('pl_cycleUnit') as 'seconds' | 'minutes') || 'minutes'
+  );
+  useEffect(() => { localStorage.setItem('pl_setupUnit', setupUnit); }, [setupUnit]);
+  useEffect(() => { localStorage.setItem('pl_cycleUnit', cycleUnit); }, [cycleUnit]);
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'pl_setupUnit' && e.newValue) setSetupUnit(e.newValue as 'minutes' | 'hours');
+      if (e.key === 'pl_cycleUnit' && e.newValue) setCycleUnit(e.newValue as 'seconds' | 'minutes');
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+  const setupToDisplay = (h: number) => setupUnit === 'minutes' ? h * 60 : h;
+  const setupFromDisplay = (v: number) => setupUnit === 'minutes' ? v / 60 : v;
+  const cycleToDisplay = (s: number) => cycleUnit === 'minutes' ? s / 60 : s;
+  const cycleFromDisplay = (v: number) => cycleUnit === 'minutes' ? v * 60 : v;
+  const setupLabel = setupUnit === 'minutes' ? 'min' : 'h';
+  const cycleLabel = cycleUnit === 'minutes' ? 'min' : 's';
+
   // Load lookups and (if editing) the job
   useEffect(() => {
     (async () => {
@@ -364,8 +388,8 @@ export default function JobEntryDetail() {
                       <TableHead className="w-[80px]">Op #</TableHead>
                       <TableHead>Operation</TableHead>
                       <TableHead>Resource (override)</TableHead>
-                      <TableHead className="text-right">Setup (h)</TableHead>
-                      <TableHead className="text-right">Cycle (s)</TableHead>
+                      <TableHead className="text-right">Setup ({setupLabel})</TableHead>
+                      <TableHead className="text-right">Cycle ({cycleLabel})</TableHead>
                       <TableHead className="text-right">Total (h)</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -397,16 +421,16 @@ export default function JobEntryDetail() {
                           </Select>
                         </TableCell>
                         <TableCell className="text-right">
-                          <Input type="number" min={0} step={0.1}
+                          <Input type="number" min={0} step={setupUnit === 'minutes' ? 1 : 0.1}
                             className="w-[90px] ml-auto text-right"
-                            value={op.setup_time_hours}
-                            onChange={(e) => updateOp(i, { setup_time_hours: parseFloat(e.target.value) || 0 })} />
+                            value={setupToDisplay(op.setup_time_hours)}
+                            onChange={(e) => updateOp(i, { setup_time_hours: setupFromDisplay(parseFloat(e.target.value) || 0) })} />
                         </TableCell>
                         <TableCell className="text-right">
-                          <Input type="number" min={0} step={1}
+                          <Input type="number" min={0} step={cycleUnit === 'minutes' ? 0.1 : 1}
                             className="w-[100px] ml-auto text-right"
-                            value={op.cycle_time_seconds}
-                            onChange={(e) => updateOp(i, { cycle_time_seconds: parseFloat(e.target.value) || 0 })} />
+                            value={cycleToDisplay(op.cycle_time_seconds)}
+                            onChange={(e) => updateOp(i, { cycle_time_seconds: cycleFromDisplay(parseFloat(e.target.value) || 0) })} />
                         </TableCell>
                         <TableCell className="text-right font-medium">
                           {totalsByOp[i].toFixed(2)}
