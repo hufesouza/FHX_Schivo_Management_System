@@ -45,8 +45,29 @@ const findCol = (cols: string[], candidates: string[]): string | null => {
 const toNum = (v: any): number => {
   if (v === null || v === undefined || v === '') return 0;
   if (typeof v === 'number') return isFinite(v) ? v : 0;
-  const cleaned = String(v).replace(/[€$,\s]/g, '').replace(/,/g, '');
-  const n = parseFloat(cleaned);
+  let s = String(v).replace(/[€$£\s]/g, '').replace(/[()]/g, m => m === '(' ? '-' : '');
+  // Detect European format: if both '.' and ',' present, the rightmost is the decimal separator.
+  // If only ',' present and it looks like a decimal (e.g. "1234,56"), treat as decimal.
+  const lastDot = s.lastIndexOf('.');
+  const lastComma = s.lastIndexOf(',');
+  if (lastDot !== -1 && lastComma !== -1) {
+    if (lastComma > lastDot) {
+      // European: dots = thousands, comma = decimal
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else {
+      // US: commas = thousands, dot = decimal
+      s = s.replace(/,/g, '');
+    }
+  } else if (lastComma !== -1) {
+    // Only commas. If exactly one comma followed by 1-2 digits => decimal, else thousands.
+    const after = s.length - lastComma - 1;
+    if (s.split(',').length === 2 && after > 0 && after <= 2) {
+      s = s.replace(',', '.');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+  }
+  const n = parseFloat(s);
   return isFinite(n) ? n : 0;
 };
 
