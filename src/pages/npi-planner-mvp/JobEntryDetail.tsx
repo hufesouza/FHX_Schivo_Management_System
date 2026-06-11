@@ -431,12 +431,12 @@ export default function JobEntryDetail() {
                           const res = resources.find(r => r.id === op.resource_id);
                           const isSubcon = res?.resource_category === 'Subcontractor';
                           if (isSubcon) {
-                            const days = (op.setup_time_hours || 0) / 24;
+                            const days = res?.lead_time_days ?? ((op.setup_time_hours || 0) / 24);
                             return (
                               <>
                                 <TableCell className="text-right">
                                   <span className="italic text-muted-foreground">
-                                    {days.toFixed(0)}d lead
+                                    {Number(days).toFixed(0)}d lead
                                   </span>
                                 </TableCell>
                                 <TableCell className="text-right text-muted-foreground">—</TableCell>
