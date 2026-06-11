@@ -433,8 +433,7 @@ export default function GanttChart() {
   // Determine if an op belongs in a given row
   const opInRow = (op: JobOp, row: Row) => {
     if (groupMode === 'part') {
-      const job = jobsById.get(op.job_id);
-      return job?.part_id === row.partId;
+      return op.job_id === row.jobId;
     }
     return op.resource_id === row.resourceId;
   };
