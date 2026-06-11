@@ -604,13 +604,15 @@ export default function GanttChart() {
                           const bx = usingPreview ? dragPreview!.startX : x;
                           const bw = usingPreview ? dragPreview!.width : w;
                           if (previewing && !usingPreview) return null;
-                          const color = machinesOnly
+                          const color = (machinesOnly || peopleOnly)
                             ? OP_PALETTE[hashStr(op.job_id) % OP_PALETTE.length]
                             : opColor(op);
                           const lane = groupMode === 'part' ? (opLanes.get(op.id) ?? 0) : 0;
                           const topPx = groupMode === 'part' ? 4 + lane * 26 : 8;
                           const heightPx = groupMode === 'part' ? 22 : ROW_H - 16;
-                          const label = groupMode === 'part'
+                          const label = peopleOnly
+                            ? `Dev · ${job?.job_number || ''}${part?.part_number ? ` · ${part.part_number}` : ''}`
+                            : groupMode === 'part'
                             ? `OP${op.operation_number} ${op.operation_name}${job?.job_number ? ` · ${job.job_number}` : ''}`
                             : `${job?.job_number || ''} | ${part?.part_number || ''} | OP${op.operation_number} ${op.operation_name}`;
                           return (
