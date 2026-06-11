@@ -49,6 +49,7 @@ type JobForm = {
   job_number: string;
   part_id: string;
   quantity: number;
+  planned_start: Date | null;
   due_date: Date | null;
   priority: string;
   status: string;
@@ -60,6 +61,7 @@ const blankForm = (): JobForm => ({
   job_number: '',
   part_id: '',
   quantity: 1,
+  planned_start: null,
   due_date: null,
   priority: 'Normal',
   status: 'Planned',
