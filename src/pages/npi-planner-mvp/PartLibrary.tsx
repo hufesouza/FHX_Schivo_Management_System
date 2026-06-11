@@ -25,6 +25,8 @@ type Part = {
   part_number: string;
   revision: string | null;
   description: string | null;
+  customer: string | null;
+  project: string | null;
   updated_at: string;
   op_count?: number;
 };
@@ -36,7 +38,7 @@ export default function PartLibrary() {
   const [search, setSearch] = useState('');
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ part_number: '', revision: '', description: '' });
+  const [form, setForm] = useState({ part_number: '', revision: '', description: '', customer: '', project: '' });
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
