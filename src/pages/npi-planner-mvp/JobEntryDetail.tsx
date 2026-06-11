@@ -229,6 +229,7 @@ export default function JobEntryDetail() {
       priority: form.priority,
       status: form.status,
       development_time_hours: form.development_time_hours || 0,
+      dev_person_id: form.dev_person_id || null,
       notes: form.notes.trim() || null,
     };
 
