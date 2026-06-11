@@ -652,7 +652,7 @@ export default function GanttChart() {
         </div>
 
         <div className="text-xs text-muted-foreground flex flex-wrap gap-3">
-          {machinesOnly ? (
+          {(machinesOnly || peopleOnly) ? (
             <>
               <span className="font-semibold">Jobs:</span>
               {Array.from(new Set(visibleOps.map(o => o.job_id))).slice(0, 20).map(jid => {
