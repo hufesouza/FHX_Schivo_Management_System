@@ -24,7 +24,13 @@ import { format } from 'date-fns';
 const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'] as const;
 const STATUSES = ['Planned', 'Scheduled', 'Completed'] as const;
 
-type Resource = { id: string; resource_name: string; resource_type: string };
+type Resource = {
+  id: string;
+  resource_name: string;
+  resource_type: string;
+  resource_category?: string | null;
+  lead_time_days?: number | null;
+};
 type Part = { id: string; part_number: string; revision: string | null; description: string | null };
 type PartOp = {
   id: string;
@@ -114,7 +120,7 @@ export default function JobEntryDetail() {
       setLoading(true);
       const [p, r] = await Promise.all([
         supabase.from('parts').select('id, part_number, revision, description').order('part_number'),
-        supabase.from('resources').select('id, resource_name, resource_type').eq('status', 'Active').order('resource_name'),
+        supabase.from('resources').select('id, resource_name, resource_type, resource_category, lead_time_days').eq('status', 'Active').order('resource_name'),
       ]);
       setParts((p.data || []) as Part[]);
       setResources((r.data || []) as Resource[]);
@@ -420,18 +426,39 @@ export default function JobEntryDetail() {
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell className="text-right">
-                          <Input type="number" min={0} step={setupUnit === 'minutes' ? 1 : 0.1}
-                            className="w-[90px] ml-auto text-right"
-                            value={setupToDisplay(op.setup_time_hours)}
-                            onChange={(e) => updateOp(i, { setup_time_hours: setupFromDisplay(parseFloat(e.target.value) || 0) })} />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input type="number" min={0} step={cycleUnit === 'minutes' ? 0.1 : 1}
-                            className="w-[100px] ml-auto text-right"
-                            value={cycleToDisplay(op.cycle_time_seconds)}
-                            onChange={(e) => updateOp(i, { cycle_time_seconds: cycleFromDisplay(parseFloat(e.target.value) || 0) })} />
-                        </TableCell>
+                        {(() => {
+                          const res = resources.find(r => r.id === op.resource_id);
+                          const isSubcon = res?.resource_category === 'Subcontractor';
+                          if (isSubcon) {
+                            const days = (op.setup_time_hours || 0) / 24;
+                            return (
+                              <>
+                                <TableCell className="text-right">
+                                  <span className="italic text-muted-foreground">
+                                    {days.toFixed(0)}d lead
+                                  </span>
+                                </TableCell>
+                                <TableCell className="text-right text-muted-foreground">—</TableCell>
+                              </>
+                            );
+                          }
+                          return (
+                            <>
+                              <TableCell className="text-right">
+                                <Input type="number" min={0} step={setupUnit === 'minutes' ? 1 : 0.1}
+                                  className="w-[90px] ml-auto text-right"
+                                  value={setupToDisplay(op.setup_time_hours)}
+                                  onChange={(e) => updateOp(i, { setup_time_hours: setupFromDisplay(parseFloat(e.target.value) || 0) })} />
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Input type="number" min={0} step={cycleUnit === 'minutes' ? 0.1 : 1}
+                                  className="w-[100px] ml-auto text-right"
+                                  value={cycleToDisplay(op.cycle_time_seconds)}
+                                  onChange={(e) => updateOp(i, { cycle_time_seconds: cycleFromDisplay(parseFloat(e.target.value) || 0) })} />
+                              </TableCell>
+                            </>
+                          );
+                        })()}
                         <TableCell className="text-right font-medium">
                           {totalsByOp[i].toFixed(2)}
                         </TableCell>
