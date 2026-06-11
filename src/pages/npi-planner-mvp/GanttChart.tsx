@@ -62,6 +62,7 @@ export default function GanttChart() {
   const [selectedOp, setSelectedOp] = useState<JobOp | null>(null);
   const [showConflicts, setShowConflicts] = useState(true);
   const [showLate, setShowLate] = useState(true);
+  const [machinesOnly, setMachinesOnly] = useState(false);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -172,21 +173,28 @@ export default function GanttChart() {
       return list;
     }
     // resource mode (optionally filtered to drill part)
-    return resources.map(r => ({
-      id: r.id,
-      label: r.resource_name,
-      sub: `${r.resource_type || '—'} · ${r.available_hours_per_day}h/day`,
-      resourceId: r.id,
-    }));
-  }, [groupMode, jobs, parts, resources, partsById]);
+    return resources
+      .filter(r => !machinesOnly || (r.resource_category || '').toLowerCase() === 'machine')
+      .map(r => ({
+        id: r.id,
+        label: r.resource_name,
+        sub: `${r.resource_type || '—'} · ${r.available_hours_per_day}h/day`,
+        resourceId: r.id,
+      }));
+  }, [groupMode, jobs, parts, resources, partsById, machinesOnly]);
 
   const visibleOps = useMemo(() => {
+    let list = flaggedOps;
+    if (machinesOnly) {
+      const machineIds = new Set(resources.filter(r => (r.resource_category || '').toLowerCase() === 'machine').map(r => r.id));
+      list = list.filter(o => o.resource_id && machineIds.has(o.resource_id));
+    }
     if (groupMode === 'resource' && drillPartId) {
       const jobIds = new Set(jobs.filter(j => j.part_id === drillPartId).map(j => j.id));
-      return flaggedOps.filter(o => jobIds.has(o.job_id));
+      return list.filter(o => jobIds.has(o.job_id));
     }
-    return flaggedOps;
-  }, [flaggedOps, groupMode, drillPartId, jobs]);
+    return list;
+  }, [flaggedOps, groupMode, drillPartId, jobs, machinesOnly, resources]);
 
   // Drag state
   const dragRef = useRef<{ opId: string; mode: 'move' | 'resize'; startX: number; startY: number; origStart: Date; origEnd: Date; resourceId: string | null } | null>(null);
@@ -475,6 +483,7 @@ export default function GanttChart() {
           <div className="h-6 w-px bg-border mx-1" />
           <div className="flex items-center gap-2"><Switch id="sc" checked={showConflicts} onCheckedChange={setShowConflicts} /><Label htmlFor="sc" className="text-xs">Conflicts</Label></div>
           <div className="flex items-center gap-2"><Switch id="sl" checked={showLate} onCheckedChange={setShowLate} /><Label htmlFor="sl" className="text-xs">Late</Label></div>
+          <div className="flex items-center gap-2"><Switch id="mo" checked={machinesOnly} onCheckedChange={(v) => { setMachinesOnly(v); if (v) setGroupMode('resource'); }} /><Label htmlFor="mo" className="text-xs">Machines only</Label></div>
           <div className="ml-auto text-xs text-muted-foreground">
             {timelineStart.toLocaleDateString()} → {addDays(timelineEnd, -1).toLocaleDateString()}
           </div>
