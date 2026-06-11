@@ -147,12 +147,10 @@ export default function NPIOrderIntelligence() {
   }), [cols]);
 
   const [revenueColOverride, setRevenueColOverride] = useState<string>('');
-  const [statusColOverride, setStatusColOverride] = useState<string>('');
   const colMap = useMemo(() => ({
     ...autoColMap,
     revenue: revenueColOverride || autoColMap.revenue,
-    status: statusColOverride || autoColMap.status,
-  }), [autoColMap, revenueColOverride, statusColOverride]);
+  }), [autoColMap, revenueColOverride]);
 
   // normalised dataset
   const normalised = useMemo(() => rows.map(r => {
@@ -409,17 +407,6 @@ export default function NPIOrderIntelligence() {
                     </SelectContent>
                   </Select>
                   <span className="text-muted-foreground">Using: <span className="font-medium text-foreground">{colMap.revenue || '—'}</span></span>
-                </div>
-                <div className="flex items-center gap-3 flex-wrap text-xs">
-                  <span className="text-muted-foreground">Status column:</span>
-                  <Select value={statusColOverride || '__auto__'} onValueChange={(v) => setStatusColOverride(v === '__auto__' ? '' : v)}>
-                    <SelectTrigger className="h-8 w-64"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__auto__">Auto-detect ({autoColMap.status || 'none'})</SelectItem>
-                      {cols.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <span className="text-muted-foreground">Using: <span className="font-medium text-foreground">{colMap.status || '—'}</span></span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   <div>
