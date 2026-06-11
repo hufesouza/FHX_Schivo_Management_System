@@ -62,6 +62,7 @@ export default function GanttChart() {
   const [selectedOp, setSelectedOp] = useState<JobOp | null>(null);
   const [showConflicts, setShowConflicts] = useState(true);
   const [showLate, setShowLate] = useState(true);
+  const [machinesOnly, setMachinesOnly] = useState(false);
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
