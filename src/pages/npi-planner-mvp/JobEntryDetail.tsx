@@ -185,8 +185,15 @@ export default function JobEntryDetail() {
   };
 
   const totalsByOp = useMemo(
-    () => ops.map(o => calcTotal(o, form.quantity)),
-    [ops, form.quantity]
+    () => ops.map(o => {
+      const res = resources.find(r => r.id === o.resource_id);
+      if (res?.resource_category === 'Subcontractor') {
+        const days = res?.lead_time_days ?? ((o.setup_time_hours || 0) / 24);
+        return Number(days) * 24;
+      }
+      return calcTotal(o, form.quantity);
+    }),
+    [ops, form.quantity, resources]
   );
   const grandTotal = useMemo(
     () => Number(form.development_time_hours || 0) + totalsByOp.reduce((a, b) => a + b, 0),
