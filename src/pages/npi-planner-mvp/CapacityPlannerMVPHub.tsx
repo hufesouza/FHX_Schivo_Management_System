@@ -20,7 +20,6 @@ const groups = [
   {
     title: 'Trackers',
     tiles: [
-      { id: 'jobs', title: 'Job Tracker', desc: 'All parts/jobs, ship status, and reallocation recommendations', icon: ListChecks, href: '/npi/capacity-planner-mvp/jobs', color: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
       { id: 'gantt', title: 'Gantt Chart', desc: 'Interactive visual scheduler with drag, drop & resize', icon: GanttChartSquare, href: '/npi/capacity-planner-mvp/gantt', color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20' },
     ],
   },
