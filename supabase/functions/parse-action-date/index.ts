@@ -28,22 +28,28 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const systemPrompt = `You are a date extraction assistant. Your task is to find and extract any date mentioned in the action text.
+    const today = new Date();
+    const todayIso = today.toISOString().slice(0, 10);
+    const currentYear = today.getUTCFullYear();
+    const currentYY = currentYear % 100;
+
+    const systemPrompt = `You are a date extraction assistant. Today's date is ${todayIso}.
+Your task is to find and extract the date mentioned in the action text and return it in ISO format YYYY-MM-DD.
 
 Rules:
-1. Look for dates in various formats: "15/01/25", "15 Jan 2025", "January 15", "15-01-2025", etc.
-2. Dates often appear at the START of action text (e.g., "15/01/25 - Follow up with customer")
-3. Return the date in ISO format: YYYY-MM-DD
-4. If the year is 2-digit (e.g., "25"), assume 2025 for values 00-50, 1900s for 51-99
-5. If no date is found, return exactly: null
-6. Return ONLY the date string or null, nothing else
+1. Look for dates in formats like "15/01", "15/01/26", "15-01-26", "15 Jan", "January 15", "15/1/2026".
+2. Dates typically appear at the START of the action (e.g., "15/01 - Follow up").
+3. Day/Month order is DAY/MONTH (European format). "15/01" = 15 January.
+4. If NO year is given, assume the most recent past or current year so the date is on or before today (${todayIso}). Never return a future date unless the text explicitly states a future year.
+5. If a 2-digit year is given: treat 00-${String(currentYY).padStart(2,'0')} as 20xx, anything higher as 19xx. Current 2-digit year is ${currentYY}.
+6. If no date is found, return exactly: null
+7. Return ONLY the date string (YYYY-MM-DD) or null. No extra text.
 
-Examples:
-- "15/01/25 - Chase material supplier" -> 2025-01-15
-- "Follow up on 23 Jan" -> 2025-01-23
-- "29/01/25 - waiting for tubes delivery" -> 2025-01-29
-- "Complete review by end of month" -> null
-- "Chase customer for feedback" -> null`;
+Examples (assuming today is ${todayIso}):
+- "15/01 - Chase supplier" -> ${currentYear}-01-15
+- "15/01/26 - waiting" -> 2026-01-15
+- "Follow up on 23 Jan" -> ${currentYear}-01-23
+- "Complete review by end of month" -> null`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',

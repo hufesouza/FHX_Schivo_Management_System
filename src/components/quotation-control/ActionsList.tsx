@@ -72,10 +72,12 @@ export function ActionsList({ enquiries }: ActionsListProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Only include actions from WIP enquiries
+    // Open = not in a closed/won/lost/hold bucket (matches dashboard "Open" definition)
+    const closedStatuses = ['WON', 'LOST', 'PO RAISED', 'NOT CONVERTED', 'DECLINED', 'CANCELLED', 'ON HOLD', 'CLOSED'];
     const actionsWithData = enquiries.filter(e => {
       const status = (e.status || '').toUpperCase().trim();
-      return status === 'WIP' && e.customer && e.action_required && e.action_required.trim();
+      const isOpen = !closedStatuses.includes(status);
+      return isOpen && e.customer && e.action_required && e.action_required.trim();
     });
     
     if (actionsWithData.length === 0) {
