@@ -151,23 +151,24 @@ export default function GanttChart() {
 
   // Build rows depending on group mode
   const drillPart = drillPartId ? partsById.get(drillPartId) : null;
-  type Row = { id: string; label: string; sub: string; partId?: string | null; resourceId?: string | null };
+  type Row = { id: string; label: string; sub: string; partId?: string | null; resourceId?: string | null; jobId?: string | null };
 
   const rows: Row[] = useMemo(() => {
     if (groupMode === 'part') {
-      // unique parts that have at least one job
-      const partIds = Array.from(new Set(jobs.map(j => j.part_id).filter(Boolean))) as string[];
-      const list = partIds.map(pid => {
-        const p = partsById.get(pid);
-        const jobCount = jobs.filter(j => j.part_id === pid).length;
-        return {
-          id: pid,
-          label: p?.part_number || '(unknown)',
-          sub: `${jobCount} job${jobCount !== 1 ? 's' : ''}${p?.revision ? ` · Rev ${p.revision}` : ''}`,
-          partId: pid,
-        } as Row;
-      });
-      list.sort((a, b) => a.label.localeCompare(b.label));
+      // One row per JOB (so the same part with N jobs shows as N independent rows)
+      const list = jobs
+        .filter(j => j.part_id)
+        .map(j => {
+          const p = partsById.get(j.part_id!);
+          return {
+            id: `job-${j.id}`,
+            label: p?.part_number || '(unknown)',
+            sub: `${j.job_number}${p?.revision ? ` · Rev ${p.revision}` : ''}`,
+            partId: j.part_id,
+            jobId: j.id,
+          } as Row;
+        });
+      list.sort((a, b) => a.label.localeCompare(b.label) || (a.sub || '').localeCompare(b.sub || ''));
       return list;
     }
     // resource mode (optionally filtered to drill part)
@@ -225,7 +226,7 @@ export default function GanttChart() {
     } else if (groupMode === 'part') {
       const op = ops.find(o => o.id === d.opId);
       const job = op ? jobsById.get(op.job_id) : null;
-      rowKey = job?.part_id || '';
+      rowKey = op ? `job-${op.job_id}` : '';
     }
 
     if (d.mode === 'resize') {
@@ -432,8 +433,7 @@ export default function GanttChart() {
   // Determine if an op belongs in a given row
   const opInRow = (op: JobOp, row: Row) => {
     if (groupMode === 'part') {
-      const job = jobsById.get(op.job_id);
-      return job?.part_id === row.partId;
+      return op.job_id === row.jobId;
     }
     return op.resource_id === row.resourceId;
   };
