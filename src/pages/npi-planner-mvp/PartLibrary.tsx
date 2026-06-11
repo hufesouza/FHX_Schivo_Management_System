@@ -60,9 +60,24 @@ export default function PartLibrary() {
     if (!term) return rows;
     return rows.filter(r =>
       r.part_number.toLowerCase().includes(term) ||
-      (r.description || '').toLowerCase().includes(term)
+      (r.description || '').toLowerCase().includes(term) ||
+      (r.customer || '').toLowerCase().includes(term) ||
+      (r.project || '').toLowerCase().includes(term)
     );
   }, [rows, search]);
+
+  const openCreate = () => { setForm({ part_number: '', revision: '', description: '', customer: '', project: '' }); setDialogOpen(true); };
+
+  const createPart = async () => {
+    if (!form.part_number.trim()) return toast.error('Part number is required');
+    setSaving(true);
+    const { data, error } = await supabase.from('parts').insert({
+      part_number: form.part_number.trim(),
+      revision: form.revision.trim() || null,
+      description: form.description.trim() || null,
+      customer: form.customer.trim() || null,
+      project: form.project.trim() || null,
+    }).select().single();
 
   const openCreate = () => { setForm({ part_number: '', revision: '', description: '' }); setDialogOpen(true); };
 
