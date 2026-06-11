@@ -151,7 +151,7 @@ export default function GanttChart() {
 
   // Build rows depending on group mode
   const drillPart = drillPartId ? partsById.get(drillPartId) : null;
-  type Row = { id: string; label: string; sub: string; partId?: string | null; resourceId?: string | null };
+  type Row = { id: string; label: string; sub: string; partId?: string | null; resourceId?: string | null; jobId?: string | null };
 
   const rows: Row[] = useMemo(() => {
     if (groupMode === 'part') {
