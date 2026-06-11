@@ -327,7 +327,7 @@ export default function NPIOrderIntelligence() {
       pdf.setTextColor(255, 255, 255);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(14);
-      pdf.text('NPI Order Intelligence', margin, 9);
+      pdf.text('NPI Order', margin, 9);
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(8.5);
       pdf.text(`Schivo Waterford  •  ${dateStr} ${timeStr}`, margin, 15);
