@@ -377,6 +377,22 @@ export default function JobEntryDetail() {
                   onChange={(e) => setForm({ ...form, development_time_hours: setupFromDisplay(parseFloat(e.target.value) || 0) })} />
                 <p className="text-xs text-muted-foreground mt-1">Runs before Op 10. Set 0 to skip.</p>
               </div>
+              <div>
+                <Label>Developer (person)</Label>
+                <Select
+                  value={form.dev_person_id || 'none'}
+                  onValueChange={(v) => setForm({ ...form, dev_person_id: v === 'none' ? null : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Unassigned" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Unassigned</SelectItem>
+                    {resources.filter(r => (r.resource_category || '').toLowerCase() === 'person').map(r => (
+                      <SelectItem key={r.id} value={r.id}>{r.resource_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">Who runs the development. The Gantt warns if this person is double-booked.</p>
+              </div>
               <div className="md:col-span-2">
                 <Label>Notes</Label>
                 <Textarea rows={2} value={form.notes}
