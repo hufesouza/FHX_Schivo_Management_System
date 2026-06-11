@@ -169,7 +169,7 @@ export default function GanttChart() {
   type Row = { id: string; label: string; sub: string; partId?: string | null; resourceId?: string | null; jobId?: string | null };
 
   const rows: Row[] = useMemo(() => {
-    if (groupMode === 'part') {
+    if (groupMode === 'part' && !peopleOnly) {
       // One row per JOB (so the same part with N jobs shows as N independent rows)
       const list = jobs
         .filter(j => j.part_id)
@@ -186,30 +186,39 @@ export default function GanttChart() {
       list.sort((a, b) => a.label.localeCompare(b.label) || (a.sub || '').localeCompare(b.sub || ''));
       return list;
     }
-    // resource mode (optionally filtered to drill part) — hide the Development/Engineering pseudo-resource
+    // resource mode (or peopleOnly)
     return resources
       .filter(r => r.resource_name !== 'Development / Engineering')
-      .filter(r => !machinesOnly || (r.resource_category || '').toLowerCase() === 'machine')
+      .filter(r => {
+        const cat = (r.resource_category || '').toLowerCase();
+        if (peopleOnly) return cat === 'person';
+        if (machinesOnly) return cat === 'machine';
+        return true;
+      })
       .map(r => ({
         id: r.id,
         label: r.resource_name,
         sub: `${r.resource_type || '—'} · ${r.available_hours_per_day}h/day`,
         resourceId: r.id,
       }));
-  }, [groupMode, jobs, parts, resources, partsById, machinesOnly]);
+  }, [groupMode, jobs, parts, resources, partsById, machinesOnly, peopleOnly]);
 
   const visibleOps = useMemo(() => {
     let list = flaggedOps;
-    if (machinesOnly) {
+    if (peopleOnly) {
+      const personIds = new Set(resources.filter(r => (r.resource_category || '').toLowerCase() === 'person').map(r => r.id));
+      // only show dev-person mirrors (one bar per job per person)
+      list = list.filter(o => o.id.startsWith('dev-person-') && o.resource_id && personIds.has(o.resource_id));
+    } else if (machinesOnly) {
       const machineIds = new Set(resources.filter(r => (r.resource_category || '').toLowerCase() === 'machine').map(r => r.id));
       list = list.filter(o => o.resource_id && machineIds.has(o.resource_id));
     }
-    if (groupMode === 'resource' && drillPartId) {
+    if (groupMode === 'resource' && drillPartId && !peopleOnly) {
       const jobIds = new Set(jobs.filter(j => j.part_id === drillPartId).map(j => j.id));
       return list.filter(o => jobIds.has(o.job_id));
     }
     return list;
-  }, [flaggedOps, groupMode, drillPartId, jobs, machinesOnly, resources]);
+  }, [flaggedOps, groupMode, drillPartId, jobs, machinesOnly, peopleOnly, resources]);
 
   // Drag state
   const dragRef = useRef<{ opId: string; mode: 'move' | 'resize'; startX: number; startY: number; origStart: Date; origEnd: Date; resourceId: string | null } | null>(null);
