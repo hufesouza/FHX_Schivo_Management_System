@@ -140,8 +140,8 @@ export default function NPIOrderIntelligence() {
     customer: findCol(cols, ['customer', 'client', 'customer name', 'account']),
     po: findCol(cols, ['po', 'po number', 'po no', 'purchase order', 'order no', 'order number']),
     part: findCol(cols, ['part', 'part number', 'part no', 'pn', 'item']),
-    revenue: findCol(cols, ['tl €', 'tl eur', 'tl euro', 'tl(€)', 'tl', 'total €', 'total eur', 'revenue €', 'revenue', 'value', 'amount', 'order value', 'po value', 'eur', 'euro', 'total']),
-    status: findCol(cols, ['status', 'state', 'order status']),
+    revenue: findCol(cols, ['total_value_eur', 'totalvalueeur', 'total value eur', 'value eur', 'value_eur', 'tl €', 'tl eur', 'tl euro', 'tl(€)', 'tl', 'total €', 'total eur', 'revenue €', 'revenue', 'order value', 'po value', 'amount', 'eur', 'euro', 'total_value', 'total value', 'total', 'value']),
+    status: findCol(cols, ['po_status', 'postatus', 'po status', 'order_status', 'order status', 'status', 'state']),
     commodity: findCol(cols, ['commodity', 'category', 'type', 'product family', 'process']),
     date: findCol(cols, ['date', 'order date', 'received', 'date received', 'po date', 'received date']),
   }), [cols]);
