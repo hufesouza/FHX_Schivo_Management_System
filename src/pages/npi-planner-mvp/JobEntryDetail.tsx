@@ -356,9 +356,10 @@ export default function JobEntryDetail() {
                 </Select>
               </div>
               <div>
-                <Label>Development time (hours)</Label>
-                <Input type="number" min={0} step={0.25} value={form.development_time_hours}
-                  onChange={(e) => setForm({ ...form, development_time_hours: parseFloat(e.target.value) || 0 })} />
+                <Label>Development time ({setupLabel})</Label>
+                <Input type="number" min={0} step={setupUnit === 'minutes' ? 1 : 0.25}
+                  value={setupToDisplay(form.development_time_hours)}
+                  onChange={(e) => setForm({ ...form, development_time_hours: setupFromDisplay(parseFloat(e.target.value) || 0) })} />
                 <p className="text-xs text-muted-foreground mt-1">Runs before Op 10. Set 0 to skip.</p>
               </div>
               <div className="md:col-span-2">
@@ -404,7 +405,7 @@ export default function JobEntryDetail() {
                       <TableRow className="bg-muted/30">
                         <TableCell><Badge variant="outline">Dev</Badge></TableCell>
                         <TableCell colSpan={2} className="italic">Development time</TableCell>
-                        <TableCell className="text-right">{form.development_time_hours}</TableCell>
+                        <TableCell className="text-right">{setupToDisplay(form.development_time_hours)}</TableCell>
                         <TableCell className="text-right text-muted-foreground">—</TableCell>
                         <TableCell className="text-right font-medium">{form.development_time_hours.toFixed(2)}</TableCell>
                       </TableRow>
