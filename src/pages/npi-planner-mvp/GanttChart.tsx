@@ -280,11 +280,37 @@ export default function GanttChart() {
         }
         return c;
       };
+      const DEV_RESOURCE_NAME = 'Development / Engineering';
+      let devResource = resources.find(r => r.resource_name === DEV_RESOURCE_NAME && r.status === 'Active');
+      const needsDev = eligible.some(j => Number(j.development_time_hours || 0) > 0);
+      if (needsDev && !devResource) {
+        const { data: created, error: createErr } = await supabase
+          .from('resources')
+          .insert({ resource_name: DEV_RESOURCE_NAME, resource_type: 'Engineering', available_hours_per_day: 8, number_of_shifts: 1, status: 'Active' })
+          .select().single();
+        if (createErr) { toast.error(`Could not create Development resource: ${createErr.message}`); return; }
+        devResource = created as any;
+        if (devResource) activeRes.set(devResource.id, devResource);
+      }
+
       const opUpdates: any[] = []; const jobUpdates: any[] = [];
       for (const job of eligible) {
         const jobOps = ops.filter(o => o.job_id === job.id)
           .sort((a, b) => (a.sequence_order ?? a.operation_number) - (b.sequence_order ?? b.operation_number));
         let prev = base; let js: Date | null = null; let je: Date | null = null;
+        let devStart: Date | null = null; let devEnd: Date | null = null;
+
+        // Schedule development time first (if any) on the Development resource
+        const devH = Number(job.development_time_hours || 0);
+        if (devH > 0 && devResource) {
+          const startAt = new Date(prev.getTime());
+          while (isWeekend(startAt)) { startAt.setDate(startAt.getDate() + 1); startAt.setHours(0, 0, 0, 0); }
+          const endAt = addH(startAt, devH, devResource.available_hours_per_day || 8);
+          devStart = startAt; devEnd = endAt;
+          prev = endAt;
+          if (!js || startAt < js) js = startAt; if (!je || endAt > je) je = endAt;
+        }
+
         for (const op of jobOps) {
           if (op.is_locked && op.planned_start && op.planned_finish) {
             const s = new Date(op.planned_start), e = new Date(op.planned_finish);
@@ -318,10 +344,24 @@ export default function GanttChart() {
           opUpdates.push({ id: op.id, planned_start: startAt.toISOString(), planned_finish: endAt.toISOString() });
         }
         const late = !!(je && job.due_date && je > new Date(job.due_date + 'T23:59:59'));
-        jobUpdates.push({ id: job.id, planned_start: js?.toISOString() || null, planned_finish: je?.toISOString() || null, schedule_status: je ? (late ? 'Late' : 'Scheduled') : 'Unscheduled', status: je ? 'Scheduled' : job.status });
+        jobUpdates.push({
+          id: job.id,
+          planned_start: js?.toISOString() || null,
+          planned_finish: je?.toISOString() || null,
+          schedule_status: je ? (late ? 'Late' : 'Scheduled') : 'Unscheduled',
+          status: je ? 'Scheduled' : job.status,
+          planned_dev_start: devStart?.toISOString() || null,
+          planned_dev_finish: devEnd?.toISOString() || null,
+          dev_resource_id: devStart ? (devResource?.id || null) : null,
+        });
       }
       for (const u of opUpdates) await supabase.from('job_operations').update({ planned_start: u.planned_start, planned_finish: u.planned_finish }).eq('id', u.id);
-      for (const u of jobUpdates) await supabase.from('jobs').update({ planned_start: u.planned_start, planned_finish: u.planned_finish, schedule_status: u.schedule_status, status: u.status }).eq('id', u.id);
+      for (const u of jobUpdates) await supabase.from('jobs').update({
+        planned_start: u.planned_start, planned_finish: u.planned_finish,
+        schedule_status: u.schedule_status, status: u.status,
+        planned_dev_start: u.planned_dev_start, planned_dev_finish: u.planned_dev_finish,
+        dev_resource_id: u.dev_resource_id,
+      }).eq('id', u.id);
       toast.success(`Scheduled ${jobUpdates.length} jobs`);
       load();
     } finally { setLoading(false); }
