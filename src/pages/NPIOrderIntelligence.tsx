@@ -800,6 +800,76 @@ export default function NPIOrderIntelligence() {
           </div>
         )}
       </main>
+
+      {/* Off-screen render container for PDF export — always mounted so charts can be captured */}
+      {!empty && (
+        <div
+          ref={exportRef}
+          aria-hidden
+          style={{ position: 'fixed', left: -10000, top: 0, width: 900, pointerEvents: 'none', background: '#fff' }}
+        >
+          <div ref={chartRefs.revByCustomer} style={{ width: 900, height: 420, background: '#fff' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={customerByRevenue} layout="vertical" margin={{ left: 100, right: 20, top: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} />
+                <Bar dataKey="revenue" fill="#3b82f6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div ref={chartRefs.ordByCustomer} style={{ width: 900, height: 420, background: '#fff' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={customerByOrders} layout="vertical" margin={{ left: 100, right: 20, top: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} />
+                <Bar dataKey="orders" fill="#10b981" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div ref={chartRefs.revByCommodity} style={{ width: 900, height: 420, background: '#fff' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={byCommodity} dataKey="revenue" nameKey="name" outerRadius={140} label={(d: any) => d.name}>
+                  {byCommodity.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                </Pie>
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div ref={chartRefs.ordByCommodity} style={{ width: 900, height: 420, background: '#fff' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={byCommodity} dataKey="orders" nameKey="name" outerRadius={140} label={(d: any) => d.name}>
+                  {byCommodity.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                </Pie>
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div ref={chartRefs.ordByMonth} style={{ width: 900, height: 420, background: '#fff' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={monthly} margin={{ left: 20, right: 20, top: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Line type="monotone" dataKey="orders" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div ref={chartRefs.revByMonth} style={{ width: 900, height: 420, background: '#fff' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={monthly} margin={{ left: 20, right: 20, top: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
     </AppLayout>
   );
 }
