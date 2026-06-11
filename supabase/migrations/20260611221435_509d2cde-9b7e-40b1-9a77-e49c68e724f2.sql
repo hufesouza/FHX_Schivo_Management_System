@@ -1,0 +1,3 @@
+ALTER TABLE public.parts
+  ADD COLUMN IF NOT EXISTS customer TEXT,
+  ADD COLUMN IF NOT EXISTS project TEXT;

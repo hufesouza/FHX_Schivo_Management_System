@@ -47,6 +47,8 @@ type Part = {
   part_number: string;
   revision: string | null;
   description: string | null;
+  customer: string | null;
+  project: string | null;
 };
 
 const blankOp = (nextNo: number): Omit<Operation, 'id' | 'part_id'> => ({
@@ -116,6 +118,8 @@ export default function PartLibraryDetail() {
       part_number: part.part_number.trim(),
       revision: part.revision?.trim() || null,
       description: part.description?.trim() || null,
+      customer: part.customer?.trim() || null,
+      project: part.project?.trim() || null,
     }).eq('id', part.id);
     setSavingHeader(false);
     if (error) return toast.error(error.message);
@@ -242,6 +246,16 @@ export default function PartLibraryDetail() {
                 <Label>Description</Label>
                 <Input value={part.description || ''}
                   onChange={(e) => setPart({ ...part, description: e.target.value })} />
+              </div>
+              <div>
+                <Label>Customer</Label>
+                <Input value={part.customer || ''}
+                  onChange={(e) => setPart({ ...part, customer: e.target.value })} />
+              </div>
+              <div>
+                <Label>Project</Label>
+                <Input value={part.project || ''}
+                  onChange={(e) => setPart({ ...part, project: e.target.value })} />
               </div>
             </div>
             <div className="flex justify-end">

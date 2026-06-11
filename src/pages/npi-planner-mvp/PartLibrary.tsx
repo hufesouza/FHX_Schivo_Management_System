@@ -25,6 +25,8 @@ type Part = {
   part_number: string;
   revision: string | null;
   description: string | null;
+  customer: string | null;
+  project: string | null;
   updated_at: string;
   op_count?: number;
 };
@@ -36,7 +38,7 @@ export default function PartLibrary() {
   const [search, setSearch] = useState('');
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [form, setForm] = useState({ part_number: '', revision: '', description: '' });
+  const [form, setForm] = useState({ part_number: '', revision: '', description: '', customer: '', project: '' });
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
@@ -58,11 +60,13 @@ export default function PartLibrary() {
     if (!term) return rows;
     return rows.filter(r =>
       r.part_number.toLowerCase().includes(term) ||
-      (r.description || '').toLowerCase().includes(term)
+      (r.description || '').toLowerCase().includes(term) ||
+      (r.customer || '').toLowerCase().includes(term) ||
+      (r.project || '').toLowerCase().includes(term)
     );
   }, [rows, search]);
 
-  const openCreate = () => { setForm({ part_number: '', revision: '', description: '' }); setDialogOpen(true); };
+  const openCreate = () => { setForm({ part_number: '', revision: '', description: '', customer: '', project: '' }); setDialogOpen(true); };
 
   const createPart = async () => {
     if (!form.part_number.trim()) return toast.error('Part number is required');
@@ -71,6 +75,8 @@ export default function PartLibrary() {
       part_number: form.part_number.trim(),
       revision: form.revision.trim() || null,
       description: form.description.trim() || null,
+      customer: form.customer.trim() || null,
+      project: form.project.trim() || null,
     }).select().single();
     setSaving(false);
     if (error) return toast.error(error.message);
@@ -100,7 +106,7 @@ export default function PartLibrary() {
           <CardContent className="space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder="Search by part number or description…"
+              <Input placeholder="Search by part number, description, customer or project…"
                 value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
             </div>
 
@@ -110,6 +116,8 @@ export default function PartLibrary() {
                   <TableRow>
                     <TableHead>Part Number</TableHead>
                     <TableHead>Revision</TableHead>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Project</TableHead>
                     <TableHead className="text-right">Operations</TableHead>
                     <TableHead>Last Updated</TableHead>
                     <TableHead className="w-[120px] text-right">Actions</TableHead>
@@ -117,9 +125,9 @@ export default function PartLibrary() {
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                   ) : filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                       {rows.length === 0 ? 'No parts yet. Create your first one.' : 'No matches.'}
                     </TableCell></TableRow>
                   ) : filtered.map(r => (
@@ -130,6 +138,8 @@ export default function PartLibrary() {
                         {r.description && <div className="text-xs text-muted-foreground">{r.description}</div>}
                       </TableCell>
                       <TableCell>{r.revision || '—'}</TableCell>
+                      <TableCell>{r.customer || '—'}</TableCell>
+                      <TableCell>{r.project || '—'}</TableCell>
                       <TableCell className="text-right">{r.op_count}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">
                         {formatDistanceToNow(new Date(r.updated_at), { addSuffix: true })}
@@ -170,6 +180,16 @@ export default function PartLibrary() {
               <Label>Description</Label>
               <Input value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            </div>
+            <div>
+              <Label>Customer</Label>
+              <Input value={form.customer}
+                onChange={(e) => setForm({ ...form, customer: e.target.value })} />
+            </div>
+            <div>
+              <Label>Project</Label>
+              <Input value={form.project}
+                onChange={(e) => setForm({ ...form, project: e.target.value })} />
             </div>
           </div>
           <DialogFooter>
