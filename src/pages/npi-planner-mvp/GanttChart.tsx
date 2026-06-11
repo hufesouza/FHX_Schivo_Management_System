@@ -339,6 +339,15 @@ export default function GanttChart() {
 
   const goToday = () => setAnchor(startOfDay(new Date()));
   const shift = (n: number) => setAnchor(addDays(anchor, n));
+  const fitToSchedule = () => {
+    const dated = ops.filter(o => o.planned_start);
+    if (!dated.length) return toast.info('No scheduled operations');
+    const min = dated.reduce((m, o) => Math.min(m, new Date(o.planned_start!).getTime()), Infinity);
+    const max = dated.reduce((m, o) => Math.max(m, new Date(o.planned_finish || o.planned_start!).getTime()), 0);
+    const span = Math.ceil((max - min) / 86400000) + 2;
+    setAnchor(startOfDay(new Date(min)));
+    setView(span <= 3 ? 'day' : span <= 21 ? 'week' : 'month');
+  };
 
   // Determine if an op belongs in a given row
   const opInRow = (op: JobOp, row: Row) => {
@@ -378,6 +387,8 @@ export default function GanttChart() {
           <div className="h-6 w-px bg-border mx-1" />
           <Button size="sm" variant={view === 'day' ? 'default' : 'outline'} onClick={() => setView('day')}>Day</Button>
           <Button size="sm" variant={view === 'week' ? 'default' : 'outline'} onClick={() => setView('week')}>Week</Button>
+          <Button size="sm" variant={view === 'month' ? 'default' : 'outline'} onClick={() => setView('month')}>Month</Button>
+          <Button size="sm" variant="outline" onClick={fitToSchedule}>Fit</Button>
           <Button size="sm" variant="outline" onClick={goToday}><CalIcon className="h-4 w-4" /> Today</Button>
           <Button size="icon" variant="ghost" onClick={() => shift(-days / 3)}><ChevronLeft className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" onClick={() => shift(days / 3)}><ChevronRight className="h-4 w-4" /></Button>
