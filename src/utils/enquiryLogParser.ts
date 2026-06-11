@@ -231,7 +231,7 @@ export function parseEnquiryLogExcel(file: File, targetSheet?: string): Promise<
           const sheet = workbook.Sheets[sheetName];
           const rawData: unknown[][] = XLSX.utils.sheet_to_json(sheet, { 
             header: 1, 
-            raw: false,
+            raw: true,
             dateNF: 'yyyy-mm-dd'
           });
           
