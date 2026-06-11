@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Lock, Unlock, AlertTriangle, Calendar as CalIcon, ChevronLeft, ChevronRight, Play, RotateCcw, Trash2, ArrowLeft } from 'lucide-react';
 
-type Resource = { id: string; resource_name: string; resource_type: string | null; available_hours_per_day: number; status: string };
+type Resource = { id: string; resource_name: string; resource_type: string | null; resource_category: string | null; lead_time_days: number | null; available_hours_per_day: number; status: string };
 type Part = { id: string; part_number: string; revision: string | null; description: string | null };
 type Job = { id: string; job_number: string; part_id: string | null; quantity: number; due_date: string | null; priority: string; status: string; planned_start: string | null; planned_finish: string | null; schedule_status: string };
 type JobOp = {
@@ -294,13 +294,25 @@ export default function GanttChart() {
           }
           if (!op.resource_id || !activeRes.has(op.resource_id)) continue;
           const r = activeRes.get(op.resource_id)!;
-          const dur = (op.total_time_hours && op.total_time_hours > 0) ? Number(op.total_time_hours)
-            : Number(op.setup_time_hours || 0) + (Number(op.cycle_time_seconds || 0) * Number(job.quantity || 0)) / 3600;
+          const isSubcon = (r.resource_category || '').toLowerCase() === 'subcontractor';
+          let dur: number;
+          if (isSubcon) {
+            dur = Number(r.lead_time_days || 0) * 24;
+          } else {
+            dur = (op.total_time_hours && op.total_time_hours > 0) ? Number(op.total_time_hours)
+              : Number(op.setup_time_hours || 0) + (Number(op.cycle_time_seconds || 0) * Number(job.quantity || 0)) / 3600;
+          }
           if (dur <= 0) continue;
           const free = resFree.get(op.resource_id) || base;
           const startAt = new Date(Math.max(prev.getTime(), free.getTime()));
-          while (isWeekend(startAt)) { startAt.setDate(startAt.getDate() + 1); startAt.setHours(0, 0, 0, 0); }
-          const endAt = addH(startAt, dur, r.available_hours_per_day || 8);
+          let endAt: Date;
+          if (isSubcon) {
+            // Subcontractor: calendar time, include weekends, run 24h continuously
+            endAt = new Date(startAt.getTime() + dur * 3600000);
+          } else {
+            while (isWeekend(startAt)) { startAt.setDate(startAt.getDate() + 1); startAt.setHours(0, 0, 0, 0); }
+            endAt = addH(startAt, dur, r.available_hours_per_day || 8);
+          }
           resFree.set(op.resource_id, endAt); prev = endAt;
           if (!js || startAt < js) js = startAt; if (!je || endAt > je) je = endAt;
           opUpdates.push({ id: op.id, planned_start: startAt.toISOString(), planned_finish: endAt.toISOString() });
