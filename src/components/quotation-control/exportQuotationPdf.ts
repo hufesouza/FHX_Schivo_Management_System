@@ -117,14 +117,14 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
       pdf.roundedRect(x, cy, cardW, cardH, 2, 2, 'FD');
       pdf.setFillColor(k.accent[0], k.accent[1], k.accent[2]);
       pdf.rect(x, cy, 1.4, cardH, 'F');
-      pdf.setFontSize(6.8);
+      pdf.setFontSize(6);
       pdf.setTextColor(71, 85, 105);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(k.label.toUpperCase(), x + 4, cy + 5);
-      pdf.setFontSize(13);
+      pdf.text(k.label.toUpperCase(), x + 3.5, cy + 4);
+      pdf.setFontSize(10.5);
       pdf.setTextColor(15, 23, 42);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(k.value, x + 4, cy + cardH - 3.5);
+      pdf.text(k.value, x + 3.5, cy + cardH - 2.8);
     });
     y += rows * (cardH + gap) + 2;
   };
