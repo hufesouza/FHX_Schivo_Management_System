@@ -21,8 +21,10 @@ import {
   FileSpreadsheet,
   X,
   BarChart3,
-  ClipboardList
+  ClipboardList,
+  FileDown
 } from 'lucide-react';
+import { exportQuotationPdf } from '@/components/quotation-control/exportQuotationPdf';
 
 const QuotationDashboard = () => {
   const navigate = useNavigate();
