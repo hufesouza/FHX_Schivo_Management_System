@@ -73,7 +73,8 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
   };
 
   const sectionTitle = (title: string) => {
-    ensureSpace(12);
+    ensureSpace(16);
+    y += 4; // top breathing room
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(11);
     pdf.setTextColor(15, 23, 42);
@@ -82,8 +83,9 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
     pdf.setLineWidth(0.6);
     pdf.line(margin, y + 1.5, margin + 28, y + 1.5);
     pdf.setLineWidth(0.2);
-    y += 7;
+    y += 8;
   };
+
 
   // ----- stats -----
   const upper = (s?: string | null) => (s || '').toUpperCase().trim();
