@@ -101,9 +101,9 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
   const winRate = quoted > 0 ? (won / quoted) * 100 : 0;
   const conv = base.length > 0 ? (won / base.length) * 100 : 0;
 
-  // ----- KPI dashboard cards (4 x 2) -----
+  // ----- KPI dashboard cards -----
   const drawKpiGrid = (kpis: { label: string; value: string; accent: RGB; tint: RGB }[], cols: number, cardH: number) => {
-    const gap = 3;
+    const gap = 5;
     const cardW = (pw - margin * 2 - gap * (cols - 1)) / cols;
     const rows = Math.ceil(kpis.length / cols);
     ensureSpace(rows * (cardH + gap));
@@ -112,23 +112,19 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
       const r = Math.floor(i / cols);
       const x = margin + c * (cardW + gap);
       const cy = y + r * (cardH + gap);
-      // tinted background
       pdf.setFillColor(k.tint[0], k.tint[1], k.tint[2]);
       pdf.setDrawColor(226, 232, 240);
       pdf.roundedRect(x, cy, cardW, cardH, 2, 2, 'FD');
-      // accent left stripe
       pdf.setFillColor(k.accent[0], k.accent[1], k.accent[2]);
-      pdf.rect(x, cy, 1.6, cardH, 'F');
-      // label
-      pdf.setFontSize(7.2);
+      pdf.rect(x, cy, 1.4, cardH, 'F');
+      pdf.setFontSize(6.8);
       pdf.setTextColor(71, 85, 105);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(k.label.toUpperCase(), x + 5, cy + 6);
-      // value
-      pdf.setFontSize(18);
+      pdf.text(k.label.toUpperCase(), x + 4, cy + 5);
+      pdf.setFontSize(13);
       pdf.setTextColor(15, 23, 42);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(k.value, x + 5, cy + cardH - 4);
+      pdf.text(k.value, x + 4, cy + cardH - 3.5);
     });
     y += rows * (cardH + gap) + 2;
   };
@@ -143,15 +139,33 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
     { label: 'Lost', value: String(lost), accent: [244, 63, 94], tint: [255, 241, 242] },
     { label: 'On Hold', value: String(onHold), accent: [245, 158, 11], tint: [255, 251, 235] },
     { label: 'Win Rate', value: `${winRate.toFixed(1)}%`, accent: [168, 85, 247], tint: [250, 245, 255] },
-  ], 4, 22);
+  ], 4, 16);
 
-  sectionTitle('Pipeline Value');
-  drawKpiGrid([
-    { label: 'Total Quoted Value', value: fmtEur(totalQuoted), accent: [6, 182, 212], tint: [236, 254, 255] },
-    { label: 'Total PO Value', value: fmtEur(totalPo), accent: [34, 197, 94], tint: [240, 253, 244] },
-    { label: 'Conversion Rate', value: `${conv.toFixed(1)}%`, accent: [249, 115, 22], tint: [255, 247, 237] },
-    { label: 'Avg Quote', value: quoted > 0 ? fmtEur(totalQuoted / quoted) : 'N/A', accent: [168, 85, 247], tint: [250, 245, 255] },
-  ], 4, 22);
+  // ----- Pipeline summary banner (compact, like before) -----
+  ensureSpace(26);
+  pdf.setFillColor(239, 246, 255);
+  pdf.setDrawColor(191, 219, 254);
+  pdf.roundedRect(margin, y, pw - margin * 2, 22, 1.5, 1.5, 'FD');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(9.5);
+  pdf.setTextColor(30, 64, 175);
+  pdf.text('Pipeline Summary', margin + 4, y + 7);
+  const items = [
+    `Total Quoted Value: ${fmtEur(totalQuoted)}`,
+    `Total PO Value: ${fmtEur(totalPo)}`,
+    `Conversion Rate: ${conv.toFixed(1)}%`,
+    `Avg Quote: ${quoted > 0 ? fmtEur(totalQuoted / quoted) : 'N/A'}`,
+    `Avg PO: ${won > 0 ? fmtEur(totalPo / won) : 'N/A'}`,
+  ];
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8);
+  pdf.setTextColor(51, 65, 85);
+  items.forEach((t, i) => {
+    const col = i % 3;
+    const row = Math.floor(i / 3);
+    pdf.text(t, margin + 4 + col * ((pw - margin * 2 - 8) / 3), y + 13 + row * 5);
+  });
+  y += 28;
 
   // ----- Status breakdown as horizontal bars -----
   const statusColors: Record<string, RGB> = {
