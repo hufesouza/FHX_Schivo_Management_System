@@ -130,6 +130,14 @@ const QuotationDashboard = () => {
                 <Badge variant="secondary">
                   {enquiries.length} enquiries
                 </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => exportQuotationPdf(enquiries, fileName ?? undefined)}
+                >
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Export PDF
+                </Button>
                 <Button 
                   variant="outline" 
                   size="sm"
