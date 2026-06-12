@@ -117,14 +117,14 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
       pdf.roundedRect(x, cy, cardW, cardH, 2, 2, 'FD');
       pdf.setFillColor(k.accent[0], k.accent[1], k.accent[2]);
       pdf.rect(x, cy, 1.4, cardH, 'F');
-      pdf.setFontSize(6.8);
+      pdf.setFontSize(6);
       pdf.setTextColor(71, 85, 105);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(k.label.toUpperCase(), x + 4, cy + 5);
-      pdf.setFontSize(13);
+      pdf.text(k.label.toUpperCase(), x + 3.5, cy + 4);
+      pdf.setFontSize(10.5);
       pdf.setTextColor(15, 23, 42);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(k.value, x + 4, cy + cardH - 3.5);
+      pdf.text(k.value, x + 3.5, cy + cardH - 2.8);
     });
     y += rows * (cardH + gap) + 2;
   };
@@ -139,7 +139,7 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
     { label: 'Lost', value: String(lost), accent: [244, 63, 94], tint: [255, 241, 242] },
     { label: 'On Hold', value: String(onHold), accent: [245, 158, 11], tint: [255, 251, 235] },
     { label: 'Win Rate', value: `${winRate.toFixed(1)}%`, accent: [168, 85, 247], tint: [250, 245, 255] },
-  ], 4, 16);
+  ], 4, 12);
 
   // ----- Pipeline summary banner (compact, like before) -----
   ensureSpace(26);
@@ -191,42 +191,34 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
   const leadCount = byCount[0];
   const leadValue = byValue[0];
 
-  sectionTitle('Quotations Without PO — by Customer');
+  sectionTitle('Pending Sales Conversion — by Customer');
   drawKpiGrid([
-    { label: 'Pending Quotes', value: String(totalPendingQuotes), accent: [245, 158, 11], tint: [255, 251, 235] },
-    { label: 'Pending Value', value: fmtEur(totalPendingValue), accent: [244, 63, 94], tint: [255, 241, 242] },
+    { label: 'Quotes Pending Sales Conversion', value: String(totalPendingQuotes), accent: [245, 158, 11], tint: [255, 251, 235] },
+    { label: 'Value Pending Sales Conversion', value: fmtEur(totalPendingValue), accent: [244, 63, 94], tint: [255, 241, 242] },
     {
-      label: 'Most Quotes Pending',
+      label: 'Most Quotes Pending Sales Conversion',
       value: leadCount ? `${leadCount.customer} (${leadCount.count})` : '—',
       accent: [99, 102, 241],
       tint: [238, 242, 255],
     },
     {
-      label: 'Highest Pending Value',
+      label: 'Highest Value Pending Sales Conversion',
       value: leadValue ? `${leadValue.customer} · ${fmtEur(leadValue.value)}` : '—',
       accent: [139, 92, 246],
       tint: [245, 243, 255],
     },
-  ], 2, 18);
+  ], 2, 12);
 
   if (notConverted.length > 0) {
-    autoTable(pdf, {
-      startY: y,
-      head: [['Customer', 'Pending Quotes', 'Pending Value']],
-      body: byCount.map(r => [r.customer, String(r.count), fmtEur(r.value)]),
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [30, 41, 59], textColor: 255 },
-      columnStyles: {
-        0: { cellWidth: 'auto' },
-        1: { cellWidth: 32, halign: 'right' },
-        2: { cellWidth: 40, halign: 'right' },
-      },
-      theme: 'grid',
-      didDrawPage: () => drawHeader(),
-    });
-    y = (pdf as any).lastAutoTable.finalY + 6;
+    const topCount = byCount.slice(0, 8).map(r => [r.customer, r.count] as [string, number]);
+    sectionTitle('Top Customers — Quotes Pending Sales Conversion');
+    drawBarChart(topCount, [245, 158, 11]);
+
+    const topValue = byValue.slice(0, 8).map(r => [r.customer, Math.round(r.value)] as [string, number]);
+    sectionTitle('Top Customers — Value Pending Sales Conversion (€)');
+    drawBarChart(topValue, [244, 63, 94]);
   }
+
 
 
   const statusColors: Record<string, RGB> = {
@@ -249,10 +241,10 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
     }, {})
   ).sort((a, b) => b[1] - a[1]);
 
-  const drawBarChart = (data: [string, number][], color: RGB | ((k: string) => RGB), rowH = 7) => {
+  function drawBarChart(data: [string, number][], color: RGB | ((k: string) => RGB), rowH = 7) {
     const max = Math.max(1, ...data.map(d => d[1]));
     const labelW = 50;
-    const valueW = 14;
+    const valueW = 22;
     const barAreaW = pw - margin * 2 - labelW - valueW - 4;
     ensureSpace(data.length * rowH + 4);
     data.forEach(([label, value], i) => {
@@ -262,21 +254,20 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
       pdf.setFont('helvetica', 'normal');
       const truncated = label.length > 28 ? label.slice(0, 27) + '…' : label;
       pdf.text(truncated, margin, ry + 4.5);
-      // track
       pdf.setFillColor(241, 245, 249);
       pdf.roundedRect(margin + labelW, ry + 1.2, barAreaW, rowH - 2.4, 1, 1, 'F');
-      // bar
       const c: RGB = typeof color === 'function' ? color(label) : color;
       pdf.setFillColor(c[0], c[1], c[2]);
       const w = Math.max(1.2, (value / max) * barAreaW);
       pdf.roundedRect(margin + labelW, ry + 1.2, w, rowH - 2.4, 1, 1, 'F');
-      // value
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(15, 23, 42);
-      pdf.text(String(value), pw - margin, ry + 4.5, { align: 'right' });
+      const displayVal = value >= 1000 ? value.toLocaleString('en-IE') : String(value);
+      pdf.text(displayVal, pw - margin, ry + 4.5, { align: 'right' });
     });
     y += data.length * rowH + 4;
-  };
+  }
+
 
   sectionTitle('Enquiries by Status');
   drawBarChart(byStatus, (k) => statusColors[k.toUpperCase()] || [99, 102, 241]);
@@ -319,7 +310,7 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
     { label: 'Fresh (≤7d)', value: String(openFresh), accent: [34, 197, 94], tint: [240, 253, 244] },
     { label: 'At Risk (8-14d)', value: String(openAtRisk), accent: [245, 158, 11], tint: [255, 251, 235] },
     { label: 'Overdue (>14d)', value: String(openOverdue), accent: [239, 68, 68], tint: [254, 242, 242] },
-  ], 4, 16);
+  ], 4, 12);
 
   sectionTitle('Open Enquiries (sorted by aging)');
   autoTable(pdf, {
@@ -400,7 +391,7 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
     { label: 'Action Owners', value: String(actOwners), accent: [139, 92, 246], tint: [245, 243, 255] },
     { label: 'At Risk (8-14d)', value: String(actAtRisk), accent: [245, 158, 11], tint: [255, 251, 235] },
     { label: 'Overdue (>14d)', value: String(actOverdue), accent: [239, 68, 68], tint: [254, 242, 242] },
-  ], 4, 16);
+  ], 4, 12);
 
   sectionTitle(`All Actions (${actions.length})`);
   if (actions.length === 0) {
