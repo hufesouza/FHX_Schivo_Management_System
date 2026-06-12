@@ -258,7 +258,7 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
     { label: 'Fresh (≤7d)', value: String(openFresh), accent: [34, 197, 94], tint: [240, 253, 244] },
     { label: 'At Risk (8-14d)', value: String(openAtRisk), accent: [245, 158, 11], tint: [255, 251, 235] },
     { label: 'Overdue (>14d)', value: String(openOverdue), accent: [239, 68, 68], tint: [254, 242, 242] },
-  ], 4, 22);
+  ], 4, 16);
 
   sectionTitle('Open Enquiries (sorted by aging)');
   autoTable(pdf, {
@@ -339,7 +339,7 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
     { label: 'Action Owners', value: String(actOwners), accent: [139, 92, 246], tint: [245, 243, 255] },
     { label: 'At Risk (8-14d)', value: String(actAtRisk), accent: [245, 158, 11], tint: [255, 251, 235] },
     { label: 'Overdue (>14d)', value: String(actOverdue), accent: [239, 68, 68], tint: [254, 242, 242] },
-  ], 4, 22);
+  ], 4, 16);
 
   sectionTitle(`All Actions (${actions.length})`);
   if (actions.length === 0) {
