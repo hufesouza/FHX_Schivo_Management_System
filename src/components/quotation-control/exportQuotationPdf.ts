@@ -169,57 +169,8 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
   });
   y += 28;
 
-  // ----- Not Converted Customers (quotations without PO) -----
-  const lostSet = new Set(['LOST', 'NOT CONVERTED', 'DECLINED', 'CANCELLED']);
-  const notConvertedMap: Record<string, { count: number; value: number }> = {};
-  base.forEach(e => {
-    const status = upper(e.status);
-    const isWon = e.po_received === true || ['WON', 'PO RAISED'].includes(status);
-    const isLost = lostSet.has(status);
-    const hasQuote = (e.quoted_price_euro || 0) > 0 || status === 'QUOTED';
-    if (!isWon && !isLost && hasQuote) {
-      const c = e.customer || 'Unknown';
-      if (!notConvertedMap[c]) notConvertedMap[c] = { count: 0, value: 0 };
-      notConvertedMap[c].count += 1;
-      notConvertedMap[c].value += e.quoted_price_euro || 0;
-    }
-  });
-  const notConverted = Object.entries(notConvertedMap)
-    .map(([customer, v]) => ({ customer, count: v.count, value: v.value }));
-  const byCount = [...notConverted].sort((a, b) => b.count - a.count);
-  const byValue = [...notConverted].sort((a, b) => b.value - a.value);
-  const totalPendingQuotes = notConverted.reduce((s, r) => s + r.count, 0);
-  const totalPendingValue = notConverted.reduce((s, r) => s + r.value, 0);
-  const leadCount = byCount[0];
-  const leadValue = byValue[0];
 
-  sectionTitle('Pending Sales Conversion — by Customer');
-  drawKpiGrid([
-    { label: 'Quotes Pending Sales Conversion', value: String(totalPendingQuotes), accent: [245, 158, 11], tint: [255, 251, 235] },
-    { label: 'Value Pending Sales Conversion', value: fmtEur(totalPendingValue), accent: [244, 63, 94], tint: [255, 241, 242] },
-    {
-      label: 'Most Quotes Pending Sales Conversion',
-      value: leadCount ? `${leadCount.customer} (${leadCount.count})` : '—',
-      accent: [99, 102, 241],
-      tint: [238, 242, 255],
-    },
-    {
-      label: 'Highest Value Pending Sales Conversion',
-      value: leadValue ? `${leadValue.customer} · ${fmtEur(leadValue.value)}` : '—',
-      accent: [139, 92, 246],
-      tint: [245, 243, 255],
-    },
-  ], 2, 12);
 
-  if (notConverted.length > 0) {
-    const topCount = byCount.slice(0, 8).map(r => [r.customer, r.count] as [string, number]);
-    sectionTitle('Top Customers — Quotes Pending Sales Conversion');
-    drawBarChart(topCount, [245, 158, 11]);
-
-    const topValue = byValue.slice(0, 8).map(r => [r.customer, Math.round(r.value)] as [string, number]);
-    sectionTitle('Top Customers — Value Pending Sales Conversion (€)');
-    drawBarChart(topValue, [244, 63, 94]);
-  }
 
 
 
