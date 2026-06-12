@@ -241,10 +241,10 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
     }, {})
   ).sort((a, b) => b[1] - a[1]);
 
-  const drawBarChart = (data: [string, number][], color: RGB | ((k: string) => RGB), rowH = 7) => {
+  function drawBarChart(data: [string, number][], color: RGB | ((k: string) => RGB), rowH = 7) {
     const max = Math.max(1, ...data.map(d => d[1]));
     const labelW = 50;
-    const valueW = 14;
+    const valueW = 22;
     const barAreaW = pw - margin * 2 - labelW - valueW - 4;
     ensureSpace(data.length * rowH + 4);
     data.forEach(([label, value], i) => {
@@ -254,21 +254,20 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
       pdf.setFont('helvetica', 'normal');
       const truncated = label.length > 28 ? label.slice(0, 27) + '…' : label;
       pdf.text(truncated, margin, ry + 4.5);
-      // track
       pdf.setFillColor(241, 245, 249);
       pdf.roundedRect(margin + labelW, ry + 1.2, barAreaW, rowH - 2.4, 1, 1, 'F');
-      // bar
       const c: RGB = typeof color === 'function' ? color(label) : color;
       pdf.setFillColor(c[0], c[1], c[2]);
       const w = Math.max(1.2, (value / max) * barAreaW);
       pdf.roundedRect(margin + labelW, ry + 1.2, w, rowH - 2.4, 1, 1, 'F');
-      // value
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(15, 23, 42);
-      pdf.text(String(value), pw - margin, ry + 4.5, { align: 'right' });
+      const displayVal = value >= 1000 ? value.toLocaleString('en-IE') : String(value);
+      pdf.text(displayVal, pw - margin, ry + 4.5, { align: 'right' });
     });
     y += data.length * rowH + 4;
-  };
+  }
+
 
   sectionTitle('Enquiries by Status');
   drawBarChart(byStatus, (k) => statusColors[k.toUpperCase()] || [99, 102, 241]);
