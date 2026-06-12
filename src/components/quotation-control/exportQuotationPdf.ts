@@ -391,7 +391,60 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
     });
   }
 
+  // ----- Pending Sales Conversion — own page at the end -----
+  {
+    const lostSet = new Set(['LOST', 'NOT CONVERTED', 'DECLINED', 'CANCELLED']);
+    const ncMap: Record<string, { count: number; value: number }> = {};
+    base.forEach(e => {
+      const status = upper(e.status);
+      const isWon = e.po_received === true || ['WON', 'PO RAISED'].includes(status);
+      const isLost = lostSet.has(status);
+      const hasQuote = (e.quoted_price_euro || 0) > 0 || status === 'QUOTED';
+      if (!isWon && !isLost && hasQuote) {
+        const c = e.customer || 'Unknown';
+        if (!ncMap[c]) ncMap[c] = { count: 0, value: 0 };
+        ncMap[c].count += 1;
+        ncMap[c].value += e.quoted_price_euro || 0;
+      }
+    });
+    const nc = Object.entries(ncMap).map(([customer, v]) => ({ customer, ...v }));
+    const byCnt = [...nc].sort((a, b) => b.count - a.count);
+    const byVal = [...nc].sort((a, b) => b.value - a.value);
+    const totalQ = nc.reduce((s, r) => s + r.count, 0);
+    const totalV = nc.reduce((s, r) => s + r.value, 0);
+    const leadC = byCnt[0];
+    const leadV = byVal[0];
+
+    pdf.addPage(); drawHeader(); y = 26;
+    sectionTitle('Pending Sales Conversion — by Customer');
+    drawKpiGrid([
+      { label: 'Quotes Pending Sales Conversion', value: String(totalQ), accent: [245, 158, 11], tint: [255, 251, 235] },
+      { label: 'Value Pending Sales Conversion', value: fmtEur(totalV), accent: [244, 63, 94], tint: [255, 241, 242] },
+      {
+        label: 'Most Quotes Pending Sales Conversion',
+        value: leadC ? `${leadC.customer} (${leadC.count})` : '—',
+        accent: [99, 102, 241], tint: [238, 242, 255],
+      },
+      {
+        label: 'Highest Value Pending Sales Conversion',
+        value: leadV ? `${leadV.customer} · ${fmtEur(leadV.value)}` : '—',
+        accent: [139, 92, 246], tint: [245, 243, 255],
+      },
+    ], 2, 12);
+
+    if (nc.length > 0) {
+      y += 4;
+      sectionTitle('Top Customers — Quotes Pending Sales Conversion');
+      drawBarChart(byCnt.slice(0, 8).map(r => [r.customer, r.count] as [string, number]), [245, 158, 11], 6);
+
+      y += 4;
+      sectionTitle('Top Customers — Value Pending Sales Conversion (€)');
+      drawBarChart(byVal.slice(0, 8).map(r => [r.customer, Math.round(r.value)] as [string, number]), [244, 63, 94], 6);
+    }
+  }
+
   // ----- footer -----
+
   const total = pdf.getNumberOfPages();
   for (let i = 1; i <= total; i++) {
     pdf.setPage(i);
