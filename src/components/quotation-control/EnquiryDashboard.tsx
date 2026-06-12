@@ -224,8 +224,34 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
           .sort((a, b) => a.month.localeCompare(b.month))
           .slice(-12);
       })(),
+      notConvertedByCustomer: (() => {
+        // Enquiries that have a quote but no PO received yet (excluding lost/cancelled)
+        const lostSet = new Set(['LOST', 'NOT CONVERTED', 'DECLINED', 'CANCELLED']);
+        const acc: Record<string, { count: number; value: number }> = {};
+        base.forEach(e => {
+          const status = (e.status || '').toUpperCase().trim();
+          const isWon = e.po_received === true || ['WON', 'PO RAISED'].includes(status);
+          const isLost = lostSet.has(status);
+          const hasQuote = (e.quoted_price_euro || 0) > 0 || status === 'QUOTED';
+          if (!isWon && !isLost && hasQuote) {
+            const c = e.customer || 'Unknown';
+            if (!acc[c]) acc[c] = { count: 0, value: 0 };
+            acc[c].count += 1;
+            acc[c].value += e.quoted_price_euro || 0;
+          }
+        });
+        return Object.entries(acc)
+          .map(([customer, v]) => ({ customer, count: v.count, value: v.value }))
+          .sort((a, b) => b.count - a.count);
+      })(),
     };
   }, [filteredEnquiries]);
+
+  const topNotConvertedByCount = stats.notConvertedByCustomer.slice(0, 8);
+  const topNotConvertedByValue = [...stats.notConvertedByCustomer].sort((a, b) => b.value - a.value).slice(0, 8);
+  const leaderByCount = topNotConvertedByCount[0];
+  const leaderByValue = topNotConvertedByValue[0];
+
 
   // Calculate working days between two dates (excludes weekends and holiday period)
   const calculateWorkingDays = (startDate: Date, endDate: Date): number => {
