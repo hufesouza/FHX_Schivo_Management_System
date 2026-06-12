@@ -224,8 +224,34 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
           .sort((a, b) => a.month.localeCompare(b.month))
           .slice(-12);
       })(),
+      notConvertedByCustomer: (() => {
+        // Enquiries that have a quote but no PO received yet (excluding lost/cancelled)
+        const lostSet = new Set(['LOST', 'NOT CONVERTED', 'DECLINED', 'CANCELLED']);
+        const acc: Record<string, { count: number; value: number }> = {};
+        base.forEach(e => {
+          const status = (e.status || '').toUpperCase().trim();
+          const isWon = e.po_received === true || ['WON', 'PO RAISED'].includes(status);
+          const isLost = lostSet.has(status);
+          const hasQuote = (e.quoted_price_euro || 0) > 0 || status === 'QUOTED';
+          if (!isWon && !isLost && hasQuote) {
+            const c = e.customer || 'Unknown';
+            if (!acc[c]) acc[c] = { count: 0, value: 0 };
+            acc[c].count += 1;
+            acc[c].value += e.quoted_price_euro || 0;
+          }
+        });
+        return Object.entries(acc)
+          .map(([customer, v]) => ({ customer, count: v.count, value: v.value }))
+          .sort((a, b) => b.count - a.count);
+      })(),
     };
   }, [filteredEnquiries]);
+
+  const topNotConvertedByCount = stats.notConvertedByCustomer.slice(0, 8);
+  const topNotConvertedByValue = [...stats.notConvertedByCustomer].sort((a, b) => b.value - a.value).slice(0, 8);
+  const leaderByCount = topNotConvertedByCount[0];
+  const leaderByValue = topNotConvertedByValue[0];
+
 
   // Calculate working days between two dates (excludes weekends and holiday period)
   const calculateWorkingDays = (startDate: Date, endDate: Date): number => {
@@ -713,6 +739,76 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
           </CardContent>
         </Card>
       </div>
+
+      {/* Not Converted Customers — quotations without PO */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-amber-600" />
+            Quotations Without PO — by Customer
+          </CardTitle>
+          <CardDescription>
+            Customers with quoted enquiries that have not yet converted to a PO (excluding LOST/CANCELLED)
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="rounded-lg border bg-amber-50/60 p-4">
+              <p className="text-xs uppercase tracking-wide text-amber-700 font-semibold">Most Quotations Pending</p>
+              {leaderByCount ? (
+                <>
+                  <p className="text-xl font-bold mt-1">{leaderByCount.customer}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {leaderByCount.count} quotations · {formatCurrency(leaderByCount.value)}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-2">No pending quotations</p>
+              )}
+            </div>
+            <div className="rounded-lg border bg-rose-50/60 p-4">
+              <p className="text-xs uppercase tracking-wide text-rose-700 font-semibold">Highest Pending Value</p>
+              {leaderByValue ? (
+                <>
+                  <p className="text-xl font-bold mt-1">{leaderByValue.customer}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {formatCurrency(leaderByValue.value)} · {leaderByValue.count} quotations
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-2">No pending quotations</p>
+              )}
+            </div>
+          </div>
+
+          {stats.notConvertedByCustomer.length > 0 && (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer</TableHead>
+                    <TableHead className="text-right w-[140px]">Pending Quotes</TableHead>
+                    <TableHead className="text-right w-[180px]">Pending Value (€)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {topNotConvertedByCount.map(row => (
+                    <TableRow key={row.customer}>
+                      <TableCell className="font-medium">{row.customer}</TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant="secondary">{row.count}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {formatCurrency(row.value)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Open Enquiries with Aging */}
       <Card>

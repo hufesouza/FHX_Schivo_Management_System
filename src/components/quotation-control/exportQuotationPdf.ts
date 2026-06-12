@@ -167,7 +167,68 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
   });
   y += 28;
 
-  // ----- Status breakdown as horizontal bars -----
+  // ----- Not Converted Customers (quotations without PO) -----
+  const lostSet = new Set(['LOST', 'NOT CONVERTED', 'DECLINED', 'CANCELLED']);
+  const notConvertedMap: Record<string, { count: number; value: number }> = {};
+  base.forEach(e => {
+    const status = upper(e.status);
+    const isWon = e.po_received === true || ['WON', 'PO RAISED'].includes(status);
+    const isLost = lostSet.has(status);
+    const hasQuote = (e.quoted_price_euro || 0) > 0 || status === 'QUOTED';
+    if (!isWon && !isLost && hasQuote) {
+      const c = e.customer || 'Unknown';
+      if (!notConvertedMap[c]) notConvertedMap[c] = { count: 0, value: 0 };
+      notConvertedMap[c].count += 1;
+      notConvertedMap[c].value += e.quoted_price_euro || 0;
+    }
+  });
+  const notConverted = Object.entries(notConvertedMap)
+    .map(([customer, v]) => ({ customer, count: v.count, value: v.value }));
+  const byCount = [...notConverted].sort((a, b) => b.count - a.count);
+  const byValue = [...notConverted].sort((a, b) => b.value - a.value);
+  const totalPendingQuotes = notConverted.reduce((s, r) => s + r.count, 0);
+  const totalPendingValue = notConverted.reduce((s, r) => s + r.value, 0);
+  const leadCount = byCount[0];
+  const leadValue = byValue[0];
+
+  sectionTitle('Quotations Without PO — by Customer');
+  drawKpiGrid([
+    { label: 'Pending Quotes', value: String(totalPendingQuotes), accent: [245, 158, 11], tint: [255, 251, 235] },
+    { label: 'Pending Value', value: fmtEur(totalPendingValue), accent: [244, 63, 94], tint: [255, 241, 242] },
+    {
+      label: 'Most Quotes Pending',
+      value: leadCount ? `${leadCount.customer} (${leadCount.count})` : '—',
+      accent: [99, 102, 241],
+      tint: [238, 242, 255],
+    },
+    {
+      label: 'Highest Pending Value',
+      value: leadValue ? `${leadValue.customer} · ${fmtEur(leadValue.value)}` : '—',
+      accent: [139, 92, 246],
+      tint: [245, 243, 255],
+    },
+  ], 2, 18);
+
+  if (notConverted.length > 0) {
+    autoTable(pdf, {
+      startY: y,
+      head: [['Customer', 'Pending Quotes', 'Pending Value']],
+      body: byCount.map(r => [r.customer, String(r.count), fmtEur(r.value)]),
+      margin: { left: margin, right: margin },
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [30, 41, 59], textColor: 255 },
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { cellWidth: 32, halign: 'right' },
+        2: { cellWidth: 40, halign: 'right' },
+      },
+      theme: 'grid',
+      didDrawPage: () => drawHeader(),
+    });
+    y = (pdf as any).lastAutoTable.finalY + 6;
+  }
+
+
   const statusColors: Record<string, RGB> = {
     'OPEN': [59, 130, 246],
     'WIP': [14, 165, 233],
