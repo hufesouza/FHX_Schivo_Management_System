@@ -191,18 +191,18 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
   const leadCount = byCount[0];
   const leadValue = byValue[0];
 
-  sectionTitle('Quotations Without PO — by Customer');
+  sectionTitle('Pending Sales Conversion — by Customer');
   drawKpiGrid([
-    { label: 'Pending Quotes', value: String(totalPendingQuotes), accent: [245, 158, 11], tint: [255, 251, 235] },
-    { label: 'Pending Value', value: fmtEur(totalPendingValue), accent: [244, 63, 94], tint: [255, 241, 242] },
+    { label: 'Quotes Pending Sales Conversion', value: String(totalPendingQuotes), accent: [245, 158, 11], tint: [255, 251, 235] },
+    { label: 'Value Pending Sales Conversion', value: fmtEur(totalPendingValue), accent: [244, 63, 94], tint: [255, 241, 242] },
     {
-      label: 'Most Quotes Pending',
+      label: 'Most Quotes Pending Sales Conversion',
       value: leadCount ? `${leadCount.customer} (${leadCount.count})` : '—',
       accent: [99, 102, 241],
       tint: [238, 242, 255],
     },
     {
-      label: 'Highest Pending Value',
+      label: 'Highest Value Pending Sales Conversion',
       value: leadValue ? `${leadValue.customer} · ${fmtEur(leadValue.value)}` : '—',
       accent: [139, 92, 246],
       tint: [245, 243, 255],
@@ -210,23 +210,15 @@ export function exportQuotationPdf(enquiries: EnquiryLog[], fileName?: string) {
   ], 2, 12);
 
   if (notConverted.length > 0) {
-    autoTable(pdf, {
-      startY: y,
-      head: [['Customer', 'Pending Quotes', 'Pending Value']],
-      body: byCount.map(r => [r.customer, String(r.count), fmtEur(r.value)]),
-      margin: { left: margin, right: margin },
-      styles: { fontSize: 8, cellPadding: 2 },
-      headStyles: { fillColor: [30, 41, 59], textColor: 255 },
-      columnStyles: {
-        0: { cellWidth: 'auto' },
-        1: { cellWidth: 32, halign: 'right' },
-        2: { cellWidth: 40, halign: 'right' },
-      },
-      theme: 'grid',
-      didDrawPage: () => drawHeader(),
-    });
-    y = (pdf as any).lastAutoTable.finalY + 6;
+    const topCount = byCount.slice(0, 8).map(r => [r.customer, r.count] as [string, number]);
+    sectionTitle('Top Customers — Quotes Pending Sales Conversion');
+    drawBarChart(topCount, [245, 158, 11]);
+
+    const topValue = byValue.slice(0, 8).map(r => [r.customer, Math.round(r.value)] as [string, number]);
+    sectionTitle('Top Customers — Value Pending Sales Conversion (€)');
+    drawBarChart(topValue, [244, 63, 94]);
   }
+
 
 
   const statusColors: Record<string, RGB> = {
