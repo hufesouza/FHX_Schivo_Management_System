@@ -148,8 +148,8 @@ export function EnquiryDashboard({ enquiries, onFilterByStatus, onFilterByCustom
         const status = (e.status || '').toUpperCase().trim();
         return openStatuses.includes(status);
       }).length,
-      // Quoted: is_quoted flag is true
-      quoted: base.filter(e => e.is_quoted === true).length,
+      // Quoted: status column = "QUOTED"
+      quoted: base.filter(e => (e.status || '').toUpperCase().trim() === 'QUOTED').length,
       // Won: po_received is true OR status is WON/PO RAISED
       won: base.filter(e => {
         const status = (e.status || '').toUpperCase();
