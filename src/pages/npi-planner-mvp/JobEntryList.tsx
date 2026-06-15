@@ -32,6 +32,9 @@ type Job = {
   status: string;
   planned_start: string | null;
   planned_finish: string | null;
+  best_commence_date: string | null;
+  latest_start_date: string | null;
+  schedule_risk: string | null;
   parts: { part_number: string; revision: string | null } | null;
 };
 
@@ -47,6 +50,12 @@ const statusColor = (s: string) => ({
   Scheduled: 'bg-cyan-500/10 text-cyan-600',
   Completed: 'bg-emerald-500/10 text-emerald-600',
 } as any)[s] || '';
+
+const riskColor = (r: string | null) => ({
+  'On Track': 'bg-emerald-500/15 text-emerald-700 border-emerald-500/30',
+  'At Risk': 'bg-amber-500/15 text-amber-700 border-amber-500/30',
+  'Late': 'bg-red-500/15 text-red-700 border-red-500/30',
+} as any)[r || 'On Track'] || 'bg-slate-500/10 text-slate-600';
 
 export default function JobEntryList() {
   const navigate = useNavigate();
