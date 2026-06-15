@@ -446,21 +446,6 @@ export default function GanttChart() {
           <TabsContent value="gantt" className="mt-4 space-y-4">
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border bg-card">
-
-  return (
-    <AppLayout title="Schedule / Gantt" subtitle="Interactive visual scheduler" showBackButton backTo="/npi/capacity-planner-mvp">
-      <main className="container mx-auto px-4 py-6 space-y-4">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'gantt' | 'board')}>
-          <TabsList>
-            <TabsTrigger value="gantt">Gantt View</TabsTrigger>
-            <TabsTrigger value="board">Schedule Board</TabsTrigger>
-          </TabsList>
-          <TabsContent value="board" className="mt-4">
-            <ScheduleBoard onOpenInGantt={handleOpenInGantt} />
-          </TabsContent>
-          <TabsContent value="gantt" className="mt-4 space-y-4">
-        {/* Toolbar */}
-        <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border bg-card">
           <Button size="sm" onClick={runSchedule} disabled={loading}><Play className="h-4 w-4" /> Run Schedule</Button>
           <Button size="sm" variant="outline" onClick={runSchedule} disabled={loading}><RotateCcw className="h-4 w-4" /> Re-run</Button>
           <Button size="sm" variant="outline" onClick={clearSchedule}><Trash2 className="h-4 w-4" /> Clear</Button>
