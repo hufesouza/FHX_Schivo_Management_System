@@ -9,8 +9,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Play, Trash2, Loader2, Lock } from 'lucide-react';
+import { buildSchedule, DEV_RESOURCE_NAME } from './schedulerCore';
 
-type Resource = { id: string; resource_name: string; available_hours_per_day: number; status: string; scheduling_mode?: 'Exclusive' | 'Parallel' };
+type Resource = { id: string; resource_name: string; resource_category?: string | null; resource_type?: string | null; lead_time_days?: number | null; available_hours_per_day: number; status: string; scheduling_mode?: 'Exclusive' | 'Parallel' };
 type JobOp = {
   id: string;
   job_id: string;
@@ -38,74 +39,6 @@ type Job = {
   planned_finish: string | null;
   schedule_status: string;
 };
-
-const PRIORITY_ORDER: Record<string, number> = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
-const DEV_RESOURCE_NAME = 'Development / Engineering';
-
-// Advance a Date to the next working minute (Mon-Fri, 00:00 if weekend)
-function nextWorkingMoment(d: Date): Date {
-  const out = new Date(d);
-  while (out.getDay() === 0 || out.getDay() === 6) {
-    out.setDate(out.getDate() + 1);
-    out.setHours(0, 0, 0, 0);
-  }
-  return out;
-}
-
-// Add `hours` of work starting at `start`, respecting daily capacity & weekdays
-function addWorkingHours(start: Date, hours: number, dailyHours: number): Date {
-  if (hours <= 0) return new Date(start);
-  let remaining = hours;
-  const cursor = nextWorkingMoment(new Date(start));
-  // hours used so far on the current calendar day
-  const dayStart = new Date(cursor); dayStart.setHours(0, 0, 0, 0);
-  let usedToday = (cursor.getTime() - dayStart.getTime()) / 3600000;
-  while (remaining > 0) {
-    const avail = Math.max(0, dailyHours - usedToday);
-    if (avail <= 0) {
-      cursor.setDate(cursor.getDate() + 1);
-      cursor.setHours(0, 0, 0, 0);
-      while (cursor.getDay() === 0 || cursor.getDay() === 6) cursor.setDate(cursor.getDate() + 1);
-      usedToday = 0;
-      continue;
-    }
-    const take = Math.min(remaining, avail);
-    cursor.setTime(cursor.getTime() + take * 3600000);
-    usedToday += take;
-    remaining -= take;
-  }
-  return cursor;
-}
-
-// Subtract `hours` of work ending at `end`, respecting daily capacity & weekdays
-function subtractWorkingHours(end: Date, hours: number, dailyHours: number): Date {
-  if (hours <= 0) return new Date(end);
-  let remaining = hours;
-  const cursor = new Date(end);
-  // step back from non-working days
-  while (cursor.getDay() === 0 || cursor.getDay() === 6) {
-    cursor.setDate(cursor.getDate() - 1);
-    cursor.setHours(23, 59, 59, 999);
-  }
-  // hours already consumed today from 00:00 to cursor time
-  const dayStart = new Date(cursor); dayStart.setHours(0, 0, 0, 0);
-  let availToday = (cursor.getTime() - dayStart.getTime()) / 3600000;
-  availToday = Math.min(availToday, dailyHours);
-  while (remaining > 0) {
-    if (availToday <= 0) {
-      cursor.setDate(cursor.getDate() - 1);
-      cursor.setHours(23, 59, 59, 999);
-      while (cursor.getDay() === 0 || cursor.getDay() === 6) cursor.setDate(cursor.getDate() - 1);
-      availToday = dailyHours;
-      continue;
-    }
-    const take = Math.min(remaining, availToday);
-    cursor.setTime(cursor.getTime() - take * 3600000);
-    availToday -= take;
-    remaining -= take;
-  }
-  return cursor;
-}
 
 export default function SchedulingEngine() {
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
