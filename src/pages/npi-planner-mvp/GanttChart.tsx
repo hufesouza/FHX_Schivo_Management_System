@@ -19,6 +19,7 @@ type JobOp = {
   total_time_hours: number | null; planned_start: string | null; planned_finish: string | null;
   is_locked: boolean; has_conflict: boolean; sequence_warning: boolean; sequence_order: number | null;
 };
+type PartOp = Pick<JobOp, 'operation_number' | 'operation_name' | 'resource_id' | 'setup_time_hours' | 'cycle_time_seconds'> & { part_id: string };
 
 type ViewMode = 'day' | 'week' | 'month';
 type GroupMode = 'part' | 'resource';
@@ -43,6 +44,7 @@ const OP_PALETTE = [
 ];
 const hashStr = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0; return Math.abs(h); };
 const opColor = (op: JobOp) => OP_PALETTE[hashStr(`${op.operation_name}|${op.operation_number}`) % OP_PALETTE.length];
+const isOpenJobStatus = (status: string | null | undefined) => !['completed', 'cancelled'].includes((status || '').toLowerCase());
 
 const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
@@ -74,13 +76,45 @@ export default function GanttChart() {
       supabase.from('job_operations').select('*'),
     ]);
     setResources((r.data as Resource[]) || []);
-    setJobs((j.data as Job[]) || []);
-    setOps((o.data as JobOp[]) || []);
-    const partIds = Array.from(new Set(((j.data || []) as Job[]).map(x => x.part_id).filter(Boolean))) as string[];
+    const fetchedJobs = (j.data as Job[]) || [];
+    const fetchedOps = (o.data as JobOp[]) || [];
+    setJobs(fetchedJobs);
+    const partIds = Array.from(new Set(fetchedJobs.map(x => x.part_id).filter(Boolean))) as string[];
     if (partIds.length) {
-      const { data } = await supabase.from('parts').select('id,part_number,revision,description').in('id', partIds);
-      setParts((data as Part[]) || []);
-    } else setParts([]);
+      const [partsRes, partOpsRes] = await Promise.all([
+        supabase.from('parts').select('id,part_number,revision,description').in('id', partIds),
+        supabase.from('part_operations').select('part_id,operation_number,operation_name,resource_id,setup_time_hours,cycle_time_seconds').in('part_id', partIds),
+      ]);
+      setParts((partsRes.data as Part[]) || []);
+
+      const jobsByOpJobId = new Map(fetchedJobs.map(job => [job.id, job]));
+      const partOpByKey = new Map(((partOpsRes.data as PartOp[]) || []).map(op => [`${op.part_id}|${op.operation_number}`, op]));
+      const syncUpdates: PartOp[] & { id?: string }[] = [] as any;
+      const syncedOps = fetchedOps.map(op => {
+        const job = jobsByOpJobId.get(op.job_id);
+        const partOp = job?.part_id && isOpenJobStatus(job.status) ? partOpByKey.get(`${job.part_id}|${op.operation_number}`) : null;
+        if (!partOp) return op;
+        const next = {
+          resource_id: partOp.resource_id,
+          operation_name: partOp.operation_name,
+          setup_time_hours: partOp.setup_time_hours,
+          cycle_time_seconds: partOp.cycle_time_seconds,
+        };
+        const changed = op.resource_id !== next.resource_id || op.operation_name !== next.operation_name ||
+          op.setup_time_hours !== next.setup_time_hours || op.cycle_time_seconds !== next.cycle_time_seconds;
+        if (changed) syncUpdates.push({ id: op.id, part_id: partOp.part_id, operation_number: partOp.operation_number, ...next } as any);
+        return changed ? { ...op, ...next } : op;
+      });
+      setOps(syncedOps);
+      if (syncUpdates.length) {
+        await Promise.all(syncUpdates.map(({ id, operation_number, part_id, ...update }: any) =>
+          supabase.from('job_operations').update(update).eq('id', id)
+        ));
+      }
+    } else {
+      setParts([]);
+      setOps(fetchedOps);
+    }
   };
   useEffect(() => { load(); }, []);
 
