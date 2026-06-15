@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Play, Trash2, Loader2, Lock } from 'lucide-react';
-import { buildSchedule, DEV_RESOURCE_NAME } from './schedulerCore';
+import { buildSchedule, runFullSchedule, DEV_RESOURCE_NAME } from './schedulerCore';
 
 type Resource = { id: string; resource_name: string; resource_category?: string | null; resource_type?: string | null; lead_time_days?: number | null; available_hours_per_day: number; status: string; scheduling_mode?: 'Exclusive' | 'Parallel' };
 type JobOp = {
