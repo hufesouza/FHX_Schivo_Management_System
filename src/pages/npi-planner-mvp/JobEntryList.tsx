@@ -168,7 +168,16 @@ export default function JobEntryList() {
                       <TableCell>{format(new Date(r.due_date), 'PP')}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{r.best_commence_date ? format(new Date(r.best_commence_date), 'PP') : '—'}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{r.latest_start_date ? format(new Date(r.latest_start_date), 'PP') : '—'}</TableCell>
-                      <TableCell><Badge variant="outline" className={riskColor(r.schedule_risk)}>{r.schedule_risk || 'On Track'}</Badge></TableCell>
+                      <TableCell>{(() => {
+                        const now = new Date();
+                        const due = r.due_date ? new Date(r.due_date + 'T23:59:59') : null;
+                        const finish = r.planned_finish ? new Date(r.planned_finish) : null;
+                        const latest = r.latest_start_date ? new Date(r.latest_start_date) : null;
+                        let live: 'On Track' | 'At Risk' | 'Late' = 'On Track';
+                        if (finish && due && finish > due) live = 'Late';
+                        else if (latest && now > latest) live = 'At Risk';
+                        return <Badge variant="outline" className={riskColor(live)}>{live}</Badge>;
+                      })()}</TableCell>
                       <TableCell><Badge variant="outline" className={priorityColor(r.priority)}>{r.priority}</Badge></TableCell>
                       <TableCell><Badge variant="outline" className={statusColor(r.status)}>{r.status}</Badge></TableCell>
                       <TableCell className="text-sm text-muted-foreground">{r.planned_finish ? format(new Date(r.planned_finish), 'PP') : '—'}</TableCell>
