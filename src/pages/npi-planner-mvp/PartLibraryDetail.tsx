@@ -135,6 +135,64 @@ export default function PartLibraryDetail() {
     toast.success('Header saved');
   };
 
+  const openDuplicate = () => {
+    if (!part) return;
+    setDupForm({ part_number: part.part_number + '-COPY', revision: part.revision || '' });
+    setDupOpen(true);
+  };
+
+  const doDuplicate = async () => {
+    if (!part) return;
+    const pn = dupForm.part_number.trim();
+    const rev = dupForm.revision.trim() || null;
+    if (!pn) return toast.error('Part number is required');
+    setDupSaving(true);
+
+    const { data: existing } = await supabase.from('parts')
+      .select('id')
+      .eq('part_number', pn)
+      .eq('revision', rev || '')
+      .maybeSingle();
+    if (existing) {
+      setDupSaving(false);
+      return toast.error('A part with this number and revision already exists');
+    }
+
+    const { data: newPart, error: partErr } = await supabase.from('parts').insert({
+      part_number: pn,
+      revision: rev,
+      description: part.description,
+      customer: part.customer,
+      project: part.project,
+    }).select().single();
+    if (partErr) {
+      setDupSaving(false);
+      return toast.error(partErr.message);
+    }
+
+    const { data: srcOps } = await supabase.from('part_operations')
+      .select('*')
+      .eq('part_id', part.id);
+    if (srcOps && srcOps.length > 0) {
+      const inserts = srcOps.map((op: any) => ({
+        part_id: newPart.id,
+        operation_number: op.operation_number,
+        operation_name: op.operation_name,
+        resource_id: op.resource_id,
+        setup_time_hours: op.setup_time_hours,
+        cycle_time_seconds: op.cycle_time_seconds,
+        notes: op.notes,
+      }));
+      const { error: opErr } = await supabase.from('part_operations').insert(inserts);
+      if (opErr) toast.error('Part duplicated but operations failed: ' + opErr.message);
+    }
+
+    setDupSaving(false);
+    setDupOpen(false);
+    toast.success('Part duplicated');
+    navigate(`/npi/capacity-planner-mvp/part-library/${newPart.id}`);
+  };
+
   const openAddOp = () => {
     const nextNo = ops.length === 0 ? 10 : Math.max(...ops.map(o => o.operation_number)) + 10;
     setEditingOp(null);
