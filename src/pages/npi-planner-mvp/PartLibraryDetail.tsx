@@ -524,6 +524,35 @@ export default function PartLibraryDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={dupOpen} onOpenChange={setDupOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Duplicate part</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Duplicating <strong>{part?.part_number}</strong> ({ops.length} ops).
+            </p>
+            <div>
+              <Label>New part number *</Label>
+              <Input value={dupForm.part_number}
+                onChange={(e) => setDupForm({ ...dupForm, part_number: e.target.value })} />
+            </div>
+            <div>
+              <Label>Revision</Label>
+              <Input value={dupForm.revision}
+                onChange={(e) => setDupForm({ ...dupForm, revision: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDupOpen(false)}>Cancel</Button>
+            <Button onClick={doDuplicate} disabled={dupSaving}>
+              {dupSaving ? 'Duplicating…' : 'Duplicate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
