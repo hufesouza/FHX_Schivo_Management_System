@@ -239,7 +239,7 @@ export default function GanttChart() {
         sub: `${r.resource_type || '—'} · ${r.available_hours_per_day}h/day`,
         resourceId: r.id,
       }));
-  }, [groupMode, jobs, parts, resources, partsById, machinesOnly, peopleOnly]);
+  }, [groupMode, jobs, resources, partsById, machinesOnly, peopleOnly]);
 
   const visibleOps = useMemo(() => {
     let list = flaggedOps;
@@ -305,7 +305,7 @@ export default function GanttChart() {
     } else {
       setDragPreview({ id: d.opId, startX, width, resourceId: targetResource, rowKey });
     }
-  }, [pxPerHour, resources, groupMode, ops, jobsById]);
+  }, [pxPerHour, resources, groupMode, ops, jobsById, dateToX]);
 
   const onMouseUp = useCallback(async () => {
     window.removeEventListener('mousemove', onMouseMove);
@@ -327,7 +327,7 @@ export default function GanttChart() {
     if (error) { toast.error(error.message); return; }
     setOps(prev => prev.map(o => o.id === d.opId ? { ...o, ...update } : o));
     toast.success('Schedule updated');
-  }, [dragPreview, pxPerHour]);
+  }, [dragPreview, pxPerHour, onMouseMove, xToDate]);
 
   const toggleLock = async (op: JobOp) => {
     const { error } = await supabase.from('job_operations').update({ is_locked: !op.is_locked }).eq('id', op.id);
@@ -610,7 +610,7 @@ export default function GanttChart() {
                   {rows.map(row => {
                     const rowOps = visibleOps.filter(o => opInRow(o, row) && o.planned_start && o.planned_finish);
                     // In part mode, multiple ops may overlap horizontally; lay them out in lanes
-                    let lanes: { end: number }[] = [];
+                    const lanes: { end: number }[] = [];
                     const opLanes = new Map<string, number>();
                     if (groupMode === 'part') {
                       const sorted = [...rowOps].sort((a, b) => new Date(a.planned_start!).getTime() - new Date(b.planned_start!).getTime());
