@@ -185,7 +185,7 @@ export default function SchedulingEngine() {
       });
 
       const opUpdates: { id: string; planned_start: string; planned_finish: string }[] = [];
-      const jobUpdates: { id: string; planned_start: string | null; planned_finish: string | null; schedule_status: string; status: string }[] = [];
+      const jobUpdates: { id: string; planned_start: string | null; planned_finish: string | null; schedule_status: string; status: string; best_commence_date: string | null; latest_start_date: string | null; schedule_risk: string }[] = [];
 
       let devResource: Resource | null = null;
 
