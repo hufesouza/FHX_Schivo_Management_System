@@ -296,7 +296,12 @@ export default function PartLibraryDetail() {
       showBackButton backTo="/npi/capacity-planner-mvp/part-library">
       <main className="container mx-auto px-4 py-8 space-y-6">
         <Card>
-          <CardHeader><CardTitle>Header</CardTitle></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+            <CardTitle>Header</CardTitle>
+            <Button variant="outline" onClick={openDuplicate}>
+              <Copy className="h-4 w-4 mr-1" /> Duplicate
+            </Button>
+          </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
