@@ -1,15 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { ChevronRight, ExternalLink, Target, X } from 'lucide-react';
-import { format } from 'date-fns';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  ChevronRight, ExternalLink, X, Search, Factory, Users, Briefcase,
+  AlertTriangle, CheckCircle2, Clock, ArrowLeft, Cpu, Package,
+} from 'lucide-react';
+import { format, differenceInDays } from 'date-fns';
 
 type Resource = { id: string; resource_name: string; resource_type: string | null; resource_category: string | null };
 type Part = { id: string; part_number: string; revision: string | null; customer: string | null; project: string | null };
@@ -24,195 +26,476 @@ type JobOp = {
   sequence_order: number | null;
 };
 
-interface ScheduleBoardProps {
-  onOpenInGantt: (jobOrPartId: { partId: string | null; jobId: string }) => void;
-}
+interface Props { onOpenInGantt: (j: { partId: string | null; jobId: string }) => void; }
 
-const fmtDate = (d: string | null | undefined) => d ? format(new Date(d), 'd MMM yy') : '—';
-const fmtDateTime = (d: string | null | undefined) => d ? format(new Date(d), 'd MMM, HH:mm') : '—';
+const fmtDate = (d?: string | null) => d ? format(new Date(d), 'd MMM') : '—';
+const fmtDateTime = (d?: string | null) => d ? format(new Date(d), 'd MMM HH:mm') : '—';
 
-const riskBadge = (risk: string | null) => {
+const riskTheme = (risk?: string | null) => {
   const r = risk || 'On Track';
-  const v = r === 'Late' ? 'destructive' : r === 'At Risk' ? 'default' : 'secondary';
-  return <Badge variant={v as any}>{r}</Badge>;
+  if (r === 'Late') return { bg: 'bg-destructive/10', text: 'text-destructive', border: 'border-destructive/40', dot: 'bg-destructive', icon: AlertTriangle, label: 'Late' };
+  if (r === 'At Risk') return { bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/40', dot: 'bg-amber-500', icon: Clock, label: 'At Risk' };
+  return { bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/40', dot: 'bg-emerald-500', icon: CheckCircle2, label: 'On Track' };
 };
 
-export default function ScheduleBoard({ onOpenInGantt }: ScheduleBoardProps) {
+export default function ScheduleBoard({ onOpenInGantt }: Props) {
   const [resources, setResources] = useState<Resource[]>([]);
   const [parts, setParts] = useState<Part[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [ops, setOps] = useState<JobOp[]>([]);
 
-  // Filters
   const [search, setSearch] = useState('');
   const [fCustomer, setFCustomer] = useState('all');
-  const [fProject, setFProject] = useState('all');
   const [fDept, setFDept] = useState('all');
-  const [fResource, setFResource] = useState('all');
   const [fRisk, setFRisk] = useState('all');
   const [fDue, setFDue] = useState<'all' | 'overdue' | '7' | '30'>('all');
 
-  const load = async () => {
-    const [r, p, j, o] = await Promise.all([
-      supabase.from('resources').select('id,resource_name,resource_type,resource_category').eq('status', 'Active'),
-      supabase.from('parts').select('id,part_number,revision,customer,project'),
-      supabase.from('jobs').select('id,job_number,part_id,quantity,due_date,status,planned_start,planned_finish,schedule_status,best_commence_date,latest_start_date,schedule_risk'),
-      supabase.from('job_operations').select('id,job_id,operation_number,operation_name,resource_id,planned_start,planned_finish,sequence_order'),
-    ]);
-    setResources((r.data as Resource[]) || []);
-    setParts((p.data as Part[]) || []);
-    setJobs((j.data as Job[]) || []);
-    setOps((o.data as JobOp[]) || []);
-  };
-  useEffect(() => { load(); }, []);
+  // Drill state
+  const [mode, setMode] = useState<'resource' | 'customer'>('resource');
+  const [drillDept, setDrillDept] = useState<string | null>(null);
+  const [drillResource, setDrillResource] = useState<string | null>(null);
+  const [drillCustomer, setDrillCustomer] = useState<string | null>(null);
+  const [drillProject, setDrillProject] = useState<string | null>(null);
+  const [openJobId, setOpenJobId] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const [r, p, j, o] = await Promise.all([
+        supabase.from('resources').select('id,resource_name,resource_type,resource_category').eq('status', 'Active'),
+        supabase.from('parts').select('id,part_number,revision,customer,project'),
+        supabase.from('jobs').select('id,job_number,part_id,quantity,due_date,status,planned_start,planned_finish,schedule_status,best_commence_date,latest_start_date,schedule_risk'),
+        supabase.from('job_operations').select('id,job_id,operation_number,operation_name,resource_id,planned_start,planned_finish,sequence_order'),
+      ]);
+      setResources((r.data as Resource[]) || []);
+      setParts((p.data as Part[]) || []);
+      setJobs((j.data as Job[]) || []);
+      setOps((o.data as JobOp[]) || []);
+    })();
+  }, []);
 
   const partsById = useMemo(() => new Map(parts.map(p => [p.id, p])), [parts]);
-  const resourcesById = useMemo(() => new Map(resources.map(r => [r.id, r])), [resources]);
+  const resById = useMemo(() => new Map(resources.map(r => [r.id, r])), [resources]);
   const opsByJob = useMemo(() => {
     const m = new Map<string, JobOp[]>();
     ops.forEach(op => {
-      const arr = m.get(op.job_id) || [];
-      arr.push(op);
-      m.set(op.job_id, arr);
+      const a = m.get(op.job_id) || [];
+      a.push(op); m.set(op.job_id, a);
     });
-    m.forEach(arr => arr.sort((a, b) => (a.sequence_order ?? a.operation_number) - (b.sequence_order ?? b.operation_number)));
+    m.forEach(a => a.sort((x, y) => (x.sequence_order ?? x.operation_number) - (y.sequence_order ?? y.operation_number)));
     return m;
   }, [ops]);
 
-  // Current operation = first op whose planned_finish is in the future, or first if none
-  const currentOpFor = (job: Job): JobOp | null => {
+  const currentOp = (job: Job): JobOp | null => {
     if (job.status === 'Completed') return null;
-    const arr = opsByJob.get(job.id) || [];
-    if (!arr.length) return null;
+    const a = opsByJob.get(job.id) || [];
+    if (!a.length) return null;
     const now = Date.now();
-    const future = arr.find(op => op.planned_finish && new Date(op.planned_finish).getTime() > now);
-    return future || arr[0];
+    return a.find(op => op.planned_finish && new Date(op.planned_finish).getTime() > now) || a[a.length - 1];
   };
 
-  // Filter options
-  const customers = useMemo(() => Array.from(new Set(parts.map(p => p.customer).filter(Boolean))).sort() as string[], [parts]);
-  const projects = useMemo(() => {
-    const list = parts.filter(p => fCustomer === 'all' || p.customer === fCustomer).map(p => p.project).filter(Boolean) as string[];
-    return Array.from(new Set(list)).sort();
-  }, [parts, fCustomer]);
-  const departments = useMemo(() => Array.from(new Set(resources.map(r => r.resource_type).filter(Boolean))).sort() as string[], [resources]);
-  const resourceOptions = useMemo(() => resources.filter(r => fDept === 'all' || r.resource_type === fDept), [resources, fDept]);
-
-  // Enriched jobs for the table
-  const rows = useMemo(() => {
-    return jobs.map(job => {
+  // Apply filters to job set
+  const filteredJobs = useMemo(() => {
+    const now = new Date(); now.setHours(0,0,0,0);
+    return jobs.filter(job => {
       const part = job.part_id ? partsById.get(job.part_id) : null;
-      const curOp = currentOpFor(job);
-      const curResource = curOp?.resource_id ? resourcesById.get(curOp.resource_id) : null;
-      return { job, part, curOp, curResource };
-    });
-  }, [jobs, partsById, resourcesById, opsByJob]);
-
-  const filteredRows = useMemo(() => {
-    const now = startOfDay(new Date());
-    return rows.filter(({ job, part, curOp, curResource }) => {
+      const cur = currentOp(job);
+      const res = cur?.resource_id ? resById.get(cur.resource_id) : null;
       if (search) {
         const q = search.toLowerCase();
         const hay = `${job.job_number} ${part?.part_number || ''} ${part?.customer || ''} ${part?.project || ''}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       if (fCustomer !== 'all' && part?.customer !== fCustomer) return false;
-      if (fProject !== 'all' && part?.project !== fProject) return false;
-      if (fDept !== 'all' && curResource?.resource_type !== fDept) return false;
-      if (fResource !== 'all' && curOp?.resource_id !== fResource) return false;
+      if (fDept !== 'all' && res?.resource_type !== fDept) return false;
       if (fRisk !== 'all' && (job.schedule_risk || 'On Track') !== fRisk) return false;
       if (fDue !== 'all') {
         if (!job.due_date) return false;
-        const due = new Date(job.due_date);
-        const days = Math.ceil((due.getTime() - now.getTime()) / 86400000);
-        if (fDue === 'overdue' && days >= 0) return false;
-        if (fDue === '7' && (days < 0 || days > 7)) return false;
-        if (fDue === '30' && (days < 0 || days > 30)) return false;
+        const d = differenceInDays(new Date(job.due_date), now);
+        if (fDue === 'overdue' && d >= 0) return false;
+        if (fDue === '7' && (d < 0 || d > 7)) return false;
+        if (fDue === '30' && (d < 0 || d > 30)) return false;
       }
       return true;
     });
-  }, [rows, search, fCustomer, fProject, fDept, fResource, fRisk, fDue]);
+  }, [jobs, partsById, resById, opsByJob, search, fCustomer, fDept, fRisk, fDue]);
 
-  const clearFilters = () => {
-    setSearch(''); setFCustomer('all'); setFProject('all'); setFDept('all'); setFResource('all'); setFRisk('all'); setFDue('all');
+  const customers = useMemo(() => Array.from(new Set(parts.map(p => p.customer).filter(Boolean))).sort() as string[], [parts]);
+  const departments = useMemo(() => Array.from(new Set(resources.map(r => r.resource_type).filter(Boolean))).sort() as string[], [resources]);
+
+  // === Tile data builders ===
+  type Counts = { total: number; late: number; risk: number; ok: number };
+  const countBy = (arr: Job[]): Counts => {
+    const c: Counts = { total: arr.length, late: 0, risk: 0, ok: 0 };
+    arr.forEach(j => {
+      const r = j.schedule_risk || 'On Track';
+      if (r === 'Late') c.late++; else if (r === 'At Risk') c.risk++; else c.ok++;
+    });
+    return c;
   };
 
-  // Resource drilldown tree
-  const resourceTree = useMemo(() => {
-    const tree = new Map<string, Map<string, { resource: Resource; jobs: Job[] }>>();
-    rows.forEach(({ job, curOp, curResource }) => {
-      if (!curOp || !curResource) return;
-      const dept = curResource.resource_type || 'Unassigned';
-      if (!tree.has(dept)) tree.set(dept, new Map());
-      const deptMap = tree.get(dept)!;
-      const key = curResource.id;
-      if (!deptMap.has(key)) deptMap.set(key, { resource: curResource, jobs: [] });
-      deptMap.get(key)!.jobs.push(job);
-    });
-    return tree;
-  }, [rows]);
-
-  // Customer drilldown tree
-  const customerTree = useMemo(() => {
+  // Group filtered jobs by department -> resource (current op)
+  const deptResourceData = useMemo(() => {
     const tree = new Map<string, Map<string, Job[]>>();
-    rows.forEach(({ job, part }) => {
-      const cust = part?.customer || 'No Customer';
-      const proj = part?.project || 'No Project';
-      if (!tree.has(cust)) tree.set(cust, new Map());
-      const projMap = tree.get(cust)!;
-      if (!projMap.has(proj)) projMap.set(proj, []);
-      projMap.get(proj)!.push(job);
+    filteredJobs.forEach(job => {
+      const cur = currentOp(job);
+      const res = cur?.resource_id ? resById.get(cur.resource_id) : null;
+      const dept = res?.resource_type || 'Unassigned';
+      const rid = res?.id || '__none__';
+      if (!tree.has(dept)) tree.set(dept, new Map());
+      const dm = tree.get(dept)!;
+      if (!dm.has(rid)) dm.set(rid, []);
+      dm.get(rid)!.push(job);
     });
     return tree;
-  }, [rows]);
+  }, [filteredJobs, resById, opsByJob]);
 
-  const renderJobOpsList = (job: Job) => {
-    const arr = opsByJob.get(job.id) || [];
-    if (!arr.length) return <div className="text-xs text-muted-foreground pl-6 py-1">No operations</div>;
-    const curOp = currentOpFor(job);
+  const custProjectData = useMemo(() => {
+    const tree = new Map<string, Map<string, Job[]>>();
+    filteredJobs.forEach(job => {
+      const part = job.part_id ? partsById.get(job.part_id) : null;
+      const c = part?.customer || 'No Customer';
+      const p = part?.project || 'No Project';
+      if (!tree.has(c)) tree.set(c, new Map());
+      const pm = tree.get(c)!;
+      if (!pm.has(p)) pm.set(p, []);
+      pm.get(p)!.push(job);
+    });
+    return tree;
+  }, [filteredJobs, partsById]);
+
+  const clearFilters = () => { setSearch(''); setFCustomer('all'); setFDept('all'); setFRisk('all'); setFDue('all'); };
+
+  // === Visual sub-components ===
+  const RiskBar = ({ counts }: { counts: Counts }) => {
+    const t = Math.max(1, counts.total);
     return (
-      <div className="pl-6 space-y-1 py-1">
-        {arr.map(op => {
-          const res = op.resource_id ? resourcesById.get(op.resource_id) : null;
-          const isCur = curOp?.id === op.id;
-          return (
-            <div key={op.id} className={`flex items-center gap-2 text-xs ${isCur ? 'font-semibold text-primary' : 'text-muted-foreground'}`}>
-              <ChevronRight className="h-3 w-3" />
-              <span>OP{op.operation_number} {op.operation_name}</span>
-              {res && <Badge variant="outline" className="text-[10px]">{res.resource_name}</Badge>}
-              {op.planned_start && <span>· {fmtDateTime(op.planned_start)}</span>}
-            </div>
-          );
-        })}
+      <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
+        {counts.ok > 0 && <div className="bg-emerald-500" style={{ width: `${(counts.ok / t) * 100}%` }} />}
+        {counts.risk > 0 && <div className="bg-amber-500" style={{ width: `${(counts.risk / t) * 100}%` }} />}
+        {counts.late > 0 && <div className="bg-destructive" style={{ width: `${(counts.late / t) * 100}%` }} />}
       </div>
     );
   };
 
+  const StatBlobs = ({ counts }: { counts: Counts }) => (
+    <div className="flex items-center gap-2 text-xs font-medium">
+      {counts.late > 0 && <span className="inline-flex items-center gap-1 text-destructive"><span className="h-1.5 w-1.5 rounded-full bg-destructive" />{counts.late}</span>}
+      {counts.risk > 0 && <span className="inline-flex items-center gap-1 text-amber-600 dark:text-amber-400"><span className="h-1.5 w-1.5 rounded-full bg-amber-500" />{counts.risk}</span>}
+      {counts.ok > 0 && <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />{counts.ok}</span>}
+    </div>
+  );
+
+  const TileShell = ({ onClick, children, accent }: { onClick?: () => void; children: React.ReactNode; accent?: string }) => (
+    <button
+      onClick={onClick}
+      className={`group relative overflow-hidden rounded-xl border bg-card text-left transition-all hover:border-primary/50 hover:shadow-md hover:-translate-y-0.5 ${accent || ''}`}
+    >
+      {children}
+    </button>
+  );
+
+  const JobCard = ({ job }: { job: Job }) => {
+    const part = job.part_id ? partsById.get(job.part_id) : null;
+    const cur = currentOp(job);
+    const res = cur?.resource_id ? resById.get(cur.resource_id) : null;
+    const theme = riskTheme(job.schedule_risk);
+    const Icon = theme.icon;
+    const ops = opsByJob.get(job.id) || [];
+    const doneIdx = cur ? ops.findIndex(o => o.id === cur.id) : ops.length;
+    const progress = ops.length ? Math.round((doneIdx / ops.length) * 100) : 0;
+    const open = openJobId === job.id;
+    return (
+      <div className={`rounded-xl border ${theme.border} bg-card overflow-hidden transition-shadow hover:shadow-md`}>
+        <button onClick={() => setOpenJobId(open ? null : job.id)} className="w-full p-3 text-left">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className={`h-2 w-2 rounded-full ${theme.dot}`} />
+                <span className="font-mono text-sm font-semibold truncate">{job.job_number}</span>
+                <span className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-medium ${theme.bg} ${theme.text}`}>
+                  <Icon className="h-3 w-3" />{theme.label}
+                </span>
+              </div>
+              <div className="mt-1 text-xs text-muted-foreground truncate">
+                {part?.part_number || 'No part'} · Qty {job.quantity}
+              </div>
+            </div>
+            <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${open ? 'rotate-90' : ''}`} />
+          </div>
+
+          <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1"><Cpu className="h-3 w-3" />{res?.resource_name || '—'}</span>
+            <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{fmtDate(job.due_date)}</span>
+          </div>
+
+          <div className="mt-2 flex h-1 w-full overflow-hidden rounded-full bg-muted">
+            <div className="bg-primary" style={{ width: `${progress}%` }} />
+          </div>
+          <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+            <span>{cur ? `OP${cur.operation_number} ${cur.operation_name}` : (job.status === 'Completed' ? 'Completed' : 'Not started')}</span>
+            <span>{doneIdx}/{ops.length} ops</span>
+          </div>
+        </button>
+
+        {open && (
+          <div className="border-t bg-muted/30 p-3 space-y-2">
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <Info label="Customer" value={part?.customer || '—'} />
+              <Info label="Project" value={part?.project || '—'} />
+              <Info label="Planned Start" value={fmtDateTime(job.planned_start)} />
+              <Info label="Planned Finish" value={fmtDateTime(job.planned_finish)} />
+              <Info label="Planned Date" value={fmtDate(job.best_commence_date)} />
+              <Info label="Latest Start" value={fmtDate(job.latest_start_date)} />
+            </div>
+
+            <div className="space-y-1">
+              {ops.map((op, i) => {
+                const r = op.resource_id ? resById.get(op.resource_id) : null;
+                const isCur = cur?.id === op.id;
+                const done = i < doneIdx;
+                return (
+                  <div key={op.id} className={`flex items-center gap-2 rounded-md border px-2 py-1.5 text-xs ${isCur ? 'border-primary bg-primary/5' : done ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-border'}`}>
+                    <span className={`flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-bold ${isCur ? 'bg-primary text-primary-foreground' : done ? 'bg-emerald-500 text-white' : 'bg-muted text-muted-foreground'}`}>
+                      {done ? '✓' : op.operation_number}
+                    </span>
+                    <span className="flex-1 truncate">{op.operation_name}</span>
+                    {r && <Badge variant="outline" className="text-[10px]">{r.resource_name}</Badge>}
+                    <span className="text-[10px] text-muted-foreground">{fmtDateTime(op.planned_start)}</span>
+                  </div>
+                );
+              })}
+              {!ops.length && <div className="text-xs text-muted-foreground">No operations</div>}
+            </div>
+
+            <Button size="sm" variant="default" className="w-full" onClick={(e) => { e.stopPropagation(); onOpenInGantt({ partId: job.part_id, jobId: job.id }); }}>
+              <ExternalLink className="h-3.5 w-3.5 mr-1" />Open in Gantt
+            </Button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // === Breadcrumb ===
+  const crumb = () => {
+    const parts: { label: string; onClick: () => void }[] = [];
+    parts.push({ label: mode === 'resource' ? 'All Departments' : 'All Customers', onClick: () => { setDrillDept(null); setDrillResource(null); setDrillCustomer(null); setDrillProject(null); setOpenJobId(null); } });
+    if (mode === 'resource') {
+      if (drillDept) parts.push({ label: drillDept, onClick: () => { setDrillResource(null); setOpenJobId(null); } });
+      if (drillResource) {
+        const r = resById.get(drillResource);
+        parts.push({ label: r?.resource_name || '—', onClick: () => { setOpenJobId(null); } });
+      }
+    } else {
+      if (drillCustomer) parts.push({ label: drillCustomer, onClick: () => { setDrillProject(null); setOpenJobId(null); } });
+      if (drillProject) parts.push({ label: drillProject, onClick: () => { setOpenJobId(null); } });
+    }
+    return (
+      <div className="flex items-center gap-1.5 text-sm">
+        {parts.map((p, i) => (
+          <span key={i} className="flex items-center gap-1.5">
+            {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+            <button onClick={p.onClick} className={`hover:text-primary transition-colors ${i === parts.length - 1 ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
+              {p.label}
+            </button>
+          </span>
+        ))}
+      </div>
+    );
+  };
+
+  // === Render level ===
+  const renderLevel = () => {
+    // Resource flow
+    if (mode === 'resource') {
+      if (!drillDept) {
+        const entries = Array.from(deptResourceData.entries()).sort(([a], [b]) => a.localeCompare(b));
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {entries.map(([dept, resMap]) => {
+              const allJobs = Array.from(resMap.values()).flat();
+              const c = countBy(allJobs);
+              const accent = c.late > 0 ? 'border-destructive/30' : c.risk > 0 ? 'border-amber-500/30' : '';
+              return (
+                <TileShell key={dept} onClick={() => setDrillDept(dept)} accent={accent}>
+                  <div className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                        <Factory className="h-5 w-5" />
+                      </div>
+                      <StatBlobs counts={c} />
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-sm font-semibold truncate">{dept}</div>
+                      <div className="text-xs text-muted-foreground">{resMap.size} resources · {c.total} jobs</div>
+                    </div>
+                    <div className="mt-3"><RiskBar counts={c} /></div>
+                  </div>
+                </TileShell>
+              );
+            })}
+            {entries.length === 0 && <EmptyState label="No scheduled jobs" />}
+          </div>
+        );
+      }
+      if (!drillResource) {
+        const resMap = deptResourceData.get(drillDept) || new Map();
+        const entries = Array.from(resMap.entries()).map(([rid, js]) => ({ rid, res: resById.get(rid), jobs: js as Job[] }))
+          .sort((a, b) => (a.res?.resource_name || '').localeCompare(b.res?.resource_name || ''));
+        return (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {entries.map(({ rid, res, jobs }) => {
+              const c = countBy(jobs);
+              const accent = c.late > 0 ? 'border-destructive/30' : c.risk > 0 ? 'border-amber-500/30' : '';
+              return (
+                <TileShell key={rid} onClick={() => setDrillResource(rid)} accent={accent}>
+                  <div className="p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                        <Cpu className="h-5 w-5" />
+                      </div>
+                      <StatBlobs counts={c} />
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-sm font-semibold truncate">{res?.resource_name || 'Unassigned'}</div>
+                      <div className="text-xs text-muted-foreground">{c.total} jobs queued</div>
+                    </div>
+                    <div className="mt-3"><RiskBar counts={c} /></div>
+                  </div>
+                </TileShell>
+              );
+            })}
+          </div>
+        );
+      }
+      const jobsHere = (deptResourceData.get(drillDept || '')?.get(drillResource) || []) as Job[];
+      const sorted = jobsHere.slice().sort((a, b) => {
+        const da = a.planned_start ? new Date(a.planned_start).getTime() : Infinity;
+        const db = b.planned_start ? new Date(b.planned_start).getTime() : Infinity;
+        return da - db;
+      });
+      return (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {sorted.map(j => <JobCard key={j.id} job={j} />)}
+          {sorted.length === 0 && <EmptyState label="No jobs" />}
+        </div>
+      );
+    }
+
+    // Customer flow
+    if (!drillCustomer) {
+      const entries = Array.from(custProjectData.entries()).sort(([a], [b]) => a.localeCompare(b));
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {entries.map(([cust, projMap]) => {
+            const allJobs = Array.from(projMap.values()).flat();
+            const c = countBy(allJobs);
+            const accent = c.late > 0 ? 'border-destructive/30' : c.risk > 0 ? 'border-amber-500/30' : '';
+            return (
+              <TileShell key={cust} onClick={() => setDrillCustomer(cust)} accent={accent}>
+                <div className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
+                      <Users className="h-5 w-5" />
+                    </div>
+                    <StatBlobs counts={c} />
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-sm font-semibold truncate">{cust}</div>
+                    <div className="text-xs text-muted-foreground">{projMap.size} projects · {c.total} jobs</div>
+                  </div>
+                  <div className="mt-3"><RiskBar counts={c} /></div>
+                </div>
+              </TileShell>
+            );
+          })}
+          {entries.length === 0 && <EmptyState label="No jobs" />}
+        </div>
+      );
+    }
+    if (!drillProject) {
+      const projMap = custProjectData.get(drillCustomer) || new Map();
+      const entries = Array.from(projMap.entries()).sort(([a], [b]) => a.localeCompare(b));
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {entries.map(([proj, js]) => {
+            const c = countBy(js as Job[]);
+            const accent = c.late > 0 ? 'border-destructive/30' : c.risk > 0 ? 'border-amber-500/30' : '';
+            return (
+              <TileShell key={proj} onClick={() => setDrillProject(proj)} accent={accent}>
+                <div className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400">
+                      <Briefcase className="h-5 w-5" />
+                    </div>
+                    <StatBlobs counts={c} />
+                  </div>
+                  <div className="mt-3">
+                    <div className="text-sm font-semibold truncate">{proj}</div>
+                    <div className="text-xs text-muted-foreground">{c.total} jobs</div>
+                  </div>
+                  <div className="mt-3"><RiskBar counts={c} /></div>
+                </div>
+              </TileShell>
+            );
+          })}
+        </div>
+      );
+    }
+    const jobsHere = (custProjectData.get(drillCustomer)?.get(drillProject) || []) as Job[];
+    const sorted = jobsHere.slice().sort((a, b) => {
+      const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+      const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+      return da - db;
+    });
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {sorted.map(j => <JobCard key={j.id} job={j} />)}
+        {sorted.length === 0 && <EmptyState label="No jobs" />}
+      </div>
+    );
+  };
+
+  // === Global KPIs from filtered set ===
+  const kpi = countBy(filteredJobs);
+  const canBack = (mode === 'resource' && (drillDept || drillResource)) || (mode === 'customer' && (drillCustomer || drillProject));
+  const goBack = () => {
+    if (mode === 'resource') {
+      if (drillResource) { setDrillResource(null); setOpenJobId(null); }
+      else if (drillDept) { setDrillDept(null); setOpenJobId(null); }
+    } else {
+      if (drillProject) { setDrillProject(null); setOpenJobId(null); }
+      else if (drillCustomer) { setDrillCustomer(null); setOpenJobId(null); }
+    }
+  };
+
   return (
     <div className="space-y-4">
-      {/* Filters */}
+      {/* Hero KPIs */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Kpi icon={Package} label="Jobs" value={kpi.total} tint="bg-primary/10 text-primary" />
+        <Kpi icon={CheckCircle2} label="On Track" value={kpi.ok} tint="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" />
+        <Kpi icon={Clock} label="At Risk" value={kpi.risk} tint="bg-amber-500/10 text-amber-600 dark:text-amber-400" />
+        <Kpi icon={AlertTriangle} label="Late" value={kpi.late} tint="bg-destructive/10 text-destructive" />
+      </div>
+
+      {/* Filter bar */}
       <Card>
-        <CardHeader className="pb-3"><CardTitle className="text-base">Filters</CardTitle></CardHeader>
-        <CardContent className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-          <Input placeholder="Search job, part…" value={search} onChange={e => setSearch(e.target.value)} className="col-span-2" />
+        <CardContent className="p-3 flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input placeholder="Search job, part, customer…" value={search} onChange={e => setSearch(e.target.value)} className="pl-8 h-9" />
+          </div>
           <Select value={fCustomer} onValueChange={setFCustomer}>
-            <SelectTrigger><SelectValue placeholder="Customer" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[150px]"><SelectValue placeholder="Customer" /></SelectTrigger>
             <SelectContent><SelectItem value="all">All Customers</SelectItem>{customers.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
           </Select>
-          <Select value={fProject} onValueChange={setFProject}>
-            <SelectTrigger><SelectValue placeholder="Project" /></SelectTrigger>
-            <SelectContent><SelectItem value="all">All Projects</SelectItem>{projects.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent>
-          </Select>
-          <Select value={fDept} onValueChange={(v) => { setFDept(v); setFResource('all'); }}>
-            <SelectTrigger><SelectValue placeholder="Department" /></SelectTrigger>
+          <Select value={fDept} onValueChange={setFDept}>
+            <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="Department" /></SelectTrigger>
             <SelectContent><SelectItem value="all">All Depts</SelectItem>{departments.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
           </Select>
-          <Select value={fResource} onValueChange={setFResource}>
-            <SelectTrigger><SelectValue placeholder="Resource" /></SelectTrigger>
-            <SelectContent><SelectItem value="all">All Resources</SelectItem>{resourceOptions.map(r => <SelectItem key={r.id} value={r.id}>{r.resource_name}</SelectItem>)}</SelectContent>
-          </Select>
           <Select value={fRisk} onValueChange={setFRisk}>
-            <SelectTrigger><SelectValue placeholder="Risk" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[120px]"><SelectValue placeholder="Risk" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Risks</SelectItem>
               <SelectItem value="On Track">On Track</SelectItem>
@@ -221,9 +504,9 @@ export default function ScheduleBoard({ onOpenInGantt }: ScheduleBoardProps) {
             </SelectContent>
           </Select>
           <Select value={fDue} onValueChange={(v) => setFDue(v as any)}>
-            <SelectTrigger><SelectValue placeholder="Due" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[130px]"><SelectValue placeholder="Due" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">Any Due Date</SelectItem>
+              <SelectItem value="all">Any Due</SelectItem>
               <SelectItem value="overdue">Overdue</SelectItem>
               <SelectItem value="7">Next 7 days</SelectItem>
               <SelectItem value="30">Next 30 days</SelectItem>
@@ -233,174 +516,56 @@ export default function ScheduleBoard({ onOpenInGantt }: ScheduleBoardProps) {
         </CardContent>
       </Card>
 
-      {/* Drill-down navigation */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Navigate Schedule</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="resource">
-            <TabsList>
-              <TabsTrigger value="resource">By Resource</TabsTrigger>
-              <TabsTrigger value="customer">By Customer</TabsTrigger>
-            </TabsList>
+      {/* Drill navigation */}
+      <Tabs value={mode} onValueChange={(v) => { setMode(v as any); setDrillDept(null); setDrillResource(null); setDrillCustomer(null); setDrillProject(null); setOpenJobId(null); }}>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <TabsList>
+            <TabsTrigger value="resource"><Factory className="h-4 w-4 mr-1.5" />By Resource</TabsTrigger>
+            <TabsTrigger value="customer"><Users className="h-4 w-4 mr-1.5" />By Customer</TabsTrigger>
+          </TabsList>
+          <div className="flex items-center gap-2">
+            {canBack && (
+              <Button variant="outline" size="sm" onClick={goBack}><ArrowLeft className="h-4 w-4 mr-1" />Back</Button>
+            )}
+            {crumb()}
+          </div>
+        </div>
 
-            <TabsContent value="resource" className="mt-3">
-              <Accordion type="multiple" className="w-full">
-                {Array.from(resourceTree.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([dept, deptMap]) => {
-                  const totalJobs = Array.from(deptMap.values()).reduce((sum, r) => sum + r.jobs.length, 0);
-                  return (
-                    <AccordionItem key={dept} value={`dept-${dept}`}>
-                      <AccordionTrigger className="text-sm">
-                        <span className="flex items-center gap-2">{dept}<Badge variant="secondary">{totalJobs} jobs</Badge></span>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <Accordion type="multiple" className="pl-4">
-                          {Array.from(deptMap.values()).sort((a, b) => a.resource.resource_name.localeCompare(b.resource.resource_name)).map(({ resource, jobs }) => (
-                            <AccordionItem key={resource.id} value={`res-${resource.id}`}>
-                              <AccordionTrigger className="text-sm">
-                                <span className="flex items-center gap-2">{resource.resource_name}<Badge variant="outline">{jobs.length}</Badge></span>
-                              </AccordionTrigger>
-                              <AccordionContent>
-                                <Accordion type="multiple" className="pl-4">
-                                  {jobs.map(job => {
-                                    const part = job.part_id ? partsById.get(job.part_id) : null;
-                                    return (
-                                      <AccordionItem key={job.id} value={`job-${job.id}`}>
-                                        <AccordionTrigger className="text-sm">
-                                          <span className="flex items-center gap-2">
-                                            {job.job_number}
-                                            {part && <span className="text-muted-foreground">· {part.part_number}</span>}
-                                            {riskBadge(job.schedule_risk)}
-                                          </span>
-                                        </AccordionTrigger>
-                                        <AccordionContent>{renderJobOpsList(job)}</AccordionContent>
-                                      </AccordionItem>
-                                    );
-                                  })}
-                                </Accordion>
-                              </AccordionContent>
-                            </AccordionItem>
-                          ))}
-                        </Accordion>
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
-                {resourceTree.size === 0 && <div className="text-sm text-muted-foreground p-4">No scheduled jobs yet.</div>}
-              </Accordion>
-            </TabsContent>
-
-            <TabsContent value="customer" className="mt-3">
-              <Accordion type="multiple" className="w-full">
-                {Array.from(customerTree.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([cust, projMap]) => {
-                  const totalJobs = Array.from(projMap.values()).reduce((sum, j) => sum + j.length, 0);
-                  return (
-                    <AccordionItem key={cust} value={`cust-${cust}`}>
-                      <AccordionTrigger className="text-sm">
-                        <span className="flex items-center gap-2">{cust}<Badge variant="secondary">{totalJobs} jobs</Badge></span>
-                      </AccordionTrigger>
-                      <AccordionContent>
-                        <Accordion type="multiple" className="pl-4">
-                          {Array.from(projMap.entries()).sort(([a], [b]) => a.localeCompare(b)).map(([proj, projJobs]) => (
-                            <AccordionItem key={proj} value={`proj-${cust}-${proj}`}>
-                              <AccordionTrigger className="text-sm">
-                                <span className="flex items-center gap-2">{proj}<Badge variant="outline">{projJobs.length}</Badge></span>
-                              </AccordionTrigger>
-                              <AccordionContent>
-                                <Accordion type="multiple" className="pl-4">
-                                  {projJobs.map(job => {
-                                    const part = job.part_id ? partsById.get(job.part_id) : null;
-                                    return (
-                                      <AccordionItem key={job.id} value={`cjob-${job.id}`}>
-                                        <AccordionTrigger className="text-sm">
-                                          <span className="flex items-center gap-2">
-                                            {job.job_number}
-                                            {part && <span className="text-muted-foreground">· {part.part_number}</span>}
-                                            {riskBadge(job.schedule_risk)}
-                                          </span>
-                                        </AccordionTrigger>
-                                        <AccordionContent>{renderJobOpsList(job)}</AccordionContent>
-                                      </AccordionItem>
-                                    );
-                                  })}
-                                </Accordion>
-                              </AccordionContent>
-                            </AccordionItem>
-                          ))}
-                        </Accordion>
-                      </AccordionContent>
-                    </AccordionItem>
-                  );
-                })}
-                {customerTree.size === 0 && <div className="text-sm text-muted-foreground p-4">No jobs.</div>}
-              </Accordion>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-
-      {/* Job Table */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Jobs · {filteredRows.length} of {rows.length}</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Job</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead>Part No</TableHead>
-                <TableHead>Due</TableHead>
-                <TableHead>Planned Date</TableHead>
-                <TableHead>Latest Start</TableHead>
-                <TableHead>Planned Start</TableHead>
-                <TableHead>Planned Finish</TableHead>
-                <TableHead>Current Resource</TableHead>
-                <TableHead>Current Operation</TableHead>
-                <TableHead>Risk</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredRows.length === 0 ? (
-                <TableRow><TableCell colSpan={13} className="text-center py-8 text-muted-foreground">No jobs match your filters</TableCell></TableRow>
-              ) : filteredRows.map(({ job, part, curOp, curResource }) => (
-                <TableRow key={job.id}>
-                  <TableCell className="font-medium">{job.job_number}</TableCell>
-                  <TableCell>{part?.customer || '—'}</TableCell>
-                  <TableCell>{part?.project || '—'}</TableCell>
-                  <TableCell>{part?.part_number || '—'}</TableCell>
-                  <TableCell>{fmtDate(job.due_date)}</TableCell>
-                  <TableCell>{fmtDate(job.best_commence_date)}</TableCell>
-                  <TableCell>{fmtDate(job.latest_start_date)}</TableCell>
-                  <TableCell>{fmtDateTime(job.planned_start)}</TableCell>
-                  <TableCell>{fmtDateTime(job.planned_finish)}</TableCell>
-                  <TableCell>{curResource?.resource_name || (job.status === 'Completed' ? '—' : '—')}</TableCell>
-                  <TableCell>{job.status === 'Completed' ? <Badge variant="secondary">Completed</Badge> : curOp ? `OP${curOp.operation_number} ${curOp.operation_name}` : '—'}</TableCell>
-                  <TableCell>{riskBadge(job.schedule_risk)}</TableCell>
-                  <TableCell>
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="ghost" title="Open in Gantt" onClick={() => onOpenInGantt({ partId: job.part_id, jobId: job.id })}>
-                        <ExternalLink className="h-4 w-4" />
-                      </Button>
-                      {curOp && (
-                        <Button size="sm" variant="ghost" title="Jump to current operation" onClick={() => onOpenInGantt({ partId: job.part_id, jobId: job.id })}>
-                          <Target className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+        <TabsContent value="resource" className="mt-4">{renderLevel()}</TabsContent>
+        <TabsContent value="customer" className="mt-4">{renderLevel()}</TabsContent>
+      </Tabs>
     </div>
   );
 }
 
-function startOfDay(d: Date) { const x = new Date(d); x.setHours(0,0,0,0); return x; }
+function Kpi({ icon: Icon, label, value, tint }: { icon: any; label: string; value: number; tint: string }) {
+  return (
+    <Card>
+      <CardContent className="p-4 flex items-center gap-3">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${tint}`}><Icon className="h-5 w-5" /></div>
+        <div>
+          <div className="text-2xl font-bold leading-tight">{value}</div>
+          <div className="text-xs text-muted-foreground">{label}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="font-medium truncate">{value}</div>
+    </div>
+  );
+}
+
+function EmptyState({ label }: { label: string }) {
+  return (
+    <div className="col-span-full flex flex-col items-center justify-center gap-2 py-12 text-muted-foreground">
+      <Package className="h-8 w-8 opacity-50" />
+      <div className="text-sm">{label}</div>
+    </div>
+  );
+}
