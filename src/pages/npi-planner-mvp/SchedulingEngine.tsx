@@ -227,15 +227,17 @@ export default function SchedulingEngine() {
           }
           if (!op.resource_id || !activeResources.has(op.resource_id)) continue;
           const res = activeResources.get(op.resource_id)!;
+          const isParallel = res.scheduling_mode === 'Parallel';
           const duration = op.total_time_hours && op.total_time_hours > 0
             ? Number(op.total_time_hours)
             : Number(op.setup_time_hours || 0) + (Number(op.cycle_time_seconds || 0) * Number(job.quantity || 0)) / 3600;
           if (duration <= 0) continue;
 
-          const resFree = resourceFree.get(op.resource_id) || baseStart;
+          // Parallel resources never block capacity: start as soon as previous op ends
+          const resFree = isParallel ? baseStart : (resourceFree.get(op.resource_id) || baseStart);
           const startAt = nextWorkingMoment(new Date(Math.max(prevEnd.getTime(), resFree.getTime())));
           const endAt = addWorkingHours(startAt, duration, res.available_hours_per_day || 8);
-          resourceFree.set(op.resource_id, endAt);
+          if (!isParallel) resourceFree.set(op.resource_id, endAt);
           prevEnd = endAt;
           if (!jobStart || startAt < jobStart) jobStart = startAt;
           if (!jobEnd || endAt > jobEnd) jobEnd = endAt;
