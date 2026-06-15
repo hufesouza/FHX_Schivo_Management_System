@@ -20,6 +20,7 @@ type JobOp = {
   is_locked: boolean; has_conflict: boolean; sequence_warning: boolean; sequence_order: number | null;
 };
 type PartOp = Pick<JobOp, 'operation_number' | 'operation_name' | 'resource_id' | 'setup_time_hours' | 'cycle_time_seconds'> & { part_id: string };
+type JobOpSyncUpdate = Pick<JobOp, 'id' | 'operation_name' | 'resource_id' | 'setup_time_hours' | 'cycle_time_seconds'>;
 
 type ViewMode = 'day' | 'week' | 'month';
 type GroupMode = 'part' | 'resource';
@@ -89,7 +90,7 @@ export default function GanttChart() {
 
       const jobsByOpJobId = new Map(fetchedJobs.map(job => [job.id, job]));
       const partOpByKey = new Map(((partOpsRes.data as PartOp[]) || []).map(op => [`${op.part_id}|${op.operation_number}`, op]));
-      const syncUpdates: PartOp[] & { id?: string }[] = [] as any;
+      const syncUpdates: JobOpSyncUpdate[] = [];
       const syncedOps = fetchedOps.map(op => {
         const job = jobsByOpJobId.get(op.job_id);
         const partOp = job?.part_id && isOpenJobStatus(job.status) ? partOpByKey.get(`${job.part_id}|${op.operation_number}`) : null;
@@ -102,12 +103,12 @@ export default function GanttChart() {
         };
         const changed = op.resource_id !== next.resource_id || op.operation_name !== next.operation_name ||
           op.setup_time_hours !== next.setup_time_hours || op.cycle_time_seconds !== next.cycle_time_seconds;
-        if (changed) syncUpdates.push({ id: op.id, part_id: partOp.part_id, operation_number: partOp.operation_number, ...next } as any);
+        if (changed) syncUpdates.push({ id: op.id, ...next });
         return changed ? { ...op, ...next } : op;
       });
       setOps(syncedOps);
       if (syncUpdates.length) {
-        await Promise.all(syncUpdates.map(({ id, operation_number, part_id, ...update }: any) =>
+        await Promise.all(syncUpdates.map(({ id, ...update }) =>
           supabase.from('job_operations').update(update).eq('id', id)
         ));
       }
