@@ -302,8 +302,11 @@ export default function JobEntryDetail() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
                 <Label>Job number *</Label>
-                <Input value={form.job_number}
+                <Input value={form.job_number} readOnly={isNew}
                   onChange={(e) => setForm({ ...form, job_number: e.target.value })} />
+                {isNew && (
+                  <p className="text-xs text-muted-foreground mt-1">Auto-assigned from sequence</p>
+                )}
               </div>
               <div>
                 <Label>Part *</Label>
