@@ -246,12 +246,14 @@ export default function PartLibraryDetail() {
 
     // Cascade resource/name/time changes to existing open jobs of this part
     // so the Gantt and Scheduling Engine reflect part-library edits.
+    // Sync regardless of lock status — a part-definition change is authoritative.
+    let syncedCount = 0;
     if (editingOp) {
       const { data: openJobs } = await supabase
-        .from('jobs').select('id').eq('part_id', part.id).in('status', ['Planned', 'Scheduled']);
+        .from('jobs').select('id').eq('part_id', part.id).not('status', 'in', '(Completed,Cancelled)');
       const jobIds = (openJobs || []).map((j: any) => j.id);
       if (jobIds.length) {
-        await supabase.from('job_operations').update({
+        const { data: updated, error: syncErr } = await supabase.from('job_operations').update({
           resource_id: payload.resource_id,
           operation_name: payload.operation_name,
           setup_time_hours: payload.setup_time_hours,
@@ -259,12 +261,19 @@ export default function PartLibraryDetail() {
         })
           .in('job_id', jobIds)
           .eq('operation_number', payload.operation_number)
-          .eq('is_locked', false);
+          .select('id');
+        if (syncErr) console.error('Sync error:', syncErr);
+        syncedCount = (updated || []).length;
       }
     }
 
     setSavingOp(false);
-    toast.success(editingOp ? 'Operation updated (synced to open jobs)' : 'Operation added');
+    toast.success(
+      editingOp
+        ? `Operation updated${syncedCount ? ` — synced to ${syncedCount} open job op(s). Re-run schedule to reposition.` : ''}`
+        : 'Operation added'
+    );
+
     setOpDialog(false);
     load();
   };
