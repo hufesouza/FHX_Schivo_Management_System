@@ -430,8 +430,22 @@ export default function GanttChart() {
     if (partId) { setDrillPartId(partId); setGroupMode('resource'); }
     else { setDrillPartId(null); setGroupMode('part'); }
     setActiveTab('gantt');
-    fitToScheduleRef.current?.();
   };
+
+  return (
+    <AppLayout title="Schedule / Gantt" subtitle="Interactive visual scheduler" showBackButton backTo="/npi/capacity-planner-mvp">
+      <main className="container mx-auto px-4 py-6 space-y-4">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'gantt' | 'board')}>
+          <TabsList>
+            <TabsTrigger value="gantt">Gantt View</TabsTrigger>
+            <TabsTrigger value="board">Schedule Board</TabsTrigger>
+          </TabsList>
+          <TabsContent value="board" className="mt-4">
+            <ScheduleBoard onOpenInGantt={handleOpenInGantt} />
+          </TabsContent>
+          <TabsContent value="gantt" className="mt-4 space-y-4">
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border bg-card">
 
   return (
     <AppLayout title="Schedule / Gantt" subtitle="Interactive visual scheduler" showBackButton backTo="/npi/capacity-planner-mvp">
