@@ -141,9 +141,16 @@ export default function SchedulingEngine() {
       await supabase.from('job_operations')
         .update({ planned_start: null, planned_finish: null })
         .eq('is_locked', false);
+      // Clear schedule for unlocked jobs only — locked Planned Dates are preserved.
       await supabase.from('jobs')
-        .update({ planned_start: null, planned_finish: null, planned_dev_start: null, planned_dev_finish: null, dev_resource_id: null, schedule_status: 'Unscheduled', status: 'Planned', best_commence_date: null, latest_start_date: null, schedule_risk: 'On Track' })
-        .in('status', ['Scheduled']);
+        .update({ planned_start: null, planned_finish: null, planned_dev_start: null, planned_dev_finish: null, dev_resource_id: null, schedule_status: 'Unscheduled', status: 'Planned', best_commence_date: null, latest_start_date: null, schedule_risk: 'On Track', pending_planned_date: null, pending_planned_date_reason: null })
+        .in('status', ['Scheduled'])
+        .eq('planned_date_locked', false);
+      // For locked jobs: clear planned schedule but preserve the locked Planned Date.
+      await supabase.from('jobs')
+        .update({ planned_start: null, planned_finish: null, planned_dev_start: null, planned_dev_finish: null, dev_resource_id: null, schedule_status: 'Unscheduled', status: 'Planned', latest_start_date: null, schedule_risk: 'On Track', pending_planned_date: null, pending_planned_date_reason: null })
+        .in('status', ['Scheduled'])
+        .eq('planned_date_locked', true);
       toast.success('Schedule cleared');
       await load();
     } catch (e: any) {
