@@ -99,7 +99,7 @@ export default function SchedulingEngine() {
         if (!devResource) { toast.error('Aborted: Development resource required'); return; }
       }
 
-      const { opUpdates, jobUpdates } = buildSchedule({
+      const { opUpdates, jobUpdates } = runFullSchedule({
         resources: devResource && !resources.some(r => r.id === devResource!.id) ? [...resources, devResource] : resources,
         jobs,
         ops,
@@ -120,6 +120,8 @@ export default function SchedulingEngine() {
           best_commence_date: u.best_commence_date,
           latest_start_date: u.latest_start_date,
           schedule_risk: u.schedule_risk,
+          pending_planned_date: u.pending_planned_date,
+          pending_planned_date_reason: u.pending_planned_date_reason,
         }).eq('id', u.id);
       }
 
