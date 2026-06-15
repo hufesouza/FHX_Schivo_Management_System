@@ -21,6 +21,9 @@ type JobOp = {
 };
 type PartOp = Pick<JobOp, 'operation_number' | 'operation_name' | 'resource_id' | 'setup_time_hours' | 'cycle_time_seconds'> & { part_id: string };
 type JobOpSyncUpdate = Pick<JobOp, 'id' | 'operation_name' | 'resource_id' | 'setup_time_hours' | 'cycle_time_seconds'>;
+type JobOpMoveUpdate = Partial<Pick<JobOp, 'planned_start' | 'planned_finish' | 'is_locked' | 'resource_id' | 'total_time_hours'>>;
+type ScheduledOpUpdate = Pick<JobOp, 'id'> & Required<Pick<JobOp, 'planned_start' | 'planned_finish'>>;
+type ScheduledJobUpdate = Pick<Job, 'id' | 'planned_start' | 'planned_finish' | 'schedule_status' | 'status' | 'planned_dev_start' | 'planned_dev_finish' | 'dev_resource_id'>;
 
 type ViewMode = 'day' | 'week' | 'month';
 type GroupMode = 'part' | 'resource';
@@ -313,7 +316,7 @@ export default function GanttChart() {
     const newStart = xToDate(preview.startX);
     const durHours = preview.width / pxPerHour;
     const newEnd = new Date(newStart.getTime() + durHours * 3600000);
-    const update: any = {
+    const update: JobOpMoveUpdate = {
       planned_start: newStart.toISOString(),
       planned_finish: newEnd.toISOString(),
       is_locked: true,
@@ -348,7 +351,7 @@ export default function GanttChart() {
       const activeRes = new Map(resources.map(r => [r.id, r]));
       const eligible = jobs.filter(j => j.status === 'Planned' || j.status === 'Scheduled')
         .sort((a, b) => {
-          const po: any = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
+          const po: Record<string, number> = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
           const pa = po[a.priority] ?? 2, pb = po[b.priority] ?? 2;
           if (pa !== pb) return pa - pb;
           return (a.due_date ? new Date(a.due_date).getTime() : Infinity) - (b.due_date ? new Date(b.due_date).getTime() : Infinity);
@@ -381,11 +384,11 @@ export default function GanttChart() {
           .insert({ resource_name: DEV_RESOURCE_NAME, resource_type: 'Engineering', available_hours_per_day: 8, number_of_shifts: 1, status: 'Active' })
           .select().single();
         if (createErr) { toast.error(`Could not create Development resource: ${createErr.message}`); return; }
-        devResource = created as any;
+        devResource = created as Resource;
         if (devResource) activeRes.set(devResource.id, devResource);
       }
 
-      const opUpdates: any[] = []; const jobUpdates: any[] = [];
+      const opUpdates: ScheduledOpUpdate[] = []; const jobUpdates: ScheduledJobUpdate[] = [];
       for (const job of eligible) {
         const jobOps = ops.filter(o => o.job_id === job.id)
           .sort((a, b) => (a.sequence_order ?? a.operation_number) - (b.sequence_order ?? b.operation_number));
