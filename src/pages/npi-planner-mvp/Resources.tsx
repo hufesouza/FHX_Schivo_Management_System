@@ -37,9 +37,6 @@ type Resource = {
   scheduling_mode: 'Exclusive' | 'Parallel';
 };
 
-const defaultModeFor = (cat: string): 'Exclusive' | 'Parallel' =>
-  (cat === 'Subcontractor') ? 'Parallel' : 'Exclusive';
-
 const defaultModeForResource = (cat: string, type: string, name = ''): 'Exclusive' | 'Parallel' => {
   const normalized = `${name} ${cat} ${type}`.toLowerCase();
   if (normalized.includes('development / engineering')) return 'Parallel';
@@ -232,7 +229,7 @@ export default function Resources() {
                     </TableCell></TableRow>
                   ) : filtered.map(r => {
                     const sub = r.resource_category === 'Subcontractor';
-                    const mode = r.scheduling_mode || defaultModeFor(r.resource_category);
+                    const mode = r.scheduling_mode || defaultModeForResource(r.resource_category, r.resource_type, r.resource_name);
                     return (
                       <TableRow key={r.id}>
                         <TableCell className="font-medium">{r.resource_name}</TableCell>
