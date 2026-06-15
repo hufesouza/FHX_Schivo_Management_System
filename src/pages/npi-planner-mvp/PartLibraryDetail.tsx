@@ -23,7 +23,7 @@ import { Plus, Pencil, Trash2, Save, ArrowUp, ArrowDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-const OP_NAMES = ['Turning', 'Swiss Turning', 'Milling', 'Inspection', 'Deburr', 'Assembly', 'Laser', 'Subcon', 'Other'];
+const FALLBACK_OP_NAMES = ['Turning', 'Swiss Turning', 'Milling', 'Inspection', 'Deburr', 'Assembly', 'Laser', 'Wash', 'Subcon', 'Other'];
 
 type Resource = {
   id: string;
@@ -66,6 +66,7 @@ export default function PartLibraryDetail() {
   const [part, setPart] = useState<Part | null>(null);
   const [ops, setOps] = useState<Operation[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
+  const [opNames, setOpNames] = useState<string[]>(FALLBACK_OP_NAMES);
   const [loading, setLoading] = useState(true);
   const [savingHeader, setSavingHeader] = useState(false);
 
@@ -96,16 +97,20 @@ export default function PartLibraryDetail() {
   const load = async () => {
     if (!id) return;
     setLoading(true);
-    const [p, o, r] = await Promise.all([
+    const [p, o, r, lk] = await Promise.all([
       supabase.from('parts').select('*').eq('id', id).single(),
       supabase.from('part_operations').select('*').eq('part_id', id).order('operation_number'),
       supabase.from('resources').select('id, resource_name, resource_type, resource_category, lead_time_days').eq('status', 'Active').order('resource_name'),
+      supabase.from('resource_lookups' as any).select('name,kind').eq('kind', 'type').order('name'),
     ]);
     setLoading(false);
     if (p.error) return toast.error(p.error.message);
     setPart(p.data as Part);
     setOps((o.data || []) as Operation[]);
     setResources((r.data || []) as Resource[]);
+    const names = ((lk.data || []) as any[]).map(x => x.name as string).filter(Boolean);
+    const merged = Array.from(new Set([...names, ...FALLBACK_OP_NAMES]));
+    setOpNames(merged);
   };
 
   useEffect(() => { load(); }, [id]);
@@ -379,7 +384,7 @@ export default function PartLibraryDetail() {
                   onValueChange={(v) => setOpForm({ ...opForm, operation_name: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {OP_NAMES.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                    {opNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
