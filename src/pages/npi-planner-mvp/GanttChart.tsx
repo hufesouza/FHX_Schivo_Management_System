@@ -156,7 +156,7 @@ export default function GanttChart() {
       }
     });
     return [...ops, ...devOps];
-  }, [jobs]);
+  }, [ops, jobs]);
 
   const flaggedOps = useMemo(() => {
     const byRes = new Map<string, JobOp[]>();
