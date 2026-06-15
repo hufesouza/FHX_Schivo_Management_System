@@ -77,6 +77,36 @@ function addWorkingHours(start: Date, hours: number, dailyHours: number): Date {
   return cursor;
 }
 
+// Subtract `hours` of work ending at `end`, respecting daily capacity & weekdays
+function subtractWorkingHours(end: Date, hours: number, dailyHours: number): Date {
+  if (hours <= 0) return new Date(end);
+  let remaining = hours;
+  const cursor = new Date(end);
+  // step back from non-working days
+  while (cursor.getDay() === 0 || cursor.getDay() === 6) {
+    cursor.setDate(cursor.getDate() - 1);
+    cursor.setHours(23, 59, 59, 999);
+  }
+  // hours already consumed today from 00:00 to cursor time
+  const dayStart = new Date(cursor); dayStart.setHours(0, 0, 0, 0);
+  let availToday = (cursor.getTime() - dayStart.getTime()) / 3600000;
+  availToday = Math.min(availToday, dailyHours);
+  while (remaining > 0) {
+    if (availToday <= 0) {
+      cursor.setDate(cursor.getDate() - 1);
+      cursor.setHours(23, 59, 59, 999);
+      while (cursor.getDay() === 0 || cursor.getDay() === 6) cursor.setDate(cursor.getDate() - 1);
+      availToday = dailyHours;
+      continue;
+    }
+    const take = Math.min(remaining, availToday);
+    cursor.setTime(cursor.getTime() - take * 3600000);
+    availToday -= take;
+    remaining -= take;
+  }
+  return cursor;
+}
+
 export default function SchedulingEngine() {
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [running, setRunning] = useState(false);
