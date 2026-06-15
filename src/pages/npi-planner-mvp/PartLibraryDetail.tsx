@@ -76,6 +76,10 @@ export default function PartLibraryDetail() {
   const [savingOp, setSavingOp] = useState(false);
   const [deleteOpId, setDeleteOpId] = useState<string | null>(null);
 
+  const [dupOpen, setDupOpen] = useState(false);
+  const [dupForm, setDupForm] = useState({ part_number: '', revision: '' });
+  const [dupSaving, setDupSaving] = useState(false);
+
   // Display units (persisted). DB always stores setup in HOURS and cycle in SECONDS.
   const [setupUnit, setSetupUnit] = useState<'minutes' | 'hours'>(
     () => (localStorage.getItem('pl_setupUnit') as 'minutes' | 'hours') || 'minutes'
