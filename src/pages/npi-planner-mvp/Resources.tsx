@@ -38,7 +38,15 @@ type Resource = {
 };
 
 const defaultModeFor = (cat: string): 'Exclusive' | 'Parallel' =>
-  (cat === 'Subcontractor' || cat === 'Inspection') ? 'Parallel' : 'Exclusive';
+  (cat === 'Subcontractor') ? 'Parallel' : 'Exclusive';
+
+const defaultModeForResource = (cat: string, type: string, name = ''): 'Exclusive' | 'Parallel' => {
+  const normalized = `${name} ${cat} ${type}`.toLowerCase();
+  if (normalized.includes('development / engineering')) return 'Parallel';
+  if (cat === 'Subcontractor') return 'Parallel';
+  if (['inspection', 'deburr', 'wash'].some(token => normalized.includes(token))) return 'Parallel';
+  return 'Exclusive';
+};
 
 const blankFor = (cat: string, type: string): Omit<Resource, 'id'> => ({
   resource_name: '',
@@ -49,7 +57,7 @@ const blankFor = (cat: string, type: string): Omit<Resource, 'id'> => ({
   status: 'Active',
   supplier_name: null,
   lead_time_days: null,
-  scheduling_mode: defaultModeFor(cat),
+  scheduling_mode: defaultModeForResource(cat, type),
 });
 
 export default function Resources() {
@@ -110,7 +118,7 @@ export default function Resources() {
       status: r.status,
       supplier_name: r.supplier_name,
       lead_time_days: r.lead_time_days,
-      scheduling_mode: r.scheduling_mode || defaultModeFor(r.resource_category),
+      scheduling_mode: r.scheduling_mode || defaultModeForResource(r.resource_category, r.resource_type, r.resource_name),
     });
     setDialogOpen(true);
   };
