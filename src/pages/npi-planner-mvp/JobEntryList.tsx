@@ -142,18 +142,20 @@ export default function JobEntryList() {
                     <TableHead>Rev</TableHead>
                     <TableHead className="text-right">Qty</TableHead>
                     <TableHead>Due</TableHead>
+                    <TableHead>Best Commence</TableHead>
+                    <TableHead>Latest Start</TableHead>
+                    <TableHead>Risk</TableHead>
                     <TableHead>Priority</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Planned Start</TableHead>
                     <TableHead>Planned Finish</TableHead>
                     <TableHead className="w-[120px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={13} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                   ) : filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
+                    <TableRow><TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                       {rows.length === 0 ? 'No jobs yet. Create your first one.' : 'No matches.'}
                     </TableCell></TableRow>
                   ) : filtered.map(r => (
@@ -164,9 +166,11 @@ export default function JobEntryList() {
                       <TableCell>{r.parts?.revision || '—'}</TableCell>
                       <TableCell className="text-right">{r.quantity}</TableCell>
                       <TableCell>{format(new Date(r.due_date), 'PP')}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{r.best_commence_date ? format(new Date(r.best_commence_date), 'PP') : '—'}</TableCell>
+                      <TableCell className="text-sm text-muted-foreground">{r.latest_start_date ? format(new Date(r.latest_start_date), 'PP') : '—'}</TableCell>
+                      <TableCell><Badge variant="outline" className={riskColor(r.schedule_risk)}>{r.schedule_risk || 'On Track'}</Badge></TableCell>
                       <TableCell><Badge variant="outline" className={priorityColor(r.priority)}>{r.priority}</Badge></TableCell>
                       <TableCell><Badge variant="outline" className={statusColor(r.status)}>{r.status}</Badge></TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{r.planned_start ? format(new Date(r.planned_start), 'PP') : '—'}</TableCell>
                       <TableCell className="text-sm text-muted-foreground">{r.planned_finish ? format(new Date(r.planned_finish), 'PP') : '—'}</TableCell>
                       <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
                         <Button variant="ghost" size="icon"
