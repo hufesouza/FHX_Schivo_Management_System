@@ -79,7 +79,7 @@ export default function SchedulingEngine() {
     if (!ok) return null;
     const { data, error } = await supabase
       .from('resources')
-      .insert({ resource_name: DEV_RESOURCE_NAME, resource_type: 'Engineering', available_hours_per_day: 8, number_of_shifts: 1, status: 'Active' })
+      .insert({ resource_name: DEV_RESOURCE_NAME, resource_category: 'Manufacturing', resource_type: 'Engineering', available_hours_per_day: 8, number_of_shifts: 1, status: 'Active', scheduling_mode: 'Parallel' })
       .select()
       .single();
     if (error) { toast.error(error.message); return null; }
@@ -90,121 +90,19 @@ export default function SchedulingEngine() {
   const runSchedule = async () => {
     setRunning(true);
     try {
-      const activeResources = new Map<string, Resource>();
-      resources.filter(r => r.status === 'Active').forEach(r => activeResources.set(r.id, r));
-
-      // Eligible jobs: Planned or Scheduled
-      // EDD: earliest due date first; priority breaks ties; no due date = last
-      const eligible = jobs
-        .filter(j => j.status === 'Planned' || j.status === 'Scheduled')
-        .sort((a, b) => {
-          const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
-          const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
-          if (da !== db) return da - db;
-          const pa = PRIORITY_ORDER[a.priority] ?? 2;
-          const pb = PRIORITY_ORDER[b.priority] ?? 2;
-          return pa - pb;
-        });
-
-      // resource_id -> next free Date
-      const resourceFree = new Map<string, Date>();
-      const baseStart = nextWorkingMoment(new Date(startDate + 'T00:00:00'));
-
-      // Preserve locked ops: their windows occupy the resource
-      ops.filter(o => o.is_locked && o.planned_start && o.planned_finish && o.resource_id).forEach(o => {
-        const end = new Date(o.planned_finish!);
-        const cur = resourceFree.get(o.resource_id!) || baseStart;
-        if (end > cur) resourceFree.set(o.resource_id!, end);
-      });
-
-      const opUpdates: { id: string; planned_start: string; planned_finish: string }[] = [];
-      const jobUpdates: { id: string; planned_start: string | null; planned_finish: string | null; schedule_status: string; status: string; best_commence_date: string | null; latest_start_date: string | null; schedule_risk: string }[] = [];
-
-      let devResource: Resource | null = null;
-
-      for (const job of eligible) {
-        const jobOps = ops
-          .filter(o => o.job_id === job.id)
-          .sort((a, b) => (a.sequence_order ?? a.operation_number) - (b.sequence_order ?? b.operation_number));
-
-        let prevEnd = baseStart;
-        let jobStart: Date | null = null;
-        let jobEnd: Date | null = null;
-        let totalDurationHours = 0;
-        let dailyHoursRef = 24;
-
-        // Development time as a virtual op on Dev resource
-        if (Number(job.development_time_hours) > 0) {
-          if (!devResource) devResource = await ensureDevResource();
-          if (!devResource) { toast.error('Aborted: Development resource required'); setRunning(false); return; }
-          const resFree = resourceFree.get(devResource.id) || baseStart;
-          const startAt = nextWorkingMoment(new Date(Math.max(prevEnd.getTime(), resFree.getTime())));
-          const endAt = addWorkingHours(startAt, Number(job.development_time_hours), devResource.available_hours_per_day || 8);
-          resourceFree.set(devResource.id, endAt);
-          prevEnd = endAt;
-          jobStart = startAt;
-          jobEnd = endAt;
-          totalDurationHours += Number(job.development_time_hours);
-          dailyHoursRef = devResource.available_hours_per_day || 8;
-        }
-
-        for (const op of jobOps) {
-          if (op.is_locked && op.planned_start && op.planned_finish) {
-            const s = new Date(op.planned_start);
-            const e = new Date(op.planned_finish);
-            if (!jobStart || s < jobStart) jobStart = s;
-            if (!jobEnd || e > jobEnd) jobEnd = e;
-            prevEnd = e > prevEnd ? e : prevEnd;
-            totalDurationHours += (e.getTime() - s.getTime()) / 3600000;
-            continue;
-          }
-          if (!op.resource_id || !activeResources.has(op.resource_id)) continue;
-          const res = activeResources.get(op.resource_id)!;
-          const isParallel = res.scheduling_mode === 'Parallel';
-          const duration = op.total_time_hours && op.total_time_hours > 0
-            ? Number(op.total_time_hours)
-            : Number(op.setup_time_hours || 0) + (Number(op.cycle_time_seconds || 0) * Number(job.quantity || 0)) / 3600;
-          if (duration <= 0) continue;
-
-          // Parallel resources never block capacity: start as soon as previous op ends
-          const resFree = isParallel ? baseStart : (resourceFree.get(op.resource_id) || baseStart);
-          const startAt = nextWorkingMoment(new Date(Math.max(prevEnd.getTime(), resFree.getTime())));
-          const endAt = addWorkingHours(startAt, duration, res.available_hours_per_day || 8);
-          if (!isParallel) resourceFree.set(op.resource_id, endAt);
-          prevEnd = endAt;
-          if (!jobStart || startAt < jobStart) jobStart = startAt;
-          if (!jobEnd || endAt > jobEnd) jobEnd = endAt;
-          totalDurationHours += duration;
-          dailyHoursRef = Math.max(dailyHoursRef, res.available_hours_per_day || 8);
-
-          opUpdates.push({ id: op.id, planned_start: startAt.toISOString(), planned_finish: endAt.toISOString() });
-        }
-
-        const dueDateEnd = job.due_date ? new Date(job.due_date + 'T23:59:59') : null;
-        const isLate = !!(jobEnd && dueDateEnd && jobEnd > dueDateEnd);
-
-        // Latest start date = due date end - total job duration (working hours)
-        const latestStart = (dueDateEnd && totalDurationHours > 0)
-          ? subtractWorkingHours(dueDateEnd, totalDurationHours, dailyHoursRef)
-          : null;
-
-        // Schedule risk
-        const now = new Date();
-        let risk: 'On Track' | 'At Risk' | 'Late' = 'On Track';
-        if (isLate) risk = 'Late';
-        else if (latestStart && now > latestStart) risk = 'At Risk';
-
-        jobUpdates.push({
-          id: job.id,
-          planned_start: jobStart ? jobStart.toISOString() : null,
-          planned_finish: jobEnd ? jobEnd.toISOString() : null,
-          schedule_status: jobEnd ? (isLate ? 'Late' : 'Scheduled') : 'Unscheduled',
-          status: jobEnd ? 'Scheduled' : job.status,
-          best_commence_date: jobStart ? jobStart.toISOString() : null,
-          latest_start_date: latestStart ? latestStart.toISOString() : null,
-          schedule_risk: risk,
-        });
+      let devResource = resources.find(r => r.resource_name === DEV_RESOURCE_NAME && r.status === 'Active') || null;
+      const needsDev = jobs.some(j => (j.status === 'Planned' || j.status === 'Scheduled') && Number(j.development_time_hours || 0) > 0);
+      if (needsDev && !devResource) {
+        devResource = await ensureDevResource();
+        if (!devResource) { toast.error('Aborted: Development resource required'); return; }
       }
+
+      const { opUpdates, jobUpdates } = buildSchedule({
+        resources: devResource && !resources.some(r => r.id === devResource!.id) ? [...resources, devResource] : resources,
+        jobs,
+        ops,
+        baseStart: new Date(startDate + 'T00:00:00'),
+      });
 
       // Persist updates
       for (const u of opUpdates) {
@@ -214,6 +112,9 @@ export default function SchedulingEngine() {
         await supabase.from('jobs').update({
           planned_start: u.planned_start, planned_finish: u.planned_finish,
           schedule_status: u.schedule_status, status: u.status,
+          planned_dev_start: u.planned_dev_start,
+          planned_dev_finish: u.planned_dev_finish,
+          dev_resource_id: u.dev_resource_id,
           best_commence_date: u.best_commence_date,
           latest_start_date: u.latest_start_date,
           schedule_risk: u.schedule_risk,
