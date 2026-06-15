@@ -279,6 +279,9 @@ export default function SchedulingEngine() {
         await supabase.from('jobs').update({
           planned_start: u.planned_start, planned_finish: u.planned_finish,
           schedule_status: u.schedule_status, status: u.status,
+          best_commence_date: u.best_commence_date,
+          latest_start_date: u.latest_start_date,
+          schedule_risk: u.schedule_risk,
         }).eq('id', u.id);
       }
 
