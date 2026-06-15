@@ -110,6 +110,7 @@ export default function Resources() {
       status: r.status,
       supplier_name: r.supplier_name,
       lead_time_days: r.lead_time_days,
+      scheduling_mode: r.scheduling_mode || defaultModeFor(r.resource_category),
     });
     setDialogOpen(true);
   };
