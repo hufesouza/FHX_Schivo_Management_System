@@ -4803,6 +4803,7 @@ export type Database = {
           resource_category: string
           resource_name: string
           resource_type: string
+          scheduling_mode: string
           status: string
           supplier_name: string | null
           updated_at: string
@@ -4816,6 +4817,7 @@ export type Database = {
           resource_category?: string
           resource_name: string
           resource_type: string
+          scheduling_mode?: string
           status?: string
           supplier_name?: string | null
           updated_at?: string
@@ -4829,6 +4831,7 @@ export type Database = {
           resource_category?: string
           resource_name?: string
           resource_type?: string
+          scheduling_mode?: string
           status?: string
           supplier_name?: string | null
           updated_at?: string
