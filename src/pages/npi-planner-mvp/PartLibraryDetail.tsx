@@ -23,7 +23,7 @@ import { Plus, Pencil, Trash2, Save, ArrowUp, ArrowDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-const OP_NAMES = ['Turning', 'Swiss Turning', 'Milling', 'Inspection', 'Deburr', 'Assembly', 'Laser', 'Subcon', 'Other'];
+const FALLBACK_OP_NAMES = ['Turning', 'Swiss Turning', 'Milling', 'Inspection', 'Deburr', 'Assembly', 'Laser', 'Wash', 'Subcon', 'Other'];
 
 type Resource = {
   id: string;
