@@ -161,15 +161,16 @@ export default function SchedulingEngine() {
       resources.filter(r => r.status === 'Active').forEach(r => activeResources.set(r.id, r));
 
       // Eligible jobs: Planned or Scheduled
+      // EDD: earliest due date first; priority breaks ties; no due date = last
       const eligible = jobs
         .filter(j => j.status === 'Planned' || j.status === 'Scheduled')
         .sort((a, b) => {
-          const pa = PRIORITY_ORDER[a.priority] ?? 2;
-          const pb = PRIORITY_ORDER[b.priority] ?? 2;
-          if (pa !== pb) return pa - pb;
           const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
           const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
-          return da - db;
+          if (da !== db) return da - db;
+          const pa = PRIORITY_ORDER[a.priority] ?? 2;
+          const pb = PRIORITY_ORDER[b.priority] ?? 2;
+          return pa - pb;
         });
 
       // resource_id -> next free Date
