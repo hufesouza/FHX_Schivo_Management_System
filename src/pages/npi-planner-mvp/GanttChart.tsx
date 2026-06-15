@@ -667,7 +667,7 @@ export default function GanttChart() {
                           const x = Math.max(0, dateToX(s));
                           const right = Math.min(totalWidth, dateToX(e));
                           const w = Math.max(20, right - x);
-                          const isLate = !!(job?.due_date && e > new Date(job.due_date + 'T23:59:59'));
+                          const isLate = (job?.schedule_status === 'Late');
                           const previewing = dragPreview?.id === op.id;
                           const usingPreview = previewing && dragPreview!.rowKey === row.id;
                           const bx = usingPreview ? dragPreview!.startX : x;
