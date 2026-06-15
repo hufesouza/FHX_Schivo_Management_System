@@ -9,11 +9,11 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Lock, Unlock, AlertTriangle, Calendar as CalIcon, ChevronLeft, ChevronRight, Play, RotateCcw, Trash2, ArrowLeft } from 'lucide-react';
-import { buildSchedule, DEV_RESOURCE_NAME, isExclusiveResource } from './schedulerCore';
+import { buildSchedule, runFullSchedule, DEV_RESOURCE_NAME, isExclusiveResource } from './schedulerCore';
 
 type Resource = { id: string; resource_name: string; resource_type: string | null; resource_category: string | null; lead_time_days: number | null; available_hours_per_day: number; status: string; scheduling_mode?: 'Exclusive' | 'Parallel' | null };
 type Part = { id: string; part_number: string; revision: string | null; description: string | null };
-type Job = { id: string; job_number: string; part_id: string | null; quantity: number; due_date: string | null; priority: string; status: string; planned_start: string | null; planned_finish: string | null; schedule_status: string; development_time_hours: number | null; planned_dev_start: string | null; planned_dev_finish: string | null; dev_resource_id: string | null; dev_person_id: string | null };
+type Job = { id: string; job_number: string; part_id: string | null; quantity: number; due_date: string | null; priority: string; status: string; planned_start: string | null; planned_finish: string | null; schedule_status: string; development_time_hours: number | null; planned_dev_start: string | null; planned_dev_finish: string | null; dev_resource_id: string | null; dev_person_id: string | null; best_commence_date: string | null; planned_date_locked: boolean | null };
 type JobOp = {
   id: string; job_id: string; operation_number: number; operation_name: string;
   resource_id: string | null; setup_time_hours: number; cycle_time_seconds: number;
