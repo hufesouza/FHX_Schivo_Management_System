@@ -21,6 +21,8 @@ export type SchedulerJob = {
   priority: string;
   status: string;
   development_time_hours?: number | null;
+  planned_date_locked?: boolean | null;
+  best_commence_date?: string | null;
 };
 
 export type SchedulerOp = {
