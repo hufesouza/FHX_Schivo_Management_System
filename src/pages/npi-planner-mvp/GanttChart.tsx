@@ -765,7 +765,7 @@ export default function GanttChart() {
             const res = selectedOp.resource_id ? resourcesById.get(selectedOp.resource_id) : null;
             const dur = selectedOp.planned_start && selectedOp.planned_finish
               ? ((new Date(selectedOp.planned_finish).getTime() - new Date(selectedOp.planned_start).getTime()) / 3600000).toFixed(2) : '—';
-            const isLate = !!(job?.due_date && selectedOp.planned_finish && new Date(selectedOp.planned_finish) > new Date(job.due_date + 'T23:59:59'));
+            const isLate = (job?.schedule_status === 'Late');
             return (
               <>
                 <SheetHeader>
