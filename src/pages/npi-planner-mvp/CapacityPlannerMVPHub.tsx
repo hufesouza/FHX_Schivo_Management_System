@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import {
   ListChecks, CalendarRange, Settings as SettingsIcon, Cog, Library, Briefcase,
-  LayoutGrid, List, ChevronRight, Zap, GanttChartSquare,
+  LayoutGrid, List, ChevronRight, Zap, GanttChartSquare, ClipboardList,
 } from 'lucide-react';
 
 const groups = [
@@ -21,6 +21,7 @@ const groups = [
     title: 'Trackers',
     tiles: [
       { id: 'gantt', title: 'Gantt Chart', desc: 'Interactive visual scheduler with drag, drop & resize', icon: GanttChartSquare, href: '/npi/capacity-planner-mvp/gantt', color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20' },
+      { id: 'schedule-board', title: 'Schedule Board', desc: 'Operational view: jobs, resources & schedule risk', icon: ClipboardList, href: '/npi/capacity-planner-mvp/schedule-board', color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20' },
     ],
   },
   {
