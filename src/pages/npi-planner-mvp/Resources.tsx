@@ -34,7 +34,11 @@ type Resource = {
   status: 'Active' | 'Inactive';
   supplier_name: string | null;
   lead_time_days: number | null;
+  scheduling_mode: 'Exclusive' | 'Parallel';
 };
+
+const defaultModeFor = (cat: string): 'Exclusive' | 'Parallel' =>
+  (cat === 'Subcontractor' || cat === 'Inspection') ? 'Parallel' : 'Exclusive';
 
 const blankFor = (cat: string, type: string): Omit<Resource, 'id'> => ({
   resource_name: '',
@@ -45,6 +49,7 @@ const blankFor = (cat: string, type: string): Omit<Resource, 'id'> => ({
   status: 'Active',
   supplier_name: null,
   lead_time_days: null,
+  scheduling_mode: defaultModeFor(cat),
 });
 
 export default function Resources() {
@@ -105,6 +110,7 @@ export default function Resources() {
       status: r.status,
       supplier_name: r.supplier_name,
       lead_time_days: r.lead_time_days,
+      scheduling_mode: r.scheduling_mode || defaultModeFor(r.resource_category),
     });
     setDialogOpen(true);
   };
@@ -204,19 +210,21 @@ export default function Resources() {
                     <TableHead className="text-right">Lead Time</TableHead>
                     <TableHead className="text-right">Hours / Day</TableHead>
                     <TableHead className="text-right">Shifts</TableHead>
+                    <TableHead>Mode</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-[120px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                   ) : filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                       {rows.length === 0 ? 'No resources yet. Create your first one.' : 'No matches.'}
                     </TableCell></TableRow>
                   ) : filtered.map(r => {
                     const sub = r.resource_category === 'Subcontractor';
+                    const mode = r.scheduling_mode || defaultModeFor(r.resource_category);
                     return (
                       <TableRow key={r.id}>
                         <TableCell className="font-medium">{r.resource_name}</TableCell>
@@ -228,6 +236,9 @@ export default function Resources() {
                         <TableCell className="text-right">{sub && r.lead_time_days ? `${r.lead_time_days} d` : '—'}</TableCell>
                         <TableCell className="text-right">{sub ? '—' : r.available_hours_per_day}</TableCell>
                         <TableCell className="text-right">{sub ? '—' : r.number_of_shifts}</TableCell>
+                        <TableCell>
+                          <Badge variant={mode === 'Parallel' ? 'secondary' : 'outline'}>{mode}</Badge>
+                        </TableCell>
                         <TableCell>
                           <Badge variant={r.status === 'Active' ? 'default' : 'secondary'}>
                             {r.status}
@@ -334,6 +345,21 @@ export default function Resources() {
                 </div>
               </>
             )}
+
+            <div>
+              <Label>Scheduling mode *</Label>
+              <Select value={form.scheduling_mode}
+                onValueChange={(v) => setForm({ ...form, scheduling_mode: v as 'Exclusive' | 'Parallel' })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Exclusive">Exclusive — one operation at a time (queues)</SelectItem>
+                  <SelectItem value="Parallel">Parallel — multiple operations simultaneously</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Use Exclusive for machines (Mill, Turn, EDM, Grinding). Use Parallel for Deburr, Wash, Passivation, Inspection, Subcontractors.
+              </p>
+            </div>
 
             <div>
               <Label>Status</Label>
