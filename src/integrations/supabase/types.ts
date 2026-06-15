@@ -1093,6 +1093,9 @@ export type Database = {
           latest_start_date: string | null
           notes: string | null
           part_id: string
+          pending_planned_date: string | null
+          pending_planned_date_reason: string | null
+          planned_date_locked: boolean
           planned_dev_finish: string | null
           planned_dev_start: string | null
           planned_finish: string | null
@@ -1116,6 +1119,9 @@ export type Database = {
           latest_start_date?: string | null
           notes?: string | null
           part_id: string
+          pending_planned_date?: string | null
+          pending_planned_date_reason?: string | null
+          planned_date_locked?: boolean
           planned_dev_finish?: string | null
           planned_dev_start?: string | null
           planned_finish?: string | null
@@ -1139,6 +1145,9 @@ export type Database = {
           latest_start_date?: string | null
           notes?: string | null
           part_id?: string
+          pending_planned_date?: string | null
+          pending_planned_date_reason?: string | null
+          planned_date_locked?: boolean
           planned_dev_finish?: string | null
           planned_dev_start?: string | null
           planned_finish?: string | null
