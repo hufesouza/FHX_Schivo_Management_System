@@ -217,13 +217,14 @@ export default function Resources() {
                 </TableHeader>
                 <TableBody>
                   {loading ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">Loading…</TableCell></TableRow>
                   ) : filtered.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableRow><TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                       {rows.length === 0 ? 'No resources yet. Create your first one.' : 'No matches.'}
                     </TableCell></TableRow>
                   ) : filtered.map(r => {
                     const sub = r.resource_category === 'Subcontractor';
+                    const mode = r.scheduling_mode || defaultModeFor(r.resource_category);
                     return (
                       <TableRow key={r.id}>
                         <TableCell className="font-medium">{r.resource_name}</TableCell>
@@ -235,6 +236,9 @@ export default function Resources() {
                         <TableCell className="text-right">{sub && r.lead_time_days ? `${r.lead_time_days} d` : '—'}</TableCell>
                         <TableCell className="text-right">{sub ? '—' : r.available_hours_per_day}</TableCell>
                         <TableCell className="text-right">{sub ? '—' : r.number_of_shifts}</TableCell>
+                        <TableCell>
+                          <Badge variant={mode === 'Parallel' ? 'secondary' : 'outline'}>{mode}</Badge>
+                        </TableCell>
                         <TableCell>
                           <Badge variant={r.status === 'Active' ? 'default' : 'secondary'}>
                             {r.status}
