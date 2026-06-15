@@ -21,6 +21,8 @@ export type SchedulerJob = {
   priority: string;
   status: string;
   development_time_hours?: number | null;
+  planned_date_locked?: boolean | null;
+  best_commence_date?: string | null;
 };
 
 export type SchedulerOp = {
@@ -56,6 +58,8 @@ export type ScheduledJobUpdate = {
   best_commence_date: string | null;
   latest_start_date: string | null;
   schedule_risk: 'On Track' | 'At Risk' | 'Late';
+  pending_planned_date: string | null;
+  pending_planned_date_reason: string | null;
 };
 
 type Reservation = { start: Date; end: Date };
@@ -199,11 +203,13 @@ export function buildSchedule({
   jobs,
   ops,
   baseStart,
+  ignorePlannedDateLocks = false,
 }: {
   resources: SchedulerResource[];
   jobs: SchedulerJob[];
   ops: SchedulerOp[];
   baseStart: Date;
+  ignorePlannedDateLocks?: boolean;
 }): { opUpdates: ScheduledOpUpdate[]; jobUpdates: ScheduledJobUpdate[] } {
   const activeResources = new Map(resources.filter(r => r.status !== 'Inactive').map(r => [r.id, r]));
   const devResource = resources.find(r => r.resource_name === DEV_RESOURCE_NAME && r.status !== 'Inactive') || null;
@@ -233,7 +239,10 @@ export function buildSchedule({
       .filter(o => o.job_id === job.id)
       .sort((a, b) => (a.sequence_order ?? a.operation_number) - (b.sequence_order ?? b.operation_number));
 
-    let previousEnd = base;
+    // Honor a manually-locked Planned Date by anchoring the job to it.
+    const lockedAnchor = (!ignorePlannedDateLocks && job.planned_date_locked && job.best_commence_date)
+      ? new Date(job.best_commence_date) : null;
+    let previousEnd = lockedAnchor && lockedAnchor > base ? lockedAnchor : base;
     let jobStart: Date | null = null;
     let jobEnd: Date | null = null;
     let devStart: Date | null = null;
@@ -313,8 +322,56 @@ export function buildSchedule({
       best_commence_date: jobStart?.toISOString() || null,
       latest_start_date: latestStart?.toISOString() || null,
       schedule_risk: risk,
+      pending_planned_date: null,
+      pending_planned_date_reason: null,
     });
   }
 
   return { opUpdates, jobUpdates };
+}
+
+/**
+ * Orchestrates scheduling that respects manually-locked Planned Dates.
+ *
+ * - Pass A ignores the locks → captures what each job's Planned Date would naturally be.
+ * - Pass B honors the locks → produces the persisted schedule.
+ * - For locked jobs whose ideal start differs from the locked date, a pending
+ *   suggestion + reason is attached so a user can approve or reject the change.
+ */
+export function runFullSchedule(args: {
+  resources: SchedulerResource[];
+  jobs: SchedulerJob[];
+  ops: SchedulerOp[];
+  baseStart: Date;
+}): { opUpdates: ScheduledOpUpdate[]; jobUpdates: ScheduledJobUpdate[] } {
+  const proposed = new Map<string, string | null>();
+  const passA = buildSchedule({ ...args, ignorePlannedDateLocks: true });
+  passA.jobUpdates.forEach(u => proposed.set(u.id, u.planned_start));
+
+  const passB = buildSchedule(args);
+  const jobById = new Map(args.jobs.map(j => [j.id, j]));
+
+  for (const u of passB.jobUpdates) {
+    const job = jobById.get(u.id);
+    if (!job?.planned_date_locked || !job.best_commence_date) continue;
+
+    // Keep the user-pinned Planned Date in the persisted record.
+    const locked = new Date(job.best_commence_date);
+    u.best_commence_date = locked.toISOString();
+
+    const proposedIso = proposed.get(u.id);
+    if (!proposedIso) continue;
+    const proposedDate = new Date(proposedIso);
+    const proposedDay = proposedDate.toISOString().slice(0, 10);
+    const lockedDay = locked.toISOString().slice(0, 10);
+    if (proposedDay === lockedDay) continue;
+
+    const diffDays = Math.round((proposedDate.getTime() - locked.getTime()) / 86400000);
+    u.pending_planned_date = proposedDate.toISOString();
+    u.pending_planned_date_reason = diffDays < 0
+      ? `Scheduler can start ${Math.abs(diffDays)} day(s) earlier — resource capacity now available.`
+      : `Scheduler suggests starting ${diffDays} day(s) later due to upstream / capacity constraints.`;
+  }
+
+  return passB;
 }

@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Play, Trash2, Loader2, Lock } from 'lucide-react';
-import { buildSchedule, DEV_RESOURCE_NAME } from './schedulerCore';
+import { buildSchedule, runFullSchedule, DEV_RESOURCE_NAME } from './schedulerCore';
 
 type Resource = { id: string; resource_name: string; resource_category?: string | null; resource_type?: string | null; lead_time_days?: number | null; available_hours_per_day: number; status: string; scheduling_mode?: 'Exclusive' | 'Parallel' };
 type JobOp = {
@@ -38,6 +38,8 @@ type Job = {
   planned_start: string | null;
   planned_finish: string | null;
   schedule_status: string;
+  best_commence_date: string | null;
+  planned_date_locked: boolean | null;
 };
 
 export default function SchedulingEngine() {
@@ -97,7 +99,7 @@ export default function SchedulingEngine() {
         if (!devResource) { toast.error('Aborted: Development resource required'); return; }
       }
 
-      const { opUpdates, jobUpdates } = buildSchedule({
+      const { opUpdates, jobUpdates } = runFullSchedule({
         resources: devResource && !resources.some(r => r.id === devResource!.id) ? [...resources, devResource] : resources,
         jobs,
         ops,
@@ -118,6 +120,8 @@ export default function SchedulingEngine() {
           best_commence_date: u.best_commence_date,
           latest_start_date: u.latest_start_date,
           schedule_risk: u.schedule_risk,
+          pending_planned_date: u.pending_planned_date,
+          pending_planned_date_reason: u.pending_planned_date_reason,
         }).eq('id', u.id);
       }
 
@@ -137,9 +141,16 @@ export default function SchedulingEngine() {
       await supabase.from('job_operations')
         .update({ planned_start: null, planned_finish: null })
         .eq('is_locked', false);
+      // Clear schedule for unlocked jobs only — locked Planned Dates are preserved.
       await supabase.from('jobs')
-        .update({ planned_start: null, planned_finish: null, planned_dev_start: null, planned_dev_finish: null, dev_resource_id: null, schedule_status: 'Unscheduled', status: 'Planned', best_commence_date: null, latest_start_date: null, schedule_risk: 'On Track' })
-        .in('status', ['Scheduled']);
+        .update({ planned_start: null, planned_finish: null, planned_dev_start: null, planned_dev_finish: null, dev_resource_id: null, schedule_status: 'Unscheduled', status: 'Planned', best_commence_date: null, latest_start_date: null, schedule_risk: 'On Track', pending_planned_date: null, pending_planned_date_reason: null })
+        .in('status', ['Scheduled'])
+        .eq('planned_date_locked', false);
+      // For locked jobs: clear planned schedule but preserve the locked Planned Date.
+      await supabase.from('jobs')
+        .update({ planned_start: null, planned_finish: null, planned_dev_start: null, planned_dev_finish: null, dev_resource_id: null, schedule_status: 'Unscheduled', status: 'Planned', latest_start_date: null, schedule_risk: 'On Track', pending_planned_date: null, pending_planned_date_reason: null })
+        .in('status', ['Scheduled'])
+        .eq('planned_date_locked', true);
       toast.success('Schedule cleared');
       await load();
     } catch (e: any) {
