@@ -66,6 +66,7 @@ export default function PartLibraryDetail() {
   const [part, setPart] = useState<Part | null>(null);
   const [ops, setOps] = useState<Operation[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
+  const [opNames, setOpNames] = useState<string[]>(FALLBACK_OP_NAMES);
   const [loading, setLoading] = useState(true);
   const [savingHeader, setSavingHeader] = useState(false);
 
