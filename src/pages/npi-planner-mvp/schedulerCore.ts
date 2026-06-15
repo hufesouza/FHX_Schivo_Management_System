@@ -58,6 +58,8 @@ export type ScheduledJobUpdate = {
   best_commence_date: string | null;
   latest_start_date: string | null;
   schedule_risk: 'On Track' | 'At Risk' | 'Late';
+  pending_planned_date: string | null;
+  pending_planned_date_reason: string | null;
 };
 
 type Reservation = { start: Date; end: Date };
