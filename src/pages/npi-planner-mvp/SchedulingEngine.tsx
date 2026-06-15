@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Play, Trash2, Loader2, Lock } from 'lucide-react';
 
-type Resource = { id: string; resource_name: string; available_hours_per_day: number; status: string };
+type Resource = { id: string; resource_name: string; available_hours_per_day: number; status: string; scheduling_mode?: 'Exclusive' | 'Parallel' };
 type JobOp = {
   id: string;
   job_id: string;
