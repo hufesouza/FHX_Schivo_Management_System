@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Lock, Unlock, AlertTriangle, Calendar as CalIcon, ChevronLeft, ChevronRight, Play, RotateCcw, Trash2, ArrowLeft } from 'lucide-react';
+import { buildSchedule, DEV_RESOURCE_NAME, isExclusiveResource } from './schedulerCore';
 
 type Resource = { id: string; resource_name: string; resource_type: string | null; resource_category: string | null; lead_time_days: number | null; available_hours_per_day: number; status: string; scheduling_mode?: 'Exclusive' | 'Parallel' | null };
 type Part = { id: string; part_number: string; revision: string | null; description: string | null };
@@ -145,15 +146,9 @@ export default function GanttChart() {
         sequence_warning: false,
         sequence_order: 0,
       };
-      // Mirror onto the first Machine resource of this job (machine is blocked during dev)
-      const jobOps = ops.filter(o => o.job_id === j.id);
-      const firstMachineOp = jobOps.find(o => {
-        const r = o.resource_id ? resourcesById.get(o.resource_id) : null;
-        return r && (r.resource_category || '').toLowerCase() === 'machine';
-      });
-      const machineResId = firstMachineOp?.resource_id || j.dev_resource_id;
-      if (machineResId) {
-        devOps.push({ ...base, id: `dev-machine-${j.id}`, resource_id: machineResId } as JobOp);
+      // Development is a job gate, not machine capacity. Show it in part view without blocking the first machine.
+      if (j.dev_resource_id) {
+        devOps.push({ ...base, id: `dev-resource-${j.id}`, resource_id: j.dev_resource_id } as JobOp);
       }
       // Mirror onto the assigned Person (so the people view shows the developer's load)
       if (j.dev_person_id) {
@@ -161,12 +156,14 @@ export default function GanttChart() {
       }
     });
     return [...ops, ...devOps];
-  }, [ops, jobs, resourcesById]);
+  }, [jobs]);
 
   const flaggedOps = useMemo(() => {
     const byRes = new Map<string, JobOp[]>();
     opsWithDev.forEach(o => {
       if (!o.resource_id || !o.planned_start || !o.planned_finish) return;
+      const resource = resourcesById.get(o.resource_id);
+      if (!resource || !isExclusiveResource(resource)) return;
       const arr = byRes.get(o.resource_id) || [];
       arr.push(o); byRes.set(o.resource_id, arr);
     });
@@ -189,7 +186,7 @@ export default function GanttChart() {
       }
     });
     return opsWithDev.map(o => ({ ...o, has_conflict: conflictIds.has(o.id), sequence_warning: seqIds.has(o.id) }));
-  }, [opsWithDev]);
+  }, [opsWithDev, resourcesById]);
 
   // Timeline range
   const days = view === 'day' ? 3 : view === 'week' ? 21 : 60;
