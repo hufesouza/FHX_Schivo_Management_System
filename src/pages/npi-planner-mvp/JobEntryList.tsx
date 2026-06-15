@@ -70,7 +70,7 @@ export default function JobEntryList() {
     setLoading(true);
     const { data, error } = await supabase
       .from('jobs')
-      .select('id, job_number, quantity, due_date, priority, status, planned_start, planned_finish, parts ( part_number, revision )')
+      .select('id, job_number, quantity, due_date, priority, status, planned_start, planned_finish, best_commence_date, latest_start_date, schedule_risk, parts ( part_number, revision )')
       .order('due_date', { ascending: true });
     setLoading(false);
     if (error) return toast.error(error.message);
