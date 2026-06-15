@@ -251,6 +251,10 @@ export default function GanttChart() {
       const machineIds = new Set(resources.filter(r => (r.resource_category || '').toLowerCase() === 'machine').map(r => r.id));
       list = list.filter(o => o.resource_id && machineIds.has(o.resource_id));
     }
+    if (groupMode === 'part') {
+      // In Part grouping, show only one Development bar per job (avoid showing both machine + person mirrors on the same row)
+      list = list.filter(o => !o.id.startsWith('dev-person-'));
+    }
     if (groupMode === 'resource' && drillPartId && !peopleOnly) {
       const jobIds = new Set(jobs.filter(j => j.part_id === drillPartId).map(j => j.id));
       return list.filter(o => jobIds.has(o.job_id));
