@@ -19,6 +19,11 @@ type JobOp = {
   total_time_hours: number | null; planned_start: string | null; planned_finish: string | null;
   is_locked: boolean; has_conflict: boolean; sequence_warning: boolean; sequence_order: number | null;
 };
+type PartOp = Pick<JobOp, 'operation_number' | 'operation_name' | 'resource_id' | 'setup_time_hours' | 'cycle_time_seconds'> & { part_id: string };
+type JobOpSyncUpdate = Pick<JobOp, 'id' | 'operation_name' | 'resource_id' | 'setup_time_hours' | 'cycle_time_seconds'>;
+type JobOpMoveUpdate = Partial<Pick<JobOp, 'planned_start' | 'planned_finish' | 'is_locked' | 'resource_id' | 'total_time_hours'>>;
+type ScheduledOpUpdate = Pick<JobOp, 'id'> & Required<Pick<JobOp, 'planned_start' | 'planned_finish'>>;
+type ScheduledJobUpdate = Pick<Job, 'id' | 'planned_start' | 'planned_finish' | 'schedule_status' | 'status' | 'planned_dev_start' | 'planned_dev_finish' | 'dev_resource_id'>;
 
 type ViewMode = 'day' | 'week' | 'month';
 type GroupMode = 'part' | 'resource';
@@ -43,6 +48,7 @@ const OP_PALETTE = [
 ];
 const hashStr = (s: string) => { let h = 0; for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0; return Math.abs(h); };
 const opColor = (op: JobOp) => OP_PALETTE[hashStr(`${op.operation_name}|${op.operation_number}`) % OP_PALETTE.length];
+const isOpenJobStatus = (status: string | null | undefined) => !['completed', 'cancelled'].includes((status || '').toLowerCase());
 
 const startOfDay = (d: Date) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
 const addDays = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
@@ -74,13 +80,45 @@ export default function GanttChart() {
       supabase.from('job_operations').select('*'),
     ]);
     setResources((r.data as Resource[]) || []);
-    setJobs((j.data as Job[]) || []);
-    setOps((o.data as JobOp[]) || []);
-    const partIds = Array.from(new Set(((j.data || []) as Job[]).map(x => x.part_id).filter(Boolean))) as string[];
+    const fetchedJobs = (j.data as Job[]) || [];
+    const fetchedOps = (o.data as JobOp[]) || [];
+    setJobs(fetchedJobs);
+    const partIds = Array.from(new Set(fetchedJobs.map(x => x.part_id).filter(Boolean))) as string[];
     if (partIds.length) {
-      const { data } = await supabase.from('parts').select('id,part_number,revision,description').in('id', partIds);
-      setParts((data as Part[]) || []);
-    } else setParts([]);
+      const [partsRes, partOpsRes] = await Promise.all([
+        supabase.from('parts').select('id,part_number,revision,description').in('id', partIds),
+        supabase.from('part_operations').select('part_id,operation_number,operation_name,resource_id,setup_time_hours,cycle_time_seconds').in('part_id', partIds),
+      ]);
+      setParts((partsRes.data as Part[]) || []);
+
+      const jobsByOpJobId = new Map(fetchedJobs.map(job => [job.id, job]));
+      const partOpByKey = new Map(((partOpsRes.data as PartOp[]) || []).map(op => [`${op.part_id}|${op.operation_number}`, op]));
+      const syncUpdates: JobOpSyncUpdate[] = [];
+      const syncedOps = fetchedOps.map(op => {
+        const job = jobsByOpJobId.get(op.job_id);
+        const partOp = job?.part_id && isOpenJobStatus(job.status) ? partOpByKey.get(`${job.part_id}|${op.operation_number}`) : null;
+        if (!partOp) return op;
+        const next = {
+          resource_id: partOp.resource_id,
+          operation_name: partOp.operation_name,
+          setup_time_hours: partOp.setup_time_hours,
+          cycle_time_seconds: partOp.cycle_time_seconds,
+        };
+        const changed = op.resource_id !== next.resource_id || op.operation_name !== next.operation_name ||
+          op.setup_time_hours !== next.setup_time_hours || op.cycle_time_seconds !== next.cycle_time_seconds;
+        if (changed) syncUpdates.push({ id: op.id, ...next });
+        return changed ? { ...op, ...next } : op;
+      });
+      setOps(syncedOps);
+      if (syncUpdates.length) {
+        await Promise.all(syncUpdates.map(({ id, ...update }) =>
+          supabase.from('job_operations').update(update).eq('id', id)
+        ));
+      }
+    } else {
+      setParts([]);
+      setOps(fetchedOps);
+    }
   };
   useEffect(() => { load(); }, []);
 
@@ -201,7 +239,7 @@ export default function GanttChart() {
         sub: `${r.resource_type || '—'} · ${r.available_hours_per_day}h/day`,
         resourceId: r.id,
       }));
-  }, [groupMode, jobs, parts, resources, partsById, machinesOnly, peopleOnly]);
+  }, [groupMode, jobs, resources, partsById, machinesOnly, peopleOnly]);
 
   const visibleOps = useMemo(() => {
     let list = flaggedOps;
@@ -267,7 +305,7 @@ export default function GanttChart() {
     } else {
       setDragPreview({ id: d.opId, startX, width, resourceId: targetResource, rowKey });
     }
-  }, [pxPerHour, resources, groupMode, ops, jobsById]);
+  }, [pxPerHour, resources, groupMode, ops, jobsById, dateToX]);
 
   const onMouseUp = useCallback(async () => {
     window.removeEventListener('mousemove', onMouseMove);
@@ -278,7 +316,7 @@ export default function GanttChart() {
     const newStart = xToDate(preview.startX);
     const durHours = preview.width / pxPerHour;
     const newEnd = new Date(newStart.getTime() + durHours * 3600000);
-    const update: any = {
+    const update: JobOpMoveUpdate = {
       planned_start: newStart.toISOString(),
       planned_finish: newEnd.toISOString(),
       is_locked: true,
@@ -289,7 +327,7 @@ export default function GanttChart() {
     if (error) { toast.error(error.message); return; }
     setOps(prev => prev.map(o => o.id === d.opId ? { ...o, ...update } : o));
     toast.success('Schedule updated');
-  }, [dragPreview, pxPerHour]);
+  }, [dragPreview, pxPerHour, onMouseMove, xToDate]);
 
   const toggleLock = async (op: JobOp) => {
     const { error } = await supabase.from('job_operations').update({ is_locked: !op.is_locked }).eq('id', op.id);
@@ -313,7 +351,7 @@ export default function GanttChart() {
       const activeRes = new Map(resources.map(r => [r.id, r]));
       const eligible = jobs.filter(j => j.status === 'Planned' || j.status === 'Scheduled')
         .sort((a, b) => {
-          const po: any = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
+          const po: Record<string, number> = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
           const pa = po[a.priority] ?? 2, pb = po[b.priority] ?? 2;
           if (pa !== pb) return pa - pb;
           return (a.due_date ? new Date(a.due_date).getTime() : Infinity) - (b.due_date ? new Date(b.due_date).getTime() : Infinity);
@@ -346,11 +384,11 @@ export default function GanttChart() {
           .insert({ resource_name: DEV_RESOURCE_NAME, resource_type: 'Engineering', available_hours_per_day: 8, number_of_shifts: 1, status: 'Active' })
           .select().single();
         if (createErr) { toast.error(`Could not create Development resource: ${createErr.message}`); return; }
-        devResource = created as any;
+        devResource = created as Resource;
         if (devResource) activeRes.set(devResource.id, devResource);
       }
 
-      const opUpdates: any[] = []; const jobUpdates: any[] = [];
+      const opUpdates: ScheduledOpUpdate[] = []; const jobUpdates: ScheduledJobUpdate[] = [];
       for (const job of eligible) {
         const jobOps = ops.filter(o => o.job_id === job.id)
           .sort((a, b) => (a.sequence_order ?? a.operation_number) - (b.sequence_order ?? b.operation_number));
@@ -572,7 +610,7 @@ export default function GanttChart() {
                   {rows.map(row => {
                     const rowOps = visibleOps.filter(o => opInRow(o, row) && o.planned_start && o.planned_finish);
                     // In part mode, multiple ops may overlap horizontally; lay them out in lanes
-                    let lanes: { end: number }[] = [];
+                    const lanes: { end: number }[] = [];
                     const opLanes = new Map<string, number>();
                     if (groupMode === 'part') {
                       const sorted = [...rowOps].sort((a, b) => new Date(a.planned_start!).getTime() - new Date(b.planned_start!).getTime());
