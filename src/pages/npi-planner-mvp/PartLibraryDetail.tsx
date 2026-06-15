@@ -97,16 +97,20 @@ export default function PartLibraryDetail() {
   const load = async () => {
     if (!id) return;
     setLoading(true);
-    const [p, o, r] = await Promise.all([
+    const [p, o, r, lk] = await Promise.all([
       supabase.from('parts').select('*').eq('id', id).single(),
       supabase.from('part_operations').select('*').eq('part_id', id).order('operation_number'),
       supabase.from('resources').select('id, resource_name, resource_type, resource_category, lead_time_days').eq('status', 'Active').order('resource_name'),
+      supabase.from('resource_lookups' as any).select('name,kind').eq('kind', 'type').order('name'),
     ]);
     setLoading(false);
     if (p.error) return toast.error(p.error.message);
     setPart(p.data as Part);
     setOps((o.data || []) as Operation[]);
     setResources((r.data || []) as Resource[]);
+    const names = ((lk.data || []) as any[]).map(x => x.name as string).filter(Boolean);
+    const merged = Array.from(new Set([...names, ...FALLBACK_OP_NAMES]));
+    setOpNames(merged);
   };
 
   useEffect(() => { load(); }, [id]);
