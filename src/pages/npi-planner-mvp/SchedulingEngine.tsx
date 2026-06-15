@@ -197,6 +197,8 @@ export default function SchedulingEngine() {
         let prevEnd = baseStart;
         let jobStart: Date | null = null;
         let jobEnd: Date | null = null;
+        let totalDurationHours = 0;
+        let dailyHoursRef = 24;
 
         // Development time as a virtual op on Dev resource
         if (Number(job.development_time_hours) > 0) {
@@ -209,6 +211,8 @@ export default function SchedulingEngine() {
           prevEnd = endAt;
           jobStart = startAt;
           jobEnd = endAt;
+          totalDurationHours += Number(job.development_time_hours);
+          dailyHoursRef = devResource.available_hours_per_day || 8;
         }
 
         for (const op of jobOps) {
@@ -218,6 +222,7 @@ export default function SchedulingEngine() {
             if (!jobStart || s < jobStart) jobStart = s;
             if (!jobEnd || e > jobEnd) jobEnd = e;
             prevEnd = e > prevEnd ? e : prevEnd;
+            totalDurationHours += (e.getTime() - s.getTime()) / 3600000;
             continue;
           }
           if (!op.resource_id || !activeResources.has(op.resource_id)) continue;
@@ -234,17 +239,35 @@ export default function SchedulingEngine() {
           prevEnd = endAt;
           if (!jobStart || startAt < jobStart) jobStart = startAt;
           if (!jobEnd || endAt > jobEnd) jobEnd = endAt;
+          totalDurationHours += duration;
+          dailyHoursRef = Math.max(dailyHoursRef, res.available_hours_per_day || 8);
 
           opUpdates.push({ id: op.id, planned_start: startAt.toISOString(), planned_finish: endAt.toISOString() });
         }
 
-        const isLate = !!(jobEnd && job.due_date && jobEnd > new Date(job.due_date + 'T23:59:59'));
+        const dueDateEnd = job.due_date ? new Date(job.due_date + 'T23:59:59') : null;
+        const isLate = !!(jobEnd && dueDateEnd && jobEnd > dueDateEnd);
+
+        // Latest start date = due date end - total job duration (working hours)
+        const latestStart = (dueDateEnd && totalDurationHours > 0)
+          ? subtractWorkingHours(dueDateEnd, totalDurationHours, dailyHoursRef)
+          : null;
+
+        // Schedule risk
+        const now = new Date();
+        let risk: 'On Track' | 'At Risk' | 'Late' = 'On Track';
+        if (isLate) risk = 'Late';
+        else if (latestStart && now > latestStart) risk = 'At Risk';
+
         jobUpdates.push({
           id: job.id,
           planned_start: jobStart ? jobStart.toISOString() : null,
           planned_finish: jobEnd ? jobEnd.toISOString() : null,
           schedule_status: jobEnd ? (isLate ? 'Late' : 'Scheduled') : 'Unscheduled',
           status: jobEnd ? 'Scheduled' : job.status,
+          best_commence_date: jobStart ? jobStart.toISOString() : null,
+          latest_start_date: latestStart ? latestStart.toISOString() : null,
+          schedule_risk: risk,
         });
       }
 
