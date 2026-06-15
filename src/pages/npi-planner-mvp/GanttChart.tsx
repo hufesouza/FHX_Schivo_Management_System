@@ -647,6 +647,8 @@ export default function GanttChart() {
           <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Conflict / Sequence</span>
           <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded ring-2 ring-red-600" /> Late</span>
         </div>
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Side panel */}
