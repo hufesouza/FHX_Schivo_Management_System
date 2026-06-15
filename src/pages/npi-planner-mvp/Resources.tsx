@@ -342,6 +342,21 @@ export default function Resources() {
             )}
 
             <div>
+              <Label>Scheduling mode *</Label>
+              <Select value={form.scheduling_mode}
+                onValueChange={(v) => setForm({ ...form, scheduling_mode: v as 'Exclusive' | 'Parallel' })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Exclusive">Exclusive — one operation at a time (queues)</SelectItem>
+                  <SelectItem value="Parallel">Parallel — multiple operations simultaneously</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground mt-1">
+                Use Exclusive for machines (Mill, Turn, EDM, Grinding). Use Parallel for Deburr, Wash, Passivation, Inspection, Subcontractors.
+              </p>
+            </div>
+
+            <div>
               <Label>Status</Label>
               <Select value={form.status}
                 onValueChange={(v) => setForm({ ...form, status: v as 'Active' | 'Inactive' })}>
