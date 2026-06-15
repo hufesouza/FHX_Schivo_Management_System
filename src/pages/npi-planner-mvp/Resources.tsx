@@ -34,7 +34,11 @@ type Resource = {
   status: 'Active' | 'Inactive';
   supplier_name: string | null;
   lead_time_days: number | null;
+  scheduling_mode: 'Exclusive' | 'Parallel';
 };
+
+const defaultModeFor = (cat: string): 'Exclusive' | 'Parallel' =>
+  (cat === 'Subcontractor' || cat === 'Inspection') ? 'Parallel' : 'Exclusive';
 
 const blankFor = (cat: string, type: string): Omit<Resource, 'id'> => ({
   resource_name: '',
@@ -45,6 +49,7 @@ const blankFor = (cat: string, type: string): Omit<Resource, 'id'> => ({
   status: 'Active',
   supplier_name: null,
   lead_time_days: null,
+  scheduling_mode: defaultModeFor(cat),
 });
 
 export default function Resources() {
