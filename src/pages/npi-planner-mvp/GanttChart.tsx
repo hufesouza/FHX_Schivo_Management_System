@@ -10,8 +10,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Lock, Unlock, AlertTriangle, Calendar as CalIcon, ChevronLeft, ChevronRight, Play, RotateCcw, Trash2, ArrowLeft } from 'lucide-react';
 import { buildSchedule, runFullSchedule, DEV_RESOURCE_NAME, isExclusiveResource } from './schedulerCore';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import ScheduleBoard from './ScheduleBoard';
 
 type Resource = { id: string; resource_name: string; resource_type: string | null; resource_category: string | null; lead_time_days: number | null; available_hours_per_day: number; status: string; scheduling_mode?: 'Exclusive' | 'Parallel' | null };
 type Part = { id: string; part_number: string; revision: string | null; description: string | null };
@@ -425,25 +423,9 @@ export default function GanttChart() {
     setGroupMode('part');
   };
 
-  const [activeTab, setActiveTab] = useState<'gantt' | 'board'>('gantt');
-  const handleOpenInGantt = ({ partId }: { partId: string | null; jobId: string }) => {
-    if (partId) { setDrillPartId(partId); setGroupMode('resource'); }
-    else { setDrillPartId(null); setGroupMode('part'); }
-    setActiveTab('gantt');
-  };
-
   return (
     <AppLayout title="Schedule / Gantt" subtitle="Interactive visual scheduler" showBackButton backTo="/npi/capacity-planner-mvp">
       <main className="container mx-auto px-4 py-6 space-y-4">
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'gantt' | 'board')}>
-          <TabsList>
-            <TabsTrigger value="gantt">Gantt View</TabsTrigger>
-            <TabsTrigger value="board">Schedule Board</TabsTrigger>
-          </TabsList>
-          <TabsContent value="board" className="mt-4">
-            <ScheduleBoard onOpenInGantt={handleOpenInGantt} />
-          </TabsContent>
-          <TabsContent value="gantt" className="mt-4 space-y-4">
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border bg-card">
           <Button size="sm" onClick={runSchedule} disabled={loading}><Play className="h-4 w-4" /> Run Schedule</Button>
@@ -647,8 +629,6 @@ export default function GanttChart() {
           <span className="flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> Conflict / Sequence</span>
           <span className="flex items-center gap-1"><span className="inline-block w-3 h-3 rounded ring-2 ring-red-600" /> Late</span>
         </div>
-          </TabsContent>
-        </Tabs>
       </main>
 
       {/* Side panel */}
