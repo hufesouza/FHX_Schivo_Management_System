@@ -210,6 +210,7 @@ export default function Resources() {
                     <TableHead className="text-right">Lead Time</TableHead>
                     <TableHead className="text-right">Hours / Day</TableHead>
                     <TableHead className="text-right">Shifts</TableHead>
+                    <TableHead>Mode</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="w-[120px] text-right">Actions</TableHead>
                   </TableRow>
