@@ -19,7 +19,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Pencil, Trash2, Save, ArrowUp, ArrowDown } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, ArrowUp, ArrowDown, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -76,6 +76,10 @@ export default function PartLibraryDetail() {
   const [savingOp, setSavingOp] = useState(false);
   const [deleteOpId, setDeleteOpId] = useState<string | null>(null);
 
+  const [dupOpen, setDupOpen] = useState(false);
+  const [dupForm, setDupForm] = useState({ part_number: '', revision: '' });
+  const [dupSaving, setDupSaving] = useState(false);
+
   // Display units (persisted). DB always stores setup in HOURS and cycle in SECONDS.
   const [setupUnit, setSetupUnit] = useState<'minutes' | 'hours'>(
     () => (localStorage.getItem('pl_setupUnit') as 'minutes' | 'hours') || 'minutes'
@@ -129,6 +133,64 @@ export default function PartLibraryDetail() {
     setSavingHeader(false);
     if (error) return toast.error(error.message);
     toast.success('Header saved');
+  };
+
+  const openDuplicate = () => {
+    if (!part) return;
+    setDupForm({ part_number: part.part_number + '-COPY', revision: part.revision || '' });
+    setDupOpen(true);
+  };
+
+  const doDuplicate = async () => {
+    if (!part) return;
+    const pn = dupForm.part_number.trim();
+    const rev = dupForm.revision.trim() || null;
+    if (!pn) return toast.error('Part number is required');
+    setDupSaving(true);
+
+    const { data: existing } = await supabase.from('parts')
+      .select('id')
+      .eq('part_number', pn)
+      .eq('revision', rev || '')
+      .maybeSingle();
+    if (existing) {
+      setDupSaving(false);
+      return toast.error('A part with this number and revision already exists');
+    }
+
+    const { data: newPart, error: partErr } = await supabase.from('parts').insert({
+      part_number: pn,
+      revision: rev,
+      description: part.description,
+      customer: part.customer,
+      project: part.project,
+    }).select().single();
+    if (partErr) {
+      setDupSaving(false);
+      return toast.error(partErr.message);
+    }
+
+    const { data: srcOps } = await supabase.from('part_operations')
+      .select('*')
+      .eq('part_id', part.id);
+    if (srcOps && srcOps.length > 0) {
+      const inserts = srcOps.map((op: any) => ({
+        part_id: newPart.id,
+        operation_number: op.operation_number,
+        operation_name: op.operation_name,
+        resource_id: op.resource_id,
+        setup_time_hours: op.setup_time_hours,
+        cycle_time_seconds: op.cycle_time_seconds,
+        notes: op.notes,
+      }));
+      const { error: opErr } = await supabase.from('part_operations').insert(inserts);
+      if (opErr) toast.error('Part duplicated but operations failed: ' + opErr.message);
+    }
+
+    setDupSaving(false);
+    setDupOpen(false);
+    toast.success('Part duplicated');
+    navigate(`/npi/capacity-planner-mvp/part-library/${newPart.id}`);
   };
 
   const openAddOp = () => {
@@ -234,7 +296,12 @@ export default function PartLibraryDetail() {
       showBackButton backTo="/npi/capacity-planner-mvp/part-library">
       <main className="container mx-auto px-4 py-8 space-y-6">
         <Card>
-          <CardHeader><CardTitle>Header</CardTitle></CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
+            <CardTitle>Header</CardTitle>
+            <Button variant="outline" onClick={openDuplicate}>
+              <Copy className="h-4 w-4 mr-1" /> Duplicate
+            </Button>
+          </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <div>
@@ -457,6 +524,35 @@ export default function PartLibraryDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={dupOpen} onOpenChange={setDupOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Duplicate part</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Duplicating <strong>{part?.part_number}</strong> ({ops.length} ops).
+            </p>
+            <div>
+              <Label>New part number *</Label>
+              <Input value={dupForm.part_number}
+                onChange={(e) => setDupForm({ ...dupForm, part_number: e.target.value })} />
+            </div>
+            <div>
+              <Label>Revision</Label>
+              <Input value={dupForm.revision}
+                onChange={(e) => setDupForm({ ...dupForm, revision: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDupOpen(false)}>Cancel</Button>
+            <Button onClick={doDuplicate} disabled={dupSaving}>
+              {dupSaving ? 'Duplicating…' : 'Duplicate'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }

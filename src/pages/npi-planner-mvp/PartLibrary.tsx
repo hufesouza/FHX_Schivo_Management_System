@@ -15,7 +15,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -41,6 +41,11 @@ export default function PartLibrary() {
   const [form, setForm] = useState({ part_number: '', revision: '', description: '', customer: '', project: '' });
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const [dupOpen, setDupOpen] = useState(false);
+  const [dupSource, setDupSource] = useState<Part | null>(null);
+  const [dupForm, setDupForm] = useState({ part_number: '', revision: '' });
+  const [dupSaving, setDupSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
@@ -94,6 +99,68 @@ export default function PartLibrary() {
     load();
   };
 
+  const openDuplicate = (source: Part) => {
+    setDupSource(source);
+    setDupForm({ part_number: source.part_number + '-COPY', revision: source.revision || '' });
+    setDupOpen(true);
+  };
+
+  const doDuplicate = async () => {
+    if (!dupSource) return;
+    const pn = dupForm.part_number.trim();
+    const rev = dupForm.revision.trim() || null;
+    if (!pn) return toast.error('Part number is required');
+    setDupSaving(true);
+
+    // Check uniqueness
+    const { data: existing } = await supabase.from('parts')
+      .select('id')
+      .eq('part_number', pn)
+      .eq('revision', rev || '')
+      .maybeSingle();
+    if (existing) {
+      setDupSaving(false);
+      return toast.error('A part with this number and revision already exists');
+    }
+
+    // Create new part
+    const { data: newPart, error: partErr } = await supabase.from('parts').insert({
+      part_number: pn,
+      revision: rev,
+      description: dupSource.description,
+      customer: dupSource.customer,
+      project: dupSource.project,
+    }).select().single();
+    if (partErr) {
+      setDupSaving(false);
+      return toast.error(partErr.message);
+    }
+
+    // Copy operations
+    const { data: srcOps } = await supabase.from('part_operations')
+      .select('*')
+      .eq('part_id', dupSource.id);
+    if (srcOps && srcOps.length > 0) {
+      const inserts = srcOps.map((op: any) => ({
+        part_id: newPart.id,
+        operation_number: op.operation_number,
+        operation_name: op.operation_name,
+        resource_id: op.resource_id,
+        setup_time_hours: op.setup_time_hours,
+        cycle_time_seconds: op.cycle_time_seconds,
+        notes: op.notes,
+      }));
+      const { error: opErr } = await supabase.from('part_operations').insert(inserts);
+      if (opErr) toast.error('Part duplicated but operations failed: ' + opErr.message);
+    }
+
+    setDupSaving(false);
+    setDupOpen(false);
+    toast.success('Part duplicated');
+    navigate(`/npi/capacity-planner-mvp/part-library/${newPart.id}`);
+    load();
+  };
+
   return (
     <AppLayout title="Part Library" subtitle="Reusable part templates and routings"
       showBackButton backTo="/npi/capacity-planner-mvp">
@@ -120,7 +187,7 @@ export default function PartLibrary() {
                     <TableHead>Project</TableHead>
                     <TableHead className="text-right">Operations</TableHead>
                     <TableHead>Last Updated</TableHead>
-                    <TableHead className="w-[120px] text-right">Actions</TableHead>
+                    <TableHead className="w-[160px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -148,6 +215,9 @@ export default function PartLibrary() {
                         <Button variant="ghost" size="icon"
                           onClick={() => navigate(`/npi/capacity-planner-mvp/part-library/${r.id}`)}>
                           <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={() => openDuplicate(r)}>
+                          <Copy className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" onClick={() => setDeleteId(r.id)}>
                           <Trash2 className="h-4 w-4 text-destructive" />
@@ -196,6 +266,35 @@ export default function PartLibrary() {
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={createPart} disabled={saving}>
               {saving ? 'Creating…' : 'Create & open'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={dupOpen} onOpenChange={setDupOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Duplicate part</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Duplicating <strong>{dupSource?.part_number}</strong> ({dupSource?.op_count || 0} ops).
+            </p>
+            <div>
+              <Label>New part number *</Label>
+              <Input value={dupForm.part_number}
+                onChange={(e) => setDupForm({ ...dupForm, part_number: e.target.value })} />
+            </div>
+            <div>
+              <Label>Revision</Label>
+              <Input value={dupForm.revision}
+                onChange={(e) => setDupForm({ ...dupForm, revision: e.target.value })} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDupOpen(false)}>Cancel</Button>
+            <Button onClick={doDuplicate} disabled={dupSaving}>
+              {dupSaving ? 'Duplicating…' : 'Duplicate'}
             </Button>
           </DialogFooter>
         </DialogContent>
