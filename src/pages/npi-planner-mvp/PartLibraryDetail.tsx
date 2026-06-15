@@ -242,9 +242,29 @@ export default function PartLibraryDetail() {
     const { error } = editingOp
       ? await supabase.from('part_operations').update(payload).eq('id', editingOp.id)
       : await supabase.from('part_operations').insert(payload);
+    if (error) { setSavingOp(false); return toast.error(error.message); }
+
+    // Cascade resource/name/time changes to existing open jobs of this part
+    // so the Gantt and Scheduling Engine reflect part-library edits.
+    if (editingOp) {
+      const { data: openJobs } = await supabase
+        .from('jobs').select('id').eq('part_id', part.id).in('status', ['Planned', 'Scheduled']);
+      const jobIds = (openJobs || []).map((j: any) => j.id);
+      if (jobIds.length) {
+        await supabase.from('job_operations').update({
+          resource_id: payload.resource_id,
+          operation_name: payload.operation_name,
+          setup_time_hours: payload.setup_time_hours,
+          cycle_time_seconds: payload.cycle_time_seconds,
+        })
+          .in('job_id', jobIds)
+          .eq('operation_number', payload.operation_number)
+          .eq('is_locked', false);
+      }
+    }
+
     setSavingOp(false);
-    if (error) return toast.error(error.message);
-    toast.success(editingOp ? 'Operation updated' : 'Operation added');
+    toast.success(editingOp ? 'Operation updated (synced to open jobs)' : 'Operation added');
     setOpDialog(false);
     load();
   };
