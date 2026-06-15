@@ -127,6 +127,21 @@ export default function JobEntryDetail() {
       setParts((p.data || []) as Part[]);
       setResources((r.data || []) as Resource[]);
 
+      if (isNew) {
+        // Auto-generate next job number: 001, 002, ...
+        const { data: allJobs } = await supabase.from('jobs').select('job_number');
+        let maxN = 0;
+        (allJobs || []).forEach((j: any) => {
+          const m = String(j.job_number || '').match(/(\d+)/);
+          if (m) {
+            const n = parseInt(m[1], 10);
+            if (n > maxN) maxN = n;
+          }
+        });
+        const next = String(maxN + 1).padStart(3, '0');
+        setForm(f => ({ ...f, job_number: next }));
+      }
+
       if (!isNew && id) {
         const { data: job } = await supabase.from('jobs').select('*').eq('id', id).single();
         if (job) {
