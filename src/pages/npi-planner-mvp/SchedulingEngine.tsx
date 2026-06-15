@@ -302,7 +302,7 @@ export default function SchedulingEngine() {
         .update({ planned_start: null, planned_finish: null })
         .eq('is_locked', false);
       await supabase.from('jobs')
-        .update({ planned_start: null, planned_finish: null, schedule_status: 'Unscheduled', status: 'Planned' })
+        .update({ planned_start: null, planned_finish: null, schedule_status: 'Unscheduled', status: 'Planned', best_commence_date: null, latest_start_date: null, schedule_risk: 'On Track' })
         .in('status', ['Scheduled']);
       toast.success('Schedule cleared');
       await load();
