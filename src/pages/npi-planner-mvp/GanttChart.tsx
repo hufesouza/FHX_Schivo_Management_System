@@ -10,7 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Lock, Unlock, AlertTriangle, Calendar as CalIcon, ChevronLeft, ChevronRight, Play, RotateCcw, Trash2, ArrowLeft } from 'lucide-react';
 
-type Resource = { id: string; resource_name: string; resource_type: string | null; resource_category: string | null; lead_time_days: number | null; available_hours_per_day: number; status: string };
+type Resource = { id: string; resource_name: string; resource_type: string | null; resource_category: string | null; lead_time_days: number | null; available_hours_per_day: number; status: string; scheduling_mode?: 'Exclusive' | 'Parallel' | null };
 type Part = { id: string; part_number: string; revision: string | null; description: string | null };
 type Job = { id: string; job_number: string; part_id: string | null; quantity: number; due_date: string | null; priority: string; status: string; planned_start: string | null; planned_finish: string | null; schedule_status: string; development_time_hours: number | null; planned_dev_start: string | null; planned_dev_finish: string | null; dev_resource_id: string | null; dev_person_id: string | null };
 type JobOp = {
@@ -23,7 +23,7 @@ type PartOp = Pick<JobOp, 'operation_number' | 'operation_name' | 'resource_id' 
 type JobOpSyncUpdate = Pick<JobOp, 'id' | 'operation_name' | 'resource_id' | 'setup_time_hours' | 'cycle_time_seconds'>;
 type JobOpMoveUpdate = Partial<Pick<JobOp, 'planned_start' | 'planned_finish' | 'is_locked' | 'resource_id' | 'total_time_hours'>>;
 type ScheduledOpUpdate = Pick<JobOp, 'id'> & Required<Pick<JobOp, 'planned_start' | 'planned_finish'>>;
-type ScheduledJobUpdate = Pick<Job, 'id' | 'planned_start' | 'planned_finish' | 'schedule_status' | 'status' | 'planned_dev_start' | 'planned_dev_finish' | 'dev_resource_id'>;
+type ScheduledJobUpdate = Pick<Job, 'id' | 'planned_start' | 'planned_finish' | 'schedule_status' | 'status' | 'planned_dev_start' | 'planned_dev_finish' | 'dev_resource_id'> & { best_commence_date: string | null; latest_start_date: string | null; schedule_risk: 'On Track' | 'At Risk' | 'Late' };
 
 type ViewMode = 'day' | 'week' | 'month';
 type GroupMode = 'part' | 'resource';
@@ -353,22 +353,24 @@ export default function GanttChart() {
     setLoading(true);
     try {
       const activeRes = new Map(resources.map(r => [r.id, r]));
+      // EDD first, then priority — matches Scheduling Engine
+      const PRIORITY: Record<string, number> = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
       const eligible = jobs.filter(j => j.status === 'Planned' || j.status === 'Scheduled')
         .sort((a, b) => {
-          const po: Record<string, number> = { Urgent: 0, High: 1, Normal: 2, Low: 3 };
-          const pa = po[a.priority] ?? 2, pb = po[b.priority] ?? 2;
-          if (pa !== pb) return pa - pb;
-          return (a.due_date ? new Date(a.due_date).getTime() : Infinity) - (b.due_date ? new Date(b.due_date).getTime() : Infinity);
+          const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+          const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+          if (da !== db) return da - db;
+          return (PRIORITY[a.priority] ?? 2) - (PRIORITY[b.priority] ?? 2);
         });
       const resFree = new Map<string, Date>();
       const base = startOfDay(new Date());
+      const nextWorking = (d: Date) => { const x = new Date(d); while (isWeekend(x)) { x.setDate(x.getDate() + 1); x.setHours(0, 0, 0, 0); } return x; };
       ops.filter(o => o.is_locked && o.planned_finish && o.resource_id).forEach(o => {
         const e = new Date(o.planned_finish!);
         if (!resFree.get(o.resource_id!) || e > resFree.get(o.resource_id!)!) resFree.set(o.resource_id!, e);
       });
       const addH = (start: Date, hours: number, daily: number) => {
-        let rem = hours; const c = new Date(start);
-        while (isWeekend(c)) { c.setDate(c.getDate() + 1); c.setHours(0, 0, 0, 0); }
+        let rem = hours; const c = nextWorking(start);
         const ds = new Date(c); ds.setHours(0, 0, 0, 0);
         let used = (c.getTime() - ds.getTime()) / 3600000;
         while (rem > 0) {
@@ -376,6 +378,18 @@ export default function GanttChart() {
           if (avail <= 0) { c.setDate(c.getDate() + 1); c.setHours(0, 0, 0, 0); while (isWeekend(c)) c.setDate(c.getDate() + 1); used = 0; continue; }
           const take = Math.min(rem, avail);
           c.setTime(c.getTime() + take * 3600000); used += take; rem -= take;
+        }
+        return c;
+      };
+      const subH = (end: Date, hours: number, daily: number) => {
+        let rem = hours; const c = new Date(end);
+        while (isWeekend(c)) { c.setDate(c.getDate() - 1); c.setHours(23, 59, 59, 999); }
+        const ds = new Date(c); ds.setHours(0, 0, 0, 0);
+        let avail = Math.min((c.getTime() - ds.getTime()) / 3600000, daily);
+        while (rem > 0) {
+          if (avail <= 0) { c.setDate(c.getDate() - 1); c.setHours(23, 59, 59, 999); while (isWeekend(c)) c.setDate(c.getDate() - 1); avail = daily; continue; }
+          const take = Math.min(rem, avail);
+          c.setTime(c.getTime() - take * 3600000); avail -= take; rem -= take;
         }
         return c;
       };
@@ -398,28 +412,28 @@ export default function GanttChart() {
           .sort((a, b) => (a.sequence_order ?? a.operation_number) - (b.sequence_order ?? b.operation_number));
         let prev = base; let js: Date | null = null; let je: Date | null = null;
         let devStart: Date | null = null; let devEnd: Date | null = null;
+        let totalH = 0; let dailyRef = 24;
 
-        // Find first Machine op of this job — dev will also reserve that machine
         const firstMachineOp = jobOps.find(o => {
           const r = o.resource_id ? activeRes.get(o.resource_id) : null;
           return r && (r.resource_category || '').toLowerCase() === 'machine';
         });
         const machineResId = firstMachineOp?.resource_id || null;
 
-        // Schedule development time first (if any) on the Development resource
         const devH = Number(job.development_time_hours || 0);
         if (devH > 0 && devResource) {
-          // If this job will use a machine, dev waits for that machine to be free
-          // and the machine is reserved during dev too
+          const devIsExclusive = (devResource.scheduling_mode || 'Exclusive') === 'Exclusive';
+          const devFree = devIsExclusive ? (resFree.get(devResource.id) || base) : base;
           const machineFree = machineResId ? (resFree.get(machineResId) || base) : base;
-          const startAt = new Date(Math.max(prev.getTime(), machineFree.getTime()));
-          while (isWeekend(startAt)) { startAt.setDate(startAt.getDate() + 1); startAt.setHours(0, 0, 0, 0); }
+          const startAt = nextWorking(new Date(Math.max(prev.getTime(), devFree.getTime(), machineFree.getTime())));
           const endAt = addH(startAt, devH, devResource.available_hours_per_day || 8);
           devStart = startAt; devEnd = endAt;
           prev = endAt;
-          // Block the target machine through the dev period
+          if (devIsExclusive) resFree.set(devResource.id, endAt);
           if (machineResId) resFree.set(machineResId, endAt);
           if (!js || startAt < js) js = startAt; if (!je || endAt > je) je = endAt;
+          totalH += devH;
+          dailyRef = devResource.available_hours_per_day || 8;
         }
 
         for (const op of jobOps) {
@@ -427,11 +441,15 @@ export default function GanttChart() {
             const s = new Date(op.planned_start), e = new Date(op.planned_finish);
             if (!js || s < js) js = s; if (!je || e > je) je = e;
             if (e > prev) prev = e;
+            totalH += (e.getTime() - s.getTime()) / 3600000;
             continue;
           }
           if (!op.resource_id || !activeRes.has(op.resource_id)) continue;
           const r = activeRes.get(op.resource_id)!;
-          const isSubcon = (r.resource_category || '').toLowerCase() === 'subcontractor';
+          const cat = (r.resource_category || '').toLowerCase();
+          const isSubcon = cat === 'subcontractor';
+          // scheduling_mode governs capacity blocking; default Exclusive
+          const isParallel = (r.scheduling_mode || 'Exclusive') === 'Parallel';
           let dur: number;
           if (isSubcon) {
             dur = Number(r.lead_time_days || 0) * 24;
@@ -440,25 +458,28 @@ export default function GanttChart() {
               : Number(op.setup_time_hours || 0) + (Number(op.cycle_time_seconds || 0) * Number(job.quantity || 0)) / 3600;
           }
           if (dur <= 0) continue;
-          // Only Machine resources enforce cross-job conflicts; others run back-to-back
-          const isMachine = (r.resource_category || '').toLowerCase() === 'machine';
-          const free = resFree.get(op.resource_id) || base;
-          const startAt = isMachine
-            ? new Date(Math.max(prev.getTime(), free.getTime()))
-            : new Date(prev.getTime());
-          let endAt: Date;
+          const free = isParallel ? base : (resFree.get(op.resource_id) || base);
+          const startRaw = new Date(Math.max(prev.getTime(), free.getTime()));
+          let startAt: Date; let endAt: Date;
           if (isSubcon) {
-            // Subcontractor: calendar time, include weekends, run 24h continuously
+            startAt = startRaw; // calendar time
             endAt = new Date(startAt.getTime() + dur * 3600000);
           } else {
-            while (isWeekend(startAt)) { startAt.setDate(startAt.getDate() + 1); startAt.setHours(0, 0, 0, 0); }
+            startAt = nextWorking(startRaw);
             endAt = addH(startAt, dur, r.available_hours_per_day || 8);
           }
-          resFree.set(op.resource_id, endAt); prev = endAt;
+          if (!isParallel) resFree.set(op.resource_id, endAt);
+          prev = endAt;
           if (!js || startAt < js) js = startAt; if (!je || endAt > je) je = endAt;
+          totalH += dur;
+          dailyRef = Math.max(dailyRef, r.available_hours_per_day || 8);
           opUpdates.push({ id: op.id, planned_start: startAt.toISOString(), planned_finish: endAt.toISOString() });
         }
-        const late = !!(je && job.due_date && je > new Date(job.due_date + 'T23:59:59'));
+        const dueEnd = job.due_date ? new Date(job.due_date + 'T23:59:59') : null;
+        const late = !!(je && dueEnd && je > dueEnd);
+        const latestStart = (dueEnd && totalH > 0) ? subH(dueEnd, totalH, dailyRef) : null;
+        const now = new Date();
+        const risk: 'On Track' | 'At Risk' | 'Late' = late ? 'Late' : (latestStart && now > latestStart ? 'At Risk' : 'On Track');
         jobUpdates.push({
           id: job.id,
           planned_start: js?.toISOString() || null,
@@ -468,6 +489,9 @@ export default function GanttChart() {
           planned_dev_start: devStart?.toISOString() || null,
           planned_dev_finish: devEnd?.toISOString() || null,
           dev_resource_id: devStart ? (devResource?.id || null) : null,
+          best_commence_date: js?.toISOString() || null,
+          latest_start_date: latestStart?.toISOString() || null,
+          schedule_risk: risk,
         });
       }
       for (const u of opUpdates) await supabase.from('job_operations').update({ planned_start: u.planned_start, planned_finish: u.planned_finish }).eq('id', u.id);
@@ -476,6 +500,9 @@ export default function GanttChart() {
         schedule_status: u.schedule_status, status: u.status,
         planned_dev_start: u.planned_dev_start, planned_dev_finish: u.planned_dev_finish,
         dev_resource_id: u.dev_resource_id,
+        best_commence_date: u.best_commence_date,
+        latest_start_date: u.latest_start_date,
+        schedule_risk: u.schedule_risk,
       }).eq('id', u.id);
       toast.success(`Scheduled ${jobUpdates.length} jobs`);
       load();
@@ -485,7 +512,7 @@ export default function GanttChart() {
   const clearSchedule = async () => {
     if (!window.confirm('Clear unlocked planned dates?')) return;
     await supabase.from('job_operations').update({ planned_start: null, planned_finish: null }).eq('is_locked', false);
-    await supabase.from('jobs').update({ planned_start: null, planned_finish: null, schedule_status: 'Unscheduled', status: 'Planned' }).eq('status', 'Scheduled');
+    await supabase.from('jobs').update({ planned_start: null, planned_finish: null, schedule_status: 'Unscheduled', status: 'Planned', best_commence_date: null, latest_start_date: null, schedule_risk: 'On Track' }).eq('status', 'Scheduled');
     toast.success('Schedule cleared'); load();
   };
 
@@ -640,7 +667,7 @@ export default function GanttChart() {
                           const x = Math.max(0, dateToX(s));
                           const right = Math.min(totalWidth, dateToX(e));
                           const w = Math.max(20, right - x);
-                          const isLate = !!(job?.due_date && e > new Date(job.due_date + 'T23:59:59'));
+                          const isLate = (job?.schedule_status === 'Late');
                           const previewing = dragPreview?.id === op.id;
                           const usingPreview = previewing && dragPreview!.rowKey === row.id;
                           const bx = usingPreview ? dragPreview!.startX : x;
@@ -738,7 +765,7 @@ export default function GanttChart() {
             const res = selectedOp.resource_id ? resourcesById.get(selectedOp.resource_id) : null;
             const dur = selectedOp.planned_start && selectedOp.planned_finish
               ? ((new Date(selectedOp.planned_finish).getTime() - new Date(selectedOp.planned_start).getTime()) / 3600000).toFixed(2) : '—';
-            const isLate = !!(job?.due_date && selectedOp.planned_finish && new Date(selectedOp.planned_finish) > new Date(job.due_date + 'T23:59:59'));
+            const isLate = (job?.schedule_status === 'Late');
             return (
               <>
                 <SheetHeader>
