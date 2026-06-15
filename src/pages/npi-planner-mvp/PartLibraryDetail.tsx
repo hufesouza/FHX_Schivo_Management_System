@@ -384,7 +384,7 @@ export default function PartLibraryDetail() {
                   onValueChange={(v) => setOpForm({ ...opForm, operation_name: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {OP_NAMES.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
+                    {opNames.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
