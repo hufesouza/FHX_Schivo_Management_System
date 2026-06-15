@@ -23,7 +23,7 @@ type PartOp = Pick<JobOp, 'operation_number' | 'operation_name' | 'resource_id' 
 type JobOpSyncUpdate = Pick<JobOp, 'id' | 'operation_name' | 'resource_id' | 'setup_time_hours' | 'cycle_time_seconds'>;
 type JobOpMoveUpdate = Partial<Pick<JobOp, 'planned_start' | 'planned_finish' | 'is_locked' | 'resource_id' | 'total_time_hours'>>;
 type ScheduledOpUpdate = Pick<JobOp, 'id'> & Required<Pick<JobOp, 'planned_start' | 'planned_finish'>>;
-type ScheduledJobUpdate = Pick<Job, 'id' | 'planned_start' | 'planned_finish' | 'schedule_status' | 'status' | 'planned_dev_start' | 'planned_dev_finish' | 'dev_resource_id'>;
+type ScheduledJobUpdate = Pick<Job, 'id' | 'planned_start' | 'planned_finish' | 'schedule_status' | 'status' | 'planned_dev_start' | 'planned_dev_finish' | 'dev_resource_id'> & { best_commence_date: string | null; latest_start_date: string | null; schedule_risk: 'On Track' | 'At Risk' | 'Late' };
 
 type ViewMode = 'day' | 'week' | 'month';
 type GroupMode = 'part' | 'resource';
