@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -15,7 +17,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Lock, Unlock, Check, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -35,6 +37,9 @@ type Job = {
   best_commence_date: string | null;
   latest_start_date: string | null;
   schedule_risk: string | null;
+  planned_date_locked: boolean | null;
+  pending_planned_date: string | null;
+  pending_planned_date_reason: string | null;
   parts: { part_number: string; revision: string | null } | null;
 };
 
@@ -57,6 +62,129 @@ const riskColor = (r: string | null) => ({
   'Late': 'bg-red-500/15 text-red-700 border-red-500/30',
 } as any)[r || 'On Track'] || 'bg-slate-500/10 text-slate-600';
 
+const isoDay = (iso: string | null) => iso ? iso.slice(0, 10) : '';
+const toMidnightIso = (day: string) => new Date(day + 'T00:00:00').toISOString();
+
+function PlannedDateCell({ job, onChanged }: { job: Job; onChanged: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [day, setDay] = useState(isoDay(job.best_commence_date));
+  const [reason, setReason] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { if (open) { setDay(isoDay(job.best_commence_date)); setReason(''); } }, [open, job.best_commence_date]);
+
+  const save = async () => {
+    if (!day) { toast.error('Pick a date'); return; }
+    setSaving(true);
+    const { error } = await supabase.from('jobs').update({
+      best_commence_date: toMidnightIso(day),
+      planned_date_locked: true,
+      pending_planned_date: null,
+      pending_planned_date_reason: null,
+    }).eq('id', job.id);
+    setSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success('Planned Date locked');
+    setOpen(false);
+    onChanged();
+  };
+
+  const unlock = async () => {
+    const { error } = await supabase.from('jobs').update({
+      planned_date_locked: false,
+      pending_planned_date: null,
+      pending_planned_date_reason: null,
+    }).eq('id', job.id);
+    if (error) return toast.error(error.message);
+    toast.success('Planned Date unlocked — scheduler may move it');
+    setOpen(false);
+    onChanged();
+  };
+
+  const approvePending = async () => {
+    if (!job.pending_planned_date) return;
+    const { error } = await supabase.from('jobs').update({
+      best_commence_date: job.pending_planned_date,
+      planned_date_locked: true,
+      pending_planned_date: null,
+      pending_planned_date_reason: null,
+    }).eq('id', job.id);
+    if (error) return toast.error(error.message);
+    toast.success('Suggested date approved');
+    onChanged();
+  };
+
+  const rejectPending = async () => {
+    const { error } = await supabase.from('jobs').update({
+      pending_planned_date: null,
+      pending_planned_date_reason: null,
+    }).eq('id', job.id);
+    if (error) return toast.error(error.message);
+    toast.success('Suggestion dismissed');
+    onChanged();
+  };
+
+  return (
+    <div className="space-y-1" onClick={(e) => e.stopPropagation()}>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button className="flex items-center gap-1 text-sm hover:underline">
+            {job.planned_date_locked
+              ? <Lock className="h-3 w-3 text-amber-600" />
+              : <Unlock className="h-3 w-3 text-muted-foreground" />}
+            <span className={job.best_commence_date ? '' : 'text-muted-foreground'}>
+              {job.best_commence_date ? format(new Date(job.best_commence_date), 'PP') : '—'}
+            </span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-72 space-y-3" align="start">
+          <div className="text-sm font-medium">Planned Date</div>
+          <p className="text-xs text-muted-foreground">
+            Saving locks this date. The scheduler will only suggest changes — they need approval before they apply.
+          </p>
+          <Input type="date" value={day} onChange={(e) => setDay(e.target.value)} />
+          <Textarea
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Reason (optional, for the audit trail)"
+            rows={2}
+          />
+          <div className="flex gap-2 justify-between">
+            {job.planned_date_locked && (
+              <Button variant="outline" size="sm" onClick={unlock}>
+                <Unlock className="h-3.5 w-3.5 mr-1" /> Unlock
+              </Button>
+            )}
+            <div className="flex gap-2 ml-auto">
+              <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button size="sm" onClick={save} disabled={saving}>Save &amp; Lock</Button>
+            </div>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {job.pending_planned_date && (
+        <div className="rounded-md border border-amber-500/40 bg-amber-50 dark:bg-amber-950/30 px-2 py-1 text-xs space-y-1">
+          <div className="flex items-center gap-1 text-amber-800 dark:text-amber-300">
+            <span className="font-medium">Suggest: {format(new Date(job.pending_planned_date), 'PP')}</span>
+          </div>
+          {job.pending_planned_date_reason && (
+            <div className="text-[11px] text-muted-foreground leading-tight">{job.pending_planned_date_reason}</div>
+          )}
+          <div className="flex gap-1">
+            <Button variant="outline" size="sm" className="h-6 px-2" onClick={approvePending}>
+              <Check className="h-3 w-3 mr-1" /> Approve
+            </Button>
+            <Button variant="ghost" size="sm" className="h-6 px-2" onClick={rejectPending}>
+              <X className="h-3 w-3 mr-1" /> Dismiss
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function JobEntryList() {
   const navigate = useNavigate();
   const [rows, setRows] = useState<Job[]>([]);
@@ -70,7 +198,7 @@ export default function JobEntryList() {
     setLoading(true);
     const { data, error } = await supabase
       .from('jobs')
-      .select('id, job_number, quantity, due_date, priority, status, planned_start, planned_finish, best_commence_date, latest_start_date, schedule_risk, parts ( part_number, revision )')
+      .select('id, job_number, quantity, due_date, priority, status, planned_start, planned_finish, best_commence_date, latest_start_date, schedule_risk, planned_date_locked, pending_planned_date, pending_planned_date_reason, parts ( part_number, revision )')
       .order('due_date', { ascending: true });
     setLoading(false);
     if (error) return toast.error(error.message);
@@ -142,7 +270,7 @@ export default function JobEntryList() {
                     <TableHead>Rev</TableHead>
                     <TableHead className="text-right">Qty</TableHead>
                     <TableHead>Due</TableHead>
-                    <TableHead>Best Commence</TableHead>
+                    <TableHead>Planned Date</TableHead>
                     <TableHead>Latest Start</TableHead>
                     <TableHead>Risk</TableHead>
                     <TableHead>Priority</TableHead>
@@ -166,7 +294,7 @@ export default function JobEntryList() {
                       <TableCell>{r.parts?.revision || '—'}</TableCell>
                       <TableCell className="text-right">{r.quantity}</TableCell>
                       <TableCell>{format(new Date(r.due_date), 'PP')}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">{r.best_commence_date ? format(new Date(r.best_commence_date), 'PP') : '—'}</TableCell>
+                      <TableCell><PlannedDateCell job={r} onChanged={load} /></TableCell>
                       <TableCell className="text-sm text-muted-foreground">{r.latest_start_date ? format(new Date(r.latest_start_date), 'PP') : '—'}</TableCell>
                       <TableCell>{(() => {
                         const now = new Date();
