@@ -1082,6 +1082,7 @@ export type Database = {
       }
       jobs: {
         Row: {
+          best_commence_date: string | null
           created_at: string
           dev_person_id: string | null
           dev_resource_id: string | null
@@ -1089,6 +1090,7 @@ export type Database = {
           due_date: string
           id: string
           job_number: string
+          latest_start_date: string | null
           notes: string | null
           part_id: string
           planned_dev_finish: string | null
@@ -1097,11 +1099,13 @@ export type Database = {
           planned_start: string | null
           priority: string
           quantity: number
+          schedule_risk: string
           schedule_status: string
           status: string
           updated_at: string
         }
         Insert: {
+          best_commence_date?: string | null
           created_at?: string
           dev_person_id?: string | null
           dev_resource_id?: string | null
@@ -1109,6 +1113,7 @@ export type Database = {
           due_date: string
           id?: string
           job_number: string
+          latest_start_date?: string | null
           notes?: string | null
           part_id: string
           planned_dev_finish?: string | null
@@ -1117,11 +1122,13 @@ export type Database = {
           planned_start?: string | null
           priority?: string
           quantity?: number
+          schedule_risk?: string
           schedule_status?: string
           status?: string
           updated_at?: string
         }
         Update: {
+          best_commence_date?: string | null
           created_at?: string
           dev_person_id?: string | null
           dev_resource_id?: string | null
@@ -1129,6 +1136,7 @@ export type Database = {
           due_date?: string
           id?: string
           job_number?: string
+          latest_start_date?: string | null
           notes?: string | null
           part_id?: string
           planned_dev_finish?: string | null
@@ -1137,6 +1145,7 @@ export type Database = {
           planned_start?: string | null
           priority?: string
           quantity?: number
+          schedule_risk?: string
           schedule_status?: string
           status?: string
           updated_at?: string

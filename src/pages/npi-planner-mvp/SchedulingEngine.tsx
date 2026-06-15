@@ -77,6 +77,36 @@ function addWorkingHours(start: Date, hours: number, dailyHours: number): Date {
   return cursor;
 }
 
+// Subtract `hours` of work ending at `end`, respecting daily capacity & weekdays
+function subtractWorkingHours(end: Date, hours: number, dailyHours: number): Date {
+  if (hours <= 0) return new Date(end);
+  let remaining = hours;
+  const cursor = new Date(end);
+  // step back from non-working days
+  while (cursor.getDay() === 0 || cursor.getDay() === 6) {
+    cursor.setDate(cursor.getDate() - 1);
+    cursor.setHours(23, 59, 59, 999);
+  }
+  // hours already consumed today from 00:00 to cursor time
+  const dayStart = new Date(cursor); dayStart.setHours(0, 0, 0, 0);
+  let availToday = (cursor.getTime() - dayStart.getTime()) / 3600000;
+  availToday = Math.min(availToday, dailyHours);
+  while (remaining > 0) {
+    if (availToday <= 0) {
+      cursor.setDate(cursor.getDate() - 1);
+      cursor.setHours(23, 59, 59, 999);
+      while (cursor.getDay() === 0 || cursor.getDay() === 6) cursor.setDate(cursor.getDate() - 1);
+      availToday = dailyHours;
+      continue;
+    }
+    const take = Math.min(remaining, availToday);
+    cursor.setTime(cursor.getTime() - take * 3600000);
+    availToday -= take;
+    remaining -= take;
+  }
+  return cursor;
+}
+
 export default function SchedulingEngine() {
   const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [running, setRunning] = useState(false);
@@ -131,15 +161,16 @@ export default function SchedulingEngine() {
       resources.filter(r => r.status === 'Active').forEach(r => activeResources.set(r.id, r));
 
       // Eligible jobs: Planned or Scheduled
+      // EDD: earliest due date first; priority breaks ties; no due date = last
       const eligible = jobs
         .filter(j => j.status === 'Planned' || j.status === 'Scheduled')
         .sort((a, b) => {
-          const pa = PRIORITY_ORDER[a.priority] ?? 2;
-          const pb = PRIORITY_ORDER[b.priority] ?? 2;
-          if (pa !== pb) return pa - pb;
           const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
           const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
-          return da - db;
+          if (da !== db) return da - db;
+          const pa = PRIORITY_ORDER[a.priority] ?? 2;
+          const pb = PRIORITY_ORDER[b.priority] ?? 2;
+          return pa - pb;
         });
 
       // resource_id -> next free Date
@@ -154,7 +185,7 @@ export default function SchedulingEngine() {
       });
 
       const opUpdates: { id: string; planned_start: string; planned_finish: string }[] = [];
-      const jobUpdates: { id: string; planned_start: string | null; planned_finish: string | null; schedule_status: string; status: string }[] = [];
+      const jobUpdates: { id: string; planned_start: string | null; planned_finish: string | null; schedule_status: string; status: string; best_commence_date: string | null; latest_start_date: string | null; schedule_risk: string }[] = [];
 
       let devResource: Resource | null = null;
 
@@ -166,6 +197,8 @@ export default function SchedulingEngine() {
         let prevEnd = baseStart;
         let jobStart: Date | null = null;
         let jobEnd: Date | null = null;
+        let totalDurationHours = 0;
+        let dailyHoursRef = 24;
 
         // Development time as a virtual op on Dev resource
         if (Number(job.development_time_hours) > 0) {
@@ -178,6 +211,8 @@ export default function SchedulingEngine() {
           prevEnd = endAt;
           jobStart = startAt;
           jobEnd = endAt;
+          totalDurationHours += Number(job.development_time_hours);
+          dailyHoursRef = devResource.available_hours_per_day || 8;
         }
 
         for (const op of jobOps) {
@@ -187,6 +222,7 @@ export default function SchedulingEngine() {
             if (!jobStart || s < jobStart) jobStart = s;
             if (!jobEnd || e > jobEnd) jobEnd = e;
             prevEnd = e > prevEnd ? e : prevEnd;
+            totalDurationHours += (e.getTime() - s.getTime()) / 3600000;
             continue;
           }
           if (!op.resource_id || !activeResources.has(op.resource_id)) continue;
@@ -203,17 +239,35 @@ export default function SchedulingEngine() {
           prevEnd = endAt;
           if (!jobStart || startAt < jobStart) jobStart = startAt;
           if (!jobEnd || endAt > jobEnd) jobEnd = endAt;
+          totalDurationHours += duration;
+          dailyHoursRef = Math.max(dailyHoursRef, res.available_hours_per_day || 8);
 
           opUpdates.push({ id: op.id, planned_start: startAt.toISOString(), planned_finish: endAt.toISOString() });
         }
 
-        const isLate = !!(jobEnd && job.due_date && jobEnd > new Date(job.due_date + 'T23:59:59'));
+        const dueDateEnd = job.due_date ? new Date(job.due_date + 'T23:59:59') : null;
+        const isLate = !!(jobEnd && dueDateEnd && jobEnd > dueDateEnd);
+
+        // Latest start date = due date end - total job duration (working hours)
+        const latestStart = (dueDateEnd && totalDurationHours > 0)
+          ? subtractWorkingHours(dueDateEnd, totalDurationHours, dailyHoursRef)
+          : null;
+
+        // Schedule risk
+        const now = new Date();
+        let risk: 'On Track' | 'At Risk' | 'Late' = 'On Track';
+        if (isLate) risk = 'Late';
+        else if (latestStart && now > latestStart) risk = 'At Risk';
+
         jobUpdates.push({
           id: job.id,
           planned_start: jobStart ? jobStart.toISOString() : null,
           planned_finish: jobEnd ? jobEnd.toISOString() : null,
           schedule_status: jobEnd ? (isLate ? 'Late' : 'Scheduled') : 'Unscheduled',
           status: jobEnd ? 'Scheduled' : job.status,
+          best_commence_date: jobStart ? jobStart.toISOString() : null,
+          latest_start_date: latestStart ? latestStart.toISOString() : null,
+          schedule_risk: risk,
         });
       }
 
@@ -225,6 +279,9 @@ export default function SchedulingEngine() {
         await supabase.from('jobs').update({
           planned_start: u.planned_start, planned_finish: u.planned_finish,
           schedule_status: u.schedule_status, status: u.status,
+          best_commence_date: u.best_commence_date,
+          latest_start_date: u.latest_start_date,
+          schedule_risk: u.schedule_risk,
         }).eq('id', u.id);
       }
 
@@ -245,7 +302,7 @@ export default function SchedulingEngine() {
         .update({ planned_start: null, planned_finish: null })
         .eq('is_locked', false);
       await supabase.from('jobs')
-        .update({ planned_start: null, planned_finish: null, schedule_status: 'Unscheduled', status: 'Planned' })
+        .update({ planned_start: null, planned_finish: null, schedule_status: 'Unscheduled', status: 'Planned', best_commence_date: null, latest_start_date: null, schedule_risk: 'On Track' })
         .in('status', ['Scheduled']);
       toast.success('Schedule cleared');
       await load();
