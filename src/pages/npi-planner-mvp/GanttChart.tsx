@@ -384,7 +384,7 @@ export default function GanttChart() {
   const clearSchedule = async () => {
     if (!window.confirm('Clear unlocked planned dates?')) return;
     await supabase.from('job_operations').update({ planned_start: null, planned_finish: null }).eq('is_locked', false);
-    await supabase.from('jobs').update({ planned_start: null, planned_finish: null, schedule_status: 'Unscheduled', status: 'Planned', best_commence_date: null, latest_start_date: null, schedule_risk: 'On Track' }).eq('status', 'Scheduled');
+    await supabase.from('jobs').update({ planned_start: null, planned_finish: null, planned_dev_start: null, planned_dev_finish: null, dev_resource_id: null, schedule_status: 'Unscheduled', status: 'Planned', best_commence_date: null, latest_start_date: null, schedule_risk: 'On Track' }).eq('status', 'Scheduled');
     toast.success('Schedule cleared'); load();
   };
 
