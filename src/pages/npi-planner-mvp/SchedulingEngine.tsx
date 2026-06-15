@@ -38,6 +38,8 @@ type Job = {
   planned_start: string | null;
   planned_finish: string | null;
   schedule_status: string;
+  best_commence_date: string | null;
+  planned_date_locked: boolean | null;
 };
 
 export default function SchedulingEngine() {
