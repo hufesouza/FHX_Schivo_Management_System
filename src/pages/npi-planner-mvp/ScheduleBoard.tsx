@@ -208,13 +208,16 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
     return machinesForProject.get(drillMachine) || [];
   }, [machinesForProject, drillMachine]);
 
-  const partsForJob = useMemo(() => {
-    if (!drillJob) return [] as Part[];
-    const job = jobs.find(j => j.id === drillJob);
-    if (!job?.part_id) return [];
-    const p = partsById.get(job.part_id);
-    return p ? [p] : [];
-  }, [jobs, drillJob, partsById]);
+  const partsForMachine = useMemo(() => {
+    const m = new Map<string, Job[]>();
+    if (!drillMachine) return m;
+    jobsForMachine.forEach(job => {
+      const key = job.part_id || '__none__';
+      if (!m.has(key)) m.set(key, []);
+      m.get(key)!.push(job);
+    });
+    return m;
+  }, [jobsForMachine, drillMachine]);
 
   const clearFilters = () => { setSearch(''); setFCustomer('all'); setFDept('all'); setFRisk('all'); setFDue('all'); };
 
