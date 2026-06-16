@@ -49,7 +49,7 @@ const opStatusTheme = (s: OpStatus) => {
   }
 };
 
-type Level = 'customer' | 'project' | 'machine' | 'job' | 'pn' | 'ops';
+type Level = 'customer' | 'project' | 'machine' | 'pn' | 'ops';
 
 export default function ScheduleBoard({ onOpenInGantt }: Props) {
   const [resources, setResources] = useState<Resource[]>([]);
