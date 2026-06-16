@@ -418,15 +418,75 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
     if (level === 'project') {
       const entries = Array.from(projectsForCustomer.entries()).sort(([a], [b]) => a.localeCompare(b));
       if (!entries.length) return <EmptyState label="No projects" />;
+
+      // Hours by PN per project
+      const hoursByProjectPN = new Map<string, Map<string, number>>();
+      entries.forEach(([proj, js]) => {
+        const pnHours = new Map<string, number>();
+        js.forEach(job => {
+          const part = job.part_id ? partsById.get(job.part_id) : null;
+          const pn = part?.part_number || 'Unknown';
+          const jobOps = opsByJob.get(job.id) || [];
+          const hrs = jobOps.reduce((s, op) => s + (op.total_time_hours || 0), 0);
+          pnHours.set(pn, (pnHours.get(pn) || 0) + hrs);
+        });
+        hoursByProjectPN.set(proj, pnHours);
+      });
+      const fmtH = (h: number) => `${h.toFixed(1)}h${h >= 8 ? ` · ${(h / 8).toFixed(1)}d` : ''}`;
+
       return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {entries.map(([proj, js]) => (
-            <Tile key={proj} onClick={() => setDrillProject(proj)}
-              icon={Briefcase} tint="bg-orange-500/10 text-orange-600 dark:text-orange-400"
-              title={proj}
-              subtitle={`${js.length} jobs`}
-              counts={countBy(js)} />
-          ))}
+        <div className="space-y-4">
+          {/* Hours by PN per project */}
+          <div className="rounded-xl border bg-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" />
+                <div className="text-sm font-semibold">Hours by Part Number</div>
+              </div>
+              <div className="text-xs text-muted-foreground">Total hours per PN within each project</div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {entries.map(([proj, js]) => {
+                const pnMap = hoursByProjectPN.get(proj)!;
+                const pnList = Array.from(pnMap.entries()).sort((a, b) => b[1] - a[1]);
+                const projTotal = pnList.reduce((s, [, h]) => s + h, 0);
+                return (
+                  <div key={proj} className="rounded-lg border bg-background p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs font-semibold truncate">{proj}</div>
+                      <div className="text-xs font-bold tabular-nums">{fmtH(projTotal)}</div>
+                    </div>
+                    <div className="space-y-1.5">
+                      {pnList.map(([pn, h]) => {
+                        const pct = projTotal > 0 ? (h / projTotal) * 100 : 0;
+                        return (
+                          <div key={pn}>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-[11px] text-muted-foreground truncate">{pn}</div>
+                              <div className="text-[11px] font-medium tabular-nums">{fmtH(h)}</div>
+                            </div>
+                            <div className="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-muted">
+                              <div className="h-full bg-orange-500" style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {entries.map(([proj, js]) => (
+              <Tile key={proj} onClick={() => setDrillProject(proj)}
+                icon={Briefcase} tint="bg-orange-500/10 text-orange-600 dark:text-orange-400"
+                title={proj}
+                subtitle={`${js.length} jobs`}
+                counts={countBy(js)} />
+            ))}
+          </div>
         </div>
       );
     }
