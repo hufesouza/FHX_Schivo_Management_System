@@ -419,51 +419,79 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
       const entries = Array.from(projectsForCustomer.entries()).sort(([a], [b]) => a.localeCompare(b));
       if (!entries.length) return <EmptyState label="No projects" />;
 
-      // Hours by PN per project
-      const hoursByProjectPN = new Map<string, Map<string, number>>();
+      // Delivery lead time (working days) per PN within each project
+      const MS_DAY = 24 * 60 * 60 * 1000;
+      const businessDaysBetween = (startMs: number, endMs: number) => {
+        if (!isFinite(startMs) || !isFinite(endMs) || endMs < startMs) return 0;
+        const start = new Date(startMs); start.setHours(0, 0, 0, 0);
+        const end = new Date(endMs); end.setHours(0, 0, 0, 0);
+        let n = 0;
+        for (let d = start.getTime(); d <= end.getTime(); d += MS_DAY) {
+          const dow = new Date(d).getDay();
+          if (dow !== 0 && dow !== 6) n++;
+        }
+        return n;
+      };
+      const fmtDateShort = (ms: number) => isFinite(ms) ? new Date(ms).toLocaleDateString() : '—';
+
+      const leadByProjectPN = new Map<string, Map<string, { days: number; min: number; max: number }>>();
       entries.forEach(([proj, js]) => {
-        const pnHours = new Map<string, number>();
+        const pnSpan = new Map<string, { min: number; max: number }>();
         js.forEach(job => {
           const part = job.part_id ? partsById.get(job.part_id) : null;
           const pn = part?.part_number || 'Unknown';
           const jobOps = opsByJob.get(job.id) || [];
-          const hrs = jobOps.reduce((s, op) => s + (op.total_time_hours || 0), 0);
-          pnHours.set(pn, (pnHours.get(pn) || 0) + hrs);
+          jobOps.forEach(op => {
+            const s = op.planned_start ? new Date(op.planned_start).getTime() : NaN;
+            const f = op.planned_finish ? new Date(op.planned_finish).getTime() : NaN;
+            if (!isFinite(s) || !isFinite(f)) return;
+            const cur = pnSpan.get(pn);
+            if (!cur) pnSpan.set(pn, { min: s, max: f });
+            else { cur.min = Math.min(cur.min, s); cur.max = Math.max(cur.max, f); }
+          });
         });
-        hoursByProjectPN.set(proj, pnHours);
+        const pnMap = new Map<string, { days: number; min: number; max: number }>();
+        pnSpan.forEach((v, pn) => pnMap.set(pn, { days: businessDaysBetween(v.min, v.max), min: v.min, max: v.max }));
+        leadByProjectPN.set(proj, pnMap);
       });
-      const fmtH = (h: number) => `${h.toFixed(1)}h${h >= 8 ? ` · ${(h / 8).toFixed(1)}d` : ''}`;
 
       return (
         <div className="space-y-4">
-          {/* Hours by PN per project */}
+          {/* Delivery lead time by PN per project */}
           <div className="rounded-xl border bg-card p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-primary" />
-                <div className="text-sm font-semibold">Hours by Part Number</div>
+                <div className="text-sm font-semibold">Delivery Lead Time by Part Number</div>
               </div>
-              <div className="text-xs text-muted-foreground">Total hours per PN within each project</div>
+              <div className="text-xs text-muted-foreground">Working days per PN (parallel ops accounted)</div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {entries.map(([proj, js]) => {
-                const pnMap = hoursByProjectPN.get(proj)!;
-                const pnList = Array.from(pnMap.entries()).sort((a, b) => b[1] - a[1]);
-                const projTotal = pnList.reduce((s, [, h]) => s + h, 0);
+                const pnMap = leadByProjectPN.get(proj)!;
+                const pnList = Array.from(pnMap.entries()).sort((a, b) => b[1].days - a[1].days);
+                // Project lead time = span across all PNs (parallel)
+                let pmin = Infinity, pmax = -Infinity;
+                pnList.forEach(([, v]) => { if (isFinite(v.min)) pmin = Math.min(pmin, v.min); if (isFinite(v.max)) pmax = Math.max(pmax, v.max); });
+                const projDays = businessDaysBetween(pmin, pmax);
+                const maxDays = pnList.reduce((m, [, v]) => Math.max(m, v.days), 0);
                 return (
                   <div key={proj} className="rounded-lg border bg-background p-3">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-1">
                       <div className="text-xs font-semibold truncate">{proj}</div>
-                      <div className="text-xs font-bold tabular-nums">{fmtH(projTotal)}</div>
+                      <div className="text-xs font-bold tabular-nums">{projDays}d</div>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mb-2 tabular-nums">
+                      {fmtDateShort(pmin)} → {fmtDateShort(pmax)}
                     </div>
                     <div className="space-y-1.5">
-                      {pnList.map(([pn, h]) => {
-                        const pct = projTotal > 0 ? (h / projTotal) * 100 : 0;
+                      {pnList.map(([pn, v]) => {
+                        const pct = maxDays > 0 ? (v.days / maxDays) * 100 : 0;
                         return (
                           <div key={pn}>
                             <div className="flex items-center justify-between gap-2">
                               <div className="text-[11px] text-muted-foreground truncate">{pn}</div>
-                              <div className="text-[11px] font-medium tabular-nums">{fmtH(h)}</div>
+                              <div className="text-[11px] font-medium tabular-nums">{v.days}d</div>
                             </div>
                             <div className="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-muted">
                               <div className="h-full bg-orange-500" style={{ width: `${pct}%` }} />
