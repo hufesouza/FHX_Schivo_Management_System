@@ -21,6 +21,7 @@ import { Plus, Search, Pencil, Trash2, Lock, Unlock, Check, X } from 'lucide-rea
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'] as const;
 const STATUSES = ['Planned', 'Scheduled', 'Completed'] as const;
