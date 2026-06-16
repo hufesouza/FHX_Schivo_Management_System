@@ -579,41 +579,49 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
         </div>
       );
     }
-    if (level === 'job') {
-      const sorted = jobsForMachine.slice().sort((a, b) => {
-        const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
-        const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+    if (level === 'pn') {
+      const entries = Array.from(partsForMachine.entries());
+      if (!entries.length) return <EmptyState label="No parts" />;
+      // hours per (part) on this machine
+      const hrsByPart = new Map<string, number>();
+      ops.forEach(op => {
+        const r = op.resource_id ? resById.get(op.resource_id) : null;
+        if (!r || r.resource_name !== drillMachine) return;
+        const job = jobs.find(j => j.id === op.job_id);
+        if (!job) return;
+        const key = job.part_id || '__none__';
+        const h = Number(op.hours_required) || 0;
+        hrsByPart.set(key, (hrsByPart.get(key) || 0) + h);
+      });
+      const sorted = entries.sort((a, b) => {
+        const da = Math.min(...a[1].map(j => j.due_date ? new Date(j.due_date).getTime() : Infinity));
+        const db = Math.min(...b[1].map(j => j.due_date ? new Date(j.due_date).getTime() : Infinity));
         return da - db;
       });
-      if (!sorted.length) return <EmptyState label="No jobs" />;
       return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {sorted.map(job => {
-            const part = job.part_id ? partsById.get(job.part_id) : null;
-            const theme = riskTheme(job.schedule_risk);
+          {sorted.map(([key, js]) => {
+            const part = key !== '__none__' ? partsById.get(key) : null;
+            // pick earliest-due job as representative for ops view
+            const repJob = js.slice().sort((a, b) => {
+              const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
+              const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
+              return da - db;
+            })[0];
+            const hrs = hrsByPart.get(key) || 0;
+            const subParts: string[] = [];
+            if (part?.revision) subParts.push(`Rev ${part.revision}`);
+            subParts.push(`${js.length} job${js.length === 1 ? '' : 's'}`);
+            subParts.push(`${hrs.toFixed(1)}h`);
+            if (repJob.due_date) subParts.push(`Due ${fmtDate(repJob.due_date)}`);
             return (
-              <Tile key={job.id} onClick={() => setDrillJob(job.id)}
-                icon={FileText} tint={`${theme.bg} ${theme.text}`}
+              <Tile key={key} onClick={() => { if (part) setDrillPart(part.id); setDrillJob(repJob.id); }}
+                icon={Layers} tint="bg-blue-500/10 text-blue-600 dark:text-blue-400"
                 title={part?.part_number || 'No part'}
-                subtitle={`${job.job_number} · Due ${fmtDate(job.due_date)}`}
-                counts={countBy([job])} />
+                subtitle={subParts.join(' · ')}
+                counts={countBy(js)} />
             );
           })}
-        </div>
-      );
-    }
-    if (level === 'pn') {
-      if (!partsForJob.length) return <EmptyState label="No part linked to this job" />;
-      const job = jobs.find(j => j.id === drillJob)!;
-      return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {partsForJob.map(p => (
-            <Tile key={p.id} onClick={() => setDrillPart(p.id)}
-              icon={Layers} tint="bg-blue-500/10 text-blue-600 dark:text-blue-400"
-              title={p.part_number}
-              subtitle={`${p.revision ? `Rev ${p.revision} · ` : ''}Qty ${job.quantity}`}
-              counts={countBy([job])} />
-          ))}
         </div>
       );
     }
