@@ -16,7 +16,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Search, Pencil, Trash2, Copy } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Copy, Upload, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
@@ -42,6 +42,7 @@ export default function PartLibrary() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ part_number: '', revision: '', description: '', customer: '', project: '' });
   const [saving, setSaving] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [dupOpen, setDupOpen] = useState(false);
@@ -74,6 +75,31 @@ export default function PartLibrary() {
   }, [rows, search]);
 
   const openCreate = () => { setForm({ part_number: '', revision: '', description: '', customer: '', project: '' }); setDialogOpen(true); };
+
+  const handleDrawingUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setExtracting(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const { data, error } = await supabase.functions.invoke('extract-part-from-drawing', { body: fd });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setForm(prev => ({
+        ...prev,
+        part_number: data?.part_number || prev.part_number,
+        revision: data?.revision || prev.revision,
+        description: data?.description || prev.description,
+      }));
+      toast.success('Drawing details extracted');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to extract drawing');
+    } finally {
+      setExtracting(false);
+    }
+  };
 
   const createPart = async () => {
     if (!form.part_number.trim()) return toast.error('Part number is required');
@@ -243,6 +269,24 @@ export default function PartLibrary() {
         <DialogContent>
           <DialogHeader><DialogTitle>New part</DialogTitle></DialogHeader>
           <div className="space-y-3">
+            <div className="rounded-md border border-dashed p-3 bg-muted/30">
+              <Label className="text-xs text-muted-foreground">Auto-fill from drawing (PDF or image)</Label>
+              <div className="mt-2 flex items-center gap-2">
+                <Input
+                  id="dwg-upload"
+                  type="file"
+                  accept="application/pdf,image/*"
+                  onChange={handleDrawingUpload}
+                  disabled={extracting}
+                  className="text-xs"
+                />
+                {extracting && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                <Upload className="inline h-3 w-3 mr-1" />
+                Extracts Part Number, Description and Revision from the title block.
+              </p>
+            </div>
             <div>
               <Label>Part number *</Label>
               <Input value={form.part_number}
