@@ -546,6 +546,7 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
       ops.forEach(op => {
         if (!projectJobIds.has(op.job_id)) return;
         const res = op.resource_id ? resById.get(op.resource_id) : null;
+        if (res?.resource_category !== 'Machine') return;
         const name = res?.resource_name || 'Unassigned';
         const s = op.planned_start ? new Date(op.planned_start).getTime() : NaN;
         const f = op.planned_finish ? new Date(op.planned_finish).getTime() : NaN;
