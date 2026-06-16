@@ -19,7 +19,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Pencil, Trash2, Save, ArrowUp, ArrowDown, Copy } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, ArrowUp, ArrowDown, Copy, GripVertical } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AssemblyBomEditor } from '@/components/npi-planner-mvp/AssemblyBomEditor';
