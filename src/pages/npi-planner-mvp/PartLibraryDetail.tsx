@@ -293,18 +293,48 @@ export default function PartLibraryDetail() {
   const reorder = async (index: number, dir: -1 | 1) => {
     const target = index + dir;
     if (target < 0 || target >= ops.length) return;
-    const a = ops[index];
-    const b = ops[target];
-    // swap operation_number values via a safe two-step (use negative temp to avoid unique conflict)
-    const temp = -Math.abs(a.operation_number) - 1;
-    const e1 = await supabase.from('part_operations').update({ operation_number: temp }).eq('id', a.id);
-    if (e1.error) return toast.error(e1.error.message);
-    const e2 = await supabase.from('part_operations').update({ operation_number: a.operation_number }).eq('id', b.id);
-    if (e2.error) return toast.error(e2.error.message);
-    const e3 = await supabase.from('part_operations').update({ operation_number: b.operation_number }).eq('id', a.id);
-    if (e3.error) return toast.error(e3.error.message);
+    const newOrder = [...ops];
+    [newOrder[index], newOrder[target]] = [newOrder[target], newOrder[index]];
+    await persistOrder(newOrder);
+  };
+
+  const persistOrder = async (newOrder: Operation[]) => {
+    // Renumber sequentially as 10, 20, 30… Two-pass to avoid unique conflicts.
+    const optimistic = newOrder.map((o, idx) => ({ ...o, operation_number: (idx + 1) * 10 }));
+    setOps(optimistic);
+
+    // Pass 1: move all to negative temp numbers
+    for (const o of newOrder) {
+      const { error } = await supabase.from('part_operations')
+        .update({ operation_number: -Math.abs(o.operation_number) - 100000 })
+        .eq('id', o.id);
+      if (error) { toast.error(error.message); return load(); }
+    }
+    // Pass 2: assign final numbers
+    for (let i = 0; i < newOrder.length; i++) {
+      const { error } = await supabase.from('part_operations')
+        .update({ operation_number: (i + 1) * 10 })
+        .eq('id', newOrder[i].id);
+      if (error) { toast.error(error.message); return load(); }
+    }
     load();
   };
+
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const handleDrop = async (toIndex: number) => {
+    if (dragIndex === null || dragIndex === toIndex) {
+      setDragIndex(null); setDragOverIndex(null);
+      return;
+    }
+    const newOrder = [...ops];
+    const [moved] = newOrder.splice(dragIndex, 1);
+    newOrder.splice(toIndex, 0, moved);
+    setDragIndex(null); setDragOverIndex(null);
+    await persistOrder(newOrder);
+  };
+
 
   if (loading || !part) {
     return (
