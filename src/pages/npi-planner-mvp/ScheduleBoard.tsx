@@ -184,15 +184,20 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
     const m = new Map<string, Job[]>();
     (projectsForCustomer.get(drillProject) || []).forEach(job => {
       const a = opsByJob.get(job.id) || [];
-      let cur: JobOp | null = null;
-      if (job.status !== 'Completed' && a.length) {
-        const now = Date.now();
-        cur = a.find(op => op.planned_finish && new Date(op.planned_finish).getTime() > now) || a[a.length - 1];
+      // Include job under EVERY machine it touches (not just the current op's machine)
+      const machineNames = new Set<string>();
+      if (a.length === 0) {
+        machineNames.add('Unassigned');
+      } else {
+        a.forEach(op => {
+          const res = op.resource_id ? resById.get(op.resource_id) : null;
+          machineNames.add(res?.resource_name || 'Unassigned');
+        });
       }
-      const res = cur?.resource_id ? resById.get(cur.resource_id) : null;
-      const machineName = res?.resource_name || 'Unassigned';
-      if (!m.has(machineName)) m.set(machineName, []);
-      m.get(machineName)!.push(job);
+      machineNames.forEach(name => {
+        if (!m.has(name)) m.set(name, []);
+        m.get(name)!.push(job);
+      });
     });
     return m;
   }, [projectsForCustomer, drillProject, opsByJob, resById]);
