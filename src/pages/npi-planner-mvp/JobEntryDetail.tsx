@@ -31,7 +31,7 @@ type Resource = {
   resource_category?: string | null;
   lead_time_days?: number | null;
 };
-type Part = { id: string; part_number: string; revision: string | null; description: string | null };
+type Part = { id: string; part_number: string; revision: string | null; description: string | null; part_type?: 'Single Part' | 'Assembly' };
 type PartOp = {
   id: string;
   operation_number: number;
@@ -39,6 +39,12 @@ type PartOp = {
   resource_id: string | null;
   setup_time_hours: number;
   cycle_time_seconds: number;
+};
+type BomComponent = {
+  component_part_id: string;
+  quantity_per_assembly: number;
+  notes: string | null;
+  component: { id: string; part_number: string; revision: string | null; part_type: string } | null;
 };
 type JobOp = {
   id?: string;
@@ -89,6 +95,7 @@ export default function JobEntryDetail() {
   const [parts, setParts] = useState<Part[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [ops, setOps] = useState<JobOp[]>([]);
+  const [bom, setBom] = useState<BomComponent[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -121,7 +128,7 @@ export default function JobEntryDetail() {
     (async () => {
       setLoading(true);
       const [p, r] = await Promise.all([
-        supabase.from('parts').select('id, part_number, revision, description').order('part_number'),
+        supabase.from('parts').select('id, part_number, revision, description, part_type').order('part_number'),
         supabase.from('resources').select('id, resource_name, resource_type, resource_category, lead_time_days').eq('status', 'Active').order('resource_name'),
       ]);
       setParts((p.data || []) as Part[]);
@@ -182,11 +189,17 @@ export default function JobEntryDetail() {
   const onPartChange = async (partId: string) => {
     setForm(f => ({ ...f, part_id: partId }));
     if (!isNew) return; // don't overwrite saved overrides
-    const [{ data, error }, { data: prevJob }] = await Promise.all([
+    const selected = parts.find(p => p.id === partId);
+    const [{ data, error }, { data: prevJob }, { data: bomRows }] = await Promise.all([
       supabase.from('part_operations').select('*').eq('part_id', partId).order('operation_number'),
       supabase.from('jobs').select('development_time_hours')
         .eq('part_id', partId).gt('development_time_hours', 0)
         .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      selected?.part_type === 'Assembly'
+        ? supabase.from('part_bom_components')
+            .select('component_part_id, quantity_per_assembly, notes, component:parts!part_bom_components_component_part_id_fkey(id, part_number, revision, part_type)')
+            .eq('assembly_part_id', partId)
+        : Promise.resolve({ data: [] as any[] }),
     ]);
     if (error) return toast.error(error.message);
     setOps((data || []).map((o: PartOp, i: number) => ({
@@ -197,6 +210,7 @@ export default function JobEntryDetail() {
       cycle_time_seconds: Number(o.cycle_time_seconds) || 0,
       sequence_order: i + 1,
     })));
+    setBom((bomRows || []) as any);
     if (prevJob?.development_time_hours) {
       setForm(f => ({ ...f, part_id: partId, development_time_hours: Number(prevJob.development_time_hours) }));
     }
