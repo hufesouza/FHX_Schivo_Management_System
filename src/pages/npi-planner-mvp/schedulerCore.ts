@@ -73,11 +73,16 @@ const isWeekend = (d: Date) => d.getDay() === 0 || d.getDay() === 6;
 
 export function effectiveSchedulingMode(resource: SchedulerResource): SchedulingMode {
   const name = (resource.resource_name || '').toLowerCase();
+  const category = (resource.resource_category || '').toLowerCase();
+  const type = (resource.resource_type || '').toLowerCase();
+
   // Development / Engineering can run in parallel across jobs.
   if (name === DEV_RESOURCE_NAME.toLowerCase()) return 'Parallel';
-  // Otherwise honour the resource's explicit mode, defaulting to Exclusive
-  // so jobs on the same machine/subcontractor are scheduled in series.
+  // Honour explicit mode if the resource has one set.
   if (resource.scheduling_mode) return resource.scheduling_mode;
+  // Subcontractors / outsource can handle multiple parts in parallel.
+  if (category === 'subcontractor' || type.includes('subcontractor') || type.includes('outsource')) return 'Parallel';
+  // Machines and everything else run in series (one job at a time).
   return 'Exclusive';
 }
 
