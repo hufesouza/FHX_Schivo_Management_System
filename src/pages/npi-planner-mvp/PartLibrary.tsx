@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
@@ -27,6 +28,7 @@ type Part = {
   description: string | null;
   customer: string | null;
   project: string | null;
+  part_type: 'Single Part' | 'Assembly';
   updated_at: string;
   op_count?: number;
 };
@@ -201,7 +203,12 @@ export default function PartLibrary() {
                     <TableRow key={r.id} className="cursor-pointer"
                       onClick={() => navigate(`/npi/capacity-planner-mvp/part-library/${r.id}`)}>
                       <TableCell className="font-medium">
-                        <div>{r.part_number}</div>
+                        <div className="flex items-center gap-2">
+                          <span>{r.part_number}</span>
+                          {r.part_type === 'Assembly' && (
+                            <Badge variant="outline" className="bg-violet-500/10 text-violet-700 border-violet-500/30 text-[10px]">Assembly</Badge>
+                          )}
+                        </div>
                         {r.description && <div className="text-xs text-muted-foreground">{r.description}</div>}
                       </TableCell>
                       <TableCell>{r.revision || '—'}</TableCell>
