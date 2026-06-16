@@ -76,6 +76,31 @@ export default function PartLibrary() {
 
   const openCreate = () => { setForm({ part_number: '', revision: '', description: '', customer: '', project: '' }); setDialogOpen(true); };
 
+  const handleDrawingUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setExtracting(true);
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const { data, error } = await supabase.functions.invoke('extract-part-from-drawing', { body: fd });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setForm(prev => ({
+        ...prev,
+        part_number: data?.part_number || prev.part_number,
+        revision: data?.revision || prev.revision,
+        description: data?.description || prev.description,
+      }));
+      toast.success('Drawing details extracted');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to extract drawing');
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   const createPart = async () => {
     if (!form.part_number.trim()) return toast.error('Part number is required');
     setSaving(true);
