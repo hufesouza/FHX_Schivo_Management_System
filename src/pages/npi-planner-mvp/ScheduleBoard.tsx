@@ -276,10 +276,6 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
     if (drillCustomer) items.push({ label: drillCustomer, icon: Users, onClick: () => { setDrillProject(null); setDrillMachine(null); setDrillJob(null); setDrillPart(null); } });
     if (drillProject) items.push({ label: drillProject, icon: Briefcase, onClick: () => { setDrillMachine(null); setDrillJob(null); setDrillPart(null); } });
     if (drillMachine) items.push({ label: drillMachine, icon: Cpu, onClick: () => { setDrillJob(null); setDrillPart(null); } });
-    if (drillJob) {
-      const j = jobs.find(jj => jj.id === drillJob);
-      items.push({ label: j?.job_number || '—', icon: FileText, onClick: () => { setDrillPart(null); } });
-    }
     if (drillPart) {
       const p = partsById.get(drillPart);
       items.push({ label: p?.part_number || '—', icon: Layers, onClick: () => {} });
