@@ -383,50 +383,8 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
       const totalHrs = hoursList.reduce((s, [, h]) => s + h, 0);
       const fmtH = (h: number) => `${h.toFixed(1)}h${h >= 8 ? ` · ${(h / 8).toFixed(1)}d` : ''}`;
 
-      // Hours per Part Number (project-wide)
-      const hoursByPart = new Map<string, number>();
-      ops.forEach(op => {
-        if (!projectJobIds.has(op.job_id)) return;
-        const job = jobs.find(j => j.id === op.job_id);
-        const part = job?.part_id ? partsById.get(job.part_id) : null;
-        const pn = part?.part_number || 'Unassigned';
-        const hrs = op.total_time_hours && op.total_time_hours > 0 ? Number(op.total_time_hours) : 0;
-        const safe = isFinite(hrs) ? hrs : 0;
-        hoursByPart.set(pn, (hoursByPart.get(pn) || 0) + safe);
-      });
-      const partsList = Array.from(hoursByPart.entries()).sort((a, b) => b[1] - a[1]);
-
       return (
         <div className="space-y-4">
-          {/* Project total + per-PN breakdown */}
-          <div className="rounded-xl border bg-card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Briefcase className="h-4 w-4 text-orange-500" />
-                <div className="text-sm font-semibold">Project Hours by Part Number</div>
-              </div>
-              <div className="text-xs text-muted-foreground">
-                Total <span className="font-semibold text-foreground">{fmtH(totalHrs)}</span> across {partsList.length} part{partsList.length === 1 ? '' : 's'}
-              </div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {partsList.map(([pn, h]) => {
-                const pct = totalHrs > 0 ? (h / totalHrs) * 100 : 0;
-                return (
-                  <div key={pn} className="rounded-lg border bg-background p-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-xs font-medium truncate font-mono">{pn}</div>
-                      <div className="text-xs font-semibold tabular-nums">{fmtH(h)}</div>
-                    </div>
-                    <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
-                      <div className="h-full bg-orange-500" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
           {/* Resource hours summary */}
           <div className="rounded-xl border bg-card p-4">
             <div className="flex items-center justify-between mb-3">
