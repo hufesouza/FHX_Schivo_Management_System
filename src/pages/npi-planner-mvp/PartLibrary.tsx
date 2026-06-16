@@ -269,6 +269,24 @@ export default function PartLibrary() {
         <DialogContent>
           <DialogHeader><DialogTitle>New part</DialogTitle></DialogHeader>
           <div className="space-y-3">
+            <div className="rounded-md border border-dashed p-3 bg-muted/30">
+              <Label className="text-xs text-muted-foreground">Auto-fill from drawing (PDF or image)</Label>
+              <div className="mt-2 flex items-center gap-2">
+                <Input
+                  id="dwg-upload"
+                  type="file"
+                  accept="application/pdf,image/*"
+                  onChange={handleDrawingUpload}
+                  disabled={extracting}
+                  className="text-xs"
+                />
+                {extracting && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+              </div>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                <Upload className="inline h-3 w-3 mr-1" />
+                Extracts Part Number, Description and Revision from the title block.
+              </p>
+            </div>
             <div>
               <Label>Part number *</Label>
               <Input value={form.part_number}
