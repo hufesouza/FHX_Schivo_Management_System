@@ -13,7 +13,7 @@ import { buildSchedule, runFullSchedule, DEV_RESOURCE_NAME, isExclusiveResource 
 
 type Resource = { id: string; resource_name: string; resource_type: string | null; resource_category: string | null; lead_time_days: number | null; available_hours_per_day: number; status: string; scheduling_mode?: 'Exclusive' | 'Parallel' | null };
 type Part = { id: string; part_number: string; revision: string | null; description: string | null };
-type Job = { id: string; job_number: string; part_id: string | null; quantity: number; due_date: string | null; priority: string; status: string; planned_start: string | null; planned_finish: string | null; schedule_status: string; development_time_hours: number | null; planned_dev_start: string | null; planned_dev_finish: string | null; dev_resource_id: string | null; dev_person_id: string | null; best_commence_date: string | null; planned_date_locked: boolean | null };
+type Job = { id: string; job_number: string; part_id: string | null; quantity: number; due_date: string | null; priority: string; status: string; planned_start: string | null; planned_finish: string | null; schedule_status: string; development_time_hours: number | null; planned_dev_start: string | null; planned_dev_finish: string | null; dev_resource_id: string | null; dev_person_id: string | null; best_commence_date: string | null; planned_date_locked: boolean | null; parent_job_id: string | null; job_level: string | null; earliest_start_date: string | null };
 type JobOp = {
   id: string; job_id: string; operation_number: number; operation_name: string;
   resource_id: string | null; setup_time_hours: number; cycle_time_seconds: number;
@@ -72,6 +72,7 @@ export default function GanttChart() {
   const [machinesOnly, setMachinesOnly] = useState(false);
   const [peopleOnly, setPeopleOnly] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [scheduleStart, setScheduleStart] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const load = async () => {
@@ -364,7 +365,7 @@ export default function GanttChart() {
         resources: devResource && !resources.some(r => r.id === devResource!.id) ? [...resources, devResource] : resources,
         jobs,
         ops,
-        baseStart: startOfDay(new Date()),
+        baseStart: new Date(scheduleStart + 'T00:00:00'),
       });
       for (const u of opUpdates) await supabase.from('job_operations').update({ planned_start: u.planned_start, planned_finish: u.planned_finish }).eq('id', u.id);
       for (const u of jobUpdates) await supabase.from('jobs').update({
