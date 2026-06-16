@@ -500,6 +500,58 @@ export default function JobEntryDetail() {
           </CardContent>
         </Card>
 
+        {isNew && selectedPart?.part_type === 'Assembly' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Subcomponent jobs
+                <Badge variant="outline" className="ml-2 bg-violet-500/10 text-violet-700 border-violet-500/30">
+                  Assembly
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {bom.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  This assembly has no subcomponents in the Part Library yet. Add them in the part page.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    These linked subcomponent jobs will be auto-created when you save. Each child uses its own Part Library routing and a due date 2 days before this assembly's due.
+                  </p>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Component</TableHead>
+                          <TableHead>Rev</TableHead>
+                          <TableHead className="text-right">Qty per assy</TableHead>
+                          <TableHead className="text-right">Qty required</TableHead>
+                          <TableHead>Notes</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {bom.map((c, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium">{c.component?.part_number || '—'}</TableCell>
+                            <TableCell>{c.component?.revision || '—'}</TableCell>
+                            <TableCell className="text-right">{c.quantity_per_assembly}</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {Math.ceil(Number(c.quantity_per_assembly || 0) * (form.quantity || 0))}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{c.notes || '—'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle>
