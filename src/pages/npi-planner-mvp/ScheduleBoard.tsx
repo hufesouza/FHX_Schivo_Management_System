@@ -569,11 +569,12 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
           {entries.map(([machine, js]) => {
             const info = spanByMachine.get(machine);
             const days = info ? businessDaysBetween(info.min, info.max) : 0;
+            const hrs = info ? info.hrs : 0;
             return (
               <Tile key={machine} onClick={() => setDrillMachine(machine)}
                 icon={Cpu} tint="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
                 title={machine}
-                subtitle={`${js.length} job${js.length === 1 ? '' : 's'} · ${days}d lead`}
+                subtitle={`${js.length} job${js.length === 1 ? '' : 's'} · ${days}d lead · ${hrs.toFixed(1)}h`}
                 counts={countBy(js)} />
             );
           })}
