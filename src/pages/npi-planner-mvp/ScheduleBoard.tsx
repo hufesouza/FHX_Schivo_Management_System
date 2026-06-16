@@ -146,12 +146,11 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
     return c;
   };
 
-  // Determine current level
+  // Determine current level — Customer → Project → Machine → PN → Operations
   const level: Level =
     !drillCustomer ? 'customer'
     : !drillProject ? 'project'
     : !drillMachine ? 'machine'
-    : !drillJob ? 'job'
     : !drillPart ? 'pn'
     : 'ops';
 
