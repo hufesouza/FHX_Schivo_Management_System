@@ -328,52 +328,80 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
       const entries = Array.from(byCustomer.entries()).sort(([a], [b]) => a.localeCompare(b));
       if (!entries.length) return <EmptyState label="No jobs" />;
 
-      // Hours per customer (from filtered jobs)
-      const fmtH = (h: number) => `${h.toFixed(1)}h${h >= 8 ? ` · ${(h / 8).toFixed(1)}d` : ''}`;
-      const hoursByCustomer = new Map<string, number>();
+      // Delivery lead time per customer — span from earliest planned_start to latest planned_finish
+      // across all ops of the customer's jobs (accounts for parallel operations).
+      const MS_DAY = 24 * 60 * 60 * 1000;
+      const businessDaysBetween = (startMs: number, endMs: number) => {
+        if (!isFinite(startMs) || !isFinite(endMs) || endMs <= startMs) return 0;
+        const start = new Date(startMs); start.setHours(0, 0, 0, 0);
+        const end = new Date(endMs); end.setHours(0, 0, 0, 0);
+        let days = 0;
+        for (let d = start.getTime(); d <= end.getTime(); d += MS_DAY) {
+          const wd = new Date(d).getDay();
+          if (wd !== 0 && wd !== 6) days++;
+        }
+        return days;
+      };
+      const spanByCustomer = new Map<string, { min: number; max: number }>();
       filteredJobs.forEach(job => {
         const part = job.part_id ? partsById.get(job.part_id) : null;
         const cust = part?.customer || 'No Customer';
         const jobOps = opsByJob.get(job.id) || [];
-        const hrs = jobOps.reduce((sum, op) => {
-          const h = op.total_time_hours && op.total_time_hours > 0 ? Number(op.total_time_hours) : 0;
-          return sum + (isFinite(h) ? h : 0);
-        }, 0);
-        hoursByCustomer.set(cust, (hoursByCustomer.get(cust) || 0) + hrs);
+        jobOps.forEach(op => {
+          const s = op.planned_start ? new Date(op.planned_start).getTime() : NaN;
+          const f = op.planned_finish ? new Date(op.planned_finish).getTime() : NaN;
+          if (!isFinite(s) && !isFinite(f)) return;
+          const cur = spanByCustomer.get(cust) || { min: Infinity, max: -Infinity };
+          if (isFinite(s)) cur.min = Math.min(cur.min, s);
+          if (isFinite(f)) cur.max = Math.max(cur.max, f);
+          spanByCustomer.set(cust, cur);
+        });
       });
-      const hoursList = Array.from(hoursByCustomer.entries()).sort((a, b) => b[1] - a[1]);
-      const totalHrs = hoursList.reduce((s, [, h]) => s + h, 0);
+      const leadList = Array.from(spanByCustomer.entries())
+        .map(([cust, { min, max }]) => ({ cust, days: businessDaysBetween(min, max), min, max }))
+        .filter(x => x.days > 0)
+        .sort((a, b) => b.days - a.days);
+      const maxDays = leadList.reduce((m, x) => Math.max(m, x.days), 0);
+      const fmtDateShort = (ms: number) => isFinite(ms) ? new Date(ms).toLocaleDateString() : '—';
 
       return (
         <div className="space-y-4">
-          {/* Customer hours report */}
+          {/* Delivery lead time report */}
           <div className="rounded-xl border bg-card p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-primary" />
-                <div className="text-sm font-semibold">Hours by Customer</div>
+                <div className="text-sm font-semibold">Delivery Lead Time by Customer</div>
               </div>
               <div className="text-xs text-muted-foreground">
-                Total <span className="font-semibold text-foreground">{fmtH(totalHrs)}</span> across {hoursList.length} customer{hoursList.length === 1 ? '' : 's'}
+                Working days from first op start to last op finish (parallel ops accounted for)
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {hoursList.map(([cust, h]) => {
-                const pct = totalHrs > 0 ? (h / totalHrs) * 100 : 0;
-                return (
-                  <div key={cust} className="rounded-lg border bg-background p-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-xs font-medium truncate">{cust}</div>
-                      <div className="text-xs font-semibold tabular-nums">{fmtH(h)}</div>
+            {leadList.length === 0 ? (
+              <div className="text-xs text-muted-foreground">No scheduled operations.</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {leadList.map(({ cust, days, min, max }) => {
+                  const pct = maxDays > 0 ? (days / maxDays) * 100 : 0;
+                  return (
+                    <div key={cust} className="rounded-lg border bg-background p-2.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-xs font-medium truncate">{cust}</div>
+                        <div className="text-xs font-semibold tabular-nums">{days}d</div>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                        {fmtDateShort(min)} → {fmtDateShort(max)}
+                      </div>
+                      <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
+                        <div className="h-full bg-violet-500" style={{ width: `${pct}%` }} />
+                      </div>
                     </div>
-                    <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
-                      <div className="h-full bg-violet-500" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
+
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {entries.map(([cust, js]) => (
