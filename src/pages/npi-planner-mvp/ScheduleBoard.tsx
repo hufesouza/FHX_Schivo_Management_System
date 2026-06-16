@@ -49,7 +49,7 @@ const opStatusTheme = (s: OpStatus) => {
   }
 };
 
-type Level = 'customer' | 'project' | 'job' | 'pn';
+type Level = 'customer' | 'project' | 'machine' | 'job' | 'pn' | 'ops';
 
 export default function ScheduleBoard({ onOpenInGantt }: Props) {
   const [resources, setResources] = useState<Resource[]>([]);
@@ -63,10 +63,12 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
   const [fRisk, setFRisk] = useState('all');
   const [fDue, setFDue] = useState<'all' | 'overdue' | '7' | '30'>('all');
 
-  // Drill state — Customer → Project → Job → PN
+  // Drill state — Customer → Project → Machine → Job → PN → Operations
   const [drillCustomer, setDrillCustomer] = useState<string | null>(null);
   const [drillProject, setDrillProject] = useState<string | null>(null);
+  const [drillMachine, setDrillMachine] = useState<string | null>(null);
   const [drillJob, setDrillJob] = useState<string | null>(null);
+  const [drillPart, setDrillPart] = useState<string | null>(null);
 
   // Process Flow modal
   const [flowJobId, setFlowJobId] = useState<string | null>(null);
@@ -144,12 +146,16 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
     return c;
   };
 
+  // Determine current level
   const level: Level =
     !drillCustomer ? 'customer'
     : !drillProject ? 'project'
+    : !drillMachine ? 'machine'
     : !drillJob ? 'job'
-    : 'pn';
+    : !drillPart ? 'pn'
+    : 'ops';
 
+  // Grouped data
   const byCustomer = useMemo(() => {
     const m = new Map<string, Job[]>();
     filteredJobs.forEach(job => {
@@ -173,10 +179,36 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
     return m;
   }, [byCustomer, drillCustomer, partsById]);
 
-  const jobsForProject = useMemo(() => {
-    if (!drillProject) return [] as Job[];
-    return projectsForCustomer.get(drillProject) || [];
-  }, [projectsForCustomer, drillProject]);
+  const machinesForProject = useMemo(() => {
+    if (!drillProject) return new Map<string, Job[]>();
+    const m = new Map<string, Job[]>();
+    (projectsForCustomer.get(drillProject) || []).forEach(job => {
+      const a = opsByJob.get(job.id) || [];
+      let cur: JobOp | null = null;
+      if (job.status !== 'Completed' && a.length) {
+        const now = Date.now();
+        cur = a.find(op => op.planned_finish && new Date(op.planned_finish).getTime() > now) || a[a.length - 1];
+      }
+      const res = cur?.resource_id ? resById.get(cur.resource_id) : null;
+      const machineName = res?.resource_name || 'Unassigned';
+      if (!m.has(machineName)) m.set(machineName, []);
+      m.get(machineName)!.push(job);
+    });
+    return m;
+  }, [projectsForCustomer, drillProject, opsByJob, resById]);
+
+  const jobsForMachine = useMemo(() => {
+    if (!drillMachine) return [] as Job[];
+    return machinesForProject.get(drillMachine) || [];
+  }, [machinesForProject, drillMachine]);
+
+  const partsForJob = useMemo(() => {
+    if (!drillJob) return [] as Part[];
+    const job = jobs.find(j => j.id === drillJob);
+    if (!job?.part_id) return [];
+    const p = partsById.get(job.part_id);
+    return p ? [p] : [];
+  }, [jobs, drillJob, partsById]);
 
   const clearFilters = () => { setSearch(''); setFCustomer('all'); setFDept('all'); setFRisk('all'); setFDue('all'); };
 
@@ -200,13 +232,16 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
     </div>
   );
 
-  const Tile = ({ onClick, icon: Icon, tint, title, subtitle, counts, footer }: {
-    onClick: () => void; icon: any; tint: string; title: string; subtitle: string; counts: Counts; footer?: React.ReactNode;
+  const Tile = ({ onClick, icon: Icon, tint, title, subtitle, counts }: {
+    onClick: () => void; icon: any; tint: string; title: string; subtitle: string; counts: Counts;
   }) => {
     const accent = counts.late > 0 ? 'border-destructive/30' : counts.risk > 0 ? 'border-amber-500/30' : '';
     return (
-      <div className={`group relative overflow-hidden rounded-xl border bg-card transition-all hover:border-primary/50 hover:shadow-md ${accent}`}>
-        <button onClick={onClick} className="block w-full text-left p-4 hover:-translate-y-0.5 transition-transform">
+      <button
+        onClick={onClick}
+        className={`group relative overflow-hidden rounded-xl border bg-card text-left transition-all hover:border-primary/50 hover:shadow-md hover:-translate-y-0.5 ${accent}`}
+      >
+        <div className="p-4">
           <div className="flex items-start justify-between">
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${tint}`}>
               <Icon className="h-5 w-5" />
@@ -218,23 +253,27 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
             <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
           </div>
           <div className="mt-3"><RiskBar counts={counts} /></div>
-          {!footer && <ChevronRight className="absolute right-3 bottom-3 h-4 w-4 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />}
-        </button>
-        {footer && <div className="border-t bg-muted/30 px-4 py-2">{footer}</div>}
-      </div>
+          <ChevronRight className="absolute right-3 bottom-3 h-4 w-4 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
+        </div>
+      </button>
     );
   };
 
   // === Breadcrumb ===
   const crumb = () => {
     const items: { label: string; onClick: () => void; icon: any }[] = [
-      { label: 'Customers', icon: Users, onClick: () => { setDrillCustomer(null); setDrillProject(null); setDrillJob(null); } },
+      { label: 'Customers', icon: Users, onClick: () => { setDrillCustomer(null); setDrillProject(null); setDrillMachine(null); setDrillJob(null); setDrillPart(null); } },
     ];
-    if (drillCustomer) items.push({ label: drillCustomer, icon: Users, onClick: () => { setDrillProject(null); setDrillJob(null); } });
-    if (drillProject) items.push({ label: drillProject, icon: Briefcase, onClick: () => { setDrillJob(null); } });
+    if (drillCustomer) items.push({ label: drillCustomer, icon: Users, onClick: () => { setDrillProject(null); setDrillMachine(null); setDrillJob(null); setDrillPart(null); } });
+    if (drillProject) items.push({ label: drillProject, icon: Briefcase, onClick: () => { setDrillMachine(null); setDrillJob(null); setDrillPart(null); } });
+    if (drillMachine) items.push({ label: drillMachine, icon: Cpu, onClick: () => { setDrillJob(null); setDrillPart(null); } });
     if (drillJob) {
       const j = jobs.find(jj => jj.id === drillJob);
-      items.push({ label: j?.job_number || '—', icon: FileText, onClick: () => {} });
+      items.push({ label: j?.job_number || '—', icon: FileText, onClick: () => { setDrillPart(null); } });
+    }
+    if (drillPart) {
+      const p = partsById.get(drillPart);
+      items.push({ label: p?.part_number || '—', icon: Layers, onClick: () => {} });
     }
     return (
       <div className="flex items-center gap-1.5 text-sm flex-wrap">
@@ -254,13 +293,15 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
   };
 
   const goBack = () => {
-    if (drillJob) setDrillJob(null);
+    if (drillPart) setDrillPart(null);
+    else if (drillJob) setDrillJob(null);
+    else if (drillMachine) setDrillMachine(null);
     else if (drillProject) setDrillProject(null);
     else if (drillCustomer) setDrillCustomer(null);
   };
 
   // === Op status derivation ===
-  const deriveOpStatus = (job: Job, op: JobOp, idx: number, all: JobOp[]): OpStatus => {
+  const deriveOpStatus = (job: Job, op: JobOp): OpStatus => {
     const now = Date.now();
     const fin = op.planned_finish ? new Date(op.planned_finish).getTime() : null;
     const start = op.planned_start ? new Date(op.planned_start).getTime() : null;
@@ -308,8 +349,23 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
         </div>
       );
     }
+    if (level === 'machine') {
+      const entries = Array.from(machinesForProject.entries()).sort(([a], [b]) => a.localeCompare(b));
+      if (!entries.length) return <EmptyState label="No machines" />;
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {entries.map(([machine, js]) => (
+            <Tile key={machine} onClick={() => setDrillMachine(machine)}
+              icon={Cpu} tint="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
+              title={machine}
+              subtitle={`${js.length} jobs`}
+              counts={countBy(js)} />
+          ))}
+        </div>
+      );
+    }
     if (level === 'job') {
-      const sorted = jobsForProject.slice().sort((a, b) => {
+      const sorted = jobsForMachine.slice().sort((a, b) => {
         const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
         const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
         return da - db;
@@ -323,42 +379,108 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
             return (
               <Tile key={job.id} onClick={() => setDrillJob(job.id)}
                 icon={FileText} tint={`${theme.bg} ${theme.text}`}
-                title={job.job_number}
-                subtitle={`${part?.part_number || 'No part'} · Due ${fmtDate(job.due_date)}`}
+                title={part?.part_number || 'No part'}
+                subtitle={`${job.job_number} · Due ${fmtDate(job.due_date)}`}
                 counts={countBy([job])} />
             );
           })}
         </div>
       );
     }
-    // pn
+    if (level === 'pn') {
+      if (!partsForJob.length) return <EmptyState label="No part linked to this job" />;
+      const job = jobs.find(j => j.id === drillJob)!;
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {partsForJob.map(p => (
+            <Tile key={p.id} onClick={() => setDrillPart(p.id)}
+              icon={Layers} tint="bg-blue-500/10 text-blue-600 dark:text-blue-400"
+              title={p.part_number}
+              subtitle={`${p.revision ? `Rev ${p.revision} · ` : ''}Qty ${job.quantity}`}
+              counts={countBy([job])} />
+          ))}
+        </div>
+      );
+    }
+    // ops
     const job = jobs.find(j => j.id === drillJob)!;
-    const part = job?.part_id ? partsById.get(job.part_id) : null;
-    if (!part) return <EmptyState label="No part linked to this job" />;
+    const part = drillPart ? partsById.get(drillPart) : null;
+    const cur = currentOp(job);
+    const list = opsByJob.get(job.id) || [];
+    const doneIdx = cur ? list.findIndex(o => o.id === cur.id) : list.length;
+    const theme = riskTheme(job.schedule_risk);
+    const Icon = theme.icon;
     return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-        <Tile
-          onClick={() => setFlowJobId(job.id)}
-          icon={Layers}
-          tint="bg-blue-500/10 text-blue-600 dark:text-blue-400"
-          title={part.part_number}
-          subtitle={`${part.revision ? `Rev ${part.revision} · ` : ''}Qty ${job.quantity}`}
-          counts={countBy([job])}
-          footer={
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[11px] text-muted-foreground">Due {fmtDate(job.due_date)}</span>
-              <Button size="sm" variant="default" onClick={() => setFlowJobId(job.id)}>
-                <Workflow className="h-3.5 w-3.5 mr-1" />View Process Flow
-              </Button>
+      <div className="space-y-4">
+        {/* Header card for job + PN */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-lg font-bold">{job.job_number}</span>
+                  <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${theme.bg} ${theme.text}`}>
+                    <Icon className="h-3 w-3" />{theme.label}
+                  </span>
+                </div>
+                <div className="mt-1 text-sm text-muted-foreground">
+                  {part?.part_number}{part?.revision ? ` · Rev ${part.revision}` : ''} · Qty {job.quantity}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button size="sm" variant="outline" onClick={() => setFlowJobId(job.id)}>
+                  <Workflow className="h-3.5 w-3.5 mr-1" />View as Process Flow
+                </Button>
+                <Button size="sm" onClick={() => onOpenInGantt({ partId: job.part_id, jobId: job.id })}>
+                  <ExternalLink className="h-3.5 w-3.5 mr-1" />Open in Gantt
+                </Button>
+              </div>
             </div>
-          }
-        />
+            <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              <Info label="Due" value={fmtDate(job.due_date)} />
+              <Info label="Planned Start" value={fmtDateTime(job.planned_start)} />
+              <Info label="Planned Finish" value={fmtDateTime(job.planned_finish)} />
+              <Info label="Latest Start" value={fmtDate(job.latest_start_date)} />
+            </div>
+            <div className="mt-3">
+              <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div className="bg-primary" style={{ width: `${list.length ? (doneIdx / list.length) * 100 : 0}%` }} />
+              </div>
+              <div className="mt-1 text-[11px] text-muted-foreground">{doneIdx} of {list.length} operations done</div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Operations list */}
+        <div className="space-y-2">
+          {list.map((op, i) => {
+            const r = op.resource_id ? resById.get(op.resource_id) : null;
+            const isCur = cur?.id === op.id;
+            const done = i < doneIdx;
+            return (
+              <div key={op.id} className={`flex items-center gap-3 rounded-lg border p-3 ${isCur ? 'border-primary bg-primary/5' : done ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-border bg-card'}`}>
+                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isCur ? 'bg-primary text-primary-foreground' : done ? 'bg-emerald-500 text-white' : 'bg-muted text-muted-foreground'}`}>
+                  {done ? '✓' : op.operation_number}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium truncate">{op.operation_name}</div>
+                  <div className="text-xs text-muted-foreground inline-flex items-center gap-2 mt-0.5">
+                    {r && <span className="inline-flex items-center gap-1"><Cpu className="h-3 w-3" />{r.resource_name}</span>}
+                    <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{fmtDateTime(op.planned_start)} → {fmtDateTime(op.planned_finish)}</span>
+                  </div>
+                </div>
+                {isCur && <Badge>Current</Badge>}
+              </div>
+            );
+          })}
+          {!list.length && <EmptyState label="No operations" />}
+        </div>
       </div>
     );
   };
 
   const kpi = countBy(filteredJobs);
-  const canBack = !!(drillCustomer || drillProject || drillJob);
+  const canBack = !!(drillCustomer || drillProject || drillMachine || drillJob || drillPart);
 
   // === Process Flow modal data ===
   const flowJob = flowJobId ? jobs.find(j => j.id === flowJobId) : null;
@@ -421,7 +543,7 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
           {crumb()}
         </div>
         <div className="text-xs text-muted-foreground uppercase tracking-wide">
-          Customer → Project → Job → Part Number
+          Customer → Project → Machine → Job → PN → Operations
         </div>
       </div>
 
@@ -436,15 +558,15 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
               Process Flow — {flowPart?.part_number || '—'}
               {flowPart?.revision && <Badge variant="outline">Rev {flowPart.revision}</Badge>}
             </DialogTitle>
-            <DialogDescription>
-              {flowJob && (
+            <DialogDescription asChild>
+              {flowJob ? (
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                  <span><span className="font-mono font-medium">{flowJob.job_number}</span></span>
+                  <span className="font-mono font-medium">{flowJob.job_number}</span>
                   <span>Qty {flowJob.quantity}</span>
                   <span>Due {fmtDate(flowJob.due_date)}</span>
                   <span>Planned {fmtDate(flowJob.planned_start)} → {fmtDate(flowJob.planned_finish)}</span>
                 </span>
-              )}
+              ) : <span />}
             </DialogDescription>
           </DialogHeader>
 
@@ -459,7 +581,6 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
           {/* Flow */}
           <div className="mt-3 overflow-x-auto pb-2">
             <div className="flex items-stretch gap-2 min-w-min">
-              {/* Development Time bookend */}
               <FlowBookend
                 icon={Wrench}
                 title="Development Time"
@@ -472,8 +593,8 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
                 <div className="flex items-center text-sm text-muted-foreground italic px-4">No operations defined</div>
               )}
 
-              {flowOps.map((op, i) => {
-                const status = deriveOpStatus(flowJob!, op, i, flowOps);
+              {flowOps.map((op) => {
+                const status = deriveOpStatus(flowJob!, op);
                 const t = opStatusTheme(status);
                 const res = op.resource_id ? resById.get(op.resource_id) : null;
                 const dur = (op.total_time_hours ?? 0) + (op.setup_time_hours ?? 0);
@@ -501,7 +622,6 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
                 );
               })}
 
-              {/* Completed bookend */}
               <FlowBookend
                 icon={Flag}
                 title="Completed"
@@ -564,6 +684,15 @@ function Kpi({ icon: Icon, label, value, tint }: { icon: any; label: string; val
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function Info({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
+      <div className="font-medium truncate">{value}</div>
+    </div>
   );
 }
 
