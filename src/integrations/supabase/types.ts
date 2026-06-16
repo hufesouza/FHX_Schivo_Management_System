@@ -1088,6 +1088,7 @@ export type Database = {
           dev_resource_id: string | null
           development_time_hours: number
           due_date: string
+          earliest_start_date: string | null
           id: string
           job_level: string
           job_number: string
@@ -1116,6 +1117,7 @@ export type Database = {
           dev_resource_id?: string | null
           development_time_hours?: number
           due_date: string
+          earliest_start_date?: string | null
           id?: string
           job_level?: string
           job_number: string
@@ -1144,6 +1146,7 @@ export type Database = {
           dev_resource_id?: string | null
           development_time_hours?: number
           due_date?: string
+          earliest_start_date?: string | null
           id?: string
           job_level?: string
           job_number?: string
