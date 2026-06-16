@@ -394,7 +394,13 @@ export default function PartLibraryDetail() {
               <div>
                 <Label>Part type</Label>
                 <Select value={part.part_type}
-                  onValueChange={(v: 'Single Part' | 'Assembly') => setPart({ ...part, part_type: v })}>
+                  onValueChange={async (v: 'Single Part' | 'Assembly') => {
+                    setPart({ ...part, part_type: v });
+                    const { error } = await supabase.from('parts')
+                      .update({ part_type: v } as any).eq('id', part.id);
+                    if (error) toast.error(error.message);
+                    else toast.success(`Saved as ${v}`);
+                  }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Single Part">Single Part</SelectItem>
@@ -402,7 +408,7 @@ export default function PartLibraryDetail() {
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Assemblies can include other parts as subcomponents.
+                  Assemblies can include other parts as subcomponents. Saved automatically.
                 </p>
               </div>
             </div>
