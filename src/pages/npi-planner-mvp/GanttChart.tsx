@@ -429,6 +429,17 @@ export default function GanttChart() {
       <main className="container mx-auto px-4 py-6 space-y-4">
         {/* Toolbar */}
         <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border bg-card">
+          <div className="flex items-center gap-1">
+            <Label htmlFor="gantt-start" className="text-xs text-muted-foreground">Fallback start</Label>
+            <input
+              id="gantt-start"
+              type="date"
+              value={scheduleStart}
+              onChange={(e) => setScheduleStart(e.target.value)}
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+              title="Used only for jobs without their own Start Date"
+            />
+          </div>
           <Button size="sm" onClick={runSchedule} disabled={loading}><Play className="h-4 w-4" /> Run Schedule</Button>
           <Button size="sm" variant="outline" onClick={runSchedule} disabled={loading}><RotateCcw className="h-4 w-4" /> Re-run</Button>
           <Button size="sm" variant="outline" onClick={clearSchedule}><Trash2 className="h-4 w-4" /> Clear</Button>
