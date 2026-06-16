@@ -352,15 +352,75 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
     if (level === 'machine') {
       const entries = Array.from(machinesForProject.entries()).sort(([a], [b]) => a.localeCompare(b));
       if (!entries.length) return <EmptyState label="No machines" />;
+
+      // Hours required per resource across ALL ops of the project's jobs
+      const projectJobIds = new Set(
+        Array.from(machinesForProject.values()).flat().map(j => j.id)
+      );
+      const hoursByResource = new Map<string, number>();
+      ops.forEach(op => {
+        if (!projectJobIds.has(op.job_id)) return;
+        const res = op.resource_id ? resById.get(op.resource_id) : null;
+        const name = res?.resource_name || 'Unassigned';
+        const job = jobs.find(j => j.id === op.job_id);
+        const hrs = op.total_time_hours && op.total_time_hours > 0
+          ? Number(op.total_time_hours)
+          : Number(op.setup_time_hours || 0) + (op.total_time_hours == null
+              ? 0
+              : 0);
+        // Fallback if total_time_hours not set: setup only (cycle/qty unknown here)
+        const safe = isFinite(hrs) ? hrs : 0;
+        hoursByResource.set(name, (hoursByResource.get(name) || 0) + safe);
+        void job;
+      });
+      const hoursList = Array.from(hoursByResource.entries())
+        .sort((a, b) => b[1] - a[1]);
+      const totalHrs = hoursList.reduce((s, [, h]) => s + h, 0);
+      const fmtH = (h: number) => `${h.toFixed(1)}h${h >= 8 ? ` · ${(h / 8).toFixed(1)}d` : ''}`;
+
       return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {entries.map(([machine, js]) => (
-            <Tile key={machine} onClick={() => setDrillMachine(machine)}
-              icon={Cpu} tint="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
-              title={machine}
-              subtitle={`${js.length} jobs`}
-              counts={countBy(js)} />
-          ))}
+        <div className="space-y-4">
+          {/* Resource hours summary */}
+          <div className="rounded-xl border bg-card p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-primary" />
+                <div className="text-sm font-semibold">Resource Hours Required</div>
+              </div>
+              <div className="text-xs text-muted-foreground">
+                Total <span className="font-semibold text-foreground">{fmtH(totalHrs)}</span> across {hoursList.length} resource{hoursList.length === 1 ? '' : 's'}
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+              {hoursList.map(([name, h]) => {
+                const pct = totalHrs > 0 ? (h / totalHrs) * 100 : 0;
+                return (
+                  <div key={name} className="rounded-lg border bg-background p-2.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-xs font-medium truncate">{name}</div>
+                      <div className="text-xs font-semibold tabular-nums">{fmtH(h)}</div>
+                    </div>
+                    <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
+                      <div className="h-full bg-cyan-500" style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+            {entries.map(([machine, js]) => {
+              const hrs = hoursByResource.get(machine) || 0;
+              return (
+                <Tile key={machine} onClick={() => setDrillMachine(machine)}
+                  icon={Cpu} tint="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
+                  title={machine}
+                  subtitle={`${js.length} job${js.length === 1 ? '' : 's'} · ${fmtH(hrs)}`}
+                  counts={countBy(js)} />
+              );
+            })}
+          </div>
         </div>
       );
     }
