@@ -522,52 +522,67 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
       const entries = Array.from(machinesForProject.entries()).sort(([a], [b]) => a.localeCompare(b));
       if (!entries.length) return <EmptyState label="No machines" />;
 
-      // Hours required per resource across ALL ops of the project's jobs
+      // Lead time (working days) per machine across the project's ops
       const projectJobIds = new Set(
         Array.from(machinesForProject.values()).flat().map(j => j.id)
       );
-      const hoursByResource = new Map<string, number>();
+      const MS_DAY = 24 * 60 * 60 * 1000;
+      const businessDaysBetween = (startMs: number, endMs: number) => {
+        if (!isFinite(startMs) || !isFinite(endMs) || endMs < startMs) return 0;
+        const start = new Date(startMs); start.setHours(0, 0, 0, 0);
+        const end = new Date(endMs); end.setHours(0, 0, 0, 0);
+        let n = 0;
+        for (let d = start.getTime(); d <= end.getTime(); d += MS_DAY) {
+          const dow = new Date(d).getDay();
+          if (dow !== 0 && dow !== 6) n++;
+        }
+        return n;
+      };
+      const fmtDateShort = (ms: number) => isFinite(ms) ? new Date(ms).toLocaleDateString() : '—';
+
+      const spanByMachine = new Map<string, { min: number; max: number; hrs: number }>();
       ops.forEach(op => {
         if (!projectJobIds.has(op.job_id)) return;
         const res = op.resource_id ? resById.get(op.resource_id) : null;
         const name = res?.resource_name || 'Unassigned';
-        const job = jobs.find(j => j.id === op.job_id);
-        const hrs = op.total_time_hours && op.total_time_hours > 0
-          ? Number(op.total_time_hours)
-          : Number(op.setup_time_hours || 0) + (op.total_time_hours == null
-              ? 0
-              : 0);
-        // Fallback if total_time_hours not set: setup only (cycle/qty unknown here)
-        const safe = isFinite(hrs) ? hrs : 0;
-        hoursByResource.set(name, (hoursByResource.get(name) || 0) + safe);
-        void job;
+        const s = op.planned_start ? new Date(op.planned_start).getTime() : NaN;
+        const f = op.planned_finish ? new Date(op.planned_finish).getTime() : NaN;
+        const hrs = Number(op.total_time_hours || 0);
+        const cur = spanByMachine.get(name);
+        if (!cur) spanByMachine.set(name, { min: isFinite(s) ? s : Infinity, max: isFinite(f) ? f : -Infinity, hrs });
+        else {
+          if (isFinite(s)) cur.min = Math.min(cur.min, s);
+          if (isFinite(f)) cur.max = Math.max(cur.max, f);
+          cur.hrs += hrs;
+        }
       });
-      const hoursList = Array.from(hoursByResource.entries())
-        .sort((a, b) => b[1] - a[1]);
-      const totalHrs = hoursList.reduce((s, [, h]) => s + h, 0);
-      const fmtH = (h: number) => `${h.toFixed(1)}h${h >= 8 ? ` · ${(h / 8).toFixed(1)}d` : ''}`;
+      const leadList = Array.from(spanByMachine.entries())
+        .map(([name, v]) => ({ name, days: businessDaysBetween(v.min, v.max), min: v.min, max: v.max, hrs: v.hrs }))
+        .sort((a, b) => b.days - a.days);
+      const maxDays = leadList.reduce((m, x) => Math.max(m, x.days), 0);
 
       return (
         <div className="space-y-4">
-          {/* Resource hours summary */}
+          {/* Lead time per machine */}
           <div className="rounded-xl border bg-card p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-primary" />
-                <div className="text-sm font-semibold">Resource Hours Required</div>
+                <div className="text-sm font-semibold">Delivery Lead Time by Machine</div>
               </div>
-              <div className="text-xs text-muted-foreground">
-                Total <span className="font-semibold text-foreground">{fmtH(totalHrs)}</span> across {hoursList.length} resource{hoursList.length === 1 ? '' : 's'}
-              </div>
+              <div className="text-xs text-muted-foreground">Working days span (parallel ops accounted)</div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {hoursList.map(([name, h]) => {
-                const pct = totalHrs > 0 ? (h / totalHrs) * 100 : 0;
+              {leadList.map(({ name, days, min, max, hrs }) => {
+                const pct = maxDays > 0 ? (days / maxDays) * 100 : 0;
                 return (
                   <div key={name} className="rounded-lg border bg-background p-2.5">
                     <div className="flex items-center justify-between gap-2">
                       <div className="text-xs font-medium truncate">{name}</div>
-                      <div className="text-xs font-semibold tabular-nums">{fmtH(h)}</div>
+                      <div className="text-xs font-semibold tabular-nums">{days}d</div>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                      {fmtDateShort(min)} → {fmtDateShort(max)} · {hrs.toFixed(1)}h load
                     </div>
                     <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
                       <div className="h-full bg-cyan-500" style={{ width: `${pct}%` }} />
@@ -578,15 +593,15 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
             </div>
           </div>
 
-
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
             {entries.map(([machine, js]) => {
-              const hrs = hoursByResource.get(machine) || 0;
+              const info = spanByMachine.get(machine);
+              const days = info ? businessDaysBetween(info.min, info.max) : 0;
               return (
                 <Tile key={machine} onClick={() => setDrillMachine(machine)}
                   icon={Cpu} tint="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
                   title={machine}
-                  subtitle={`${js.length} job${js.length === 1 ? '' : 's'} · ${fmtH(hrs)}`}
+                  subtitle={`${js.length} job${js.length === 1 ? '' : 's'} · ${days}d lead`}
                   counts={countBy(js)} />
               );
             })}
