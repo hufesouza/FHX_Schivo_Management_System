@@ -448,6 +448,7 @@ export default function PartLibraryDetail() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[32px]"></TableHead>
                     <TableHead className="w-[80px]">Op #</TableHead>
                     <TableHead>Operation</TableHead>
                     <TableHead>Resource</TableHead>
@@ -459,11 +460,23 @@ export default function PartLibraryDetail() {
                 </TableHeader>
                 <TableBody>
                   {ops.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       No operations yet. Add the first one to define the routing.
                     </TableCell></TableRow>
                   ) : ops.map((op, i) => (
-                    <TableRow key={op.id}>
+                    <TableRow
+                      key={op.id}
+                      draggable
+                      onDragStart={(e) => { setDragIndex(i); e.dataTransfer.effectAllowed = 'move'; }}
+                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverIndex(i); }}
+                      onDragLeave={() => setDragOverIndex(prev => prev === i ? null : prev)}
+                      onDrop={(e) => { e.preventDefault(); handleDrop(i); }}
+                      onDragEnd={() => { setDragIndex(null); setDragOverIndex(null); }}
+                      className={`${dragIndex === i ? 'opacity-50' : ''} ${dragOverIndex === i && dragIndex !== i ? 'bg-accent/50' : ''}`}
+                    >
+                      <TableCell className="cursor-grab active:cursor-grabbing text-muted-foreground">
+                        <GripVertical className="h-4 w-4" />
+                      </TableCell>
                       <TableCell className="font-medium">{op.operation_number}</TableCell>
                       <TableCell>{op.operation_name}</TableCell>
                       <TableCell>{resourceName(op.resource_id)}</TableCell>
