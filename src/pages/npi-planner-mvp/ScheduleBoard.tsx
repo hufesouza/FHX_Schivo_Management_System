@@ -5,9 +5,11 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import {
   ChevronRight, ExternalLink, X, Search, Users, Briefcase,
   AlertTriangle, CheckCircle2, Clock, ArrowLeft, Cpu, Package, FileText, Layers,
+  Workflow, Wrench, Flag, ArrowRight,
 } from 'lucide-react';
 import { format, differenceInDays } from 'date-fns';
 
@@ -21,7 +23,7 @@ type Job = {
 type JobOp = {
   id: string; job_id: string; operation_number: number; operation_name: string;
   resource_id: string | null; planned_start: string | null; planned_finish: string | null;
-  sequence_order: number | null;
+  sequence_order: number | null; total_time_hours: number | null; setup_time_hours: number | null;
 };
 
 interface Props { onOpenInGantt: (j: { partId: string | null; jobId: string }) => void; }
@@ -36,7 +38,18 @@ const riskTheme = (risk?: string | null) => {
   return { bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/40', dot: 'bg-emerald-500', icon: CheckCircle2, label: 'On Track' };
 };
 
-type Level = 'customer' | 'project' | 'machine' | 'job' | 'pn' | 'ops';
+type OpStatus = 'Not Started' | 'In Progress' | 'Completed' | 'At Risk' | 'Late';
+const opStatusTheme = (s: OpStatus) => {
+  switch (s) {
+    case 'Completed': return { bg: 'bg-emerald-500/10', text: 'text-emerald-700 dark:text-emerald-400', border: 'border-emerald-500/40', chip: 'bg-emerald-500 text-white' };
+    case 'In Progress': return { bg: 'bg-blue-500/10', text: 'text-blue-700 dark:text-blue-400', border: 'border-blue-500/40', chip: 'bg-blue-500 text-white' };
+    case 'At Risk': return { bg: 'bg-amber-500/10', text: 'text-amber-700 dark:text-amber-400', border: 'border-amber-500/40', chip: 'bg-amber-500 text-white' };
+    case 'Late': return { bg: 'bg-destructive/10', text: 'text-destructive', border: 'border-destructive/40', chip: 'bg-destructive text-white' };
+    default: return { bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-border', chip: 'bg-muted text-muted-foreground' };
+  }
+};
+
+type Level = 'customer' | 'project' | 'job' | 'pn';
 
 export default function ScheduleBoard({ onOpenInGantt }: Props) {
   const [resources, setResources] = useState<Resource[]>([]);
@@ -50,12 +63,13 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
   const [fRisk, setFRisk] = useState('all');
   const [fDue, setFDue] = useState<'all' | 'overdue' | '7' | '30'>('all');
 
-  // Drill state — Customer → Project → Machine → Job → PN → Operations
+  // Drill state — Customer → Project → Job → PN
   const [drillCustomer, setDrillCustomer] = useState<string | null>(null);
   const [drillProject, setDrillProject] = useState<string | null>(null);
-  const [drillMachine, setDrillMachine] = useState<string | null>(null);
   const [drillJob, setDrillJob] = useState<string | null>(null);
-  const [drillPart, setDrillPart] = useState<string | null>(null);
+
+  // Process Flow modal
+  const [flowJobId, setFlowJobId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -63,7 +77,7 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
         supabase.from('resources').select('id,resource_name,resource_type,resource_category').eq('status', 'Active'),
         supabase.from('parts').select('id,part_number,revision,customer,project'),
         supabase.from('jobs').select('id,job_number,part_id,quantity,due_date,status,planned_start,planned_finish,schedule_status,best_commence_date,latest_start_date,schedule_risk'),
-        supabase.from('job_operations').select('id,job_id,operation_number,operation_name,resource_id,planned_start,planned_finish,sequence_order'),
+        supabase.from('job_operations').select('id,job_id,operation_number,operation_name,resource_id,planned_start,planned_finish,sequence_order,total_time_hours,setup_time_hours'),
       ]);
       setResources((r.data as Resource[]) || []);
       setParts((p.data as Part[]) || []);
@@ -130,16 +144,12 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
     return c;
   };
 
-  // Determine current level
   const level: Level =
     !drillCustomer ? 'customer'
     : !drillProject ? 'project'
-    : !drillMachine ? 'machine'
     : !drillJob ? 'job'
-    : !drillPart ? 'pn'
-    : 'ops';
+    : 'pn';
 
-  // Grouped data
   const byCustomer = useMemo(() => {
     const m = new Map<string, Job[]>();
     filteredJobs.forEach(job => {
@@ -163,36 +173,10 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
     return m;
   }, [byCustomer, drillCustomer, partsById]);
 
-  const machinesForProject = useMemo(() => {
-    if (!drillProject) return new Map<string, Job[]>();
-    const m = new Map<string, Job[]>();
-    (projectsForCustomer.get(drillProject) || []).forEach(job => {
-      const a = opsByJob.get(job.id) || [];
-      let cur: JobOp | null = null;
-      if (job.status !== 'Completed' && a.length) {
-        const now = Date.now();
-        cur = a.find(op => op.planned_finish && new Date(op.planned_finish).getTime() > now) || a[a.length - 1];
-      }
-      const res = cur?.resource_id ? resById.get(cur.resource_id) : null;
-      const machineName = res?.resource_name || 'Unassigned';
-      if (!m.has(machineName)) m.set(machineName, []);
-      m.get(machineName)!.push(job);
-    });
-    return m;
-  }, [projectsForCustomer, drillProject, opsByJob, resById]);
-
-  const jobsForMachine = useMemo(() => {
-    if (!drillMachine) return [] as Job[];
-    return machinesForProject.get(drillMachine) || [];
-  }, [machinesForProject, drillMachine]);
-
-  const partsForJob = useMemo(() => {
-    if (!drillJob) return [] as Part[];
-    const job = jobs.find(j => j.id === drillJob);
-    if (!job?.part_id) return [];
-    const p = partsById.get(job.part_id);
-    return p ? [p] : [];
-  }, [jobs, drillJob, partsById]);
+  const jobsForProject = useMemo(() => {
+    if (!drillProject) return [] as Job[];
+    return projectsForCustomer.get(drillProject) || [];
+  }, [projectsForCustomer, drillProject]);
 
   const clearFilters = () => { setSearch(''); setFCustomer('all'); setFDept('all'); setFRisk('all'); setFDue('all'); };
 
@@ -216,16 +200,13 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
     </div>
   );
 
-  const Tile = ({ onClick, icon: Icon, tint, title, subtitle, counts }: {
-    onClick: () => void; icon: any; tint: string; title: string; subtitle: string; counts: Counts;
+  const Tile = ({ onClick, icon: Icon, tint, title, subtitle, counts, footer }: {
+    onClick: () => void; icon: any; tint: string; title: string; subtitle: string; counts: Counts; footer?: React.ReactNode;
   }) => {
     const accent = counts.late > 0 ? 'border-destructive/30' : counts.risk > 0 ? 'border-amber-500/30' : '';
     return (
-      <button
-        onClick={onClick}
-        className={`group relative overflow-hidden rounded-xl border bg-card text-left transition-all hover:border-primary/50 hover:shadow-md hover:-translate-y-0.5 ${accent}`}
-      >
-        <div className="p-4">
+      <div className={`group relative overflow-hidden rounded-xl border bg-card transition-all hover:border-primary/50 hover:shadow-md ${accent}`}>
+        <button onClick={onClick} className="block w-full text-left p-4 hover:-translate-y-0.5 transition-transform">
           <div className="flex items-start justify-between">
             <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${tint}`}>
               <Icon className="h-5 w-5" />
@@ -237,27 +218,23 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
             <div className="text-xs text-muted-foreground truncate">{subtitle}</div>
           </div>
           <div className="mt-3"><RiskBar counts={counts} /></div>
-          <ChevronRight className="absolute right-3 bottom-3 h-4 w-4 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
-        </div>
-      </button>
+          {!footer && <ChevronRight className="absolute right-3 bottom-3 h-4 w-4 text-muted-foreground/40 group-hover:text-primary group-hover:translate-x-0.5 transition-all" />}
+        </button>
+        {footer && <div className="border-t bg-muted/30 px-4 py-2">{footer}</div>}
+      </div>
     );
   };
 
   // === Breadcrumb ===
   const crumb = () => {
     const items: { label: string; onClick: () => void; icon: any }[] = [
-      { label: 'Customers', icon: Users, onClick: () => { setDrillCustomer(null); setDrillProject(null); setDrillMachine(null); setDrillJob(null); setDrillPart(null); } },
+      { label: 'Customers', icon: Users, onClick: () => { setDrillCustomer(null); setDrillProject(null); setDrillJob(null); } },
     ];
-    if (drillCustomer) items.push({ label: drillCustomer, icon: Users, onClick: () => { setDrillProject(null); setDrillMachine(null); setDrillJob(null); setDrillPart(null); } });
-    if (drillProject) items.push({ label: drillProject, icon: Briefcase, onClick: () => { setDrillMachine(null); setDrillJob(null); setDrillPart(null); } });
-    if (drillMachine) items.push({ label: drillMachine, icon: Cpu, onClick: () => { setDrillJob(null); setDrillPart(null); } });
+    if (drillCustomer) items.push({ label: drillCustomer, icon: Users, onClick: () => { setDrillProject(null); setDrillJob(null); } });
+    if (drillProject) items.push({ label: drillProject, icon: Briefcase, onClick: () => { setDrillJob(null); } });
     if (drillJob) {
       const j = jobs.find(jj => jj.id === drillJob);
-      items.push({ label: j?.job_number || '—', icon: FileText, onClick: () => { setDrillPart(null); } });
-    }
-    if (drillPart) {
-      const p = partsById.get(drillPart);
-      items.push({ label: p?.part_number || '—', icon: Layers, onClick: () => {} });
+      items.push({ label: j?.job_number || '—', icon: FileText, onClick: () => {} });
     }
     return (
       <div className="flex items-center gap-1.5 text-sm flex-wrap">
@@ -277,11 +254,26 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
   };
 
   const goBack = () => {
-    if (drillPart) setDrillPart(null);
-    else if (drillJob) setDrillJob(null);
-    else if (drillMachine) setDrillMachine(null);
+    if (drillJob) setDrillJob(null);
     else if (drillProject) setDrillProject(null);
     else if (drillCustomer) setDrillCustomer(null);
+  };
+
+  // === Op status derivation ===
+  const deriveOpStatus = (job: Job, op: JobOp, idx: number, all: JobOp[]): OpStatus => {
+    const now = Date.now();
+    const fin = op.planned_finish ? new Date(op.planned_finish).getTime() : null;
+    const start = op.planned_start ? new Date(op.planned_start).getTime() : null;
+    if (job.status === 'Completed') return 'Completed';
+    if (fin && fin <= now) return 'Completed';
+    const isCurrent = start != null && start <= now && (!fin || fin > now);
+    const risk = job.schedule_risk || 'On Track';
+    if (isCurrent) {
+      if (risk === 'Late') return 'Late';
+      if (risk === 'At Risk') return 'At Risk';
+      return 'In Progress';
+    }
+    return 'Not Started';
   };
 
   // === Render levels ===
@@ -316,23 +308,8 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
         </div>
       );
     }
-    if (level === 'machine') {
-      const entries = Array.from(machinesForProject.entries()).sort(([a], [b]) => a.localeCompare(b));
-      if (!entries.length) return <EmptyState label="No machines" />;
-      return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {entries.map(([machine, js]) => (
-            <Tile key={machine} onClick={() => setDrillMachine(machine)}
-              icon={Cpu} tint="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
-              title={machine}
-              subtitle={`${js.length} jobs`}
-              counts={countBy(js)} />
-          ))}
-        </div>
-      );
-    }
     if (level === 'job') {
-      const sorted = jobsForMachine.slice().sort((a, b) => {
+      const sorted = jobsForProject.slice().sort((a, b) => {
         const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
         const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
         return da - db;
@@ -346,103 +323,47 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
             return (
               <Tile key={job.id} onClick={() => setDrillJob(job.id)}
                 icon={FileText} tint={`${theme.bg} ${theme.text}`}
-                title={part?.part_number || 'No part'}
-                subtitle={`${job.job_number} · Due ${fmtDate(job.due_date)}`}
+                title={job.job_number}
+                subtitle={`${part?.part_number || 'No part'} · Due ${fmtDate(job.due_date)}`}
                 counts={countBy([job])} />
             );
           })}
         </div>
       );
     }
-    if (level === 'pn') {
-      if (!partsForJob.length) return <EmptyState label="No part linked to this job" />;
-      const job = jobs.find(j => j.id === drillJob)!;
-      return (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-          {partsForJob.map(p => (
-            <Tile key={p.id} onClick={() => setDrillPart(p.id)}
-              icon={Layers} tint="bg-blue-500/10 text-blue-600 dark:text-blue-400"
-              title={p.part_number}
-              subtitle={`${p.revision ? `Rev ${p.revision} · ` : ''}Qty ${job.quantity}`}
-              counts={countBy([job])} />
-          ))}
-        </div>
-      );
-    }
-    // ops
+    // pn
     const job = jobs.find(j => j.id === drillJob)!;
-    const part = drillPart ? partsById.get(drillPart) : null;
-    const cur = currentOp(job);
-    const list = opsByJob.get(job.id) || [];
-    const doneIdx = cur ? list.findIndex(o => o.id === cur.id) : list.length;
-    const theme = riskTheme(job.schedule_risk);
-    const Icon = theme.icon;
+    const part = job?.part_id ? partsById.get(job.part_id) : null;
+    if (!part) return <EmptyState label="No part linked to this job" />;
     return (
-      <div className="space-y-4">
-        {/* Header card for job + PN */}
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-lg font-bold">{job.job_number}</span>
-                  <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${theme.bg} ${theme.text}`}>
-                    <Icon className="h-3 w-3" />{theme.label}
-                  </span>
-                </div>
-                <div className="mt-1 text-sm text-muted-foreground">
-                  {part?.part_number}{part?.revision ? ` · Rev ${part.revision}` : ''} · Qty {job.quantity}
-                </div>
-              </div>
-              <Button size="sm" onClick={() => onOpenInGantt({ partId: job.part_id, jobId: job.id })}>
-                <ExternalLink className="h-3.5 w-3.5 mr-1" />Open in Gantt
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+        <Tile
+          onClick={() => setFlowJobId(job.id)}
+          icon={Layers}
+          tint="bg-blue-500/10 text-blue-600 dark:text-blue-400"
+          title={part.part_number}
+          subtitle={`${part.revision ? `Rev ${part.revision} · ` : ''}Qty ${job.quantity}`}
+          counts={countBy([job])}
+          footer={
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[11px] text-muted-foreground">Due {fmtDate(job.due_date)}</span>
+              <Button size="sm" variant="default" onClick={() => setFlowJobId(job.id)}>
+                <Workflow className="h-3.5 w-3.5 mr-1" />View Process Flow
               </Button>
             </div>
-            <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-              <Info label="Due" value={fmtDate(job.due_date)} />
-              <Info label="Planned Start" value={fmtDateTime(job.planned_start)} />
-              <Info label="Planned Finish" value={fmtDateTime(job.planned_finish)} />
-              <Info label="Latest Start" value={fmtDate(job.latest_start_date)} />
-            </div>
-            <div className="mt-3">
-              <div className="flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                <div className="bg-primary" style={{ width: `${list.length ? (doneIdx / list.length) * 100 : 0}%` }} />
-              </div>
-              <div className="mt-1 text-[11px] text-muted-foreground">{doneIdx} of {list.length} operations done</div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Operations list */}
-        <div className="space-y-2">
-          {list.map((op, i) => {
-            const r = op.resource_id ? resById.get(op.resource_id) : null;
-            const isCur = cur?.id === op.id;
-            const done = i < doneIdx;
-            return (
-              <div key={op.id} className={`flex items-center gap-3 rounded-lg border p-3 ${isCur ? 'border-primary bg-primary/5' : done ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-border bg-card'}`}>
-                <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${isCur ? 'bg-primary text-primary-foreground' : done ? 'bg-emerald-500 text-white' : 'bg-muted text-muted-foreground'}`}>
-                  {done ? '✓' : op.operation_number}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="text-sm font-medium truncate">{op.operation_name}</div>
-                  <div className="text-xs text-muted-foreground inline-flex items-center gap-2 mt-0.5">
-                    {r && <span className="inline-flex items-center gap-1"><Cpu className="h-3 w-3" />{r.resource_name}</span>}
-                    <span className="inline-flex items-center gap-1"><Clock className="h-3 w-3" />{fmtDateTime(op.planned_start)} → {fmtDateTime(op.planned_finish)}</span>
-                  </div>
-                </div>
-                {isCur && <Badge>Current</Badge>}
-              </div>
-            );
-          })}
-          {!list.length && <EmptyState label="No operations" />}
-        </div>
+          }
+        />
       </div>
     );
   };
 
   const kpi = countBy(filteredJobs);
-  const canBack = !!(drillCustomer || drillProject || drillMachine || drillJob || drillPart);
+  const canBack = !!(drillCustomer || drillProject || drillJob);
+
+  // === Process Flow modal data ===
+  const flowJob = flowJobId ? jobs.find(j => j.id === flowJobId) : null;
+  const flowPart = flowJob?.part_id ? partsById.get(flowJob.part_id) : null;
+  const flowOps = flowJob ? (opsByJob.get(flowJob.id) || []) : [];
 
   return (
     <div className="space-y-4">
@@ -500,12 +421,135 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
           {crumb()}
         </div>
         <div className="text-xs text-muted-foreground uppercase tracking-wide">
-          Customer → Project → Machine → Job → PN → Operations
+          Customer → Project → Job → Part Number
         </div>
       </div>
 
       <div>{renderLevel()}</div>
+
+      {/* Process Flow Modal */}
+      <Dialog open={!!flowJobId} onOpenChange={(o) => !o && setFlowJobId(null)}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Workflow className="h-5 w-5 text-primary" />
+              Process Flow — {flowPart?.part_number || '—'}
+              {flowPart?.revision && <Badge variant="outline">Rev {flowPart.revision}</Badge>}
+            </DialogTitle>
+            <DialogDescription>
+              {flowJob && (
+                <span className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                  <span><span className="font-mono font-medium">{flowJob.job_number}</span></span>
+                  <span>Qty {flowJob.quantity}</span>
+                  <span>Due {fmtDate(flowJob.due_date)}</span>
+                  <span>Planned {fmtDate(flowJob.planned_start)} → {fmtDate(flowJob.planned_finish)}</span>
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {flowJob && (
+            <div className="mt-2 flex justify-end">
+              <Button size="sm" variant="outline" onClick={() => { onOpenInGantt({ partId: flowJob.part_id, jobId: flowJob.id }); setFlowJobId(null); }}>
+                <ExternalLink className="h-3.5 w-3.5 mr-1" />Open in Gantt
+              </Button>
+            </div>
+          )}
+
+          {/* Flow */}
+          <div className="mt-3 overflow-x-auto pb-2">
+            <div className="flex items-stretch gap-2 min-w-min">
+              {/* Development Time bookend */}
+              <FlowBookend
+                icon={Wrench}
+                title="Development Time"
+                subtitle={flowJob?.best_commence_date ? `Until ${fmtDate(flowJob.best_commence_date)}` : 'Pre-production'}
+                tint="bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/30"
+              />
+              <FlowArrow />
+
+              {flowOps.length === 0 && (
+                <div className="flex items-center text-sm text-muted-foreground italic px-4">No operations defined</div>
+              )}
+
+              {flowOps.map((op, i) => {
+                const status = deriveOpStatus(flowJob!, op, i, flowOps);
+                const t = opStatusTheme(status);
+                const res = op.resource_id ? resById.get(op.resource_id) : null;
+                const dur = (op.total_time_hours ?? 0) + (op.setup_time_hours ?? 0);
+                return (
+                  <div key={op.id} className="flex items-stretch">
+                    <div className={`w-[220px] shrink-0 rounded-xl border-2 ${t.border} ${t.bg} p-3 flex flex-col`}>
+                      <div className="flex items-center justify-between">
+                        <span className={`inline-flex items-center justify-center rounded-md px-2 py-0.5 text-xs font-bold ${t.chip}`}>
+                          OP{String(op.operation_number).padStart(2, '0')}
+                        </span>
+                        <span className={`text-[10px] font-semibold uppercase tracking-wide ${t.text}`}>{status}</span>
+                      </div>
+                      <div className="mt-2 text-sm font-semibold leading-tight line-clamp-2">{op.operation_name}</div>
+                      <div className="mt-2 space-y-1 text-[11px] text-muted-foreground">
+                        <div className="flex items-center gap-1"><Cpu className="h-3 w-3" /><span className="truncate">{res?.resource_name || 'Unassigned'}</span></div>
+                        <div className="flex items-center gap-1"><Clock className="h-3 w-3" /><span>{dur ? `${dur.toFixed(1)} h` : '—'}</span></div>
+                      </div>
+                      <div className="mt-2 border-t pt-2 space-y-0.5 text-[10px] text-muted-foreground">
+                        <div><span className="uppercase tracking-wide">Start:</span> <span className="font-medium text-foreground">{fmtDateTime(op.planned_start)}</span></div>
+                        <div><span className="uppercase tracking-wide">Finish:</span> <span className="font-medium text-foreground">{fmtDateTime(op.planned_finish)}</span></div>
+                      </div>
+                    </div>
+                    <FlowArrow />
+                  </div>
+                );
+              })}
+
+              {/* Completed bookend */}
+              <FlowBookend
+                icon={Flag}
+                title="Completed"
+                subtitle={flowJob?.planned_finish ? fmtDate(flowJob.planned_finish) : '—'}
+                tint={`${flowJob?.status === 'Completed' ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/40' : 'bg-muted text-muted-foreground border-border'}`}
+              />
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+            <span className="font-medium">Status:</span>
+            <LegendDot color="bg-muted-foreground/40" label="Not Started" />
+            <LegendDot color="bg-blue-500" label="In Progress" />
+            <LegendDot color="bg-emerald-500" label="Completed" />
+            <LegendDot color="bg-amber-500" label="At Risk" />
+            <LegendDot color="bg-destructive" label="Late" />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
+  );
+}
+
+function FlowArrow() {
+  return (
+    <div className="flex items-center px-1 text-muted-foreground">
+      <ArrowRight className="h-5 w-5" />
+    </div>
+  );
+}
+
+function FlowBookend({ icon: Icon, title, subtitle, tint }: { icon: any; title: string; subtitle: string; tint: string }) {
+  return (
+    <div className={`w-[180px] shrink-0 rounded-xl border-2 border-dashed p-3 flex flex-col items-center justify-center text-center ${tint}`}>
+      <Icon className="h-6 w-6 mb-1" />
+      <div className="text-sm font-semibold">{title}</div>
+      <div className="text-[11px] opacity-80 mt-0.5">{subtitle}</div>
+    </div>
+  );
+}
+
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className={`h-2 w-2 rounded-full ${color}`} />
+      {label}
+    </span>
   );
 }
 
@@ -520,15 +564,6 @@ function Kpi({ icon: Icon, label, value, tint }: { icon: any; label: string; val
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function Info({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <div className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="font-medium truncate">{value}</div>
-    </div>
   );
 }
 
