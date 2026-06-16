@@ -1089,9 +1089,11 @@ export type Database = {
           development_time_hours: number
           due_date: string
           id: string
+          job_level: string
           job_number: string
           latest_start_date: string | null
           notes: string | null
+          parent_job_id: string | null
           part_id: string
           pending_planned_date: string | null
           pending_planned_date_reason: string | null
@@ -1115,9 +1117,11 @@ export type Database = {
           development_time_hours?: number
           due_date: string
           id?: string
+          job_level?: string
           job_number: string
           latest_start_date?: string | null
           notes?: string | null
+          parent_job_id?: string | null
           part_id: string
           pending_planned_date?: string | null
           pending_planned_date_reason?: string | null
@@ -1141,9 +1145,11 @@ export type Database = {
           development_time_hours?: number
           due_date?: string
           id?: string
+          job_level?: string
           job_number?: string
           latest_start_date?: string | null
           notes?: string | null
+          parent_job_id?: string | null
           part_id?: string
           pending_planned_date?: string | null
           pending_planned_date_reason?: string | null
@@ -1172,6 +1178,13 @@ export type Database = {
             columns: ["dev_resource_id"]
             isOneToOne: false
             referencedRelation: "resources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_parent_job_id_fkey"
+            columns: ["parent_job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
           {
@@ -3265,6 +3278,51 @@ export type Database = {
           },
         ]
       }
+      part_bom_components: {
+        Row: {
+          assembly_part_id: string
+          component_part_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          quantity_per_assembly: number
+          updated_at: string
+        }
+        Insert: {
+          assembly_part_id: string
+          component_part_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          quantity_per_assembly?: number
+          updated_at?: string
+        }
+        Update: {
+          assembly_part_id?: string
+          component_part_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          quantity_per_assembly?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "part_bom_components_assembly_part_id_fkey"
+            columns: ["assembly_part_id"]
+            isOneToOne: false
+            referencedRelation: "parts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "part_bom_components_component_part_id_fkey"
+            columns: ["component_part_id"]
+            isOneToOne: false
+            referencedRelation: "parts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       part_operations: {
         Row: {
           created_at: string
@@ -3326,6 +3384,7 @@ export type Database = {
           description: string | null
           id: string
           part_number: string
+          part_type: string
           project: string | null
           revision: string | null
           updated_at: string
@@ -3336,6 +3395,7 @@ export type Database = {
           description?: string | null
           id?: string
           part_number: string
+          part_type?: string
           project?: string | null
           revision?: string | null
           updated_at?: string
@@ -3346,6 +3406,7 @@ export type Database = {
           description?: string | null
           id?: string
           part_number?: string
+          part_type?: string
           project?: string | null
           revision?: string | null
           updated_at?: string

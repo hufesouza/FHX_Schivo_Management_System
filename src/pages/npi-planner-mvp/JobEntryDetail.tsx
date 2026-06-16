@@ -31,7 +31,7 @@ type Resource = {
   resource_category?: string | null;
   lead_time_days?: number | null;
 };
-type Part = { id: string; part_number: string; revision: string | null; description: string | null };
+type Part = { id: string; part_number: string; revision: string | null; description: string | null; part_type?: 'Single Part' | 'Assembly' };
 type PartOp = {
   id: string;
   operation_number: number;
@@ -39,6 +39,12 @@ type PartOp = {
   resource_id: string | null;
   setup_time_hours: number;
   cycle_time_seconds: number;
+};
+type BomComponent = {
+  component_part_id: string;
+  quantity_per_assembly: number;
+  notes: string | null;
+  component: { id: string; part_number: string; revision: string | null; part_type: string } | null;
 };
 type JobOp = {
   id?: string;
@@ -89,6 +95,7 @@ export default function JobEntryDetail() {
   const [parts, setParts] = useState<Part[]>([]);
   const [resources, setResources] = useState<Resource[]>([]);
   const [ops, setOps] = useState<JobOp[]>([]);
+  const [bom, setBom] = useState<BomComponent[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -121,7 +128,7 @@ export default function JobEntryDetail() {
     (async () => {
       setLoading(true);
       const [p, r] = await Promise.all([
-        supabase.from('parts').select('id, part_number, revision, description').order('part_number'),
+        supabase.from('parts').select('id, part_number, revision, description, part_type').order('part_number'),
         supabase.from('resources').select('id, resource_name, resource_type, resource_category, lead_time_days').eq('status', 'Active').order('resource_name'),
       ]);
       setParts((p.data || []) as Part[]);
@@ -182,11 +189,17 @@ export default function JobEntryDetail() {
   const onPartChange = async (partId: string) => {
     setForm(f => ({ ...f, part_id: partId }));
     if (!isNew) return; // don't overwrite saved overrides
-    const [{ data, error }, { data: prevJob }] = await Promise.all([
+    const selected = parts.find(p => p.id === partId);
+    const [{ data, error }, { data: prevJob }, { data: bomRows }] = await Promise.all([
       supabase.from('part_operations').select('*').eq('part_id', partId).order('operation_number'),
       supabase.from('jobs').select('development_time_hours')
         .eq('part_id', partId).gt('development_time_hours', 0)
         .order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      selected?.part_type === 'Assembly'
+        ? supabase.from('part_bom_components')
+            .select('component_part_id, quantity_per_assembly, notes, component:parts!part_bom_components_component_part_id_fkey(id, part_number, revision, part_type)')
+            .eq('assembly_part_id', partId)
+        : Promise.resolve({ data: [] as any[] }),
     ]);
     if (error) return toast.error(error.message);
     setOps((data || []).map((o: PartOp, i: number) => ({
@@ -197,6 +210,7 @@ export default function JobEntryDetail() {
       cycle_time_seconds: Number(o.cycle_time_seconds) || 0,
       sequence_order: i + 1,
     })));
+    setBom((bomRows || []) as any);
     if (prevJob?.development_time_hours) {
       setForm(f => ({ ...f, part_id: partId, development_time_hours: Number(prevJob.development_time_hours) }));
     }
@@ -248,9 +262,15 @@ export default function JobEntryDetail() {
       notes: form.notes.trim() || null,
     };
 
+    const selectedPart = parts.find(p => p.id === form.part_id);
+    const isAssembly = isNew && selectedPart?.part_type === 'Assembly' && bom.length > 0;
+
     let jobId = id;
     if (isNew) {
-      const { data, error } = await supabase.from('jobs').insert(payload).select().single();
+      const { data, error } = await supabase.from('jobs').insert({
+        ...payload,
+        job_level: isAssembly ? 'Parent Assembly' : 'Single Job',
+      } as any).select().single();
       if (error) { setSaving(false); return toast.error(error.message); }
       jobId = data.id;
     } else {
@@ -276,8 +296,68 @@ export default function JobEntryDetail() {
       if (error) { setSaving(false); return toast.error(error.message); }
     }
 
+    // Generate subcomponent jobs for an assembly
+    let childCount = 0;
+    if (isAssembly && jobId) {
+      // Compute child due date: 2 working days before the parent due date.
+      const parentDue = form.due_date!;
+      const childDue = new Date(parentDue);
+      childDue.setDate(childDue.getDate() - 2);
+
+      // Find current max job number to keep auto-increment consistent
+      const { data: allJobs } = await supabase.from('jobs').select('job_number');
+      let maxN = 0;
+      (allJobs || []).forEach((j: any) => {
+        const m = String(j.job_number || '').match(/(\d+)/);
+        if (m) { const n = parseInt(m[1], 10); if (n > maxN) maxN = n; }
+      });
+
+      for (const c of bom) {
+        if (!c.component) continue;
+        maxN += 1;
+        const childJobNumber = String(maxN).padStart(3, '0');
+        const childQty = Math.ceil(Number(c.quantity_per_assembly || 0) * form.quantity);
+        const { data: childJob, error: cErr } = await supabase.from('jobs').insert({
+          job_number: childJobNumber,
+          part_id: c.component_part_id,
+          quantity: childQty,
+          due_date: format(childDue, 'yyyy-MM-dd'),
+          priority: form.priority,
+          status: 'Planned',
+          development_time_hours: 0,
+          notes: `Auto-created for assembly ${form.job_number}`,
+          parent_job_id: jobId,
+          job_level: 'Subcomponent',
+        } as any).select().single();
+        if (cErr) { toast.error(`Child job for ${c.component.part_number}: ${cErr.message}`); continue; }
+
+        // Copy the child part's routing into job_operations
+        const { data: childOps } = await supabase.from('part_operations')
+          .select('*').eq('part_id', c.component_part_id).order('operation_number');
+        if (childOps && childOps.length) {
+          const childOpsPayload = childOps.map((o: any, i: number) => ({
+            job_id: childJob.id,
+            operation_number: o.operation_number,
+            operation_name: o.operation_name,
+            resource_id: o.resource_id,
+            setup_time_hours: Number(o.setup_time_hours) || 0,
+            cycle_time_seconds: Number(o.cycle_time_seconds) || 0,
+            total_time_hours: Number(o.setup_time_hours || 0) + (Number(o.cycle_time_seconds || 0) * childQty) / 3600,
+            sequence_order: i + 1,
+            notes: o.notes || null,
+          }));
+          await supabase.from('job_operations').insert(childOpsPayload);
+        }
+        childCount += 1;
+      }
+    }
+
     setSaving(false);
-    toast.success(isNew ? 'Job created' : 'Job updated');
+    toast.success(
+      isNew
+        ? (childCount > 0 ? `Assembly job created + ${childCount} subcomponent job(s)` : 'Job created')
+        : 'Job updated'
+    );
     navigate('/npi/capacity-planner-mvp/jobs-mvp');
   };
 
@@ -419,6 +499,58 @@ export default function JobEntryDetail() {
             </div>
           </CardContent>
         </Card>
+
+        {isNew && selectedPart?.part_type === 'Assembly' && (
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Subcomponent jobs
+                <Badge variant="outline" className="ml-2 bg-violet-500/10 text-violet-700 border-violet-500/30">
+                  Assembly
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {bom.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">
+                  This assembly has no subcomponents in the Part Library yet. Add them in the part page.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    These linked subcomponent jobs will be auto-created when you save. Each child uses its own Part Library routing and a due date 2 days before this assembly's due.
+                  </p>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Component</TableHead>
+                          <TableHead>Rev</TableHead>
+                          <TableHead className="text-right">Qty per assy</TableHead>
+                          <TableHead className="text-right">Qty required</TableHead>
+                          <TableHead>Notes</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {bom.map((c, i) => (
+                          <TableRow key={i}>
+                            <TableCell className="font-medium">{c.component?.part_number || '—'}</TableCell>
+                            <TableCell>{c.component?.revision || '—'}</TableCell>
+                            <TableCell className="text-right">{c.quantity_per_assembly}</TableCell>
+                            <TableCell className="text-right font-medium">
+                              {Math.ceil(Number(c.quantity_per_assembly || 0) * (form.quantity || 0))}
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">{c.notes || '—'}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>

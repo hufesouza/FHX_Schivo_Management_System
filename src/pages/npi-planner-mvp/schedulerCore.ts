@@ -23,6 +23,8 @@ export type SchedulerJob = {
   development_time_hours?: number | null;
   planned_date_locked?: boolean | null;
   best_commence_date?: string | null;
+  parent_job_id?: string | null;
+  job_level?: string | null;
 };
 
 export type SchedulerOp = {
@@ -225,11 +227,19 @@ export function buildSchedule({
   const eligible = jobs
     .filter(j => j.status === 'Planned' || j.status === 'Scheduled')
     .sort((a, b) => {
+      // Subcomponents must be scheduled before their parent assembly.
+      const aIsParent = a.job_level === 'Parent Assembly';
+      const bIsParent = b.job_level === 'Parent Assembly';
+      if (aIsParent && b.parent_job_id === a.id) return 1;
+      if (bIsParent && a.parent_job_id === b.id) return -1;
       const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
       const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
       if (da !== db) return da - db;
       return (PRIORITY_ORDER[a.priority] ?? 2) - (PRIORITY_ORDER[b.priority] ?? 2);
     });
+
+  // Track each parent's children finish to ensure the assembly starts after subcomponents.
+  const finishByJobId = new Map<string, Date>();
 
   const opUpdates: ScheduledOpUpdate[] = [];
   const jobUpdates: ScheduledJobUpdate[] = [];
@@ -242,7 +252,21 @@ export function buildSchedule({
     // Honor a manually-locked Planned Date by anchoring the job to it.
     const lockedAnchor = (!ignorePlannedDateLocks && job.planned_date_locked && job.best_commence_date)
       ? new Date(job.best_commence_date) : null;
+
+    // If this is a parent assembly, its earliest start is after the latest child finish.
+    let assemblyFloor: Date | null = null;
+    if (job.job_level === 'Parent Assembly') {
+      const childFinishes = jobs
+        .filter(j => j.parent_job_id === job.id)
+        .map(j => finishByJobId.get(j.id))
+        .filter((d): d is Date => !!d);
+      if (childFinishes.length) {
+        assemblyFloor = childFinishes.reduce((a, b) => (a > b ? a : b));
+      }
+    }
+
     let previousEnd = lockedAnchor && lockedAnchor > base ? lockedAnchor : base;
+    if (assemblyFloor && assemblyFloor > previousEnd) previousEnd = assemblyFloor;
     let jobStart: Date | null = null;
     let jobEnd: Date | null = null;
     let devStart: Date | null = null;
@@ -325,6 +349,7 @@ export function buildSchedule({
       pending_planned_date: null,
       pending_planned_date_reason: null,
     });
+    if (jobEnd) finishByJobId.set(job.id, jobEnd);
   }
 
   return { opUpdates, jobUpdates };

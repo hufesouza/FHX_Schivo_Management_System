@@ -21,6 +21,7 @@ import { Plus, Search, Pencil, Trash2, Lock, Unlock, Check, X } from 'lucide-rea
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'] as const;
 const STATUSES = ['Planned', 'Scheduled', 'Completed'] as const;
@@ -40,6 +41,8 @@ type Job = {
   planned_date_locked: boolean | null;
   pending_planned_date: string | null;
   pending_planned_date_reason: string | null;
+  parent_job_id: string | null;
+  job_level: string | null;
   parts: { part_number: string; revision: string | null } | null;
 };
 
@@ -198,7 +201,7 @@ export default function JobEntryList() {
     setLoading(true);
     const { data, error } = await supabase
       .from('jobs')
-      .select('id, job_number, quantity, due_date, priority, status, planned_start, planned_finish, best_commence_date, latest_start_date, schedule_risk, planned_date_locked, pending_planned_date, pending_planned_date_reason, parts ( part_number, revision )')
+      .select('id, job_number, quantity, due_date, priority, status, planned_start, planned_finish, best_commence_date, latest_start_date, schedule_risk, planned_date_locked, pending_planned_date, pending_planned_date_reason, parent_job_id, job_level, parts ( part_number, revision )')
       .order('due_date', { ascending: true });
     setLoading(false);
     if (error) return toast.error(error.message);
@@ -209,13 +212,33 @@ export default function JobEntryList() {
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
-    return rows.filter(r =>
+    const base = rows.filter(r =>
       (statusFilter === 'all' || r.status === statusFilter) &&
       (priorityFilter === 'all' || r.priority === priorityFilter) &&
       (!term ||
         r.job_number.toLowerCase().includes(term) ||
         (r.parts?.part_number || '').toLowerCase().includes(term))
     );
+    // Group: keep parents/singles in due-date order, place each parent's children right after.
+    const byId = new Map(rows.map(r => [r.id, r]));
+    const childrenByParent = new Map<string, Job[]>();
+    base.forEach(r => {
+      if (r.parent_job_id) {
+        const list = childrenByParent.get(r.parent_job_id) || [];
+        list.push(r);
+        childrenByParent.set(r.parent_job_id, list);
+      }
+    });
+    const out: Job[] = [];
+    const seen = new Set<string>();
+    base.forEach(r => {
+      if (r.parent_job_id) return; // children inserted under parent below
+      out.push(r); seen.add(r.id);
+      (childrenByParent.get(r.id) || []).forEach(c => { out.push(c); seen.add(c.id); });
+    });
+    // Orphan children whose parent is filtered out — still show them, but flat
+    base.forEach(r => { if (!seen.has(r.id)) out.push(r); });
+    return out;
   }, [rows, search, statusFilter, priorityFilter]);
 
   const confirmDelete = async () => {
@@ -286,10 +309,24 @@ export default function JobEntryList() {
                     <TableRow><TableCell colSpan={13} className="text-center py-8 text-muted-foreground">
                       {rows.length === 0 ? 'No jobs yet. Create your first one.' : 'No matches.'}
                     </TableCell></TableRow>
-                  ) : filtered.map(r => (
+                  ) : filtered.map(r => {
+                    const isChild = !!r.parent_job_id;
+                    const isParent = r.job_level === 'Parent Assembly';
+                    return (
                     <TableRow key={r.id} className="cursor-pointer"
                       onClick={() => navigate(`/npi/capacity-planner-mvp/jobs-mvp/${r.id}`)}>
-                      <TableCell className="font-medium">{r.job_number}</TableCell>
+                      <TableCell className="font-medium">
+                        <div className={cn('flex items-center gap-2', isChild && 'pl-6')}>
+                          {isChild && <span className="text-muted-foreground">↳</span>}
+                          <span>{r.job_number}</span>
+                          {isParent && (
+                            <Badge variant="outline" className="bg-violet-500/10 text-violet-700 border-violet-500/30 text-[10px]">Assembly</Badge>
+                          )}
+                          {isChild && (
+                            <Badge variant="outline" className="bg-cyan-500/10 text-cyan-700 border-cyan-500/30 text-[10px]">Sub</Badge>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>{r.parts?.part_number || '—'}</TableCell>
                       <TableCell>{r.parts?.revision || '—'}</TableCell>
                       <TableCell className="text-right">{r.quantity}</TableCell>
@@ -319,7 +356,8 @@ export default function JobEntryList() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
