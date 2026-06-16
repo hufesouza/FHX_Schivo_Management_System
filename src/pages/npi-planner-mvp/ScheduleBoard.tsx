@@ -457,34 +457,41 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
 
       return (
         <div className="space-y-4">
-          {/* Hours by PN per project */}
+          {/* Delivery lead time by PN per project */}
           <div className="rounded-xl border bg-card p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Clock className="h-4 w-4 text-primary" />
-                <div className="text-sm font-semibold">Hours by Part Number</div>
+                <div className="text-sm font-semibold">Delivery Lead Time by Part Number</div>
               </div>
-              <div className="text-xs text-muted-foreground">Total hours per PN within each project</div>
+              <div className="text-xs text-muted-foreground">Working days per PN (parallel ops accounted)</div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {entries.map(([proj, js]) => {
-                const pnMap = hoursByProjectPN.get(proj)!;
-                const pnList = Array.from(pnMap.entries()).sort((a, b) => b[1] - a[1]);
-                const projTotal = pnList.reduce((s, [, h]) => s + h, 0);
+                const pnMap = leadByProjectPN.get(proj)!;
+                const pnList = Array.from(pnMap.entries()).sort((a, b) => b[1].days - a[1].days);
+                // Project lead time = span across all PNs (parallel)
+                let pmin = Infinity, pmax = -Infinity;
+                pnList.forEach(([, v]) => { if (isFinite(v.min)) pmin = Math.min(pmin, v.min); if (isFinite(v.max)) pmax = Math.max(pmax, v.max); });
+                const projDays = businessDaysBetween(pmin, pmax);
+                const maxDays = pnList.reduce((m, [, v]) => Math.max(m, v.days), 0);
                 return (
                   <div key={proj} className="rounded-lg border bg-background p-3">
-                    <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center justify-between mb-1">
                       <div className="text-xs font-semibold truncate">{proj}</div>
-                      <div className="text-xs font-bold tabular-nums">{fmtH(projTotal)}</div>
+                      <div className="text-xs font-bold tabular-nums">{projDays}d</div>
+                    </div>
+                    <div className="text-[10px] text-muted-foreground mb-2 tabular-nums">
+                      {fmtDateShort(pmin)} → {fmtDateShort(pmax)}
                     </div>
                     <div className="space-y-1.5">
-                      {pnList.map(([pn, h]) => {
-                        const pct = projTotal > 0 ? (h / projTotal) * 100 : 0;
+                      {pnList.map(([pn, v]) => {
+                        const pct = maxDays > 0 ? (v.days / maxDays) * 100 : 0;
                         return (
                           <div key={pn}>
                             <div className="flex items-center justify-between gap-2">
                               <div className="text-[11px] text-muted-foreground truncate">{pn}</div>
-                              <div className="text-[11px] font-medium tabular-nums">{fmtH(h)}</div>
+                              <div className="text-[11px] font-medium tabular-nums">{v.days}d</div>
                             </div>
                             <div className="mt-0.5 h-1 w-full overflow-hidden rounded-full bg-muted">
                               <div className="h-full bg-orange-500" style={{ width: `${pct}%` }} />
