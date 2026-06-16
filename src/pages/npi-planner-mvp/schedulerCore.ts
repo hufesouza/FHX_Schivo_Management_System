@@ -349,6 +349,7 @@ export function buildSchedule({
       pending_planned_date: null,
       pending_planned_date_reason: null,
     });
+    if (jobEnd) finishByJobId.set(job.id, jobEnd);
   }
 
   return { opUpdates, jobUpdates };
