@@ -590,7 +590,7 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
         const job = jobs.find(j => j.id === op.job_id);
         if (!job) return;
         const key = job.part_id || '__none__';
-        const h = Number(op.hours_required) || 0;
+        const h = (Number(op.total_time_hours) || 0) + (Number(op.setup_time_hours) || 0);
         hrsByPart.set(key, (hrsByPart.get(key) || 0) + h);
       });
       const sorted = entries.sort((a, b) => {
