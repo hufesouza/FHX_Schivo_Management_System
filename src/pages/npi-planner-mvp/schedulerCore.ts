@@ -302,16 +302,46 @@ export function buildSchedule({
     if (devHours > 0 && devResource) {
       const dailyHours = devResource.available_hours_per_day || 8;
       const mode = effectiveSchedulingMode(devResource);
-      const slot = mode === 'Exclusive'
-        ? findEarliestSlot(reservations.get(devResource.id) || [], previousEnd, devHours, dailyHours, false)
-        : { start: nextWorkingMoment(previousEnd), end: addWorkingHours(nextWorkingMoment(previousEnd), devHours, dailyHours) };
 
-      if (mode === 'Exclusive') addReservation(reservations, devResource.id, slot);
-      devStart = slot.start;
-      devEnd = slot.end;
-      previousEnd = slot.end;
-      jobStart = slot.start;
-      jobEnd = slot.end;
+      // OP0 Development happens ON the first machine in the routing, so it
+      // must occupy that machine's timeline too (in series with other jobs
+      // sharing the same machine). Find the first exclusive machine op.
+      const firstMachineOp = jobOps.find(o => {
+        if (!o.resource_id) return false;
+        const r = activeResources.get(o.resource_id);
+        return !!r && isExclusiveResource(r);
+      });
+      const machineRes = firstMachineOp ? activeResources.get(firstMachineOp.resource_id!) : null;
+
+      // Find the earliest slot honouring BOTH dev resource (if exclusive)
+      // and the first machine (always exclusive when present).
+      let candidate = previousEnd;
+      // Loop until both resources can host the dev block at the same time.
+      for (let i = 0; i < 50; i++) {
+        const devSlot = mode === 'Exclusive'
+          ? findEarliestSlot(reservations.get(devResource.id) || [], candidate, devHours, dailyHours, false)
+          : { start: nextWorkingMoment(candidate), end: addWorkingHours(nextWorkingMoment(candidate), devHours, dailyHours) };
+
+        if (!machineRes) {
+          if (mode === 'Exclusive') addReservation(reservations, devResource.id, devSlot);
+          devStart = devSlot.start; devEnd = devSlot.end; previousEnd = devSlot.end;
+          jobStart = devSlot.start; jobEnd = devSlot.end;
+          break;
+        }
+
+        const machineDaily = machineRes.available_hours_per_day || 8;
+        const machineSlot = findEarliestSlot(reservations.get(machineRes.id) || [], devSlot.start, devHours, machineDaily, false);
+        if (machineSlot.start.getTime() === devSlot.start.getTime()) {
+          if (mode === 'Exclusive') addReservation(reservations, devResource.id, devSlot);
+          addReservation(reservations, machineRes.id, machineSlot);
+          devStart = devSlot.start; devEnd = devSlot.end; previousEnd = devSlot.end;
+          jobStart = devSlot.start; jobEnd = devSlot.end;
+          break;
+        }
+        // Machine is busy at devSlot.start — retry from when the machine is free.
+        candidate = machineSlot.start;
+      }
+
       totalDurationHours += devHours;
       dailyHoursRef = dailyHours;
     }
