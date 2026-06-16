@@ -191,7 +191,9 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
       } else {
         a.forEach(op => {
           const res = op.resource_id ? resById.get(op.resource_id) : null;
-          machineNames.add(res?.resource_name || 'Unassigned');
+          if (res?.resource_category === 'Machine') {
+            machineNames.add(res?.resource_name || 'Unassigned');
+          }
         });
       }
       machineNames.forEach(name => {
