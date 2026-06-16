@@ -262,9 +262,15 @@ export default function JobEntryDetail() {
       notes: form.notes.trim() || null,
     };
 
+    const selectedPart = parts.find(p => p.id === form.part_id);
+    const isAssembly = isNew && selectedPart?.part_type === 'Assembly' && bom.length > 0;
+
     let jobId = id;
     if (isNew) {
-      const { data, error } = await supabase.from('jobs').insert(payload).select().single();
+      const { data, error } = await supabase.from('jobs').insert({
+        ...payload,
+        job_level: isAssembly ? 'Parent Assembly' : 'Single Job',
+      } as any).select().single();
       if (error) { setSaving(false); return toast.error(error.message); }
       jobId = data.id;
     } else {
@@ -290,8 +296,68 @@ export default function JobEntryDetail() {
       if (error) { setSaving(false); return toast.error(error.message); }
     }
 
+    // Generate subcomponent jobs for an assembly
+    let childCount = 0;
+    if (isAssembly && jobId) {
+      // Compute child due date: 2 working days before the parent due date.
+      const parentDue = form.due_date!;
+      const childDue = new Date(parentDue);
+      childDue.setDate(childDue.getDate() - 2);
+
+      // Find current max job number to keep auto-increment consistent
+      const { data: allJobs } = await supabase.from('jobs').select('job_number');
+      let maxN = 0;
+      (allJobs || []).forEach((j: any) => {
+        const m = String(j.job_number || '').match(/(\d+)/);
+        if (m) { const n = parseInt(m[1], 10); if (n > maxN) maxN = n; }
+      });
+
+      for (const c of bom) {
+        if (!c.component) continue;
+        maxN += 1;
+        const childJobNumber = String(maxN).padStart(3, '0');
+        const childQty = Math.ceil(Number(c.quantity_per_assembly || 0) * form.quantity);
+        const { data: childJob, error: cErr } = await supabase.from('jobs').insert({
+          job_number: childJobNumber,
+          part_id: c.component_part_id,
+          quantity: childQty,
+          due_date: format(childDue, 'yyyy-MM-dd'),
+          priority: form.priority,
+          status: 'Planned',
+          development_time_hours: 0,
+          notes: `Auto-created for assembly ${form.job_number}`,
+          parent_job_id: jobId,
+          job_level: 'Subcomponent',
+        } as any).select().single();
+        if (cErr) { toast.error(`Child job for ${c.component.part_number}: ${cErr.message}`); continue; }
+
+        // Copy the child part's routing into job_operations
+        const { data: childOps } = await supabase.from('part_operations')
+          .select('*').eq('part_id', c.component_part_id).order('operation_number');
+        if (childOps && childOps.length) {
+          const childOpsPayload = childOps.map((o: any, i: number) => ({
+            job_id: childJob.id,
+            operation_number: o.operation_number,
+            operation_name: o.operation_name,
+            resource_id: o.resource_id,
+            setup_time_hours: Number(o.setup_time_hours) || 0,
+            cycle_time_seconds: Number(o.cycle_time_seconds) || 0,
+            total_time_hours: Number(o.setup_time_hours || 0) + (Number(o.cycle_time_seconds || 0) * childQty) / 3600,
+            sequence_order: i + 1,
+            notes: o.notes || null,
+          }));
+          await supabase.from('job_operations').insert(childOpsPayload);
+        }
+        childCount += 1;
+      }
+    }
+
     setSaving(false);
-    toast.success(isNew ? 'Job created' : 'Job updated');
+    toast.success(
+      isNew
+        ? (childCount > 0 ? `Assembly job created + ${childCount} subcomponent job(s)` : 'Job created')
+        : 'Job updated'
+    );
     navigate('/npi/capacity-planner-mvp/jobs-mvp');
   };
 
