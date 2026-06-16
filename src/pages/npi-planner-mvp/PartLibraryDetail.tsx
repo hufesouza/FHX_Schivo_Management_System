@@ -19,7 +19,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Plus, Pencil, Trash2, Save, ArrowUp, ArrowDown, Copy } from 'lucide-react';
+import { Plus, Pencil, Trash2, Save, ArrowUp, ArrowDown, Copy, GripVertical } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AssemblyBomEditor } from '@/components/npi-planner-mvp/AssemblyBomEditor';
@@ -293,18 +293,48 @@ export default function PartLibraryDetail() {
   const reorder = async (index: number, dir: -1 | 1) => {
     const target = index + dir;
     if (target < 0 || target >= ops.length) return;
-    const a = ops[index];
-    const b = ops[target];
-    // swap operation_number values via a safe two-step (use negative temp to avoid unique conflict)
-    const temp = -Math.abs(a.operation_number) - 1;
-    const e1 = await supabase.from('part_operations').update({ operation_number: temp }).eq('id', a.id);
-    if (e1.error) return toast.error(e1.error.message);
-    const e2 = await supabase.from('part_operations').update({ operation_number: a.operation_number }).eq('id', b.id);
-    if (e2.error) return toast.error(e2.error.message);
-    const e3 = await supabase.from('part_operations').update({ operation_number: b.operation_number }).eq('id', a.id);
-    if (e3.error) return toast.error(e3.error.message);
+    const newOrder = [...ops];
+    [newOrder[index], newOrder[target]] = [newOrder[target], newOrder[index]];
+    await persistOrder(newOrder);
+  };
+
+  const persistOrder = async (newOrder: Operation[]) => {
+    // Renumber sequentially as 10, 20, 30… Two-pass to avoid unique conflicts.
+    const optimistic = newOrder.map((o, idx) => ({ ...o, operation_number: (idx + 1) * 10 }));
+    setOps(optimistic);
+
+    // Pass 1: move all to negative temp numbers
+    for (const o of newOrder) {
+      const { error } = await supabase.from('part_operations')
+        .update({ operation_number: -Math.abs(o.operation_number) - 100000 })
+        .eq('id', o.id);
+      if (error) { toast.error(error.message); return load(); }
+    }
+    // Pass 2: assign final numbers
+    for (let i = 0; i < newOrder.length; i++) {
+      const { error } = await supabase.from('part_operations')
+        .update({ operation_number: (i + 1) * 10 })
+        .eq('id', newOrder[i].id);
+      if (error) { toast.error(error.message); return load(); }
+    }
     load();
   };
+
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const handleDrop = async (toIndex: number) => {
+    if (dragIndex === null || dragIndex === toIndex) {
+      setDragIndex(null); setDragOverIndex(null);
+      return;
+    }
+    const newOrder = [...ops];
+    const [moved] = newOrder.splice(dragIndex, 1);
+    newOrder.splice(toIndex, 0, moved);
+    setDragIndex(null); setDragOverIndex(null);
+    await persistOrder(newOrder);
+  };
+
 
   if (loading || !part) {
     return (
@@ -418,6 +448,7 @@ export default function PartLibraryDetail() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[32px]"></TableHead>
                     <TableHead className="w-[80px]">Op #</TableHead>
                     <TableHead>Operation</TableHead>
                     <TableHead>Resource</TableHead>
@@ -429,11 +460,23 @@ export default function PartLibraryDetail() {
                 </TableHeader>
                 <TableBody>
                   {ops.length === 0 ? (
-                    <TableRow><TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                       No operations yet. Add the first one to define the routing.
                     </TableCell></TableRow>
                   ) : ops.map((op, i) => (
-                    <TableRow key={op.id}>
+                    <TableRow
+                      key={op.id}
+                      draggable
+                      onDragStart={(e) => { setDragIndex(i); e.dataTransfer.effectAllowed = 'move'; }}
+                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverIndex(i); }}
+                      onDragLeave={() => setDragOverIndex(prev => prev === i ? null : prev)}
+                      onDrop={(e) => { e.preventDefault(); handleDrop(i); }}
+                      onDragEnd={() => { setDragIndex(null); setDragOverIndex(null); }}
+                      className={`${dragIndex === i ? 'opacity-50' : ''} ${dragOverIndex === i && dragIndex !== i ? 'bg-accent/50' : ''}`}
+                    >
+                      <TableCell className="cursor-grab active:cursor-grabbing text-muted-foreground">
+                        <GripVertical className="h-4 w-4" />
+                      </TableCell>
                       <TableCell className="font-medium">{op.operation_number}</TableCell>
                       <TableCell>{op.operation_name}</TableCell>
                       <TableCell>{resourceName(op.resource_id)}</TableCell>
