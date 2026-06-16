@@ -42,6 +42,7 @@ export default function PartLibrary() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [form, setForm] = useState({ part_number: '', revision: '', description: '', customer: '', project: '' });
   const [saving, setSaving] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [dupOpen, setDupOpen] = useState(false);
