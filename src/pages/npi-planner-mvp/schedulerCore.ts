@@ -23,6 +23,8 @@ export type SchedulerJob = {
   development_time_hours?: number | null;
   planned_date_locked?: boolean | null;
   best_commence_date?: string | null;
+  parent_job_id?: string | null;
+  job_level?: string | null;
 };
 
 export type SchedulerOp = {
