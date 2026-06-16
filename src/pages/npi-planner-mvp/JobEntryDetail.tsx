@@ -324,6 +324,7 @@ export default function JobEntryDetail() {
           part_id: c.component_part_id,
           quantity: childQty,
           due_date: format(childDue, 'yyyy-MM-dd'),
+          earliest_start_date: form.planned_start ? format(form.planned_start, 'yyyy-MM-dd') : null,
           priority: form.priority,
           status: 'Planned',
           development_time_hours: 0,

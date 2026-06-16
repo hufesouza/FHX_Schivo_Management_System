@@ -43,6 +43,7 @@ type Job = {
   pending_planned_date_reason: string | null;
   parent_job_id: string | null;
   job_level: string | null;
+  earliest_start_date: string | null;
   parts: { part_number: string; revision: string | null } | null;
 };
 
@@ -201,7 +202,7 @@ export default function JobEntryList() {
     setLoading(true);
     const { data, error } = await supabase
       .from('jobs')
-      .select('id, job_number, quantity, due_date, priority, status, planned_start, planned_finish, best_commence_date, latest_start_date, schedule_risk, planned_date_locked, pending_planned_date, pending_planned_date_reason, parent_job_id, job_level, parts ( part_number, revision )')
+      .select('id, job_number, quantity, due_date, priority, status, planned_start, planned_finish, best_commence_date, latest_start_date, schedule_risk, planned_date_locked, pending_planned_date, pending_planned_date_reason, parent_job_id, job_level, earliest_start_date, parts ( part_number, revision )')
       .order('due_date', { ascending: true });
     setLoading(false);
     if (error) return toast.error(error.message);
@@ -292,6 +293,7 @@ export default function JobEntryList() {
                     <TableHead>Part</TableHead>
                     <TableHead>Rev</TableHead>
                     <TableHead className="text-right">Qty</TableHead>
+                    <TableHead>Start Date</TableHead>
                     <TableHead>Due</TableHead>
                     <TableHead>Planned Date</TableHead>
                     <TableHead>Latest Start</TableHead>
@@ -330,6 +332,7 @@ export default function JobEntryList() {
                       <TableCell>{r.parts?.part_number || '—'}</TableCell>
                       <TableCell>{r.parts?.revision || '—'}</TableCell>
                       <TableCell className="text-right">{r.quantity}</TableCell>
+                      <TableCell className="text-sm">{r.earliest_start_date ? format(new Date(r.earliest_start_date + 'T00:00:00'), 'PP') : <span className="text-muted-foreground">—</span>}</TableCell>
                       <TableCell>{format(new Date(r.due_date), 'PP')}</TableCell>
                       <TableCell><PlannedDateCell job={r} onChanged={load} /></TableCell>
                       <TableCell className="text-sm text-muted-foreground">{r.latest_start_date ? format(new Date(r.latest_start_date), 'PP') : '—'}</TableCell>
