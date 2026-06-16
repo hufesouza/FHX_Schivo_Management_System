@@ -36,7 +36,7 @@ const riskTheme = (risk?: string | null) => {
   return { bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/40', dot: 'bg-emerald-500', icon: CheckCircle2, label: 'On Track' };
 };
 
-type Level = 'customer' | 'project' | 'job' | 'pn' | 'ops';
+type Level = 'customer' | 'project' | 'machine' | 'job' | 'pn' | 'ops';
 
 export default function ScheduleBoard({ onOpenInGantt }: Props) {
   const [resources, setResources] = useState<Resource[]>([]);
@@ -50,9 +50,10 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
   const [fRisk, setFRisk] = useState('all');
   const [fDue, setFDue] = useState<'all' | 'overdue' | '7' | '30'>('all');
 
-  // Drill state — single sequence: Customer → Project → Job → PN → Operations
+  // Drill state — Customer → Project → Machine → Job → PN → Operations
   const [drillCustomer, setDrillCustomer] = useState<string | null>(null);
   const [drillProject, setDrillProject] = useState<string | null>(null);
+  const [drillMachine, setDrillMachine] = useState<string | null>(null);
   const [drillJob, setDrillJob] = useState<string | null>(null);
   const [drillPart, setDrillPart] = useState<string | null>(null);
 
@@ -133,6 +134,7 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
   const level: Level =
     !drillCustomer ? 'customer'
     : !drillProject ? 'project'
+    : !drillMachine ? 'machine'
     : !drillJob ? 'job'
     : !drillPart ? 'pn'
     : 'ops';
@@ -161,10 +163,28 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
     return m;
   }, [byCustomer, drillCustomer, partsById]);
 
-  const jobsForProject = useMemo(() => {
-    if (!drillProject) return [] as Job[];
-    return projectsForCustomer.get(drillProject) || [];
-  }, [projectsForCustomer, drillProject]);
+  const machinesForProject = useMemo(() => {
+    if (!drillProject) return new Map<string, Job[]>();
+    const m = new Map<string, Job[]>();
+    (projectsForCustomer.get(drillProject) || []).forEach(job => {
+      const a = opsByJob.get(job.id) || [];
+      let cur: JobOp | null = null;
+      if (job.status !== 'Completed' && a.length) {
+        const now = Date.now();
+        cur = a.find(op => op.planned_finish && new Date(op.planned_finish).getTime() > now) || a[a.length - 1];
+      }
+      const res = cur?.resource_id ? resById.get(cur.resource_id) : null;
+      const machineName = res?.resource_name || 'Unassigned';
+      if (!m.has(machineName)) m.set(machineName, []);
+      m.get(machineName)!.push(job);
+    });
+    return m;
+  }, [projectsForCustomer, drillProject, opsByJob, resById]);
+
+  const jobsForMachine = useMemo(() => {
+    if (!drillMachine) return [] as Job[];
+    return machinesForProject.get(drillMachine) || [];
+  }, [machinesForProject, drillMachine]);
 
   const partsForJob = useMemo(() => {
     if (!drillJob) return [] as Part[];
@@ -226,10 +246,11 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
   // === Breadcrumb ===
   const crumb = () => {
     const items: { label: string; onClick: () => void; icon: any }[] = [
-      { label: 'Customers', icon: Users, onClick: () => { setDrillCustomer(null); setDrillProject(null); setDrillJob(null); setDrillPart(null); } },
+      { label: 'Customers', icon: Users, onClick: () => { setDrillCustomer(null); setDrillProject(null); setDrillMachine(null); setDrillJob(null); setDrillPart(null); } },
     ];
-    if (drillCustomer) items.push({ label: drillCustomer, icon: Users, onClick: () => { setDrillProject(null); setDrillJob(null); setDrillPart(null); } });
-    if (drillProject) items.push({ label: drillProject, icon: Briefcase, onClick: () => { setDrillJob(null); setDrillPart(null); } });
+    if (drillCustomer) items.push({ label: drillCustomer, icon: Users, onClick: () => { setDrillProject(null); setDrillMachine(null); setDrillJob(null); setDrillPart(null); } });
+    if (drillProject) items.push({ label: drillProject, icon: Briefcase, onClick: () => { setDrillMachine(null); setDrillJob(null); setDrillPart(null); } });
+    if (drillMachine) items.push({ label: drillMachine, icon: Cpu, onClick: () => { setDrillJob(null); setDrillPart(null); } });
     if (drillJob) {
       const j = jobs.find(jj => jj.id === drillJob);
       items.push({ label: j?.job_number || '—', icon: FileText, onClick: () => { setDrillPart(null); } });
@@ -258,6 +279,7 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
   const goBack = () => {
     if (drillPart) setDrillPart(null);
     else if (drillJob) setDrillJob(null);
+    else if (drillMachine) setDrillMachine(null);
     else if (drillProject) setDrillProject(null);
     else if (drillCustomer) setDrillCustomer(null);
   };
@@ -294,8 +316,23 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
         </div>
       );
     }
+    if (level === 'machine') {
+      const entries = Array.from(machinesForProject.entries()).sort(([a], [b]) => a.localeCompare(b));
+      if (!entries.length) return <EmptyState label="No machines" />;
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {entries.map(([machine, js]) => (
+            <Tile key={machine} onClick={() => setDrillMachine(machine)}
+              icon={Cpu} tint="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
+              title={machine}
+              subtitle={`${js.length} jobs`}
+              counts={countBy(js)} />
+          ))}
+        </div>
+      );
+    }
     if (level === 'job') {
-      const sorted = jobsForProject.slice().sort((a, b) => {
+      const sorted = jobsForMachine.slice().sort((a, b) => {
         const da = a.due_date ? new Date(a.due_date).getTime() : Infinity;
         const db = b.due_date ? new Date(b.due_date).getTime() : Infinity;
         return da - db;
@@ -309,8 +346,8 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
             return (
               <Tile key={job.id} onClick={() => setDrillJob(job.id)}
                 icon={FileText} tint={`${theme.bg} ${theme.text}`}
-                title={job.job_number}
-                subtitle={`${part?.part_number || 'No part'} · Due ${fmtDate(job.due_date)}`}
+                title={part?.part_number || 'No part'}
+                subtitle={`${job.job_number} · Due ${fmtDate(job.due_date)}`}
                 counts={countBy([job])} />
             );
           })}
@@ -405,7 +442,7 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
   };
 
   const kpi = countBy(filteredJobs);
-  const canBack = !!(drillCustomer || drillProject || drillJob || drillPart);
+  const canBack = !!(drillCustomer || drillProject || drillMachine || drillJob || drillPart);
 
   return (
     <div className="space-y-4">
@@ -463,7 +500,7 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
           {crumb()}
         </div>
         <div className="text-xs text-muted-foreground uppercase tracking-wide">
-          Customer → Project → Job → PN → Operations
+          Customer → Project → Machine → Job → PN → Operations
         </div>
       </div>
 
