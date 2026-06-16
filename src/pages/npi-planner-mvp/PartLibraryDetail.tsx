@@ -22,6 +22,7 @@ import {
 import { Plus, Pencil, Trash2, Save, ArrowUp, ArrowDown, Copy } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { AssemblyBomEditor } from '@/components/npi-planner-mvp/AssemblyBomEditor';
 
 const FALLBACK_OP_NAMES = ['Turning', 'Swiss Turning', 'Milling', 'Inspection', 'Deburr', 'Assembly', 'Laser', 'Wash', 'Subcon', 'Other'];
 
@@ -49,6 +50,7 @@ type Part = {
   description: string | null;
   customer: string | null;
   project: string | null;
+  part_type: 'Single Part' | 'Assembly';
 };
 
 const blankOp = (nextNo: number): Omit<Operation, 'id' | 'part_id'> => ({
@@ -129,7 +131,8 @@ export default function PartLibraryDetail() {
       description: part.description?.trim() || null,
       customer: part.customer?.trim() || null,
       project: part.project?.trim() || null,
-    }).eq('id', part.id);
+      part_type: part.part_type,
+    } as any).eq('id', part.id);
     setSavingHeader(false);
     if (error) return toast.error(error.message);
     toast.success('Header saved');
@@ -357,6 +360,20 @@ export default function PartLibraryDetail() {
                 <Label>Project</Label>
                 <Input value={part.project || ''}
                   onChange={(e) => setPart({ ...part, project: e.target.value })} />
+              </div>
+              <div>
+                <Label>Part type</Label>
+                <Select value={part.part_type}
+                  onValueChange={(v: 'Single Part' | 'Assembly') => setPart({ ...part, part_type: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Single Part">Single Part</SelectItem>
+                    <SelectItem value="Assembly">Assembly</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Assemblies can include other parts as subcomponents.
+                </p>
               </div>
             </div>
             <div className="flex justify-end">
