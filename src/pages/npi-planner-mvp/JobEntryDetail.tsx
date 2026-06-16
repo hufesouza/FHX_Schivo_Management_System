@@ -156,7 +156,9 @@ export default function JobEntryDetail() {
             job_number: job.job_number,
             part_id: job.part_id,
             quantity: job.quantity,
-            planned_start: (job as any).planned_start ? new Date((job as any).planned_start) : null,
+            planned_start: (job as any).earliest_start_date
+              ? new Date((job as any).earliest_start_date + 'T00:00:00')
+              : null,
             due_date: job.due_date ? new Date(job.due_date) : null,
             priority: job.priority,
             status: job.status,
@@ -253,7 +255,7 @@ export default function JobEntryDetail() {
       job_number: form.job_number.trim(),
       part_id: form.part_id,
       quantity: form.quantity,
-      planned_start: form.planned_start ? form.planned_start.toISOString() : null,
+      earliest_start_date: form.planned_start ? format(form.planned_start, 'yyyy-MM-dd') : null,
       due_date: format(form.due_date, 'yyyy-MM-dd'),
       priority: form.priority,
       status: form.status,
@@ -322,6 +324,7 @@ export default function JobEntryDetail() {
           part_id: c.component_part_id,
           quantity: childQty,
           due_date: format(childDue, 'yyyy-MM-dd'),
+          earliest_start_date: form.planned_start ? format(form.planned_start, 'yyyy-MM-dd') : null,
           priority: form.priority,
           status: 'Planned',
           development_time_hours: 0,
@@ -414,7 +417,7 @@ export default function JobEntryDetail() {
                   onChange={(e) => setForm({ ...form, quantity: parseInt(e.target.value) || 0 })} />
               </div>
               <div>
-                <Label>Planned start date</Label>
+                <Label>Start date (earliest)</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button variant="outline"
@@ -430,7 +433,7 @@ export default function JobEntryDetail() {
                       initialFocus className={cn('p-3 pointer-events-auto')} />
                   </PopoverContent>
                 </Popover>
-                <p className="text-xs text-muted-foreground mt-1">Optional. Used by the scheduler / Gantt as the earliest start.</p>
+                <p className="text-xs text-muted-foreground mt-1">Scheduler will not place any operation before this date. For assemblies, subcomponents inherit this unless they have their own later date.</p>
               </div>
               <div>
                 <Label>Due date *</Label>

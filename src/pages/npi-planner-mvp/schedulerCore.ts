@@ -25,6 +25,7 @@ export type SchedulerJob = {
   best_commence_date?: string | null;
   parent_job_id?: string | null;
   job_level?: string | null;
+  earliest_start_date?: string | null;
 };
 
 export type SchedulerOp = {
@@ -244,6 +245,15 @@ export function buildSchedule({
   const opUpdates: ScheduledOpUpdate[] = [];
   const jobUpdates: ScheduledJobUpdate[] = [];
 
+  const jobsById = new Map(jobs.map(j => [j.id, j]));
+
+  const parseEarliest = (iso: string | null | undefined): Date | null => {
+    if (!iso) return null;
+    // YYYY-MM-DD → midnight local
+    const d = iso.length === 10 ? new Date(iso + 'T00:00:00') : new Date(iso);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
   for (const job of eligible) {
     const jobOps = ops
       .filter(o => o.job_id === job.id)
@@ -265,8 +275,19 @@ export function buildSchedule({
       }
     }
 
+    // earliest_start_date floor: respect own value; subcomponents inherit
+    // the parent assembly's date when their own is empty or earlier.
+    const ownEarliest = parseEarliest(job.earliest_start_date);
+    const parent = job.parent_job_id ? jobsById.get(job.parent_job_id) : null;
+    const parentEarliest = parent ? parseEarliest(parent.earliest_start_date) : null;
+    let earliestFloor: Date | null = ownEarliest;
+    if (parentEarliest && (!earliestFloor || parentEarliest > earliestFloor)) {
+      earliestFloor = parentEarliest;
+    }
+
     let previousEnd = lockedAnchor && lockedAnchor > base ? lockedAnchor : base;
     if (assemblyFloor && assemblyFloor > previousEnd) previousEnd = assemblyFloor;
+    if (earliestFloor && earliestFloor > previousEnd) previousEnd = earliestFloor;
     let jobStart: Date | null = null;
     let jobEnd: Date | null = null;
     let devStart: Date | null = null;
