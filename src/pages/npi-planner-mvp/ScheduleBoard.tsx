@@ -562,50 +562,18 @@ export default function ScheduleBoard({ onOpenInGantt }: Props) {
       const maxDays = leadList.reduce((m, x) => Math.max(m, x.days), 0);
 
       return (
-        <div className="space-y-4">
-          {/* Lead time per machine */}
-          <div className="rounded-xl border bg-card p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" />
-                <div className="text-sm font-semibold">Delivery Lead Time by Machine</div>
-              </div>
-              <div className="text-xs text-muted-foreground">Working days span (parallel ops accounted)</div>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {leadList.map(({ name, days, min, max, hrs }) => {
-                const pct = maxDays > 0 ? (days / maxDays) * 100 : 0;
-                return (
-                  <div key={name} className="rounded-lg border bg-background p-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="text-xs font-medium truncate">{name}</div>
-                      <div className="text-xs font-semibold tabular-nums">{days}d</div>
-                    </div>
-                    <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
-                      {fmtDateShort(min)} → {fmtDateShort(max)} · {hrs.toFixed(1)}h load
-                    </div>
-                    <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
-                      <div className="h-full bg-cyan-500" style={{ width: `${pct}%` }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-            {entries.map(([machine, js]) => {
-              const info = spanByMachine.get(machine);
-              const days = info ? businessDaysBetween(info.min, info.max) : 0;
-              return (
-                <Tile key={machine} onClick={() => setDrillMachine(machine)}
-                  icon={Cpu} tint="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
-                  title={machine}
-                  subtitle={`${js.length} job${js.length === 1 ? '' : 's'} · ${days}d lead`}
-                  counts={countBy(js)} />
-              );
-            })}
-          </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+          {entries.map(([machine, js]) => {
+            const info = spanByMachine.get(machine);
+            const days = info ? businessDaysBetween(info.min, info.max) : 0;
+            return (
+              <Tile key={machine} onClick={() => setDrillMachine(machine)}
+                icon={Cpu} tint="bg-cyan-500/10 text-cyan-600 dark:text-cyan-400"
+                title={machine}
+                subtitle={`${js.length} job${js.length === 1 ? '' : 's'} · ${days}d lead`}
+                counts={countBy(js)} />
+            );
+          })}
         </div>
       );
     }
