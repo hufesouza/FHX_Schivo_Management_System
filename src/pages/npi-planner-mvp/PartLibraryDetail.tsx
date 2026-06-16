@@ -384,6 +384,8 @@ export default function PartLibraryDetail() {
           </CardContent>
         </Card>
 
+        {part.part_type === 'Assembly' && <AssemblyBomEditor assemblyPartId={part.id} />}
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-2 flex-wrap">
             <CardTitle>Routing ({ops.length} operations)</CardTitle>
