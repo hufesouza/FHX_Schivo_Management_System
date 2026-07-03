@@ -708,13 +708,14 @@ export default function NPIOrderIntelligence() {
       const mkRow = (label: string, a: number, b: number, isCurrency: boolean) => {
         const delta = b - a;
         const pct = a !== 0 ? (delta / Math.abs(a)) * 100 : 0;
-        const arrow = delta > 0 ? '▲' : delta < 0 ? '▼' : '■';
+        const arrow = delta > 0 ? '+' : delta < 0 ? '-' : '=';
         const color: [number, number, number] = delta > 0 ? [16, 185, 129] : delta < 0 ? [239, 68, 68] : [100, 116, 139];
+        const absStr = isCurrency ? fmtEur(Math.abs(delta)) : fmtNum(Math.abs(delta));
         rowsData.push({
           label,
           a: isCurrency ? fmtEur(a) : fmtNum(a),
           b: isCurrency ? fmtEur(b) : fmtNum(b),
-          delta: `${arrow} ${isCurrency ? fmtEur(Math.abs(delta)) : fmtNum(Math.abs(delta))} (${pct.toFixed(1)}%)`,
+          delta: `${arrow}${absStr}  (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)`,
           deltaColor: color,
         });
       };
