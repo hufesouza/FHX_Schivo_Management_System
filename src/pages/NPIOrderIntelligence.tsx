@@ -271,7 +271,8 @@ export default function NPIOrderIntelligence() {
   };
 
   const kpis = useMemo(() => computeKpis(filtered), [filtered]);
-  const npvi = totalCompanyRevenue > 0 ? (kpis.totalRev / totalCompanyRevenue) * 100 : 0;
+  const effectiveCompanyRev = fYear !== 'all' ? yearRevenue : totalCompanyRevenue;
+  const npvi = effectiveCompanyRev > 0 ? (kpis.totalRev / effectiveCompanyRev) * 100 : 0;
 
   // Customer analysis
   const byCustomer = useMemo(() => {
@@ -340,10 +341,27 @@ export default function NPIOrderIntelligence() {
     }).sort((a, b) => b.pct - a.pct);
   }, [rows, cols]);
 
+  // Load per-year revenue when single-mode year changes
+  useEffect(() => {
+    if (fYear !== 'all') {
+      const y = parseInt(fYear, 10);
+      setYearRevenue(parseFloat(localStorage.getItem(STORAGE_KEY_REV_YEAR(y)) || '0') || 0);
+    }
+  }, [fYear]);
+
   const saveTotalRev = (v: string) => {
     const n = parseFloat(v) || 0;
-    setTotalCompanyRevenue(n);
-    localStorage.setItem(STORAGE_KEY_REV, String(n));
+    if (fYear !== 'all') {
+      const y = parseInt(fYear, 10);
+      setYearRevenue(n);
+      localStorage.setItem(STORAGE_KEY_REV_YEAR(y), String(n));
+      // keep compare-mode in sync if applicable
+      if (String(y) === yearA) setCompanyRevA(n);
+      if (String(y) === yearB) setCompanyRevB(n);
+    } else {
+      setTotalCompanyRevenue(n);
+      localStorage.setItem(STORAGE_KEY_REV, String(n));
+    }
   };
 
   // ===== COMPARE =====
