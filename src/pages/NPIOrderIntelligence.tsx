@@ -1392,13 +1392,19 @@ function KpiCard({ label, value, icon: Icon, tone = 'default' }: { label: string
   );
 }
 
-function DeltaBadge({ delta, pct }: { delta: number; pct: number }) {
+function DeltaBadge({ delta, pct, unit = '%' }: { delta: number; pct: number; unit?: '%' | 'pp' | 'abs' }) {
   const Icon = delta > 0 ? TrendingUp : delta < 0 ? TrendingDown : Minus;
   const cls = delta > 0 ? 'text-green-600 bg-green-500/10' : delta < 0 ? 'text-red-600 bg-red-500/10' : 'text-muted-foreground bg-muted';
+  let label = '—';
+  if (unit === 'abs') {
+    if (isFinite(delta)) label = `${delta >= 0 ? '+' : ''}${fmtNum(delta)}`;
+  } else if (isFinite(pct)) {
+    label = `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}${unit === 'pp' ? ' pp' : '%'}`;
+  }
   return (
     <div className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium ${cls}`}>
       <Icon className="h-3 w-3" />
-      {isFinite(pct) ? `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%` : '—'}
+      {label}
     </div>
   );
 }
@@ -1412,6 +1418,8 @@ function CompareCard({ label, a, b, yearA, yearB, currency }: {
   const older = aIsNewer ? b : a;
   const delta = newer - older;
   const pct = older !== 0 ? (delta / Math.abs(older)) * 100 : 0;
+  // For count metrics with a very small baseline, % becomes misleading — show absolute delta instead
+  const useAbs = !currency && Math.abs(older) < 10;
   return (
     <Card>
       <CardContent className="p-4">
@@ -1428,7 +1436,7 @@ function CompareCard({ label, a, b, yearA, yearB, currency }: {
         </div>
         <div className="mt-2 flex items-center justify-between">
           <span className="text-[11px] text-muted-foreground">Δ {fmt(Math.abs(delta))}</span>
-          <DeltaBadge delta={delta} pct={pct} />
+          <DeltaBadge delta={delta} pct={pct} unit={useAbs ? 'abs' : '%'} />
         </div>
       </CardContent>
     </Card>
@@ -1442,7 +1450,6 @@ function NpviCompareCard({ yearA, yearB, npviA, npviB }: {
   const newer = aIsNewer ? npviA : npviB;
   const older = aIsNewer ? npviB : npviA;
   const delta = newer - older;
-  const pct = Math.abs(older) > 0 ? (delta / Math.abs(older)) * 100 : 0;
   return (
     <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
       <CardContent className="p-4">
@@ -1458,11 +1465,12 @@ function NpviCompareCard({ yearA, yearB, npviA, npviB }: {
           </div>
         </div>
         <div className="mt-2 flex items-center justify-between">
-          <span className="text-[11px] text-muted-foreground">Δ {Math.abs(delta).toFixed(1)} pts</span>
-          <DeltaBadge delta={delta} pct={pct} />
+          <span className="text-[11px] text-muted-foreground">Δ {Math.abs(delta).toFixed(1)} pp</span>
+          <DeltaBadge delta={delta} pct={delta} unit="pp" />
         </div>
       </CardContent>
     </Card>
+
   );
 }
 
@@ -1544,12 +1552,17 @@ function CompareCardExport({ label, a, b, yearA, yearB, currency, suffix, highli
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
         <span style={{ fontSize: 11, color: '#64748b' }}>
-          Δ <span style={{ color: arrowColor, fontWeight: 700 }}>{arrow}</span> {suffix === '%' ? `${Math.abs(delta).toFixed(1)} pts` : fmt(Math.abs(delta))}
+          Δ <span style={{ color: arrowColor, fontWeight: 700 }}>{arrow}</span> {suffix === '%' ? `${Math.abs(delta).toFixed(1)} pp` : fmt(Math.abs(delta))}
         </span>
         <span style={{ background: badgeBg, color: badgeFg, fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 4 }}>
-          {arrow} {isFinite(pct) ? `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%` : '—'}
+          {arrow} {suffix === '%'
+            ? `${delta >= 0 ? '+' : ''}${delta.toFixed(1)} pp`
+            : (!currency && Math.abs(older) < 10)
+              ? `${delta >= 0 ? '+' : ''}${fmtNum(delta)}`
+              : (isFinite(pct) ? `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%` : '—')}
         </span>
       </div>
+
     </div>
   );
 }
