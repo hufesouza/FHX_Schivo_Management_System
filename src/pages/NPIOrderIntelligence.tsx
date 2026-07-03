@@ -1439,7 +1439,10 @@ function NpviCompareCard({ yearA, yearB, npviA, npviB }: {
   yearA: string; yearB: string; npviA: number; npviB: number;
 }) {
   const aIsNewer = Number(yearA) >= Number(yearB);
-  const delta = aIsNewer ? npviA - npviB : npviB - npviA;
+  const newer = aIsNewer ? npviA : npviB;
+  const older = aIsNewer ? npviB : npviA;
+  const delta = newer - older;
+  const pct = Math.abs(older) > 0 ? (delta / Math.abs(older)) * 100 : 0;
   return (
     <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
       <CardContent className="p-4">
@@ -1456,7 +1459,7 @@ function NpviCompareCard({ yearA, yearB, npviA, npviB }: {
         </div>
         <div className="mt-2 flex items-center justify-between">
           <span className="text-[11px] text-muted-foreground">Δ {Math.abs(delta).toFixed(1)} pts</span>
-          <DeltaBadge delta={delta} pct={delta} />
+          <DeltaBadge delta={delta} pct={pct} />
         </div>
       </CardContent>
     </Card>
