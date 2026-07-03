@@ -1350,6 +1350,18 @@ export default function NPIOrderIntelligence() {
               </BarChart>
             </ResponsiveContainer>
           </div>
+          {/* Offscreen KPI comparison panel for PDF export (inline styles = html2canvas safe) */}
+          <div ref={chartRefs.cmpKpiExport} style={{ width: 1600, background: '#ffffff', padding: 16, fontFamily: 'Arial, Helvetica, sans-serif', color: '#0f172a' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+              <CompareCardExport label="Total Orders" a={kpisA.total} b={kpisB.total} yearA={yearA} yearB={yearB} />
+              <CompareCardExport label="Open Orders" a={kpisA.open} b={kpisB.open} yearA={yearA} yearB={yearB} />
+              <CompareCardExport label="Closed Orders" a={kpisA.closed} b={kpisB.closed} yearA={yearA} yearB={yearB} />
+              <CompareCardExport label="Total NPI Revenue" a={kpisA.totalRev} b={kpisB.totalRev} yearA={yearA} yearB={yearB} currency />
+              <CompareCardExport label="Open Value (To Invoice)" a={kpisA.openRev} b={kpisB.openRev} yearA={yearA} yearB={yearB} currency />
+              <CompareCardExport label="Closed Value (Invoiced)" a={kpisA.closedRev} b={kpisB.closedRev} yearA={yearA} yearB={yearB} currency />
+              <CompareCardExport label="NPVI (Vitality Index)" a={npviA} b={npviB} yearA={yearA} yearB={yearB} suffix="%" highlight />
+            </div>
+          </div>
         </div>
       )}
     </AppLayout>
