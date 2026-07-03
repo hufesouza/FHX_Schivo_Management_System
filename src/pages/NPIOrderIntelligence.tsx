@@ -131,6 +131,8 @@ export default function NPIOrderIntelligence() {
   const [totalCompanyRevenue, setTotalCompanyRevenue] = useState<number>(() => {
     return parseFloat(localStorage.getItem(STORAGE_KEY_REV) || '0') || 0;
   });
+  // per-year override in single mode
+  const [yearRevenue, setYearRevenue] = useState<number>(0);
 
   // View mode
   const [viewMode, setViewMode] = useState<'single' | 'compare'>('single');
@@ -269,7 +271,8 @@ export default function NPIOrderIntelligence() {
   };
 
   const kpis = useMemo(() => computeKpis(filtered), [filtered]);
-  const npvi = totalCompanyRevenue > 0 ? (kpis.totalRev / totalCompanyRevenue) * 100 : 0;
+  const effectiveCompanyRev = fYear !== 'all' ? yearRevenue : totalCompanyRevenue;
+  const npvi = effectiveCompanyRev > 0 ? (kpis.totalRev / effectiveCompanyRev) * 100 : 0;
 
   // Customer analysis
   const byCustomer = useMemo(() => {
@@ -338,10 +341,27 @@ export default function NPIOrderIntelligence() {
     }).sort((a, b) => b.pct - a.pct);
   }, [rows, cols]);
 
+  // Load per-year revenue when single-mode year changes
+  useEffect(() => {
+    if (fYear !== 'all') {
+      const y = parseInt(fYear, 10);
+      setYearRevenue(parseFloat(localStorage.getItem(STORAGE_KEY_REV_YEAR(y)) || '0') || 0);
+    }
+  }, [fYear]);
+
   const saveTotalRev = (v: string) => {
     const n = parseFloat(v) || 0;
-    setTotalCompanyRevenue(n);
-    localStorage.setItem(STORAGE_KEY_REV, String(n));
+    if (fYear !== 'all') {
+      const y = parseInt(fYear, 10);
+      setYearRevenue(n);
+      localStorage.setItem(STORAGE_KEY_REV_YEAR(y), String(n));
+      // keep compare-mode in sync if applicable
+      if (String(y) === yearA) setCompanyRevA(n);
+      if (String(y) === yearB) setCompanyRevB(n);
+    } else {
+      setTotalCompanyRevenue(n);
+      localStorage.setItem(STORAGE_KEY_REV, String(n));
+    }
   };
 
   // ===== COMPARE =====
@@ -560,7 +580,7 @@ export default function NPIOrderIntelligence() {
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(7.5);
       pdf.setTextColor(71, 85, 105);
-      pdf.text(`NPI ${fmtEur(kpis.totalRev)}  •  Company ${fmtEur(totalCompanyRevenue)}`, pw - margin - 4, y + 15, { align: 'right' });
+      pdf.text(`NPI ${fmtEur(kpis.totalRev)}  •  Company ${fmtEur(effectiveCompanyRev)}`, pw - margin - 4, y + 15, { align: 'right' });
       y += 22;
 
       const colW = (pw - margin * 2 - 4) / 2;
@@ -951,17 +971,21 @@ export default function NPIOrderIntelligence() {
                           </div>
                           <div className="h-6 w-px bg-border" />
                           <div>
-                            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Company Revenue</div>
-                            <div className="font-semibold text-foreground tabular-nums">{fmtEur(totalCompanyRevenue)}</div>
+                            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                              Company Revenue{fYear !== 'all' ? ` (${fYear})` : ' (All)'}
+                            </div>
+                            <div className="font-semibold text-foreground tabular-nums">{fmtEur(effectiveCompanyRev)}</div>
                           </div>
                         </div>
                         <div>
-                          <Label htmlFor="totalRev" className="text-[11px] text-muted-foreground">Total Company Revenue (€)</Label>
+                          <Label htmlFor="totalRev" className="text-[11px] text-muted-foreground">
+                            {fYear !== 'all' ? `Total Company Revenue for ${fYear} (€)` : 'Total Company Revenue — All Years (€)'}
+                          </Label>
                           <Input
                             id="totalRev"
                             type="number"
                             placeholder="e.g. 5000000"
-                            value={totalCompanyRevenue || ''}
+                            value={effectiveCompanyRev || ''}
                             onChange={(e) => saveTotalRev(e.target.value)}
                             className="h-8 mt-1 text-sm"
                           />
