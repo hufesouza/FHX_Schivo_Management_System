@@ -1346,6 +1346,7 @@ export default function NPIOrderIntelligence() {
                 <Bar dataKey="orders" fill="#f59e0b" />
               </BarChart>
             </ResponsiveContainer>
+          </div>
           <div ref={chartRefs.ordByMonth} style={{ width: 1800, height: 1026, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthly} margin={{ left: 20, right: 20, top: 10, bottom: 10 }}>
