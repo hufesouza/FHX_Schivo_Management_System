@@ -700,7 +700,7 @@ export default function NPIOrderIntelligence() {
       if (hasNpiCol) filterBits.push(`NPI only: ${npiOnly ? 'Yes' : 'No'}`);
       pdf.setFontSize(8);
       pdf.setTextColor(100, 116, 139);
-      pdf.text(`Filters: ${filterBits.join('  •  ')}`, margin, y);
+      pdf.text(`Filters: ${filterBits.join('   |   ')}`, margin, y);
       y += 6;
 
       // KPI comparison rows
