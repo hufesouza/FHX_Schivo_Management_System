@@ -131,6 +131,8 @@ export default function NPIOrderIntelligence() {
   const [totalCompanyRevenue, setTotalCompanyRevenue] = useState<number>(() => {
     return parseFloat(localStorage.getItem(STORAGE_KEY_REV) || '0') || 0;
   });
+  // per-year override in single mode
+  const [yearRevenue, setYearRevenue] = useState<number>(0);
 
   // View mode
   const [viewMode, setViewMode] = useState<'single' | 'compare'>('single');
