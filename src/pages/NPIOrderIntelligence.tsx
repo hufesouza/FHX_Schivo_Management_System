@@ -1552,12 +1552,17 @@ function CompareCardExport({ label, a, b, yearA, yearB, currency, suffix, highli
       </div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
         <span style={{ fontSize: 11, color: '#64748b' }}>
-          Δ <span style={{ color: arrowColor, fontWeight: 700 }}>{arrow}</span> {suffix === '%' ? `${Math.abs(delta).toFixed(1)} pts` : fmt(Math.abs(delta))}
+          Δ <span style={{ color: arrowColor, fontWeight: 700 }}>{arrow}</span> {suffix === '%' ? `${Math.abs(delta).toFixed(1)} pp` : fmt(Math.abs(delta))}
         </span>
         <span style={{ background: badgeBg, color: badgeFg, fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 4 }}>
-          {arrow} {isFinite(pct) ? `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%` : '—'}
+          {arrow} {suffix === '%'
+            ? `${delta >= 0 ? '+' : ''}${delta.toFixed(1)} pp`
+            : (!currency && Math.abs(older) < 10)
+              ? `${delta >= 0 ? '+' : ''}${fmtNum(delta)}`
+              : (isFinite(pct) ? `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%` : '—')}
         </span>
       </div>
+
     </div>
   );
 }
