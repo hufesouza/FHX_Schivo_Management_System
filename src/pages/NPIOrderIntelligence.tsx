@@ -1023,7 +1023,8 @@ export default function NPIOrderIntelligence() {
                 <Tabs defaultValue="customer">
                   <TabsList>
                     <TabsTrigger value="customer">Customers</TabsTrigger>
-                    <TabsTrigger value="commodity">Commodities</TabsTrigger>
+                    <TabsTrigger value="part">Top Parts</TabsTrigger>
+                    {hasCommodityData && <TabsTrigger value="commodity">Commodities</TabsTrigger>}
                     <TabsTrigger value="trend">Monthly Trends</TabsTrigger>
                     <TabsTrigger value="orders">Orders</TabsTrigger>
                     <TabsTrigger value="quality">Data Quality</TabsTrigger>
