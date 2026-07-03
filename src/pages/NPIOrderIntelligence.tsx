@@ -304,6 +304,28 @@ export default function NPIOrderIntelligence() {
     return Array.from(map.entries()).map(([name, v]) => ({ name, ...v }));
   }, [filtered]);
 
+  const byPart = useMemo(() => {
+    const map = new Map<string, { revenue: number; orders: number }>();
+    filtered.forEach(r => {
+      if (!r.part) return;
+      const cur = map.get(r.part) || { revenue: 0, orders: 0 };
+      cur.revenue += r.revenue;
+      cur.orders += 1;
+      map.set(r.part, cur);
+    });
+    return Array.from(map.entries()).map(([name, v]) => ({ name, ...v }));
+  }, [filtered]);
+
+  const partByRevenue = useMemo(() =>
+    [...byPart].sort((a, b) => b.revenue - a.revenue).slice(0, 15), [byPart]);
+  const partByOrders = useMemo(() =>
+    [...byPart].sort((a, b) => b.orders - a.orders).slice(0, 15), [byPart]);
+
+  const hasCommodityData = useMemo(
+    () => byCommodity.length > 1 || (byCommodity[0] && byCommodity[0].name !== 'Unspecified'),
+    [byCommodity]
+  );
+
   const monthly = useMemo(() => {
     const map = new Map<string, { month: string; orders: number; revenue: number; sortKey: string }>();
     filtered.forEach(r => {
