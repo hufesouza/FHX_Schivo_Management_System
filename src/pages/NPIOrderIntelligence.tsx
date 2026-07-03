@@ -508,7 +508,7 @@ export default function NPIOrderIntelligence() {
     pdf.text(title, margin, 9);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8.5);
-    pdf.text(`Schivo Waterford  •  ${dateStr} ${timeStr}`, margin, 15);
+    pdf.text(`Schivo Waterford  |  ${dateStr} ${timeStr}`, margin, 15);
     pdf.setTextColor(15, 23, 42);
   };
 
@@ -521,7 +521,7 @@ export default function NPIOrderIntelligence() {
       pdf.setPage(i);
       pdf.setFontSize(7.5);
       pdf.setTextColor(148, 163, 184);
-      pdf.text('Schivo Medical — Confidential', margin, ph - 4);
+      pdf.text('Schivo Medical - Confidential', margin, ph - 4);
       pdf.text(`Page ${i} of ${pageCount}`, pw - margin, ph - 4, { align: 'right' });
     }
   };
@@ -536,7 +536,7 @@ export default function NPIOrderIntelligence() {
       const ph = pdf.internal.pageSize.getHeight();
       const margin = 10;
 
-      const yearTitle = fYear !== 'all' ? ` — ${fYear}` : '';
+      const yearTitle = fYear !== 'all' ? ` - ${fYear}` : '';
       pdfHeader(pdf, `NPI Order Intelligence${yearTitle}`);
       let y = 26;
 
@@ -550,7 +550,7 @@ export default function NPIOrderIntelligence() {
       if (hasNpiCol) filterBits.push(`NPI only: ${npiOnly ? 'Yes' : 'No'}`);
       pdf.setFontSize(8);
       pdf.setTextColor(100, 116, 139);
-      pdf.text(`Filters: ${filterBits.length ? filterBits.join('  •  ') : 'None'}`, margin, y);
+      pdf.text(`Filters: ${filterBits.length ? filterBits.join('   |   ') : 'None'}`, margin, y);
       y += 5;
 
       const kpiData = [
@@ -604,7 +604,7 @@ export default function NPIOrderIntelligence() {
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(7.5);
       pdf.setTextColor(71, 85, 105);
-      pdf.text(`NPI ${fmtEur(kpis.totalRev)}  •  Company ${fmtEur(effectiveCompanyRev)}`, pw - margin - 4, y + 15, { align: 'right' });
+      pdf.text(`NPI ${fmtEur(kpis.totalRev)}   |   Company ${fmtEur(effectiveCompanyRev)}`, pw - margin - 4, y + 15, { align: 'right' });
       y += 22;
 
       const colW = (pw - margin * 2 - 4) / 2;
@@ -690,7 +690,7 @@ export default function NPIOrderIntelligence() {
       const ph = pdf.internal.pageSize.getHeight();
       const margin = 10;
 
-      pdfHeader(pdf, `NPI Order Intelligence — ${yearA} vs ${yearB}`);
+      pdfHeader(pdf, `NPI Order Intelligence - ${yearA} vs ${yearB}`);
       let y = 26;
 
       const filterBits: string[] = [`Years: ${yearA} vs ${yearB}`];
@@ -700,7 +700,7 @@ export default function NPIOrderIntelligence() {
       if (hasNpiCol) filterBits.push(`NPI only: ${npiOnly ? 'Yes' : 'No'}`);
       pdf.setFontSize(8);
       pdf.setTextColor(100, 116, 139);
-      pdf.text(`Filters: ${filterBits.join('  •  ')}`, margin, y);
+      pdf.text(`Filters: ${filterBits.join('   |   ')}`, margin, y);
       y += 6;
 
       // KPI comparison rows
@@ -708,13 +708,14 @@ export default function NPIOrderIntelligence() {
       const mkRow = (label: string, a: number, b: number, isCurrency: boolean) => {
         const delta = b - a;
         const pct = a !== 0 ? (delta / Math.abs(a)) * 100 : 0;
-        const arrow = delta > 0 ? '▲' : delta < 0 ? '▼' : '■';
+        const arrow = delta > 0 ? '+' : delta < 0 ? '-' : '=';
         const color: [number, number, number] = delta > 0 ? [16, 185, 129] : delta < 0 ? [239, 68, 68] : [100, 116, 139];
+        const absStr = isCurrency ? fmtEur(Math.abs(delta)) : fmtNum(Math.abs(delta));
         rowsData.push({
           label,
           a: isCurrency ? fmtEur(a) : fmtNum(a),
           b: isCurrency ? fmtEur(b) : fmtNum(b),
-          delta: `${arrow} ${isCurrency ? fmtEur(Math.abs(delta)) : fmtNum(Math.abs(delta))} (${pct.toFixed(1)}%)`,
+          delta: `${arrow}${absStr}  (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)`,
           deltaColor: color,
         });
       };
@@ -733,7 +734,7 @@ export default function NPIOrderIntelligence() {
       pdf.setTextColor(255, 255, 255);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(8.5);
-      const hdrs = ['Metric', yearA, yearB, 'Change (B − A)'];
+      const hdrs = ['Metric', String(yearA), String(yearB), `Change (${yearB} vs ${yearA})`];
       let hx = margin;
       hdrs.forEach((h, i) => {
         pdf.text(h, hx + 2, y + 4.8);
