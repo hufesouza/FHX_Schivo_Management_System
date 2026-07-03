@@ -739,8 +739,8 @@ export default function NPIOrderIntelligence() {
         const valB = opts.pct ? `${b.toFixed(1)}%` : fmtVal(b, opts.currency);
         pdf.text(valA, x + 3, rowY + 15);
         pdf.text(valB, x + cardW / 2 + 1, rowY + 15);
-        // delta
-        const delta = b - a;
+        // delta (compare A vs B: A is the "current"/left column)
+        const delta = a - b;
         const deltaUp = delta >= 0;
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(6.5);
@@ -748,23 +748,21 @@ export default function NPIOrderIntelligence() {
         const deltaTxt = opts.pct
           ? `${Math.abs(delta).toFixed(1)} pts`
           : `${opts.currency ? fmtEur(Math.abs(delta)) : Math.abs(delta).toLocaleString('en-IE')}`;
-        // small arrow triangle before delta text
         const arrX = x + 3;
         const arrY = rowY + 22;
         if (deltaUp) { pdf.setFillColor(22, 101, 52); pdf.triangle(arrX, arrY, arrX + 2.4, arrY, arrX + 1.2, arrY - 2.2, 'F'); }
         else { pdf.setFillColor(153, 27, 27); pdf.triangle(arrX, arrY - 2.2, arrX + 2.4, arrY - 2.2, arrX + 1.2, arrY, 'F'); }
         pdf.setTextColor(100, 116, 139);
         pdf.text(deltaTxt, arrX + 3.4, rowY + 22);
-        // pct change badge (change from A to B, like dashboard)
-        const pctChange = a !== 0 ? ((b - a) / Math.abs(a)) * 100 : 0;
-        const pctTxt = opts.pct ? `${(b - a).toFixed(1)}%` : `${pctChange >= 0 ? '+' : ''}${pctChange.toFixed(1)}%`;
-        const up = opts.pct ? b - a >= 0 : pctChange >= 0;
+        // pct change badge (A vs B)
+        const pctChange = b !== 0 ? ((a - b) / Math.abs(b)) * 100 : 0;
+        const pctTxt = opts.pct ? `${(a - b >= 0 ? '+' : '')}${(a - b).toFixed(1)}%` : `${pctChange >= 0 ? '+' : ''}${pctChange.toFixed(1)}%`;
+        const up = deltaUp;
         const badgeW = pdf.getTextWidth(pctTxt) + 7;
         const bx = x + cardW - badgeW - 3;
-        if (up) { pdf.setFillColor(220, 252, 231); pdf.setTextColor(22, 101, 52); }
-        else { pdf.setFillColor(254, 226, 226); pdf.setTextColor(153, 27, 27); }
+        if (up) { pdf.setFillColor(220, 252, 231); }
+        else { pdf.setFillColor(254, 226, 226); }
         pdf.roundedRect(bx, rowY + 18.5, badgeW, 4.5, 1, 1, 'F');
-        // arrow inside badge
         const baX = bx + 2;
         const baY = rowY + 21.5;
         if (up) { pdf.setFillColor(22, 101, 52); pdf.triangle(baX, baY, baX + 2.2, baY, baX + 1.1, baY - 2, 'F'); }
@@ -772,6 +770,7 @@ export default function NPIOrderIntelligence() {
         pdf.setTextColor(up ? 22 : 153, up ? 101 : 27, up ? 52 : 27);
         pdf.setFontSize(6.5);
         pdf.text(pctTxt, bx + badgeW / 2 + 1.5, rowY + 21.6, { align: 'center' });
+
 
       };
 
