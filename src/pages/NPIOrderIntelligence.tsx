@@ -690,7 +690,7 @@ export default function NPIOrderIntelligence() {
       const ph = pdf.internal.pageSize.getHeight();
       const margin = 10;
 
-      pdfHeader(pdf, `NPI Order Intelligence — ${yearA} vs ${yearB}`);
+      pdfHeader(pdf, `NPI Order Intelligence - ${yearA} vs ${yearB}`);
       let y = 26;
 
       const filterBits: string[] = [`Years: ${yearA} vs ${yearB}`];
