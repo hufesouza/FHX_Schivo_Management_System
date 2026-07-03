@@ -164,6 +164,7 @@ export default function NPIOrderIntelligence() {
     cmpRevByMonth: useRef<HTMLDivElement>(null),
     cmpOrdByMonth: useRef<HTMLDivElement>(null),
     cmpTopCustomers: useRef<HTMLDivElement>(null),
+    cmpKpiPanel: useRef<HTMLDivElement>(null),
   };
 
   const handleFile = useCallback(async (file: File) => {
