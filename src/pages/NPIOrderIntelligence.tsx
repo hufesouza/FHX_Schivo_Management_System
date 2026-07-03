@@ -705,8 +705,8 @@ export default function NPIOrderIntelligence() {
       pdf.text(`Filters: ${filterBits.join('   |   ')}`, margin, y);
       y += 6;
 
-      // Capture the KPI comparison panel EXACTLY as shown on the dashboard
-      const kpiEl = chartRefs.cmpKpiPanel.current;
+      // Capture the KPI comparison panel (dedicated offscreen render with safe colors)
+      const kpiEl = chartRefs.cmpKpiExport.current || chartRefs.cmpKpiPanel.current;
       if (kpiEl) {
         const kpiImg = await capture(kpiEl);
         if (kpiImg) {
