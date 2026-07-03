@@ -1407,8 +1407,11 @@ function CompareCard({ label, a, b, yearA, yearB, currency }: {
   label: string; a: number; b: number; yearA: string; yearB: string; currency?: boolean;
 }) {
   const fmt = currency ? fmtEur : fmtNum;
-  const delta = b - a;
-  const pct = a !== 0 ? (delta / Math.abs(a)) * 100 : 0;
+  const aIsNewer = Number(yearA) >= Number(yearB);
+  const newer = aIsNewer ? a : b;
+  const older = aIsNewer ? b : a;
+  const delta = newer - older;
+  const pct = older !== 0 ? (delta / Math.abs(older)) * 100 : 0;
   return (
     <Card>
       <CardContent className="p-4">
@@ -1435,7 +1438,8 @@ function CompareCard({ label, a, b, yearA, yearB, currency }: {
 function NpviCompareCard({ yearA, yearB, npviA, npviB }: {
   yearA: string; yearB: string; npviA: number; npviB: number;
 }) {
-  const delta = npviB - npviA;
+  const aIsNewer = Number(yearA) >= Number(yearB);
+  const delta = aIsNewer ? npviA - npviB : npviB - npviA;
   return (
     <Card className="bg-blue-50/50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-900">
       <CardContent className="p-4">
