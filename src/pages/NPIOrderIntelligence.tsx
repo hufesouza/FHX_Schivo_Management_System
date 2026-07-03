@@ -734,7 +734,7 @@ export default function NPIOrderIntelligence() {
       pdf.setTextColor(255, 255, 255);
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(8.5);
-      const hdrs = ['Metric', yearA, yearB, 'Change (B − A)'];
+      const hdrs = ['Metric', String(yearA), String(yearB), `Change (${yearB} vs ${yearA})`];
       let hx = margin;
       hdrs.forEach((h, i) => {
         pdf.text(h, hx + 2, y + 4.8);
