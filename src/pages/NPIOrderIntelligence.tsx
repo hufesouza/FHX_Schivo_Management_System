@@ -704,82 +704,16 @@ export default function NPIOrderIntelligence() {
       pdf.text(`Filters: ${filterBits.join('   |   ')}`, margin, y);
       y += 6;
 
-      // KPI comparison rows
-      const rowsData: Array<{ label: string; a: string; b: string; delta: string; deltaColor: [number, number, number] }> = [];
-      const mkRow = (label: string, a: number, b: number, isCurrency: boolean) => {
-        const delta = b - a;
-        const pct = a !== 0 ? (delta / Math.abs(a)) * 100 : 0;
-        const arrow = delta > 0 ? '+' : delta < 0 ? '-' : '=';
-        const color: [number, number, number] = delta > 0 ? [16, 185, 129] : delta < 0 ? [239, 68, 68] : [100, 116, 139];
-        const absStr = isCurrency ? fmtEur(Math.abs(delta)) : fmtNum(Math.abs(delta));
-        rowsData.push({
-          label,
-          a: isCurrency ? fmtEur(a) : fmtNum(a),
-          b: isCurrency ? fmtEur(b) : fmtNum(b),
-          delta: `${arrow}${absStr}  (${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%)`,
-          deltaColor: color,
-        });
-      };
-      mkRow('Total Orders', kpisA.total, kpisB.total, false);
-      mkRow('Open Orders', kpisA.open, kpisB.open, false);
-      mkRow('Closed Orders', kpisA.closed, kpisB.closed, false);
-      mkRow('Total NPI Revenue', kpisA.totalRev, kpisB.totalRev, true);
-      mkRow('Open Order Value', kpisA.openRev, kpisB.openRev, true);
-      mkRow('Closed Order Value', kpisA.closedRev, kpisB.closedRev, true);
-
-      const tblW = pw - margin * 2;
-      const colWs = [tblW * 0.28, tblW * 0.22, tblW * 0.22, tblW * 0.28];
-      // header
-      pdf.setFillColor(15, 23, 42);
-      pdf.rect(margin, y, tblW, 7, 'F');
-      pdf.setTextColor(255, 255, 255);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(8.5);
-      const hdrs = ['Metric', String(yearA), String(yearB), `Change (${yearB} vs ${yearA})`];
-      let hx = margin;
-      hdrs.forEach((h, i) => {
-        pdf.text(h, hx + 2, y + 4.8);
-        hx += colWs[i];
-      });
-      y += 7;
-      rowsData.forEach((r, i) => {
-        if (i % 2 === 0) { pdf.setFillColor(248, 250, 252); pdf.rect(margin, y, tblW, 7, 'F'); }
-        pdf.setFont('helvetica', 'normal');
-        pdf.setTextColor(15, 23, 42);
-        pdf.setFontSize(8.5);
-        let x = margin;
-        pdf.text(r.label, x + 2, y + 4.8); x += colWs[0];
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(r.a, x + 2, y + 4.8); x += colWs[1];
-        pdf.text(r.b, x + 2, y + 4.8); x += colWs[2];
-        pdf.setTextColor(r.deltaColor[0], r.deltaColor[1], r.deltaColor[2]);
-        pdf.text(r.delta, x + 2, y + 4.8);
-        y += 7;
-      });
-      y += 4;
-
-      // NPVI banners side-by-side
-      const banW = (pw - margin * 2 - 4) / 2;
-      const banH = 22;
-      const drawNpvi = (x: number, year: string, npvi: number, npi: number, comp: number) => {
-        pdf.setFillColor(239, 246, 255);
-        pdf.setDrawColor(191, 219, 254);
-        pdf.roundedRect(x, y, banW, banH, 1.5, 1.5, 'FD');
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(9);
-        pdf.setTextColor(30, 64, 175);
-        pdf.text(`NPVI ${year}`, x + 3, y + 6);
-        pdf.setFontSize(16);
-        pdf.text(`${npvi.toFixed(1)}%`, x + banW - 3, y + 10, { align: 'right' });
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(7);
-        pdf.setTextColor(71, 85, 105);
-        pdf.text(`NPI ${fmtEur(npi)}`, x + 3, y + 13);
-        pdf.text(`Company ${fmtEur(comp)}`, x + 3, y + 18);
-      };
-      drawNpvi(margin, yearA, npviA, kpisA.totalRev, companyRevA);
-      drawNpvi(margin + banW + 4, yearB, npviB, kpisB.totalRev, companyRevB);
-      y += banH + 6;
+      // Render the KPI + NPVI panel as an image (crisp, styled like the dashboard)
+      const panel = chartRefs.cmpKpiPanel.current;
+      if (panel) {
+        const canvas = await html2canvas(panel, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true });
+        const img = canvas.toDataURL('image/png');
+        const panelW = pw - margin * 2;
+        const panelH = (canvas.height * panelW) / canvas.width;
+        pdf.addImage(img, 'PNG', margin, y, panelW, panelH, undefined, 'NONE');
+        y += panelH + 6;
+      }
 
       // Charts
       const colW = (pw - margin * 2 - 4) / 2;
