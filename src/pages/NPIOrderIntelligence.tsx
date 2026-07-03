@@ -1165,7 +1165,7 @@ export default function NPIOrderIntelligence() {
                 </Card>
 
                 {/* KPI comparison grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div ref={chartRefs.cmpKpiPanel} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 bg-background p-2 rounded-lg">
                   <CompareCard label="Total Orders" a={kpisA.total} b={kpisB.total} yearA={yearA} yearB={yearB} />
                   <CompareCard label="Open Orders" a={kpisA.open} b={kpisB.open} yearA={yearA} yearB={yearB} />
                   <CompareCard label="Closed Orders" a={kpisA.closed} b={kpisB.closed} yearA={yearA} yearB={yearB} />
