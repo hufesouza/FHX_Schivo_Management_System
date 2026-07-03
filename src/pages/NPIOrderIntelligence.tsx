@@ -707,12 +707,21 @@ export default function NPIOrderIntelligence() {
       // Render the KPI + NPVI panel as an image (crisp, styled like the dashboard)
       const panel = chartRefs.cmpKpiPanel.current;
       if (panel) {
-        const canvas = await html2canvas(panel, { scale: 2, backgroundColor: '#ffffff', logging: false, useCORS: true });
+        const canvas = await html2canvas(panel, {
+          scale: 2,
+          backgroundColor: '#ffffff',
+          logging: false,
+          useCORS: true,
+          windowWidth: Math.max(panel.scrollWidth, 1280),
+        });
         const img = canvas.toDataURL('image/png');
         const panelW = pw - margin * 2;
         const panelH = (canvas.height * panelW) / canvas.width;
+        if (y + panelH > ph - 12) { pdf.addPage(); y = margin + 4; }
         pdf.addImage(img, 'PNG', margin, y, panelW, panelH, undefined, 'NONE');
         y += panelH + 6;
+      } else {
+        toast.error('KPI panel not found - make sure you are on the Compare tab');
       }
 
       // Charts
