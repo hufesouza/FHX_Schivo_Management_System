@@ -618,7 +618,7 @@ export default function NPIOrderIntelligence() {
           pdf.setTextColor(15, 23, 42);
           pdf.text(items[i].title, x + 3, y + 5);
           const img = await capture(items[i].ref);
-          if (img) pdf.addImage(img, 'PNG', x + 2, y + titleH, colW - 4, chartImgH);
+          if (img) pdf.addImage(img, 'PNG', x + 2, y + titleH, colW - 4, chartImgH, undefined, 'NONE');
         }
         y += cellH + sectionGap;
       };
@@ -763,7 +763,7 @@ export default function NPIOrderIntelligence() {
         pdf.setTextColor(15, 23, 42);
         pdf.text(title, x + 3, y + 5);
         const img = await capture(ref);
-        if (img) pdf.addImage(img, 'PNG', x + 2, y + titleH, colW - 4, chartImgH);
+        if (img) pdf.addImage(img, 'PNG', x + 2, y + titleH, colW - 4, chartImgH, undefined, 'NONE');
       };
 
       if (y + cellH > ph - 12) { pdf.addPage(); y = margin + 4; }
