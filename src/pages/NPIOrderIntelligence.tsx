@@ -704,89 +704,18 @@ export default function NPIOrderIntelligence() {
       pdf.text(`Filters: ${filterBits.join('   |   ')}`, margin, y);
       y += 6;
 
-      // Draw KPI comparison cards natively (matches the dashboard card layout)
-      const fmtVal = (v: number, currency?: boolean) =>
-        currency ? fmtEur(v) : v.toLocaleString('en-IE');
-      const cardGap = 3;
-      const cardW = (pw - margin * 2 - cardGap * 3) / 4;
-      const cardH = 26;
-      const drawKpiCard = (
-        col: number, rowY: number,
-        label: string, a: number, b: number,
-        opts: { currency?: boolean; pct?: boolean; highlight?: boolean } = {},
-      ) => {
-        const x = margin + col * (cardW + cardGap);
-        // card background + border
-        pdf.setFillColor(255, 255, 255);
-        if (opts.highlight) { pdf.setFillColor(239, 246, 255); pdf.setDrawColor(147, 197, 253); }
-        else pdf.setDrawColor(226, 232, 240);
-        pdf.roundedRect(x, rowY, cardW, cardH, 1.5, 1.5, 'FD');
-        // label
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(7);
-        pdf.setTextColor(opts.highlight ? 29 : 71, opts.highlight ? 78 : 85, opts.highlight ? 216 : 105);
-        pdf.text(label, x + 3, rowY + 4.5);
-        // year headers
-        pdf.setFontSize(6.5);
-        pdf.setTextColor(100, 116, 139);
-        pdf.text(String(yearA), x + 3, rowY + 9.5);
-        pdf.text(String(yearB), x + cardW / 2 + 1, rowY + 9.5);
-        // values
-        pdf.setFont('helvetica', 'bold');
-        pdf.setFontSize(9.5);
-        pdf.setTextColor(15, 23, 42);
-        const valA = opts.pct ? `${a.toFixed(1)}%` : fmtVal(a, opts.currency);
-        const valB = opts.pct ? `${b.toFixed(1)}%` : fmtVal(b, opts.currency);
-        pdf.text(valA, x + 3, rowY + 15);
-        pdf.text(valB, x + cardW / 2 + 1, rowY + 15);
-        // delta: change from the OLDER year to the NEWER year, regardless of column order
-        const aIsNewer = Number(yearA) >= Number(yearB);
-        const newer = aIsNewer ? a : b;
-        const older = aIsNewer ? b : a;
-        const delta = newer - older;
-        const deltaUp = delta >= 0;
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(6.5);
-        pdf.setTextColor(100, 116, 139);
-        const deltaTxt = opts.pct
-          ? `${Math.abs(delta).toFixed(1)} pts`
-          : `${opts.currency ? fmtEur(Math.abs(delta)) : Math.abs(delta).toLocaleString('en-IE')}`;
-        const arrX = x + 3;
-        const arrY = rowY + 22;
-        if (deltaUp) { pdf.setFillColor(22, 101, 52); pdf.triangle(arrX, arrY, arrX + 2.4, arrY, arrX + 1.2, arrY - 2.2, 'F'); }
-        else { pdf.setFillColor(153, 27, 27); pdf.triangle(arrX, arrY - 2.2, arrX + 2.4, arrY - 2.2, arrX + 1.2, arrY, 'F'); }
-        pdf.setTextColor(100, 116, 139);
-        pdf.text(deltaTxt, arrX + 3.4, rowY + 22);
-        // pct change badge (older -> newer)
-        const pctChange = older !== 0 ? ((newer - older) / Math.abs(older)) * 100 : 0;
-        const pctTxt = opts.pct ? `${(delta >= 0 ? '+' : '-')}${Math.abs(delta).toFixed(1)}%` : `${pctChange >= 0 ? '+' : ''}${pctChange.toFixed(1)}%`;
-        const up = deltaUp;
-        const badgeW = pdf.getTextWidth(pctTxt) + 7;
-        const bx = x + cardW - badgeW - 3;
-        if (up) { pdf.setFillColor(220, 252, 231); }
-        else { pdf.setFillColor(254, 226, 226); }
-        pdf.roundedRect(bx, rowY + 18.5, badgeW, 4.5, 1, 1, 'F');
-        const baX = bx + 2;
-        const baY = rowY + 21.5;
-        if (up) { pdf.setFillColor(22, 101, 52); pdf.triangle(baX, baY, baX + 2.2, baY, baX + 1.1, baY - 2, 'F'); }
-        else { pdf.setFillColor(153, 27, 27); pdf.triangle(baX, baY - 2, baX + 2.2, baY - 2, baX + 1.1, baY, 'F'); }
-        pdf.setTextColor(up ? 22 : 153, up ? 101 : 27, up ? 52 : 27);
-        pdf.setFontSize(6.5);
-        pdf.text(pctTxt, bx + badgeW / 2 + 1.5, rowY + 21.6, { align: 'center' });
-
-
-      };
-
-      if (y + cardH * 2 + cardGap > ph - 12) { pdf.addPage(); y = margin + 4; }
-      drawKpiCard(0, y, 'Total Orders', kpisA.total, kpisB.total);
-      drawKpiCard(1, y, 'Open Orders', kpisA.open, kpisB.open);
-      drawKpiCard(2, y, 'Closed Orders', kpisA.closed, kpisB.closed);
-      drawKpiCard(3, y, 'Total NPI Revenue', kpisA.totalRev, kpisB.totalRev, { currency: true });
-      y += cardH + cardGap;
-      drawKpiCard(0, y, 'Open Value (To Invoice)', kpisA.openRev, kpisB.openRev, { currency: true });
-      drawKpiCard(1, y, 'Closed Value (Invoiced)', kpisA.closedRev, kpisB.closedRev, { currency: true });
-      drawKpiCard(2, y, 'NPVI (Vitality Index)', npviA, npviB, { pct: true, highlight: true });
-      y += cardH + 6;
+      // Capture the KPI comparison panel EXACTLY as shown on the dashboard
+      const kpiEl = chartRefs.cmpKpiPanel.current;
+      if (kpiEl) {
+        const kpiImg = await capture(kpiEl);
+        if (kpiImg) {
+          const imgW = pw - margin * 2;
+          const imgH = imgW * (kpiEl.offsetHeight / kpiEl.offsetWidth);
+          if (y + imgH > ph - 12) { pdf.addPage(); y = margin + 4; }
+          pdf.addImage(kpiImg, 'PNG', margin, y, imgW, imgH);
+          y += imgH + 6;
+        }
+      }
 
       // Charts
       const colW = (pw - margin * 2 - 4) / 2;
