@@ -1459,7 +1459,7 @@ function NpviCompareCard({ yearA, yearB, npviA, npviB }: {
         </div>
         <div className="mt-2 flex items-center justify-between">
           <span className="text-[11px] text-muted-foreground">Δ {Math.abs(delta).toFixed(1)} pts</span>
-          <DeltaBadge delta={delta} pct={delta} />
+          <DeltaBadge delta={delta} pct={pct} />
         </div>
       </CardContent>
     </Card>
