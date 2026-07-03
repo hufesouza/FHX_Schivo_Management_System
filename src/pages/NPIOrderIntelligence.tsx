@@ -1055,6 +1055,31 @@ export default function NPIOrderIntelligence() {
                     </ChartCard>
                   </TabsContent>
 
+                  <TabsContent value="part" className="grid md:grid-cols-2 gap-4 mt-4">
+                    <ChartCard title="Revenue by Part (Top 15)">
+                      <ResponsiveContainer width="100%" height={360}>
+                        <BarChart data={partByRevenue} layout="vertical" margin={{ left: 80 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                          <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} />
+                          <Tooltip formatter={(v: any) => fmtEur(v as number)} />
+                          <Bar dataKey="revenue" fill="#8b5cf6" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartCard>
+                    <ChartCard title="Orders by Part (Top 15)">
+                      <ResponsiveContainer width="100%" height={360}>
+                        <BarChart data={partByOrders} layout="vertical" margin={{ left: 80 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" />
+                          <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} />
+                          <Tooltip />
+                          <Bar dataKey="orders" fill="#f59e0b" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartCard>
+                  </TabsContent>
+
                   <TabsContent value="commodity" className="grid md:grid-cols-2 gap-4 mt-4">
                     <ChartCard title="Revenue by Commodity">
                       <ResponsiveContainer width="100%" height={320}>
