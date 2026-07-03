@@ -1347,6 +1347,76 @@ export default function NPIOrderIntelligence() {
               </BarChart>
             </ResponsiveContainer>
           </div>
+          {yearA && yearB && (
+            <div
+              ref={chartRefs.cmpKpiPanel}
+              style={{
+                width: 1400,
+                background: '#ffffff',
+                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+                color: '#0f172a',
+                padding: 20,
+                boxSizing: 'border-box',
+              }}
+            >
+              {/* KPI comparison table */}
+              <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, fontSize: 18, marginBottom: 20 }}>
+                <thead>
+                  <tr style={{ background: '#0f172a', color: '#fff' }}>
+                    <th style={{ textAlign: 'left', padding: '14px 18px', fontWeight: 600, borderTopLeftRadius: 8 }}>Metric</th>
+                    <th style={{ textAlign: 'right', padding: '14px 18px', fontWeight: 600 }}>{yearA}</th>
+                    <th style={{ textAlign: 'right', padding: '14px 18px', fontWeight: 600 }}>{yearB}</th>
+                    <th style={{ textAlign: 'right', padding: '14px 18px', fontWeight: 600, borderTopRightRadius: 8 }}>Change ({yearB} vs {yearA})</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    { label: 'Total Orders', a: kpisA.total, b: kpisB.total, cur: false },
+                    { label: 'Open Orders', a: kpisA.open, b: kpisB.open, cur: false },
+                    { label: 'Closed Orders', a: kpisA.closed, b: kpisB.closed, cur: false },
+                    { label: 'Total NPI Revenue', a: kpisA.totalRev, b: kpisB.totalRev, cur: true },
+                    { label: 'Open Order Value', a: kpisA.openRev, b: kpisB.openRev, cur: true },
+                    { label: 'Closed Order Value', a: kpisA.closedRev, b: kpisB.closedRev, cur: true },
+                  ].map((r, i) => {
+                    const d = r.b - r.a;
+                    const pct = r.a !== 0 ? (d / Math.abs(r.a)) * 100 : 0;
+                    const color = d > 0 ? '#059669' : d < 0 ? '#dc2626' : '#64748b';
+                    const arrow = d > 0 ? '▲' : d < 0 ? '▼' : '■';
+                    const abs = r.cur ? fmtEur(Math.abs(d)) : fmtNum(Math.abs(d));
+                    return (
+                      <tr key={r.label} style={{ background: i % 2 === 0 ? '#f8fafc' : '#ffffff' }}>
+                        <td style={{ padding: '14px 18px', fontWeight: 500, borderBottom: '1px solid #e2e8f0' }}>{r.label}</td>
+                        <td style={{ padding: '14px 18px', textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid #e2e8f0' }}>{r.cur ? fmtEur(r.a) : fmtNum(r.a)}</td>
+                        <td style={{ padding: '14px 18px', textAlign: 'right', fontWeight: 600, fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid #e2e8f0' }}>{r.cur ? fmtEur(r.b) : fmtNum(r.b)}</td>
+                        <td style={{ padding: '14px 18px', textAlign: 'right', fontWeight: 600, color, fontVariantNumeric: 'tabular-nums', borderBottom: '1px solid #e2e8f0', whiteSpace: 'nowrap' }}>
+                          <span style={{ marginRight: 6 }}>{arrow}</span>{abs} <span style={{ opacity: 0.8, fontWeight: 500 }}>({pct >= 0 ? '+' : ''}{pct.toFixed(1)}%)</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* NPVI banners */}
+              <div style={{ display: 'flex', gap: 16 }}>
+                {[
+                  { year: yearA, npvi: npviA, npi: kpisA.totalRev, comp: companyRevA },
+                  { year: yearB, npvi: npviB, npi: kpisB.totalRev, comp: companyRevB },
+                ].map((n) => (
+                  <div key={n.year} style={{ flex: 1, background: 'linear-gradient(135deg,#eff6ff 0%,#dbeafe 100%)', border: '1px solid #bfdbfe', borderRadius: 12, padding: '18px 22px' }}>
+                    <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div style={{ fontSize: 16, fontWeight: 600, color: '#1e40af', letterSpacing: 0.3 }}>NPVI {n.year}</div>
+                      <div style={{ fontSize: 34, fontWeight: 700, color: '#1e3a8a', fontVariantNumeric: 'tabular-nums' }}>{n.npvi.toFixed(1)}%</div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: '#475569' }}>
+                      <span>NPI Revenue: <strong style={{ color: '#0f172a' }}>{fmtEur(n.npi)}</strong></span>
+                      <span>Company: <strong style={{ color: '#0f172a' }}>{fmtEur(n.comp)}</strong></span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </AppLayout>
