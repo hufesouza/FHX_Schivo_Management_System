@@ -580,7 +580,7 @@ export default function NPIOrderIntelligence() {
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(7.5);
       pdf.setTextColor(71, 85, 105);
-      pdf.text(`NPI ${fmtEur(kpis.totalRev)}  •  Company ${fmtEur(totalCompanyRevenue)}`, pw - margin - 4, y + 15, { align: 'right' });
+      pdf.text(`NPI ${fmtEur(kpis.totalRev)}  •  Company ${fmtEur(effectiveCompanyRev)}`, pw - margin - 4, y + 15, { align: 'right' });
       y += 22;
 
       const colW = (pw - margin * 2 - 4) / 2;
