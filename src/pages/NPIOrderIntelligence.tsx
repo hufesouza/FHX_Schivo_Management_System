@@ -704,25 +704,73 @@ export default function NPIOrderIntelligence() {
       pdf.text(`Filters: ${filterBits.join('   |   ')}`, margin, y);
       y += 6;
 
-      // Render the KPI + NPVI panel as an image (crisp, styled like the dashboard)
-      const panel = chartRefs.cmpKpiPanel.current;
-      if (panel) {
-        const canvas = await html2canvas(panel, {
-          scale: 2,
-          backgroundColor: '#ffffff',
-          logging: false,
-          useCORS: true,
-          windowWidth: Math.max(panel.scrollWidth, 1280),
-        });
-        const img = canvas.toDataURL('image/png');
-        const panelW = pw - margin * 2;
-        const panelH = (canvas.height * panelW) / canvas.width;
-        if (y + panelH > ph - 12) { pdf.addPage(); y = margin + 4; }
-        pdf.addImage(img, 'PNG', margin, y, panelW, panelH, undefined, 'NONE');
-        y += panelH + 6;
-      } else {
-        toast.error('KPI panel not found - make sure you are on the Compare tab');
-      }
+      // Draw KPI comparison cards natively (matches the dashboard card layout)
+      const fmtVal = (v: number, currency?: boolean) =>
+        currency ? fmtEur(v) : v.toLocaleString('en-IE');
+      const cardGap = 3;
+      const cardW = (pw - margin * 2 - cardGap * 3) / 4;
+      const cardH = 26;
+      const drawKpiCard = (
+        col: number, rowY: number,
+        label: string, a: number, b: number,
+        opts: { currency?: boolean; pct?: boolean; highlight?: boolean } = {},
+      ) => {
+        const x = margin + col * (cardW + cardGap);
+        // card background + border
+        pdf.setFillColor(255, 255, 255);
+        if (opts.highlight) { pdf.setFillColor(239, 246, 255); pdf.setDrawColor(147, 197, 253); }
+        else pdf.setDrawColor(226, 232, 240);
+        pdf.roundedRect(x, rowY, cardW, cardH, 1.5, 1.5, 'FD');
+        // label
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(7);
+        pdf.setTextColor(opts.highlight ? 29 : 71, opts.highlight ? 78 : 85, opts.highlight ? 216 : 105);
+        pdf.text(label, x + 3, rowY + 4.5);
+        // year headers
+        pdf.setFontSize(6.5);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(String(yearA), x + 3, rowY + 9.5);
+        pdf.text(String(yearB), x + cardW / 2 + 1, rowY + 9.5);
+        // values
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(9.5);
+        pdf.setTextColor(15, 23, 42);
+        const valA = opts.pct ? `${a.toFixed(1)}%` : fmtVal(a, opts.currency);
+        const valB = opts.pct ? `${b.toFixed(1)}%` : fmtVal(b, opts.currency);
+        pdf.text(valA, x + 3, rowY + 15);
+        pdf.text(valB, x + cardW / 2 + 1, rowY + 15);
+        // delta
+        const delta = a - b;
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(6.5);
+        pdf.setTextColor(100, 116, 139);
+        const deltaTxt = opts.pct
+          ? `Δ ${delta.toFixed(1)} pts`
+          : `Δ ${opts.currency ? fmtEur(Math.abs(delta)) : Math.abs(delta).toLocaleString('en-IE')}`;
+        pdf.text(deltaTxt, x + 3, rowY + 22);
+        // pct change badge (change from A to B, like dashboard)
+        const pctChange = a !== 0 ? ((b - a) / Math.abs(a)) * 100 : 0;
+        const pctTxt = opts.pct ? `${(b - a).toFixed(1)}%` : `${pctChange >= 0 ? '+' : ''}${pctChange.toFixed(1)}%`;
+        const up = opts.pct ? b - a >= 0 : pctChange >= 0;
+        const badgeW = pdf.getTextWidth(pctTxt) + 5;
+        const bx = x + cardW - badgeW - 3;
+        if (up) { pdf.setFillColor(220, 252, 231); pdf.setTextColor(22, 101, 52); }
+        else { pdf.setFillColor(254, 226, 226); pdf.setTextColor(153, 27, 27); }
+        pdf.roundedRect(bx, rowY + 18.5, badgeW, 4.5, 1, 1, 'F');
+        pdf.setFontSize(6.5);
+        pdf.text(pctTxt, bx + badgeW / 2, rowY + 21.6, { align: 'center' });
+      };
+
+      if (y + cardH * 2 + cardGap > ph - 12) { pdf.addPage(); y = margin + 4; }
+      drawKpiCard(0, y, 'Total Orders', kpisA.total, kpisB.total);
+      drawKpiCard(1, y, 'Open Orders', kpisA.open, kpisB.open);
+      drawKpiCard(2, y, 'Closed Orders', kpisA.closed, kpisB.closed);
+      drawKpiCard(3, y, 'Total NPI Revenue', kpisA.totalRev, kpisB.totalRev, { currency: true });
+      y += cardH + cardGap;
+      drawKpiCard(0, y, 'Open Value (To Invoice)', kpisA.openRev, kpisB.openRev, { currency: true });
+      drawKpiCard(1, y, 'Closed Value (Invoiced)', kpisA.closedRev, kpisB.closedRev, { currency: true });
+      drawKpiCard(2, y, 'NPVI (Vitality Index)', npviA, npviB, { pct: true, highlight: true });
+      y += cardH + 6;
 
       // Charts
       const colW = (pw - margin * 2 - 4) / 2;
