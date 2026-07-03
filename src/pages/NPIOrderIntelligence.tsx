@@ -165,6 +165,7 @@ export default function NPIOrderIntelligence() {
     cmpOrdByMonth: useRef<HTMLDivElement>(null),
     cmpTopCustomers: useRef<HTMLDivElement>(null),
     cmpKpiPanel: useRef<HTMLDivElement>(null),
+    cmpKpiExport: useRef<HTMLDivElement>(null),
   };
 
   const handleFile = useCallback(async (file: File) => {
@@ -704,8 +705,8 @@ export default function NPIOrderIntelligence() {
       pdf.text(`Filters: ${filterBits.join('   |   ')}`, margin, y);
       y += 6;
 
-      // Capture the KPI comparison panel EXACTLY as shown on the dashboard
-      const kpiEl = chartRefs.cmpKpiPanel.current;
+      // Capture the KPI comparison panel (dedicated offscreen render with safe colors)
+      const kpiEl = chartRefs.cmpKpiExport.current || chartRefs.cmpKpiPanel.current;
       if (kpiEl) {
         const kpiImg = await capture(kpiEl);
         if (kpiImg) {
@@ -1349,6 +1350,18 @@ export default function NPIOrderIntelligence() {
               </BarChart>
             </ResponsiveContainer>
           </div>
+          {/* Offscreen KPI comparison panel for PDF export (inline styles = html2canvas safe) */}
+          <div ref={chartRefs.cmpKpiExport} style={{ width: 1600, background: '#ffffff', padding: 16, fontFamily: 'Arial, Helvetica, sans-serif', color: '#0f172a' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+              <CompareCardExport label="Total Orders" a={kpisA.total} b={kpisB.total} yearA={yearA} yearB={yearB} />
+              <CompareCardExport label="Open Orders" a={kpisA.open} b={kpisB.open} yearA={yearA} yearB={yearB} />
+              <CompareCardExport label="Closed Orders" a={kpisA.closed} b={kpisB.closed} yearA={yearA} yearB={yearB} />
+              <CompareCardExport label="Total NPI Revenue" a={kpisA.totalRev} b={kpisB.totalRev} yearA={yearA} yearB={yearB} currency />
+              <CompareCardExport label="Open Value (To Invoice)" a={kpisA.openRev} b={kpisB.openRev} yearA={yearA} yearB={yearB} currency />
+              <CompareCardExport label="Closed Value (Invoiced)" a={kpisA.closedRev} b={kpisB.closedRev} yearA={yearA} yearB={yearB} currency />
+              <CompareCardExport label="NPVI (Vitality Index)" a={npviA} b={npviB} yearA={yearA} yearB={yearB} suffix="%" highlight />
+            </div>
+          </div>
         </div>
       )}
     </AppLayout>
@@ -1481,6 +1494,55 @@ function OrdersTable({ rows }: { rows: Array<{ customer: string; po: string; par
           ))}
         </TableBody>
       </Table>
+    </div>
+  );
+}
+
+function CompareCardExport({ label, a, b, yearA, yearB, currency, suffix, highlight }: {
+  label: string; a: number; b: number; yearA: string; yearB: string;
+  currency?: boolean; suffix?: string; highlight?: boolean;
+}) {
+  const fmt = (v: number) => {
+    if (currency) return fmtEur(v);
+    if (suffix === '%') return `${v.toFixed(1)}%`;
+    return fmtNum(v);
+  };
+  const aIsNewer = Number(yearA) >= Number(yearB);
+  const newer = aIsNewer ? a : b;
+  const older = aIsNewer ? b : a;
+  const delta = newer - older;
+  const pct = older !== 0 ? (delta / Math.abs(older)) * 100 : 0;
+  const up = delta >= 0;
+  const arrow = up ? '▲' : '▼';
+  const arrowColor = up ? '#16a34a' : '#dc2626';
+  const badgeBg = up ? '#dcfce7' : '#fee2e2';
+  const badgeFg = up ? '#166534' : '#991b1b';
+
+  const border = highlight ? '#bfdbfe' : '#e2e8f0';
+  const bg = highlight ? '#eff6ff' : '#ffffff';
+  const labelColor = highlight ? '#1d4ed8' : '#64748b';
+
+  return (
+    <div style={{ border: `1px solid ${border}`, background: bg, borderRadius: 8, padding: 14 }}>
+      <div style={{ fontSize: 12, color: labelColor, fontWeight: highlight ? 700 : 500, marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.4 }}>{label}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.6 }}>{yearA || 'A'}</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#0f172a' }}>{fmt(a)}</div>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.6 }}>{yearB || 'B'}</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: '#0f172a' }}>{fmt(b)}</div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 }}>
+        <span style={{ fontSize: 11, color: '#64748b' }}>
+          Δ <span style={{ color: arrowColor, fontWeight: 700 }}>{arrow}</span> {suffix === '%' ? `${Math.abs(delta).toFixed(1)} pts` : fmt(Math.abs(delta))}
+        </span>
+        <span style={{ background: badgeBg, color: badgeFg, fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 4 }}>
+          {arrow} {isFinite(pct) ? `${pct >= 0 ? '+' : ''}${pct.toFixed(1)}%` : '—'}
+        </span>
+      </div>
     </div>
   );
 }
