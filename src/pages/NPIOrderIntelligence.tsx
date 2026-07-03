@@ -739,8 +739,11 @@ export default function NPIOrderIntelligence() {
         const valB = opts.pct ? `${b.toFixed(1)}%` : fmtVal(b, opts.currency);
         pdf.text(valA, x + 3, rowY + 15);
         pdf.text(valB, x + cardW / 2 + 1, rowY + 15);
-        // delta (compare A vs B: A is the "current"/left column)
-        const delta = a - b;
+        // delta: change from the OLDER year to the NEWER year, regardless of column order
+        const aIsNewer = Number(yearA) >= Number(yearB);
+        const newer = aIsNewer ? a : b;
+        const older = aIsNewer ? b : a;
+        const delta = newer - older;
         const deltaUp = delta >= 0;
         pdf.setFont('helvetica', 'normal');
         pdf.setFontSize(6.5);
@@ -754,9 +757,9 @@ export default function NPIOrderIntelligence() {
         else { pdf.setFillColor(153, 27, 27); pdf.triangle(arrX, arrY - 2.2, arrX + 2.4, arrY - 2.2, arrX + 1.2, arrY, 'F'); }
         pdf.setTextColor(100, 116, 139);
         pdf.text(deltaTxt, arrX + 3.4, rowY + 22);
-        // pct change badge (A vs B)
-        const pctChange = b !== 0 ? ((a - b) / Math.abs(b)) * 100 : 0;
-        const pctTxt = opts.pct ? `${(a - b >= 0 ? '+' : '')}${(a - b).toFixed(1)}%` : `${pctChange >= 0 ? '+' : ''}${pctChange.toFixed(1)}%`;
+        // pct change badge (older -> newer)
+        const pctChange = older !== 0 ? ((newer - older) / Math.abs(older)) * 100 : 0;
+        const pctTxt = opts.pct ? `${(delta >= 0 ? '+' : '-')}${Math.abs(delta).toFixed(1)}%` : `${pctChange >= 0 ? '+' : ''}${pctChange.toFixed(1)}%`;
         const up = deltaUp;
         const badgeW = pdf.getTextWidth(pctTxt) + 7;
         const bx = x + cardW - badgeW - 3;
