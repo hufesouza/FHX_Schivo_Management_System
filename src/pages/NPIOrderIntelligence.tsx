@@ -492,7 +492,7 @@ export default function NPIOrderIntelligence() {
 
   const capture = async (el: HTMLElement | null): Promise<string | null> => {
     if (!el) return null;
-    const c = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', logging: false });
+    const c = await html2canvas(el, { scale: 3, backgroundColor: '#ffffff', logging: false, useCORS: true });
     return c.toDataURL('image/png');
   };
 
