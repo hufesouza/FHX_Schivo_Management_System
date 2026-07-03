@@ -157,6 +157,8 @@ export default function NPIOrderIntelligence() {
     ordByCustomer: useRef<HTMLDivElement>(null),
     revByCommodity: useRef<HTMLDivElement>(null),
     ordByCommodity: useRef<HTMLDivElement>(null),
+    revByPart: useRef<HTMLDivElement>(null),
+    ordByPart: useRef<HTMLDivElement>(null),
     ordByMonth: useRef<HTMLDivElement>(null),
     revByMonth: useRef<HTMLDivElement>(null),
     cmpRevByMonth: useRef<HTMLDivElement>(null),
@@ -303,6 +305,28 @@ export default function NPIOrderIntelligence() {
     });
     return Array.from(map.entries()).map(([name, v]) => ({ name, ...v }));
   }, [filtered]);
+
+  const byPart = useMemo(() => {
+    const map = new Map<string, { revenue: number; orders: number }>();
+    filtered.forEach(r => {
+      if (!r.part) return;
+      const cur = map.get(r.part) || { revenue: 0, orders: 0 };
+      cur.revenue += r.revenue;
+      cur.orders += 1;
+      map.set(r.part, cur);
+    });
+    return Array.from(map.entries()).map(([name, v]) => ({ name, ...v }));
+  }, [filtered]);
+
+  const partByRevenue = useMemo(() =>
+    [...byPart].sort((a, b) => b.revenue - a.revenue).slice(0, 15), [byPart]);
+  const partByOrders = useMemo(() =>
+    [...byPart].sort((a, b) => b.orders - a.orders).slice(0, 15), [byPart]);
+
+  const hasCommodityData = useMemo(
+    () => byCommodity.length > 1 || (byCommodity[0] && byCommodity[0].name !== 'Unspecified'),
+    [byCommodity]
+  );
 
   const monthly = useMemo(() => {
     const map = new Map<string, { month: string; orders: number; revenue: number; sortKey: string }>();
@@ -629,10 +653,17 @@ export default function NPIOrderIntelligence() {
         { title: 'Orders by Customer (Top 15)', ref: chartRefs.ordByCustomer.current },
       );
       await renderSection(
-        'Commodity Mix',
-        { title: 'Revenue by Commodity', ref: chartRefs.revByCommodity.current },
-        { title: 'Orders by Commodity', ref: chartRefs.ordByCommodity.current },
+        'Top Parts',
+        { title: 'Revenue by Part (Top 15)', ref: chartRefs.revByPart.current },
+        { title: 'Orders by Part (Top 15)', ref: chartRefs.ordByPart.current },
       );
+      if (hasCommodityData) {
+        await renderSection(
+          'Commodity Mix',
+          { title: 'Revenue by Commodity', ref: chartRefs.revByCommodity.current },
+          { title: 'Orders by Commodity', ref: chartRefs.ordByCommodity.current },
+        );
+      }
       await renderSection(
         'Monthly Trend',
         { title: 'Orders by Month', ref: chartRefs.ordByMonth.current },
@@ -999,7 +1030,8 @@ export default function NPIOrderIntelligence() {
                 <Tabs defaultValue="customer">
                   <TabsList>
                     <TabsTrigger value="customer">Customers</TabsTrigger>
-                    <TabsTrigger value="commodity">Commodities</TabsTrigger>
+                    <TabsTrigger value="part">Top Parts</TabsTrigger>
+                    {hasCommodityData && <TabsTrigger value="commodity">Commodities</TabsTrigger>}
                     <TabsTrigger value="trend">Monthly Trends</TabsTrigger>
                     <TabsTrigger value="orders">Orders</TabsTrigger>
                     <TabsTrigger value="quality">Data Quality</TabsTrigger>
@@ -1025,6 +1057,31 @@ export default function NPIOrderIntelligence() {
                           <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
                           <Tooltip />
                           <Bar dataKey="orders" fill="#10b981" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartCard>
+                  </TabsContent>
+
+                  <TabsContent value="part" className="grid md:grid-cols-2 gap-4 mt-4">
+                    <ChartCard title="Revenue by Part (Top 15)">
+                      <ResponsiveContainer width="100%" height={360}>
+                        <BarChart data={partByRevenue} layout="vertical" margin={{ left: 80 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                          <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} />
+                          <Tooltip formatter={(v: any) => fmtEur(v as number)} />
+                          <Bar dataKey="revenue" fill="#8b5cf6" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartCard>
+                    <ChartCard title="Orders by Part (Top 15)">
+                      <ResponsiveContainer width="100%" height={360}>
+                        <BarChart data={partByOrders} layout="vertical" margin={{ left: 80 }}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis type="number" />
+                          <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} />
+                          <Tooltip />
+                          <Bar dataKey="orders" fill="#f59e0b" />
                         </BarChart>
                       </ResponsiveContainer>
                     </ChartCard>
@@ -1275,6 +1332,26 @@ export default function NPIOrderIntelligence() {
                 </Pie>
                 <Legend />
               </PieChart>
+            </ResponsiveContainer>
+          </div>
+          <div ref={chartRefs.revByPart} style={{ width: 1800, height: 1026, background: '#fff' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={partByRevenue} layout="vertical" margin={{ left: 140, right: 20, top: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 11 }} />
+                <Bar dataKey="revenue" fill="#8b5cf6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div ref={chartRefs.ordByPart} style={{ width: 1800, height: 1026, background: '#fff' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={partByOrders} layout="vertical" margin={{ left: 140, right: 20, top: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 11 }} />
+                <Bar dataKey="orders" fill="#f59e0b" />
+              </BarChart>
             </ResponsiveContainer>
           </div>
           <div ref={chartRefs.ordByMonth} style={{ width: 1800, height: 1026, background: '#fff' }}>
