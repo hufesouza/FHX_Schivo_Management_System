@@ -971,17 +971,21 @@ export default function NPIOrderIntelligence() {
                           </div>
                           <div className="h-6 w-px bg-border" />
                           <div>
-                            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Company Revenue</div>
-                            <div className="font-semibold text-foreground tabular-nums">{fmtEur(totalCompanyRevenue)}</div>
+                            <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                              Company Revenue{fYear !== 'all' ? ` (${fYear})` : ' (All)'}
+                            </div>
+                            <div className="font-semibold text-foreground tabular-nums">{fmtEur(effectiveCompanyRev)}</div>
                           </div>
                         </div>
                         <div>
-                          <Label htmlFor="totalRev" className="text-[11px] text-muted-foreground">Total Company Revenue (€)</Label>
+                          <Label htmlFor="totalRev" className="text-[11px] text-muted-foreground">
+                            {fYear !== 'all' ? `Total Company Revenue for ${fYear} (€)` : 'Total Company Revenue — All Years (€)'}
+                          </Label>
                           <Input
                             id="totalRev"
                             type="number"
                             placeholder="e.g. 5000000"
-                            value={totalCompanyRevenue || ''}
+                            value={effectiveCompanyRev || ''}
                             onChange={(e) => saveTotalRev(e.target.value)}
                             className="h-8 mt-1 text-sm"
                           />
