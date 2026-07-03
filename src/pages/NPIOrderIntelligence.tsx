@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback } from 'react';
+import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import * as XLSX from 'xlsx';
 import {
   BarChart, Bar, PieChart, Pie, LineChart, Line, XAxis, YAxis,
@@ -225,7 +225,7 @@ export default function NPIOrderIntelligence() {
   }, [base]);
 
   // default compare years to two most recent
-  useMemo(() => {
+  useEffect(() => {
     if (years.length && !yearA && !yearB) {
       setYearA(String(years[0]));
       setYearB(years[1] ? String(years[1]) : String(years[0]));
@@ -352,10 +352,10 @@ export default function NPIOrderIntelligence() {
   const [companyRevB, setCompanyRevB] = useState<number>(0);
 
   // load per-year revenues whenever selection changes
-  useMemo(() => {
+  useEffect(() => {
     if (yearA) setCompanyRevA(parseFloat(localStorage.getItem(STORAGE_KEY_REV_YEAR(yA)) || '0') || 0);
   }, [yearA, yA]);
-  useMemo(() => {
+  useEffect(() => {
     if (yearB) setCompanyRevB(parseFloat(localStorage.getItem(STORAGE_KEY_REV_YEAR(yB)) || '0') || 0);
   }, [yearB, yB]);
 
