@@ -745,8 +745,8 @@ export default function NPIOrderIntelligence() {
         pdf.setFontSize(6.5);
         pdf.setTextColor(100, 116, 139);
         const deltaTxt = opts.pct
-          ? `Δ ${delta.toFixed(1)} pts`
-          : `Δ ${opts.currency ? fmtEur(Math.abs(delta)) : Math.abs(delta).toLocaleString('en-IE')}`;
+          ? `Diff: ${delta.toFixed(1)} pts`
+          : `Diff: ${opts.currency ? fmtEur(Math.abs(delta)) : Math.abs(delta).toLocaleString('en-IE')}`;
         pdf.text(deltaTxt, x + 3, rowY + 22);
         // pct change badge (change from A to B, like dashboard)
         const pctChange = a !== 0 ? ((b - a) / Math.abs(a)) * 100 : 0;
