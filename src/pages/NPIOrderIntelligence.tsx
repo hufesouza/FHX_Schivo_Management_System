@@ -653,10 +653,17 @@ export default function NPIOrderIntelligence() {
         { title: 'Orders by Customer (Top 15)', ref: chartRefs.ordByCustomer.current },
       );
       await renderSection(
-        'Commodity Mix',
-        { title: 'Revenue by Commodity', ref: chartRefs.revByCommodity.current },
-        { title: 'Orders by Commodity', ref: chartRefs.ordByCommodity.current },
+        'Top Parts',
+        { title: 'Revenue by Part (Top 15)', ref: chartRefs.revByPart.current },
+        { title: 'Orders by Part (Top 15)', ref: chartRefs.ordByPart.current },
       );
+      if (hasCommodityData) {
+        await renderSection(
+          'Commodity Mix',
+          { title: 'Revenue by Commodity', ref: chartRefs.revByCommodity.current },
+          { title: 'Orders by Commodity', ref: chartRefs.ordByCommodity.current },
+        );
+      }
       await renderSection(
         'Monthly Trend',
         { title: 'Orders by Month', ref: chartRefs.ordByMonth.current },
