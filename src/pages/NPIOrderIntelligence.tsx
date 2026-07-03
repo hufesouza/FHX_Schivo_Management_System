@@ -466,7 +466,7 @@ export default function NPIOrderIntelligence() {
 
   const capture = async (el: HTMLElement | null): Promise<string | null> => {
     if (!el) return null;
-    const c = await html2canvas(el, { scale: 3, backgroundColor: '#ffffff', logging: false });
+    const c = await html2canvas(el, { scale: 2, backgroundColor: '#ffffff', logging: false });
     return c.toDataURL('image/png');
   };
 
@@ -618,7 +618,7 @@ export default function NPIOrderIntelligence() {
           pdf.setTextColor(15, 23, 42);
           pdf.text(items[i].title, x + 3, y + 5);
           const img = await capture(items[i].ref);
-          if (img) pdf.addImage(img, 'PNG', x + 2, y + titleH, colW - 4, chartImgH);
+          if (img) pdf.addImage(img, 'PNG', x + 2, y + titleH, colW - 4, chartImgH, undefined, 'NONE');
         }
         y += cellH + sectionGap;
       };
@@ -763,7 +763,7 @@ export default function NPIOrderIntelligence() {
         pdf.setTextColor(15, 23, 42);
         pdf.text(title, x + 3, y + 5);
         const img = await capture(ref);
-        if (img) pdf.addImage(img, 'PNG', x + 2, y + titleH, colW - 4, chartImgH);
+        if (img) pdf.addImage(img, 'PNG', x + 2, y + titleH, colW - 4, chartImgH, undefined, 'NONE');
       };
 
       if (y + cellH > ph - 12) { pdf.addPage(); y = margin + 4; }
@@ -1235,9 +1235,9 @@ export default function NPIOrderIntelligence() {
       {!empty && (
         <div
           aria-hidden
-          style={{ position: 'fixed', left: -10000, top: 0, width: 900, pointerEvents: 'none', background: '#fff' }}
+          style={{ position: 'fixed', left: -10000, top: 0, width: 1800, pointerEvents: 'none', background: '#fff' }}
         >
-          <div ref={chartRefs.revByCustomer} style={{ width: 900, height: 513, background: '#fff' }}>
+          <div ref={chartRefs.revByCustomer} style={{ width: 1800, height: 1026, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={customerByRevenue} layout="vertical" margin={{ left: 100, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -1247,7 +1247,7 @@ export default function NPIOrderIntelligence() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div ref={chartRefs.ordByCustomer} style={{ width: 900, height: 513, background: '#fff' }}>
+          <div ref={chartRefs.ordByCustomer} style={{ width: 1800, height: 1026, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={customerByOrders} layout="vertical" margin={{ left: 100, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -1257,7 +1257,7 @@ export default function NPIOrderIntelligence() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div ref={chartRefs.revByCommodity} style={{ width: 900, height: 513, background: '#fff' }}>
+          <div ref={chartRefs.revByCommodity} style={{ width: 1800, height: 1026, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={byCommodity} dataKey="revenue" nameKey="name" outerRadius={140} label={(d: any) => d.name}>
@@ -1267,7 +1267,7 @@ export default function NPIOrderIntelligence() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div ref={chartRefs.ordByCommodity} style={{ width: 900, height: 513, background: '#fff' }}>
+          <div ref={chartRefs.ordByCommodity} style={{ width: 1800, height: 1026, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie data={byCommodity} dataKey="orders" nameKey="name" outerRadius={140} label={(d: any) => d.name}>
@@ -1277,7 +1277,7 @@ export default function NPIOrderIntelligence() {
               </PieChart>
             </ResponsiveContainer>
           </div>
-          <div ref={chartRefs.ordByMonth} style={{ width: 900, height: 513, background: '#fff' }}>
+          <div ref={chartRefs.ordByMonth} style={{ width: 1800, height: 1026, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthly} margin={{ left: 20, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -1287,7 +1287,7 @@ export default function NPIOrderIntelligence() {
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <div ref={chartRefs.revByMonth} style={{ width: 900, height: 513, background: '#fff' }}>
+          <div ref={chartRefs.revByMonth} style={{ width: 1800, height: 1026, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthly} margin={{ left: 20, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -1298,7 +1298,7 @@ export default function NPIOrderIntelligence() {
             </ResponsiveContainer>
           </div>
           {/* Compare offscreen charts */}
-          <div ref={chartRefs.cmpRevByMonth} style={{ width: 900, height: 513, background: '#fff' }}>
+          <div ref={chartRefs.cmpRevByMonth} style={{ width: 1800, height: 1026, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthByMonth} margin={{ left: 40, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -1310,7 +1310,7 @@ export default function NPIOrderIntelligence() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div ref={chartRefs.cmpOrdByMonth} style={{ width: 900, height: 513, background: '#fff' }}>
+          <div ref={chartRefs.cmpOrdByMonth} style={{ width: 1800, height: 1026, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={monthByMonth} margin={{ left: 40, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -1322,7 +1322,7 @@ export default function NPIOrderIntelligence() {
               </BarChart>
             </ResponsiveContainer>
           </div>
-          <div ref={chartRefs.cmpTopCustomers} style={{ width: 900, height: 513, background: '#fff' }}>
+          <div ref={chartRefs.cmpTopCustomers} style={{ width: 1800, height: 1026, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={compareCustomers} layout="vertical" margin={{ left: 140, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
