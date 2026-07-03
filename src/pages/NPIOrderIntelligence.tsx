@@ -1327,6 +1327,25 @@ export default function NPIOrderIntelligence() {
               </PieChart>
             </ResponsiveContainer>
           </div>
+          <div ref={chartRefs.revByPart} style={{ width: 1800, height: 1026, background: '#fff' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={partByRevenue} layout="vertical" margin={{ left: 140, right: 20, top: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 11 }} />
+                <Bar dataKey="revenue" fill="#8b5cf6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+          <div ref={chartRefs.ordByPart} style={{ width: 1800, height: 1026, background: '#fff' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={partByOrders} layout="vertical" margin={{ left: 140, right: 20, top: 10, bottom: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 11 }} />
+                <Bar dataKey="orders" fill="#f59e0b" />
+              </BarChart>
+            </ResponsiveContainer>
           <div ref={chartRefs.ordByMonth} style={{ width: 1800, height: 1026, background: '#fff' }}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={monthly} margin={{ left: 20, right: 20, top: 10, bottom: 10 }}>
