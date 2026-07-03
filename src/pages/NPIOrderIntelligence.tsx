@@ -157,6 +157,8 @@ export default function NPIOrderIntelligence() {
     ordByCustomer: useRef<HTMLDivElement>(null),
     revByCommodity: useRef<HTMLDivElement>(null),
     ordByCommodity: useRef<HTMLDivElement>(null),
+    revByPart: useRef<HTMLDivElement>(null),
+    ordByPart: useRef<HTMLDivElement>(null),
     ordByMonth: useRef<HTMLDivElement>(null),
     revByMonth: useRef<HTMLDivElement>(null),
     cmpRevByMonth: useRef<HTMLDivElement>(null),
