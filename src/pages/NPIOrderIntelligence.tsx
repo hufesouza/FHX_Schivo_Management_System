@@ -769,7 +769,7 @@ export default function NPIOrderIntelligence() {
   const empty = rows.length === 0;
 
   return (
-    <AppLayout title="NPI Order Dashboard" subtitle="Executive dashboard for NPI orders" showBackButton backTo="/npi">
+    <AppLayout title={`NPI Order Dashboard — ${siteLabel}`} subtitle="Executive dashboard for NPI orders" showBackButton backTo="/npi/order-intelligence">
       <main className="container mx-auto px-4 py-8 space-y-6">
         {/* Upload */}
         <Card>
