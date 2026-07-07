@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import {
   BarChart, Bar, PieChart, Pie, LineChart, Line, XAxis, YAxis,
@@ -104,9 +105,14 @@ const fmtEur = (n: number) => new Intl.NumberFormat('en-IE', { style: 'currency'
 const fmtNum = (n: number) => new Intl.NumberFormat('en-IE').format(n || 0);
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const STORAGE_KEY_REV = 'npi-oi-total-company-revenue';
-const STORAGE_KEY_REV_YEAR = (y: number) => `npi-oi-total-company-revenue:${y}`;
-const STORAGE_KEY_DATA = 'npi-oi-data';
+const SITE_LABELS: Record<string, string> = {
+  waterford: 'Schivo Waterford',
+  plainview: 'Schivo PlainView',
+};
+const STORAGE_KEY_REV = (site: string) => `npi-oi-total-company-revenue:${site}`;
+const STORAGE_KEY_REV_YEAR = (site: string, y: number) => `npi-oi-total-company-revenue:${site}:${y}`;
+const STORAGE_KEY_DATA = (site: string) => `npi-oi-data:${site}`;
+const STORAGE_KEY_FILENAME = (site: string) => `npi-oi-filename:${site}`;
 
 type NormRow = {
   raw: Row;
@@ -121,18 +127,33 @@ type NormRow = {
 };
 
 export default function NPIOrderIntelligence() {
+  const { site: siteParam } = useParams<{ site: string }>();
+  const site = (siteParam || 'waterford').toLowerCase();
+  const siteLabel = SITE_LABELS[site] || 'Schivo Waterford';
+
   const [rows, setRows] = useState<Row[]>(() => {
     try {
-      const cached = sessionStorage.getItem(STORAGE_KEY_DATA);
+      const cached = localStorage.getItem(STORAGE_KEY_DATA(site));
       return cached ? JSON.parse(cached) : [];
     } catch { return []; }
   });
-  const [fileName, setFileName] = useState<string>('');
+  const [fileName, setFileName] = useState<string>(() => localStorage.getItem(STORAGE_KEY_FILENAME(site)) || '');
   const [totalCompanyRevenue, setTotalCompanyRevenue] = useState<number>(() => {
-    return parseFloat(localStorage.getItem(STORAGE_KEY_REV) || '0') || 0;
+    return parseFloat(localStorage.getItem(STORAGE_KEY_REV(site)) || '0') || 0;
   });
   // per-year override in single mode
   const [yearRevenue, setYearRevenue] = useState<number>(0);
+
+  // Reload site-scoped state when the site route changes
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(STORAGE_KEY_DATA(site));
+      setRows(cached ? JSON.parse(cached) : []);
+    } catch { setRows([]); }
+    setFileName(localStorage.getItem(STORAGE_KEY_FILENAME(site)) || '');
+    setTotalCompanyRevenue(parseFloat(localStorage.getItem(STORAGE_KEY_REV(site)) || '0') || 0);
+  }, [site]);
+
 
   // View mode
   const [viewMode, setViewMode] = useState<'single' | 'compare'>('single');
@@ -176,12 +197,15 @@ export default function NPIOrderIntelligence() {
       const data = XLSX.utils.sheet_to_json<Row>(ws, { defval: null });
       setRows(data);
       setFileName(file.name);
-      try { sessionStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(data)); } catch {}
+      try {
+        localStorage.setItem(STORAGE_KEY_DATA(site), JSON.stringify(data));
+        localStorage.setItem(STORAGE_KEY_FILENAME(site), file.name);
+      } catch {}
       toast.success(`Loaded ${data.length} rows from ${file.name}`);
     } catch (e: any) {
       toast.error('Failed to read file: ' + e.message);
     }
-  }, []);
+  }, [site]);
 
   const cols = useMemo(() => rows.length ? Object.keys(rows[0]) : [], [rows]);
   const autoColMap = useMemo(() => ({
@@ -371,22 +395,22 @@ export default function NPIOrderIntelligence() {
   useEffect(() => {
     if (fYear !== 'all') {
       const y = parseInt(fYear, 10);
-      setYearRevenue(parseFloat(localStorage.getItem(STORAGE_KEY_REV_YEAR(y)) || '0') || 0);
+      setYearRevenue(parseFloat(localStorage.getItem(STORAGE_KEY_REV_YEAR(site, y)) || '0') || 0);
     }
-  }, [fYear]);
+  }, [fYear, site]);
 
   const saveTotalRev = (v: string) => {
     const n = parseFloat(v) || 0;
     if (fYear !== 'all') {
       const y = parseInt(fYear, 10);
       setYearRevenue(n);
-      localStorage.setItem(STORAGE_KEY_REV_YEAR(y), String(n));
+      localStorage.setItem(STORAGE_KEY_REV_YEAR(site, y), String(n));
       // keep compare-mode in sync if applicable
       if (String(y) === yearA) setCompanyRevA(n);
       if (String(y) === yearB) setCompanyRevB(n);
     } else {
       setTotalCompanyRevenue(n);
-      localStorage.setItem(STORAGE_KEY_REV, String(n));
+      localStorage.setItem(STORAGE_KEY_REV(site), String(n));
     }
   };
 
@@ -399,15 +423,15 @@ export default function NPIOrderIntelligence() {
 
   // load per-year revenues whenever selection changes
   useEffect(() => {
-    if (yearA) setCompanyRevA(parseFloat(localStorage.getItem(STORAGE_KEY_REV_YEAR(yA)) || '0') || 0);
-  }, [yearA, yA]);
+    if (yearA) setCompanyRevA(parseFloat(localStorage.getItem(STORAGE_KEY_REV_YEAR(site, yA)) || '0') || 0);
+  }, [yearA, yA, site]);
   useEffect(() => {
-    if (yearB) setCompanyRevB(parseFloat(localStorage.getItem(STORAGE_KEY_REV_YEAR(yB)) || '0') || 0);
-  }, [yearB, yB]);
+    if (yearB) setCompanyRevB(parseFloat(localStorage.getItem(STORAGE_KEY_REV_YEAR(site, yB)) || '0') || 0);
+  }, [yearB, yB, site]);
 
   const saveYearRev = (year: number, v: string, side: 'A' | 'B') => {
     const n = parseFloat(v) || 0;
-    localStorage.setItem(STORAGE_KEY_REV_YEAR(year), String(n));
+    localStorage.setItem(STORAGE_KEY_REV_YEAR(site, year), String(n));
     if (side === 'A') setCompanyRevA(n); else setCompanyRevB(n);
   };
 
@@ -510,7 +534,7 @@ export default function NPIOrderIntelligence() {
     pdf.text(title, margin, 9);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8.5);
-    pdf.text(`Schivo Waterford  |  ${dateStr} ${timeStr}`, margin, 15);
+    pdf.text(`${siteLabel}  |  ${dateStr} ${timeStr}`, margin, 15);
     pdf.setTextColor(15, 23, 42);
   };
 
@@ -756,7 +780,7 @@ export default function NPIOrderIntelligence() {
   const empty = rows.length === 0;
 
   return (
-    <AppLayout title="NPI Order Dashboard" subtitle="Executive dashboard for NPI orders" showBackButton backTo="/npi">
+    <AppLayout title={`NPI Order Dashboard — ${siteLabel}`} subtitle="Executive dashboard for NPI orders" showBackButton backTo="/npi/order-intelligence">
       <main className="container mx-auto px-4 py-8 space-y-6">
         {/* Upload */}
         <Card>
@@ -786,7 +810,7 @@ export default function NPIOrderIntelligence() {
               </label>
               {fileName && <span className="text-sm text-muted-foreground">{fileName} — {rows.length} rows</span>}
               {!empty && (
-                <Button variant="ghost" size="sm" onClick={() => { setRows([]); setFileName(''); sessionStorage.removeItem(STORAGE_KEY_DATA); }}>
+                <Button variant="ghost" size="sm" onClick={() => { setRows([]); setFileName(''); localStorage.removeItem(STORAGE_KEY_DATA(site)); localStorage.removeItem(STORAGE_KEY_FILENAME(site)); }}>
                   Clear
                 </Button>
               )}
