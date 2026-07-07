@@ -85,7 +85,8 @@ const App = () => (
           <Route path="/npi/quotation/estimator" element={<PertEstimator />} />
           <Route path="/npi/quotation/compliance" element={<QuotationComplianceSettings />} />
           <Route path="/npi/quotation-dashboard" element={<QuotationDashboard />} />
-          <Route path="/npi/order-intelligence" element={<NPIOrderIntelligence />} />
+          <Route path="/npi/order-intelligence" element={<NPIOrderSiteSelect />} />
+          <Route path="/npi/order-intelligence/:site" element={<NPIOrderIntelligence />} />
           
           <Route path="/npi/quotation-control" element={<QuotationControlHub />} />
           <Route path="/npi/quotation-system" element={<QuotationSystemHub />} />
