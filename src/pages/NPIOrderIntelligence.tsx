@@ -104,9 +104,14 @@ const fmtEur = (n: number) => new Intl.NumberFormat('en-IE', { style: 'currency'
 const fmtNum = (n: number) => new Intl.NumberFormat('en-IE').format(n || 0);
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const STORAGE_KEY_REV = 'npi-oi-total-company-revenue';
-const STORAGE_KEY_REV_YEAR = (y: number) => `npi-oi-total-company-revenue:${y}`;
-const STORAGE_KEY_DATA = 'npi-oi-data';
+const SITE_LABELS: Record<string, string> = {
+  waterford: 'Schivo Waterford',
+  plainview: 'Schivo PlainView',
+};
+const STORAGE_KEY_REV = (site: string) => `npi-oi-total-company-revenue:${site}`;
+const STORAGE_KEY_REV_YEAR = (site: string, y: number) => `npi-oi-total-company-revenue:${site}:${y}`;
+const STORAGE_KEY_DATA = (site: string) => `npi-oi-data:${site}`;
+const STORAGE_KEY_FILENAME = (site: string) => `npi-oi-filename:${site}`;
 
 type NormRow = {
   raw: Row;
