@@ -523,7 +523,7 @@ export default function NPIOrderIntelligence() {
     pdf.text(title, margin, 9);
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(8.5);
-    pdf.text(`Schivo Waterford  |  ${dateStr} ${timeStr}`, margin, 15);
+    pdf.text(`${siteLabel}  |  ${dateStr} ${timeStr}`, margin, 15);
     pdf.setTextColor(15, 23, 42);
   };
 
