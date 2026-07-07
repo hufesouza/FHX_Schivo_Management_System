@@ -150,7 +150,7 @@ const subModules = [
   },
   {
     id: 'order-intelligence',
-    title: 'NPI Order Intelligence Dashboard',
+    title: 'NPI Order Dashboard',
     description: 'Upload NPI order Excel and get KPIs, NPVI, customer/commodity analysis and monthly trends',
     icon: LineChart,
     href: '/npi/order-intelligence',

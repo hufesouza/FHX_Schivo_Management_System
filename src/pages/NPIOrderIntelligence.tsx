@@ -539,7 +539,7 @@ export default function NPIOrderIntelligence() {
       const margin = 10;
 
       const yearTitle = fYear !== 'all' ? ` - ${fYear}` : '';
-      pdfHeader(pdf, `NPI Order Intelligence${yearTitle}`);
+      pdfHeader(pdf, `NPI Order Dashboard${yearTitle}`);
       let y = 26;
 
       const filterBits: string[] = [];
@@ -692,7 +692,7 @@ export default function NPIOrderIntelligence() {
       const ph = pdf.internal.pageSize.getHeight();
       const margin = 10;
 
-      pdfHeader(pdf, `NPI Order Intelligence - ${yearA} vs ${yearB}`);
+      pdfHeader(pdf, `NPI Order Dashboard - ${yearA} vs ${yearB}`);
       let y = 26;
 
       const filterBits: string[] = [`Years: ${yearA} vs ${yearB}`];
@@ -756,7 +756,7 @@ export default function NPIOrderIntelligence() {
   const empty = rows.length === 0;
 
   return (
-    <AppLayout title="NPI Order Intelligence" subtitle="Executive dashboard for NPI orders" showBackButton backTo="/npi">
+    <AppLayout title="NPI Order Dashboard" subtitle="Executive dashboard for NPI orders" showBackButton backTo="/npi">
       <main className="container mx-auto px-4 py-8 space-y-6">
         {/* Upload */}
         <Card>
