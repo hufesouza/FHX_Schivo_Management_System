@@ -144,6 +144,17 @@ export default function NPIOrderIntelligence() {
   // per-year override in single mode
   const [yearRevenue, setYearRevenue] = useState<number>(0);
 
+  // Reload site-scoped state when the site route changes
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem(STORAGE_KEY_DATA(site));
+      setRows(cached ? JSON.parse(cached) : []);
+    } catch { setRows([]); }
+    setFileName(localStorage.getItem(STORAGE_KEY_FILENAME(site)) || '');
+    setTotalCompanyRevenue(parseFloat(localStorage.getItem(STORAGE_KEY_REV(site)) || '0') || 0);
+  }, [site]);
+
+
   // View mode
   const [viewMode, setViewMode] = useState<'single' | 'compare'>('single');
 
