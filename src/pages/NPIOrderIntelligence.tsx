@@ -186,12 +186,15 @@ export default function NPIOrderIntelligence() {
       const data = XLSX.utils.sheet_to_json<Row>(ws, { defval: null });
       setRows(data);
       setFileName(file.name);
-      try { sessionStorage.setItem(STORAGE_KEY_DATA, JSON.stringify(data)); } catch {}
+      try {
+        localStorage.setItem(STORAGE_KEY_DATA(site), JSON.stringify(data));
+        localStorage.setItem(STORAGE_KEY_FILENAME(site), file.name);
+      } catch {}
       toast.success(`Loaded ${data.length} rows from ${file.name}`);
     } catch (e: any) {
       toast.error('Failed to read file: ' + e.message);
     }
-  }, []);
+  }, [site]);
 
   const cols = useMemo(() => rows.length ? Object.keys(rows[0]) : [], [rows]);
   const autoColMap = useMemo(() => ({
