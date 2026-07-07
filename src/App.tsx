@@ -36,6 +36,7 @@ import EnquiryList from "./pages/EnquiryList";
 import EnquiryDetail from "./pages/EnquiryDetail";
 import QuotationDashboard from "./pages/QuotationDashboard";
 import NPIOrderIntelligence from "./pages/NPIOrderIntelligence";
+import NPIOrderSiteSelect from "./pages/NPIOrderSiteSelect";
 import BalloonDWG from "./pages/BalloonDWG";
 import QuotationSystemPresentation from "./pages/QuotationSystemPresentation";
 import NPICapacityPlannerHub from "./pages/npi-planner/CapacityPlannerHub";
