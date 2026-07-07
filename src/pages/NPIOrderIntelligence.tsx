@@ -127,15 +127,19 @@ type NormRow = {
 };
 
 export default function NPIOrderIntelligence() {
+  const { site: siteParam } = useParams<{ site: string }>();
+  const site = (siteParam || 'waterford').toLowerCase();
+  const siteLabel = SITE_LABELS[site] || 'Schivo Waterford';
+
   const [rows, setRows] = useState<Row[]>(() => {
     try {
-      const cached = sessionStorage.getItem(STORAGE_KEY_DATA);
+      const cached = localStorage.getItem(STORAGE_KEY_DATA(site));
       return cached ? JSON.parse(cached) : [];
     } catch { return []; }
   });
-  const [fileName, setFileName] = useState<string>('');
+  const [fileName, setFileName] = useState<string>(() => localStorage.getItem(STORAGE_KEY_FILENAME(site)) || '');
   const [totalCompanyRevenue, setTotalCompanyRevenue] = useState<number>(() => {
-    return parseFloat(localStorage.getItem(STORAGE_KEY_REV) || '0') || 0;
+    return parseFloat(localStorage.getItem(STORAGE_KEY_REV(site)) || '0') || 0;
   });
   // per-year override in single mode
   const [yearRevenue, setYearRevenue] = useState<number>(0);
