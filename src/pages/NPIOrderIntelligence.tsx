@@ -193,7 +193,18 @@ export default function NPIOrderIntelligence() {
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: 'array', cellDates: true });
-      const ws = wb.Sheets[wb.SheetNames[0]];
+      // PlainView spreadsheets ship several tabs; prefer the pre-filtered NPI sheet.
+      let sheetName = wb.SheetNames[0];
+      if (site === 'plainview') {
+        const preferred = ['PV Query Filtered', 'PV Query Raw'];
+        const match = preferred.find((name) =>
+          wb.SheetNames.some((s) => s.trim().toLowerCase() === name.toLowerCase())
+        );
+        if (match) {
+          sheetName = wb.SheetNames.find((s) => s.trim().toLowerCase() === match.toLowerCase())!;
+        }
+      }
+      const ws = wb.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json<Row>(ws, { defval: null });
       setRows(data);
       setFileName(file.name);
@@ -201,7 +212,7 @@ export default function NPIOrderIntelligence() {
         localStorage.setItem(STORAGE_KEY_DATA(site), JSON.stringify(data));
         localStorage.setItem(STORAGE_KEY_FILENAME(site), file.name);
       } catch {}
-      toast.success(`Loaded ${data.length} rows from ${file.name}`);
+      toast.success(`Loaded ${data.length} rows from ${sheetName} in ${file.name}`);
     } catch (e: any) {
       toast.error('Failed to read file: ' + e.message);
     }
