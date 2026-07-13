@@ -165,7 +165,9 @@ export default function NPIOrderIntelligence() {
   const [fYear, setFYear] = useState<string>('all');
   const [fFrom, setFFrom] = useState<string>('');
   const [fTo, setFTo] = useState<string>('');
-  const [npiOnly, setNpiOnly] = useState<boolean>(true);
+  // PlainView spreadsheets are already pre-filtered and have NPI?='No' for every row,
+  // so defaulting NPI-only to true would hide everything.
+  const [npiOnly, setNpiOnly] = useState<boolean>(site !== 'plainview');
   const [openSearch, setOpenSearch] = useState<string>('');
 
   // compare selects
