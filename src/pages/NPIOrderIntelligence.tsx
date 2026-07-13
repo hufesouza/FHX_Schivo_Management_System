@@ -152,6 +152,7 @@ export default function NPIOrderIntelligence() {
     } catch { setRows([]); }
     setFileName(localStorage.getItem(STORAGE_KEY_FILENAME(site)) || '');
     setTotalCompanyRevenue(parseFloat(localStorage.getItem(STORAGE_KEY_REV(site)) || '0') || 0);
+    setNpiOnly(site !== 'plainview');
   }, [site]);
 
 
@@ -165,7 +166,9 @@ export default function NPIOrderIntelligence() {
   const [fYear, setFYear] = useState<string>('all');
   const [fFrom, setFFrom] = useState<string>('');
   const [fTo, setFTo] = useState<string>('');
-  const [npiOnly, setNpiOnly] = useState<boolean>(true);
+  // PlainView spreadsheets are already pre-filtered and have NPI?='No' for every row,
+  // so defaulting NPI-only to true would hide everything.
+  const [npiOnly, setNpiOnly] = useState<boolean>(site !== 'plainview');
   const [openSearch, setOpenSearch] = useState<string>('');
 
   // compare selects
