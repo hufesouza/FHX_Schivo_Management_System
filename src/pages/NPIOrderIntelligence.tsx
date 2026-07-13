@@ -152,6 +152,7 @@ export default function NPIOrderIntelligence() {
     } catch { setRows([]); }
     setFileName(localStorage.getItem(STORAGE_KEY_FILENAME(site)) || '');
     setTotalCompanyRevenue(parseFloat(localStorage.getItem(STORAGE_KEY_REV(site)) || '0') || 0);
+    setNpiOnly(site !== 'plainview');
   }, [site]);
 
 
