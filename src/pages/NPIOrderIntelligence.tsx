@@ -101,8 +101,17 @@ const isYes = (v: any): boolean => {
   return u === 'YES' || u === 'Y' || u === 'TRUE' || u === '1';
 };
 
-const fmtEur = (n: number) => new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n || 0);
-const fmtNum = (n: number) => new Intl.NumberFormat('en-IE').format(n || 0);
+let CUR_CODE: 'EUR' | 'USD' = 'EUR';
+let CUR_LOCALE = 'en-IE';
+let CUR_SYM = '€';
+const setCurrency = (code: 'EUR' | 'USD') => {
+  CUR_CODE = code;
+  CUR_LOCALE = code === 'USD' ? 'en-US' : 'en-IE';
+  CUR_SYM = code === 'USD' ? '$' : '€';
+};
+const fmtEur = (n: number) => new Intl.NumberFormat(CUR_LOCALE, { style: 'currency', currency: CUR_CODE, maximumFractionDigits: 0 }).format(n || 0);
+const fmtNum = (n: number) => new Intl.NumberFormat(CUR_LOCALE).format(n || 0);
+const curSym = () => CUR_SYM;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const SITE_LABELS: Record<string, string> = {
@@ -130,6 +139,8 @@ export default function NPIOrderIntelligence() {
   const { site: siteParam } = useParams<{ site: string }>();
   const site = (siteParam || 'waterford').toLowerCase();
   const siteLabel = SITE_LABELS[site] || 'Schivo Waterford';
+  setCurrency(site === 'plainview' ? 'USD' : 'EUR');
+  const sym = site === 'plainview' ? '$' : '€';
 
   const [rows, setRows] = useState<Row[]>(() => {
     try {
@@ -509,7 +520,7 @@ export default function NPIOrderIntelligence() {
   const exportTopOrdersXlsx = () => {
     const data = topOrders.map(r => ({
       Customer: r.customer, 'Order No': r.po, 'Part Number': r.part,
-      'Revenue €': r.revenue, Status: statusLabel(r.status),
+      [`Revenue ${sym}`]: r.revenue, Status: statusLabel(r.status),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -520,7 +531,7 @@ export default function NPIOrderIntelligence() {
   const exportOpenOrdersXlsx = () => {
     const data = openOrders.map(r => ({
       Customer: r.customer, 'Order No': r.po, 'Part Number': r.part,
-      'Revenue €': r.revenue, Status: statusLabel(r.status),
+      [`Revenue ${sym}`]: r.revenue, Status: statusLabel(r.status),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -987,7 +998,7 @@ export default function NPIOrderIntelligence() {
                         </div>
                         <div>
                           <Label htmlFor="totalRev" className="text-[11px] text-muted-foreground">
-                            {fYear !== 'all' ? `Total Company Revenue for ${fYear} (€)` : 'Total Company Revenue — All Years (€)'}
+                            {fYear !== 'all' ? `Total Company Revenue for ${fYear} (${sym})` : 'Total Company Revenue — All Years (${sym})'}
                           </Label>
                           <Input
                             id="totalRev"
@@ -1019,7 +1030,7 @@ export default function NPIOrderIntelligence() {
                       <ResponsiveContainer width="100%" height={360}>
                         <BarChart data={customerByRevenue} layout="vertical" margin={{ left: 80 }}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis type="number" tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                          <XAxis type="number" tickFormatter={(v) => `${sym}${(v / 1000).toFixed(0)}k`} />
                           <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
                           <Tooltip formatter={(v: any) => fmtEur(v as number)} />
                           <Bar dataKey="revenue" fill="#3b82f6" />
@@ -1044,7 +1055,7 @@ export default function NPIOrderIntelligence() {
                       <ResponsiveContainer width="100%" height={360}>
                         <BarChart data={partByRevenue} layout="vertical" margin={{ left: 80 }}>
                           <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis type="number" tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                          <XAxis type="number" tickFormatter={(v) => `${sym}${(v / 1000).toFixed(0)}k`} />
                           <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} />
                           <Tooltip formatter={(v: any) => fmtEur(v as number)} />
                           <Bar dataKey="revenue" fill="#8b5cf6" />
@@ -1106,7 +1117,7 @@ export default function NPIOrderIntelligence() {
                         <LineChart data={monthly}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="month" />
-                          <YAxis tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                          <YAxis tickFormatter={(v) => `${sym}${(v / 1000).toFixed(0)}k`} />
                           <Tooltip formatter={(v: any) => fmtEur(v as number)} />
                           <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} />
                         </LineChart>
@@ -1188,7 +1199,7 @@ export default function NPIOrderIntelligence() {
                               </Select>
                             </div>
                             <div>
-                              <Label className="text-[11px] text-muted-foreground">Total Company Revenue for {val || '—'} (€)</Label>
+                              <Label className="text-[11px] text-muted-foreground">Total Company Revenue for {val || '—'} ({sym})</Label>
                               <Input
                                 type="number"
                                 className="h-8 mt-1 text-sm"
@@ -1223,7 +1234,7 @@ export default function NPIOrderIntelligence() {
                       <BarChart data={monthByMonth}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="month" />
-                        <YAxis tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                        <YAxis tickFormatter={(v) => `${sym}${(v / 1000).toFixed(0)}k`} />
                         <Tooltip formatter={(v: any) => fmtEur(v as number)} />
                         <Legend />
                         <Bar dataKey={`revenue_${yearA || 'A'}`} name={yearA} fill="#3b82f6" />
@@ -1250,7 +1261,7 @@ export default function NPIOrderIntelligence() {
                   <ResponsiveContainer width="100%" height={420}>
                     <BarChart data={compareCustomers} layout="vertical" margin={{ left: 100 }}>
                       <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                      <XAxis type="number" tickFormatter={(v) => `${sym}${(v / 1000).toFixed(0)}k`} />
                       <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} />
                       <Tooltip formatter={(v: any) => fmtEur(v as number)} />
                       <Legend />
@@ -1275,7 +1286,7 @@ export default function NPIOrderIntelligence() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={customerByRevenue} layout="vertical" margin={{ left: 100, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                <XAxis type="number" tickFormatter={(v) => `${sym}${(v / 1000).toFixed(0)}k`} />
                 <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} />
                 <Bar dataKey="revenue" fill="#3b82f6" />
               </BarChart>
@@ -1315,7 +1326,7 @@ export default function NPIOrderIntelligence() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={partByRevenue} layout="vertical" margin={{ left: 140, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                <XAxis type="number" tickFormatter={(v) => `${sym}${(v / 1000).toFixed(0)}k`} />
                 <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 11 }} />
                 <Bar dataKey="revenue" fill="#8b5cf6" />
               </BarChart>
@@ -1346,7 +1357,7 @@ export default function NPIOrderIntelligence() {
               <LineChart data={monthly} margin={{ left: 20, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
-                <YAxis tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                <YAxis tickFormatter={(v) => `${sym}${(v / 1000).toFixed(0)}k`} />
                 <Line type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} dot={{ r: 3 }} />
               </LineChart>
             </ResponsiveContainer>
@@ -1357,7 +1368,7 @@ export default function NPIOrderIntelligence() {
               <BarChart data={monthByMonth} margin={{ left: 40, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis dataKey="month" />
-                <YAxis tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                <YAxis tickFormatter={(v) => `${sym}${(v / 1000).toFixed(0)}k`} />
                 <Legend />
                 <Bar dataKey={`revenue_${yearA || 'A'}`} name={yearA} fill="#3b82f6" />
                 <Bar dataKey={`revenue_${yearB || 'B'}`} name={yearB} fill="#10b981" />
@@ -1380,7 +1391,7 @@ export default function NPIOrderIntelligence() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={compareCustomers} layout="vertical" margin={{ left: 140, right: 20, top: 10, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" tickFormatter={(v) => `€${(v / 1000).toFixed(0)}k`} />
+                <XAxis type="number" tickFormatter={(v) => `${sym}${(v / 1000).toFixed(0)}k`} />
                 <YAxis type="category" dataKey="name" width={140} tick={{ fontSize: 11 }} />
                 <Legend />
                 <Bar dataKey={`rev_${yearA || 'A'}`} name={yearA} fill="#3b82f6" />
@@ -1531,7 +1542,7 @@ function OrdersTable({ rows }: { rows: Array<{ customer: string; po: string; par
             <TableHead>Customer</TableHead>
             <TableHead>Order No</TableHead>
             <TableHead>Part Number</TableHead>
-            <TableHead className="text-right">Revenue €</TableHead>
+            <TableHead className="text-right">Revenue {sym}</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>
