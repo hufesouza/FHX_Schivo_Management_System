@@ -101,8 +101,17 @@ const isYes = (v: any): boolean => {
   return u === 'YES' || u === 'Y' || u === 'TRUE' || u === '1';
 };
 
-const fmtEur = (n: number) => new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n || 0);
-const fmtNum = (n: number) => new Intl.NumberFormat('en-IE').format(n || 0);
+let CUR_CODE: 'EUR' | 'USD' = 'EUR';
+let CUR_LOCALE = 'en-IE';
+let CUR_SYM = '€';
+const setCurrency = (code: 'EUR' | 'USD') => {
+  CUR_CODE = code;
+  CUR_LOCALE = code === 'USD' ? 'en-US' : 'en-IE';
+  CUR_SYM = code === 'USD' ? '$' : '€';
+};
+const fmtEur = (n: number) => new Intl.NumberFormat(CUR_LOCALE, { style: 'currency', currency: CUR_CODE, maximumFractionDigits: 0 }).format(n || 0);
+const fmtNum = (n: number) => new Intl.NumberFormat(CUR_LOCALE).format(n || 0);
+const curSym = () => CUR_SYM;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 const SITE_LABELS: Record<string, string> = {
