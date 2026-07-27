@@ -520,7 +520,7 @@ export default function NPIOrderIntelligence() {
   const exportTopOrdersXlsx = () => {
     const data = topOrders.map(r => ({
       Customer: r.customer, 'Order No': r.po, 'Part Number': r.part,
-      'Revenue €': r.revenue, Status: statusLabel(r.status),
+      [`Revenue ${sym}`]: r.revenue, Status: statusLabel(r.status),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -531,7 +531,7 @@ export default function NPIOrderIntelligence() {
   const exportOpenOrdersXlsx = () => {
     const data = openOrders.map(r => ({
       Customer: r.customer, 'Order No': r.po, 'Part Number': r.part,
-      'Revenue €': r.revenue, Status: statusLabel(r.status),
+      [`Revenue ${sym}`]: r.revenue, Status: statusLabel(r.status),
     }));
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
@@ -1542,7 +1542,7 @@ function OrdersTable({ rows }: { rows: Array<{ customer: string; po: string; par
             <TableHead>Customer</TableHead>
             <TableHead>Order No</TableHead>
             <TableHead>Part Number</TableHead>
-            <TableHead className="text-right">Revenue €</TableHead>
+            <TableHead className="text-right">Revenue {sym}</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>
