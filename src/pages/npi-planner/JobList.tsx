@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
+
 import { useNPIPlanning, type Part } from '@/hooks/useNPIPlanning';
 import { Loader2, Plus, Check, X, Sparkles, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
