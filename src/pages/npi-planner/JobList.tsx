@@ -352,6 +352,33 @@ export default function JobList() {
           parts={parts}
           onApplied={reload}
         />
+
+        <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v && !deleting) setDeleteTarget(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this job?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteTarget?.part_number} will be permanently removed, along with its schedule,
+                machine options and tooling links.
+                {deleteTarget && parts.some(p => p.parent_part_id === deleteTarget.id)
+                  ? ` Its ${parts.filter(p => p.parent_part_id === deleteTarget.id).length} sub-level part(s) will also be deleted.`
+                  : ''}
+                {' '}This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); deletePart(); }}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </AppLayout>
   );
