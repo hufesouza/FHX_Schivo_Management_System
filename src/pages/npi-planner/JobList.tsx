@@ -214,7 +214,7 @@ export default function JobList() {
                     <TableHead>Committed</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="min-w-[220px]">Ship date</TableHead>
-                    <TableHead className="w-[60px] text-right">Delete</TableHead>
+                    <TableHead className="w-[60px] text-right sticky right-0 bg-background shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)]">Delete</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
