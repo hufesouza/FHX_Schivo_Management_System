@@ -240,6 +240,22 @@ export default function PartSetup() {
 
       const part = await upsertPart(partData, capableIds);
 
+      // Attach the source quotation workbook to the part
+      if (part && quotationFile) {
+        const safeName = quotationFile.name.replace(/[^\w.\-]+/g, '_');
+        const path = `${part.id}/${Date.now()}-${safeName}`;
+        const { error: upErr } = await supabase.storage
+          .from('part-quotations')
+          .upload(path, quotationFile, { upsert: true });
+        if (upErr) {
+          toast.error(`Part saved, but the quotation file could not be stored: ${upErr.message}`);
+        } else {
+          await supabase.from('npi_parts')
+            .update({ quotation_file_path: path, quotation_file_name: quotationFile.name } as any)
+            .eq('id', part.id);
+        }
+      }
+
       // Manual allocation: create schedule record
       if (part && manualMachineId && manualStartDate) {
         const totalHrs = devHrs + cycleHrs * (Number(form.qty) || 0);
