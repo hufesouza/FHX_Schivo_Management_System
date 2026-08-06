@@ -43,6 +43,7 @@ const norm = (v: unknown) =>
   String(v ?? '')
     .replace(/\s+/g, ' ')
     .replace(/[:*]/g, '')
+    .replace(/\.+$/g, '')
     .trim()
     .toLowerCase();
 
@@ -337,7 +338,7 @@ export function deriveQuotation(res: ExtractionResult): DerivedQuotation {
     setupMinutes,
     subconProcessingMinutes,
     routingResources,
-    hasSubcon: subcons.length > 0 || subconCostFromTable > 0 || subconProcessingMinutes > 0,
+    hasSubcon: subcons.length > 0 || subconCostFromTable > 0,
     labourCost: primary ? ((primary.labour_cost as number) ?? null) : null,
     materialCost: primary ? ((primary.material_cost as number) ?? null) : null,
     subconCost: primary ? ((primary.subcon_cost as number) ?? subconCostFromTable) : subconCostFromTable || null,
