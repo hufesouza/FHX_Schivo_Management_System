@@ -419,6 +419,29 @@ export default function JobList() {
           parts={parts}
           onApplied={reload}
         />
+        <AlertDialog open={bulkOpen} onOpenChange={(v) => { if (!v && !deleting) setBulkOpen(false); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {selected.size} job(s)?</AlertDialogTitle>
+              <AlertDialogDescription>
+                The selected jobs will be permanently removed, along with their schedule, machine
+                options, tooling links and any sub-level parts. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); deleteSelected(); }}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                Delete selected
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
 
         <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v && !deleting) setDeleteTarget(null); }}>
           <AlertDialogContent>
