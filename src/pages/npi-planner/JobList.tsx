@@ -219,7 +219,7 @@ export default function JobList() {
                 </TableHeader>
                 <TableBody>
                   {ordered.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
                   ) : ordered.map(p => {
                     const matStatus = p.material_status || 'Required';
                     const toolStatus = p.tooling_status || 'Required';
