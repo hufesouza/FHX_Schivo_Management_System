@@ -8,10 +8,14 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useNPIPlanning, type Part } from '@/hooks/useNPIPlanning';
-import { Loader2, Plus, Check, X, Sparkles } from 'lucide-react';
+import { Loader2, Plus, Check, X, Sparkles, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ReallocateDialog } from '@/components/npi-planner/ReallocateDialog';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const STATUS_TONE: Record<string, string> = {
   'Not Started': 'bg-slate-200 text-slate-700',
@@ -50,6 +54,8 @@ export default function JobList() {
   const [shipDates, setShipDates] = useState<Record<string, string>>({});
   const [savingId, setSavingId] = useState<string | null>(null);
   const [reallocPart, setReallocPart] = useState<Part | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<(Part & { _hasChildren?: boolean }) | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const filtered = useMemo(() => parts.filter(p => {
     if (search && !`${p.part_number} ${p.description} ${p.po || ''}`.toLowerCase().includes(search.toLowerCase())) return false;
@@ -137,6 +143,24 @@ export default function JobList() {
     reload();
   };
 
+  const deletePart = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const childIds = parts.filter(p => p.parent_part_id === deleteTarget.id).map(p => p.id);
+    const ids = [deleteTarget.id, ...childIds];
+    // Clear dependent rows first, then the part(s)
+    await supabase.from('npi_machine_schedule').delete().in('part_id', ids);
+    await supabase.from('npi_part_machine_options').delete().in('part_id', ids);
+    await supabase.from('npi_part_tooling').delete().in('part_id', ids);
+    const { error } = await supabase.from('npi_parts').delete().in('id', ids);
+    setDeleting(false);
+    if (error) return toast.error(error.message);
+    toast.success(childIds.length ? `Deleted job and ${childIds.length} sub-level part(s)` : 'Job deleted');
+    setDeleteTarget(null);
+    reload();
+  };
+
+
   const STATUS_OPTIONS = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Out for Subcon','Ready to Schedule','Scheduled','In Development','In Production','Machined','Completed','On Hold','At Risk','Late'];
 
   // Material & tooling status are read-only on the tracker — managed on dedicated tiles.
@@ -190,11 +214,12 @@ export default function JobList() {
                     <TableHead>Committed</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="min-w-[220px]">Ship date</TableHead>
+                    <TableHead className="w-[60px] text-right">Delete</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {ordered.length === 0 ? (
-                    <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
                   ) : ordered.map(p => {
                     const matStatus = p.material_status || 'Required';
                     const toolStatus = p.tooling_status || 'Required';
@@ -297,6 +322,17 @@ export default function JobList() {
                             </div>
                           )}
                         </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="h-8 w-8 text-destructive hover:text-destructive"
+                            onClick={() => setDeleteTarget(p)}
+                            title="Delete job"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
                       </TableRow>
                     );
                   })}
@@ -316,6 +352,33 @@ export default function JobList() {
           parts={parts}
           onApplied={reload}
         />
+
+        <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v && !deleting) setDeleteTarget(null); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete this job?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteTarget?.part_number} will be permanently removed, along with its schedule,
+                machine options and tooling links.
+                {deleteTarget && parts.some(p => p.parent_part_id === deleteTarget.id)
+                  ? ` Its ${parts.filter(p => p.parent_part_id === deleteTarget.id).length} sub-level part(s) will also be deleted.`
+                  : ''}
+                {' '}This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); deletePart(); }}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </main>
     </AppLayout>
   );
