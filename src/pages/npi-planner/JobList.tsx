@@ -322,7 +322,7 @@ export default function JobList() {
                             </div>
                           )}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className={`text-right sticky right-0 shadow-[-4px_0_6px_-4px_rgba(0,0,0,0.15)] ${isChild ? 'bg-muted' : 'bg-background'}`}>
                           <Button
                             size="icon"
                             variant="ghost"
