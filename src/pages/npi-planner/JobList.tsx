@@ -148,22 +148,57 @@ export default function JobList() {
     reload();
   };
 
-  const deletePart = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    const childIds = parts.filter(p => p.parent_part_id === deleteTarget.id).map(p => p.id);
-    const ids = [deleteTarget.id, ...childIds];
+  const expandWithChildren = (rootIds: string[]) => {
+    const set = new Set(rootIds);
+    parts.forEach(p => { if (p.parent_part_id && set.has(p.parent_part_id)) set.add(p.id); });
+    return Array.from(set);
+  };
+
+  const purgeIds = async (ids: string[]) => {
     // Clear dependent rows first, then the part(s)
     await supabase.from('npi_machine_schedule').delete().in('part_id', ids);
     await supabase.from('npi_part_machine_options').delete().in('part_id', ids);
     await supabase.from('npi_part_tooling').delete().in('part_id', ids);
-    const { error } = await supabase.from('npi_parts').delete().in('id', ids);
+    return supabase.from('npi_parts').delete().in('id', ids);
+  };
+
+  const deletePart = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const ids = expandWithChildren([deleteTarget.id]);
+    const extra = ids.length - 1;
+    const { error } = await purgeIds(ids);
     setDeleting(false);
     if (error) return toast.error(error.message);
-    toast.success(childIds.length ? `Deleted job and ${childIds.length} sub-level part(s)` : 'Job deleted');
+    toast.success(extra ? `Deleted job and ${extra} sub-level part(s)` : 'Job deleted');
     setDeleteTarget(null);
+    setSelected(new Set());
     reload();
   };
+
+  const deleteSelected = async () => {
+    if (selected.size === 0) return;
+    setDeleting(true);
+    const ids = expandWithChildren(Array.from(selected));
+    const { error } = await purgeIds(ids);
+    setDeleting(false);
+    if (error) return toast.error(error.message);
+    toast.success(`Deleted ${ids.length} job(s)`);
+    setBulkOpen(false);
+    setSelected(new Set());
+    reload();
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const allVisibleSelected = ordered.length > 0 && ordered.every(p => selected.has(p.id));
+
 
 
   const STATUS_OPTIONS = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Out for Subcon','Ready to Schedule','Scheduled','In Development','In Production','Machined','Completed','On Hold','At Risk','Late'];
