@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
+
 import { useNPIPlanning, type Part } from '@/hooks/useNPIPlanning';
 import { Loader2, Plus, Check, X, Sparkles, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -56,6 +58,9 @@ export default function JobList() {
   const [reallocPart, setReallocPart] = useState<Part | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<(Part & { _hasChildren?: boolean }) | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+
 
   const filtered = useMemo(() => parts.filter(p => {
     if (search && !`${p.part_number} ${p.description} ${p.po || ''}`.toLowerCase().includes(search.toLowerCase())) return false;
@@ -143,22 +148,57 @@ export default function JobList() {
     reload();
   };
 
-  const deletePart = async () => {
-    if (!deleteTarget) return;
-    setDeleting(true);
-    const childIds = parts.filter(p => p.parent_part_id === deleteTarget.id).map(p => p.id);
-    const ids = [deleteTarget.id, ...childIds];
+  const expandWithChildren = (rootIds: string[]) => {
+    const set = new Set(rootIds);
+    parts.forEach(p => { if (p.parent_part_id && set.has(p.parent_part_id)) set.add(p.id); });
+    return Array.from(set);
+  };
+
+  const purgeIds = async (ids: string[]) => {
     // Clear dependent rows first, then the part(s)
     await supabase.from('npi_machine_schedule').delete().in('part_id', ids);
     await supabase.from('npi_part_machine_options').delete().in('part_id', ids);
     await supabase.from('npi_part_tooling').delete().in('part_id', ids);
-    const { error } = await supabase.from('npi_parts').delete().in('id', ids);
+    return supabase.from('npi_parts').delete().in('id', ids);
+  };
+
+  const deletePart = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const ids = expandWithChildren([deleteTarget.id]);
+    const extra = ids.length - 1;
+    const { error } = await purgeIds(ids);
     setDeleting(false);
     if (error) return toast.error(error.message);
-    toast.success(childIds.length ? `Deleted job and ${childIds.length} sub-level part(s)` : 'Job deleted');
+    toast.success(extra ? `Deleted job and ${extra} sub-level part(s)` : 'Job deleted');
     setDeleteTarget(null);
+    setSelected(new Set());
     reload();
   };
+
+  const deleteSelected = async () => {
+    if (selected.size === 0) return;
+    setDeleting(true);
+    const ids = expandWithChildren(Array.from(selected));
+    const { error } = await purgeIds(ids);
+    setDeleting(false);
+    if (error) return toast.error(error.message);
+    toast.success(`Deleted ${ids.length} job(s)`);
+    setBulkOpen(false);
+    setSelected(new Set());
+    reload();
+  };
+
+  const toggleSelected = (id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const allVisibleSelected = ordered.length > 0 && ordered.every(p => selected.has(p.id));
+
 
 
   const STATUS_OPTIONS = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Out for Subcon','Ready to Schedule','Scheduled','In Development','In Production','Machined','Completed','On Hold','At Risk','Late'];
@@ -173,8 +213,20 @@ export default function JobList() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Jobs ({ordered.length})</CardTitle>
-            <Button onClick={() => navigate('/npi/capacity-planner/parts/new')}><Plus className="h-4 w-4 mr-2" />New part</Button>
+            <div className="flex items-center gap-2">
+              {selected.size > 0 && (
+                <>
+                  <span className="text-sm text-muted-foreground">{selected.size} selected</span>
+                  <Button variant="outline" size="sm" onClick={() => setSelected(new Set())}>Clear</Button>
+                  <Button variant="destructive" size="sm" onClick={() => setBulkOpen(true)}>
+                    <Trash2 className="h-4 w-4 mr-2" />Delete selected
+                  </Button>
+                </>
+              )}
+              <Button onClick={() => navigate('/npi/capacity-planner/parts/new')}><Plus className="h-4 w-4 mr-2" />New part</Button>
+            </div>
           </CardHeader>
+
           <CardContent className="space-y-3">
             <div className="grid md:grid-cols-4 gap-2">
               <Input placeholder="Search part number / description" value={search} onChange={e => setSearch(e.target.value)} />
@@ -205,6 +257,13 @@ export default function JobList() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[40px]">
+                      <Checkbox
+                        checked={allVisibleSelected}
+                        onCheckedChange={(v) => setSelected(v ? new Set(ordered.map(p => p.id)) : new Set())}
+                        aria-label="Select all jobs"
+                      />
+                    </TableHead>
                     <TableHead>PO #</TableHead>
                     <TableHead>Part #</TableHead>
                     <TableHead>Customer</TableHead>
@@ -219,7 +278,7 @@ export default function JobList() {
                 </TableHeader>
                 <TableBody>
                   {ordered.length === 0 ? (
-                    <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
                   ) : ordered.map(p => {
                     const matStatus = p.material_status || 'Required';
                     const toolStatus = p.tooling_status || 'Required';
@@ -227,7 +286,15 @@ export default function JobList() {
                     const isChild = p._depth > 0;
                     return (
                       <TableRow key={p.id} className={isChild ? 'bg-muted/30' : ''}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selected.has(p.id)}
+                            onCheckedChange={() => toggleSelected(p.id)}
+                            aria-label={`Select ${p.part_number}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-mono text-xs">{p.po || '-'}</TableCell>
+
                         <TableCell className="font-medium cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>
                           <div className="flex items-center gap-1.5" style={{ paddingLeft: isChild ? 18 : 0 }}>
                             {isChild && <span className="text-muted-foreground">↳</span>}
@@ -352,6 +419,29 @@ export default function JobList() {
           parts={parts}
           onApplied={reload}
         />
+        <AlertDialog open={bulkOpen} onOpenChange={(v) => { if (!v && !deleting) setBulkOpen(false); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete {selected.size} job(s)?</AlertDialogTitle>
+              <AlertDialogDescription>
+                The selected jobs will be permanently removed, along with their schedule, machine
+                options, tooling links and any sub-level parts. This cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => { e.preventDefault(); deleteSelected(); }}
+                disabled={deleting}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+                Delete selected
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
 
         <AlertDialog open={!!deleteTarget} onOpenChange={(v) => { if (!v && !deleting) setDeleteTarget(null); }}>
           <AlertDialogContent>
