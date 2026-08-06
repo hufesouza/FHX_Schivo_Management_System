@@ -257,6 +257,13 @@ export default function JobList() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-[40px]">
+                      <Checkbox
+                        checked={allVisibleSelected}
+                        onCheckedChange={(v) => setSelected(v ? new Set(ordered.map(p => p.id)) : new Set())}
+                        aria-label="Select all jobs"
+                      />
+                    </TableHead>
                     <TableHead>PO #</TableHead>
                     <TableHead>Part #</TableHead>
                     <TableHead>Customer</TableHead>
@@ -271,7 +278,7 @@ export default function JobList() {
                 </TableHeader>
                 <TableBody>
                   {ordered.length === 0 ? (
-                    <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground py-8">No jobs match.</TableCell></TableRow>
                   ) : ordered.map(p => {
                     const matStatus = p.material_status || 'Required';
                     const toolStatus = p.tooling_status || 'Required';
@@ -279,7 +286,15 @@ export default function JobList() {
                     const isChild = p._depth > 0;
                     return (
                       <TableRow key={p.id} className={isChild ? 'bg-muted/30' : ''}>
+                        <TableCell>
+                          <Checkbox
+                            checked={selected.has(p.id)}
+                            onCheckedChange={() => toggleSelected(p.id)}
+                            aria-label={`Select ${p.part_number}`}
+                          />
+                        </TableCell>
                         <TableCell className="font-mono text-xs">{p.po || '-'}</TableCell>
+
                         <TableCell className="font-medium cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>
                           <div className="flex items-center gap-1.5" style={{ paddingLeft: isChild ? 18 : 0 }}>
                             {isChild && <span className="text-muted-foreground">↳</span>}
