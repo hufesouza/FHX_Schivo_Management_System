@@ -107,6 +107,68 @@ export default function PartSetup() {
     toast.success(`Loaded "${c.part_number}" from library`);
   };
 
+  const applyQuotation = ({ extraction, derived, file }: QuotationImportPayload) => {
+    const f = (k: string) => extraction.fields[k]?.value ?? null;
+    const str = (k: string) => (f(k) == null ? '' : String(f(k)));
+    const num = (k: string) => (typeof f(k) === 'number' ? (f(k) as number) : 0);
+
+    const custName = str('customer_name');
+    const custCode = str('customer_code');
+    const matchedCustomer = customers.find(
+      c => (custCode && c.customer_code?.toLowerCase() === custCode.toLowerCase())
+        || (custName && c.customer_name?.toLowerCase() === custName.toLowerCase()),
+    );
+
+    const firstMaterial = extraction.tables.materials?.rows?.[0] as any;
+    const firstSubcon = extraction.tables.subcons?.rows?.[0] as any;
+
+    setForm((prev: any) => ({
+      ...prev,
+      customer_id: matchedCustomer?.id || prev.customer_id,
+      part_number: str('part_number') || prev.part_number,
+      part_revision: str('revision') || prev.part_revision,
+      description: str('description') || prev.description,
+      qty: derived.volumeBreaks[0]?.qty || num('vol_1') || prev.qty,
+      material: firstMaterial?.material_description || prev.material,
+      material_supplier_name: firstMaterial?.vendor_name || prev.material_supplier_name,
+      material_status: firstMaterial ? 'Required' : prev.material_status,
+      tooling: derived.toolingCost ? `Tooling per quotation (${derived.toolingCost})` : prev.tooling,
+      tooling_status: derived.toolingCost ? 'Required' : prev.tooling_status,
+      cycle_time_min: derived.cycleMinutes || prev.cycle_time_min,
+      development_time_min: derived.developmentMinutes || prev.development_time_min,
+      backend_time: derived.setupMinutes ? Math.round((derived.setupMinutes / 60) * 100) / 100 : prev.backend_time,
+      supplier_name: firstSubcon?.vendor_name || prev.supplier_name,
+      type_of_service: firstSubcon?.process_description || prev.type_of_service,
+      subcon_status: derived.hasSubcon ? 'Required' : prev.subcon_status,
+      sales_price: derived.unitPrice ?? prev.sales_price,
+      notes: [prev.notes, `Imported from ${file.name}${str('quote_no') ? ` (Quote ${str('quote_no')})` : ''}`]
+        .filter(Boolean).join('\n'),
+    }));
+
+    if (derived.toolingCost > 0) {
+      setToolLines(lines => lines.length ? lines : [{
+        tooling_description: 'Tooling package (from quotation)',
+        qty: 1,
+        unit_cost: derived.toolingCost,
+        lead_time_days: 0,
+        ordered_status: 'Not Ordered',
+        save_to_catalog: false,
+      } as ToolLine]);
+    }
+
+    // Pre-select capable machines matching routing resources
+    const resources = derived.routingResources.map(r => r.toLowerCase());
+    const matchedMachines = machines
+      .filter(m => resources.some(r => m.machine_name?.toLowerCase() === r || m.machine_name?.toLowerCase().includes(r)))
+      .map(m => m.id);
+    if (matchedMachines.length) setMachineOptionIds(ids => Array.from(new Set([...ids, ...matchedMachines])));
+
+    setQuotationFile(file);
+    setQuotationSummary({ quote_no: str('quote_no') || null, confidence: extraction.overallConfidence });
+    toast.success('Quotation applied to the part configuration');
+  };
+
+
   const topLevelParts = useMemo(() => parts.filter(p => (p.part_level || 'Top Level') === 'Top Level'), [parts]);
 
   const cycleHrs = (Number(form.cycle_time_min) || 0) / 60;
