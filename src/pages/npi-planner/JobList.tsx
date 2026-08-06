@@ -56,6 +56,9 @@ export default function JobList() {
   const [reallocPart, setReallocPart] = useState<Part | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<(Part & { _hasChildren?: boolean }) | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+
 
   const filtered = useMemo(() => parts.filter(p => {
     if (search && !`${p.part_number} ${p.description} ${p.po || ''}`.toLowerCase().includes(search.toLowerCase())) return false;
