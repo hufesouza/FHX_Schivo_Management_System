@@ -14,13 +14,14 @@ import { Badge } from '@/components/ui/badge';
 
 import { useNPIPlanning, upsertPart, type Part } from '@/hooks/useNPIPlanning';
 import { toast } from 'sonner';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { QuickCustomerDialog } from '@/components/npi-planner/QuickCustomerDialog';
 import { QuickProjectDialog } from '@/components/npi-planner/QuickProjectDialog';
 import { QuickMachineDialog } from '@/components/npi-planner/QuickMachineDialog';
 import { ToolingListEditor, type ToolLine } from '@/components/npi-planner/ToolingListEditor';
 import { SupplierPicker } from '@/components/npi-planner/SupplierPicker';
+import { QuotationImportDialog, type QuotationImportPayload } from '@/components/npi-planner/QuotationImportDialog';
 
 
 const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
