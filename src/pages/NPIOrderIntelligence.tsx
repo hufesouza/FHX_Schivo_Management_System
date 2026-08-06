@@ -998,7 +998,7 @@ export default function NPIOrderIntelligence() {
                         </div>
                         <div>
                           <Label htmlFor="totalRev" className="text-[11px] text-muted-foreground">
-                            {fYear !== 'all' ? `Total Company Revenue for ${fYear} (${sym})` : 'Total Company Revenue — All Years (${sym})'}
+                            {fYear !== 'all' ? `Total Company Revenue for ${fYear} (${sym})` : `Total Company Revenue — All Years (${sym})`}
                           </Label>
                           <Input
                             id="totalRev"
@@ -1542,7 +1542,7 @@ function OrdersTable({ rows }: { rows: Array<{ customer: string; po: string; par
             <TableHead>Customer</TableHead>
             <TableHead>Order No</TableHead>
             <TableHead>Part Number</TableHead>
-            <TableHead className="text-right">Revenue {sym}</TableHead>
+            <TableHead className="text-right">Revenue {curSym()}</TableHead>
             <TableHead>Status</TableHead>
           </TableRow>
         </TableHeader>

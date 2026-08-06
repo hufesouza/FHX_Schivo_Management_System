@@ -14,13 +14,14 @@ import { Badge } from '@/components/ui/badge';
 
 import { useNPIPlanning, upsertPart, type Part } from '@/hooks/useNPIPlanning';
 import { toast } from 'sonner';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { QuickCustomerDialog } from '@/components/npi-planner/QuickCustomerDialog';
 import { QuickProjectDialog } from '@/components/npi-planner/QuickProjectDialog';
 import { QuickMachineDialog } from '@/components/npi-planner/QuickMachineDialog';
 import { ToolingListEditor, type ToolLine } from '@/components/npi-planner/ToolingListEditor';
 import { SupplierPicker } from '@/components/npi-planner/SupplierPicker';
+import { QuotationImportDialog, type QuotationImportPayload } from '@/components/npi-planner/QuotationImportDialog';
 
 
 const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
@@ -45,6 +46,9 @@ export default function PartSetup() {
   const [machineSearch, setMachineSearch] = useState('');
   const [manualMachineId, setManualMachineId] = useState<string>('');
   const [manualStartDate, setManualStartDate] = useState<string>('');
+  const [quotationOpen, setQuotationOpen] = useState(false);
+  const [quotationFile, setQuotationFile] = useState<File | null>(null);
+  const [quotationSummary, setQuotationSummary] = useState<{ quote_no?: string | null; confidence: number } | null>(null);
 
   const [form, setForm] = useState<any>({
     customer_id: '', project_id: '', engineer: '',
@@ -102,6 +106,68 @@ export default function PartSetup() {
     }));
     toast.success(`Loaded "${c.part_number}" from library`);
   };
+
+  const applyQuotation = ({ extraction, derived, file }: QuotationImportPayload) => {
+    const f = (k: string) => extraction.fields[k]?.value ?? null;
+    const str = (k: string) => (f(k) == null ? '' : String(f(k)));
+    const num = (k: string) => (typeof f(k) === 'number' ? (f(k) as number) : 0);
+
+    const custName = str('customer_name');
+    const custCode = str('customer_code');
+    const matchedCustomer = customers.find(
+      c => (custCode && c.customer_code?.toLowerCase() === custCode.toLowerCase())
+        || (custName && c.customer_name?.toLowerCase() === custName.toLowerCase()),
+    );
+
+    const firstMaterial = extraction.tables.materials?.rows?.[0] as any;
+    const firstSubcon = extraction.tables.subcons?.rows?.[0] as any;
+
+    setForm((prev: any) => ({
+      ...prev,
+      customer_id: matchedCustomer?.id || prev.customer_id,
+      part_number: str('part_number') || prev.part_number,
+      part_revision: str('revision') || prev.part_revision,
+      description: str('description') || prev.description,
+      qty: derived.volumeBreaks[0]?.qty || num('vol_1') || prev.qty,
+      material: firstMaterial?.material_description || prev.material,
+      material_supplier_name: firstMaterial?.vendor_name || prev.material_supplier_name,
+      material_status: firstMaterial ? 'Required' : prev.material_status,
+      tooling: derived.toolingCost ? `Tooling per quotation (${derived.toolingCost})` : prev.tooling,
+      tooling_status: derived.toolingCost ? 'Required' : prev.tooling_status,
+      cycle_time_min: derived.cycleMinutes || prev.cycle_time_min,
+      development_time_min: derived.developmentMinutes || prev.development_time_min,
+      backend_time: derived.setupMinutes ? Math.round((derived.setupMinutes / 60) * 100) / 100 : prev.backend_time,
+      supplier_name: firstSubcon?.vendor_name || prev.supplier_name,
+      type_of_service: firstSubcon?.process_description || prev.type_of_service,
+      subcon_status: derived.hasSubcon ? 'Required' : prev.subcon_status,
+      sales_price: derived.unitPrice ?? prev.sales_price,
+      notes: [prev.notes, `Imported from ${file.name}${str('quote_no') ? ` (Quote ${str('quote_no')})` : ''}`]
+        .filter(Boolean).join('\n'),
+    }));
+
+    if (derived.toolingCost > 0) {
+      setToolLines(lines => lines.length ? lines : [{
+        tooling_description: 'Tooling package (from quotation)',
+        qty: 1,
+        unit_cost: derived.toolingCost,
+        lead_time_days: 0,
+        ordered_status: 'Not Ordered',
+        save_to_catalog: false,
+      } as ToolLine]);
+    }
+
+    // Pre-select capable machines matching routing resources
+    const resources = derived.routingResources.map(r => r.toLowerCase());
+    const matchedMachines = machines
+      .filter(m => resources.some(r => m.machine_name?.toLowerCase() === r || m.machine_name?.toLowerCase().includes(r)))
+      .map(m => m.id);
+    if (matchedMachines.length) setMachineOptionIds(ids => Array.from(new Set([...ids, ...matchedMachines])));
+
+    setQuotationFile(file);
+    setQuotationSummary({ quote_no: str('quote_no') || null, confidence: extraction.overallConfidence });
+    toast.success('Quotation applied to the part configuration');
+  };
+
 
   const topLevelParts = useMemo(() => parts.filter(p => (p.part_level || 'Top Level') === 'Top Level'), [parts]);
 
@@ -173,6 +239,22 @@ export default function PartSetup() {
         : machineOptionIds;
 
       const part = await upsertPart(partData, capableIds);
+
+      // Attach the source quotation workbook to the part
+      if (part && quotationFile) {
+        const safeName = quotationFile.name.replace(/[^\w.\-]+/g, '_');
+        const path = `${part.id}/${Date.now()}-${safeName}`;
+        const { error: upErr } = await supabase.storage
+          .from('part-quotations')
+          .upload(path, quotationFile, { upsert: true });
+        if (upErr) {
+          toast.error(`Part saved, but the quotation file could not be stored: ${upErr.message}`);
+        } else {
+          await supabase.from('npi_parts')
+            .update({ quotation_file_path: path, quotation_file_name: quotationFile.name } as any)
+            .eq('id', part.id);
+        }
+      }
 
       // Manual allocation: create schedule record
       if (part && manualMachineId && manualStartDate) {
@@ -281,10 +363,20 @@ export default function PartSetup() {
     <AppLayout title="New Part / Job" subtitle="Setup & machine allocation" showBackButton backTo="/npi/capacity-planner">
       <main className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
             {presetParentId && <Badge variant="secondary">Creating Sub Level part for parent</Badge>}
+            {quotationFile && (
+              <Badge variant="outline" className="gap-1">
+                <FileSpreadsheet className="h-3 w-3" />
+                {quotationFile.name}
+                {quotationSummary ? ` — ${Math.round(quotationSummary.confidence * 100)}% confidence` : ''}
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setQuotationOpen(true)}>
+              <FileSpreadsheet className="h-3 w-3 mr-1" /> Import quotation sheet
+            </Button>
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
               <Checkbox checked={saveToLibrary} onCheckedChange={v => setSaveToLibrary(!!v)} />
               Save to part library
@@ -554,6 +646,7 @@ export default function PartSetup() {
         onCreated={async (p) => { await reload(); set('project_id', p.id); }}
       />
       <PartLibraryDialog open={libraryOpen} onOpenChange={setLibraryOpen} onPick={applyCatalog} />
+      <QuotationImportDialog open={quotationOpen} onOpenChange={setQuotationOpen} onApply={applyQuotation} />
     </AppLayout>
   );
 }
