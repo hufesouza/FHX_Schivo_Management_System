@@ -363,10 +363,20 @@ export default function PartSetup() {
     <AppLayout title="New Part / Job" subtitle="Setup & machine allocation" showBackButton backTo="/npi/capacity-planner">
       <main className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
         <div className="flex items-center justify-between gap-2 flex-wrap">
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
             {presetParentId && <Badge variant="secondary">Creating Sub Level part for parent</Badge>}
+            {quotationFile && (
+              <Badge variant="outline" className="gap-1">
+                <FileSpreadsheet className="h-3 w-3" />
+                {quotationFile.name}
+                {quotationSummary ? ` — ${Math.round(quotationSummary.confidence * 100)}% confidence` : ''}
+              </Badge>
+            )}
           </div>
           <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setQuotationOpen(true)}>
+              <FileSpreadsheet className="h-3 w-3 mr-1" /> Import quotation sheet
+            </Button>
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
               <Checkbox checked={saveToLibrary} onCheckedChange={v => setSaveToLibrary(!!v)} />
               Save to part library
