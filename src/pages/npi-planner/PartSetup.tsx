@@ -646,6 +646,7 @@ export default function PartSetup() {
         onCreated={async (p) => { await reload(); set('project_id', p.id); }}
       />
       <PartLibraryDialog open={libraryOpen} onOpenChange={setLibraryOpen} onPick={applyCatalog} />
+      <QuotationImportDialog open={quotationOpen} onOpenChange={setQuotationOpen} onApply={applyQuotation} />
     </AppLayout>
   );
 }
