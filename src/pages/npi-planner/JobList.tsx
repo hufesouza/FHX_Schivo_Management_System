@@ -143,6 +143,24 @@ export default function JobList() {
     reload();
   };
 
+  const deletePart = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    const childIds = parts.filter(p => p.parent_part_id === deleteTarget.id).map(p => p.id);
+    const ids = [deleteTarget.id, ...childIds];
+    // Clear dependent rows first, then the part(s)
+    await supabase.from('npi_machine_schedule').delete().in('part_id', ids);
+    await supabase.from('npi_part_machine_options').delete().in('part_id', ids);
+    await supabase.from('npi_part_tooling').delete().in('part_id', ids);
+    const { error } = await supabase.from('npi_parts').delete().in('id', ids);
+    setDeleting(false);
+    if (error) return toast.error(error.message);
+    toast.success(childIds.length ? `Deleted job and ${childIds.length} sub-level part(s)` : 'Job deleted');
+    setDeleteTarget(null);
+    reload();
+  };
+
+
   const STATUS_OPTIONS = ['Not Started','Awaiting Material','Awaiting Tooling','Awaiting Subcon','Out for Subcon','Ready to Schedule','Scheduled','In Development','In Production','Machined','Completed','On Hold','At Risk','Late'];
 
   // Material & tooling status are read-only on the tracker — managed on dedicated tiles.
