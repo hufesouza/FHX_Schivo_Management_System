@@ -213,8 +213,20 @@ export default function JobList() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-base">Jobs ({ordered.length})</CardTitle>
-            <Button onClick={() => navigate('/npi/capacity-planner/parts/new')}><Plus className="h-4 w-4 mr-2" />New part</Button>
+            <div className="flex items-center gap-2">
+              {selected.size > 0 && (
+                <>
+                  <span className="text-sm text-muted-foreground">{selected.size} selected</span>
+                  <Button variant="outline" size="sm" onClick={() => setSelected(new Set())}>Clear</Button>
+                  <Button variant="destructive" size="sm" onClick={() => setBulkOpen(true)}>
+                    <Trash2 className="h-4 w-4 mr-2" />Delete selected
+                  </Button>
+                </>
+              )}
+              <Button onClick={() => navigate('/npi/capacity-planner/parts/new')}><Plus className="h-4 w-4 mr-2" />New part</Button>
+            </div>
           </CardHeader>
+
           <CardContent className="space-y-3">
             <div className="grid md:grid-cols-4 gap-2">
               <Input placeholder="Search part number / description" value={search} onChange={e => setSearch(e.target.value)} />
