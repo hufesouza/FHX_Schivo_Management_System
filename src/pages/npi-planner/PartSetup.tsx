@@ -46,6 +46,9 @@ export default function PartSetup() {
   const [machineSearch, setMachineSearch] = useState('');
   const [manualMachineId, setManualMachineId] = useState<string>('');
   const [manualStartDate, setManualStartDate] = useState<string>('');
+  const [quotationOpen, setQuotationOpen] = useState(false);
+  const [quotationFile, setQuotationFile] = useState<File | null>(null);
+  const [quotationSummary, setQuotationSummary] = useState<{ quote_no?: string | null; confidence: number } | null>(null);
 
   const [form, setForm] = useState<any>({
     customer_id: '', project_id: '', engineer: '',
