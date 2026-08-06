@@ -2285,6 +2285,8 @@ export type Database = {
           project_id: string | null
           project_name: string | null
           qty: number | null
+          quotation_file_name: string | null
+          quotation_file_path: string | null
           sales_price: number | null
           ship_date: string | null
           subcon: boolean | null
@@ -2336,6 +2338,8 @@ export type Database = {
           project_id?: string | null
           project_name?: string | null
           qty?: number | null
+          quotation_file_name?: string | null
+          quotation_file_path?: string | null
           sales_price?: number | null
           ship_date?: string | null
           subcon?: boolean | null
@@ -2387,6 +2391,8 @@ export type Database = {
           project_id?: string | null
           project_name?: string | null
           qty?: number | null
+          quotation_file_name?: string | null
+          quotation_file_path?: string | null
           sales_price?: number | null
           ship_date?: string | null
           subcon?: boolean | null
