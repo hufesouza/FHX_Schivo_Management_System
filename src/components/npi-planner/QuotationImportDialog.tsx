@@ -26,7 +26,7 @@ export interface QuotationImportPayload {
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onApply: (payload: QuotationImportPayload) => void;
+  onApply: (payload: QuotationImportPayload) => void | Promise<void>;
 }
 
 function ConfidenceBadge({ value }: { value: number }) {
