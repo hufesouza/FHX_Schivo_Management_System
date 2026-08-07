@@ -2264,6 +2264,7 @@ export type Database = {
           development_time: number | null
           engineer: string | null
           id: string
+          kanban_stage: string
           machine_id: string | null
           machine_name: string | null
           material: string | null
@@ -2288,7 +2289,9 @@ export type Database = {
           quotation_file_name: string | null
           quotation_file_path: string | null
           sales_price: number | null
+          setter_id: string | null
           ship_date: string | null
+          stage_updated_at: string | null
           subcon: boolean | null
           subcon_lead_time: number | null
           subcon_status: string | null
@@ -2317,6 +2320,7 @@ export type Database = {
           development_time?: number | null
           engineer?: string | null
           id?: string
+          kanban_stage?: string
           machine_id?: string | null
           machine_name?: string | null
           material?: string | null
@@ -2341,7 +2345,9 @@ export type Database = {
           quotation_file_name?: string | null
           quotation_file_path?: string | null
           sales_price?: number | null
+          setter_id?: string | null
           ship_date?: string | null
+          stage_updated_at?: string | null
           subcon?: boolean | null
           subcon_lead_time?: number | null
           subcon_status?: string | null
@@ -2370,6 +2376,7 @@ export type Database = {
           development_time?: number | null
           engineer?: string | null
           id?: string
+          kanban_stage?: string
           machine_id?: string | null
           machine_name?: string | null
           material?: string | null
@@ -2394,7 +2401,9 @@ export type Database = {
           quotation_file_name?: string | null
           quotation_file_path?: string | null
           sales_price?: number | null
+          setter_id?: string | null
           ship_date?: string | null
+          stage_updated_at?: string | null
           subcon?: boolean | null
           subcon_lead_time?: number | null
           subcon_status?: string | null
@@ -2450,6 +2459,13 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "npi_projects_planning"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "npi_parts_setter_id_fkey"
+            columns: ["setter_id"]
+            isOneToOne: false
+            referencedRelation: "npi_setters"
             referencedColumns: ["id"]
           },
           {
@@ -3066,6 +3082,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      npi_setters: {
+        Row: {
+          active: boolean
+          color: string
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string | null
+          setter_name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          setter_name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string | null
+          setter_name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       npi_suppliers: {
         Row: {

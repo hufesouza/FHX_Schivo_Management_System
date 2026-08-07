@@ -28,6 +28,7 @@ const groups = [
     title: 'Trackers',
     tiles: [
       { id: 'jobs', title: 'Job Tracker', desc: 'All parts/jobs, ship status, and reallocation recommendations', icon: ListChecks, href: '/npi/capacity-planner/jobs', color: 'bg-violet-500/10 text-violet-600 border-violet-500/20' },
+      { id: 'kanban', title: 'Job Kanban', desc: 'Drag jobs across production stages by machine, colour-coded per setter', icon: LayoutGrid, href: '/npi/capacity-planner/kanban', color: 'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-500/20' },
       { id: 'material', title: 'Material Tracker', desc: 'Update per-part material status (Ordered starts the lead-time clock)', icon: Package, href: '/npi/capacity-planner/material', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
       { id: 'tooling-status', title: 'Tooling Tracker', desc: 'Update per-part tooling status (Ordered starts the lead-time clock)', icon: Wrench, href: '/npi/capacity-planner/tooling-status', color: 'bg-rose-500/10 text-rose-600 border-rose-500/20' },
       { id: 'calendar', title: 'Machine Calendar', desc: 'Visual calendar of allocations and free gaps', icon: CalendarRange, href: '/npi/capacity-planner/calendar', color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20' },

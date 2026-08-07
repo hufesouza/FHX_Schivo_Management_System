@@ -43,6 +43,7 @@ import NPICapacityPlannerHub from "./pages/npi-planner/CapacityPlannerHub";
 import PlannerDashboard from "./pages/npi-planner/PlannerDashboard";
 import PartSetup from "./pages/npi-planner/PartSetup";
 import JobList from "./pages/npi-planner/JobList";
+import JobKanban from "./pages/npi-planner/JobKanban";
 import JobDetail from "./pages/npi-planner/JobDetail";
 import MachineCalendar from "./pages/npi-planner/MachineCalendar";
 import MachineCapacity from "./pages/npi-planner/MachineCapacity";
@@ -109,6 +110,7 @@ const App = () => (
           <Route path="/npi/capacity-planner/parts/new" element={<PartSetup />} />
           <Route path="/npi/capacity-planner/parts/:id" element={<JobDetail />} />
           <Route path="/npi/capacity-planner/jobs" element={<JobList />} />
+          <Route path="/npi/capacity-planner/kanban" element={<JobKanban />} />
           <Route path="/npi/capacity-planner/calendar" element={<MachineCalendar />} />
           <Route path="/npi/capacity-planner/capacity" element={<MachineCapacity />} />
           <Route path="/npi/capacity-planner/tooling" element={<ToolingTracker />} />
