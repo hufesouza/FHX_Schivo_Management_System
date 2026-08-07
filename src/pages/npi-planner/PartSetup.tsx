@@ -107,37 +107,114 @@ export default function PartSetup() {
     toast.success(`Loaded "${c.part_number}" from library`);
   };
 
-  const applyQuotation = ({ extraction, derived, file }: QuotationImportPayload) => {
+  // Non-machine routing resources (inspection / admin / manual benches)
+  const NON_MACHINE = /^(manueng|saw|wash|dispatch|qa\d*|insp|deburr?|dry ice debur|packing|goods in|stores|subcon|outsource|programming|prog)$/i;
+
+  const applyQuotation = async ({ extraction, derived, file }: QuotationImportPayload) => {
     const f = (k: string) => extraction.fields[k]?.value ?? null;
     const str = (k: string) => (f(k) == null ? '' : String(f(k)));
     const num = (k: string) => (typeof f(k) === 'number' ? (f(k) as number) : 0);
 
     const custName = str('customer_name');
     const custCode = str('customer_code');
-    const matchedCustomer = customers.find(
+    let customerId = customers.find(
       c => (custCode && c.customer_code?.toLowerCase() === custCode.toLowerCase())
         || (custName && c.customer_name?.toLowerCase() === custName.toLowerCase()),
-    );
+    )?.id || '';
+
+    // Auto-create the customer when the quotation references a new one
+    if (!customerId && custName) {
+      const { data: newCust } = await supabase
+        .from('npi_customers')
+        .insert({ customer_name: custName, customer_code: custCode || null } as any)
+        .select('id')
+        .single();
+      if (newCust?.id) customerId = newCust.id;
+    }
 
     const firstMaterial = extraction.tables.materials?.rows?.[0] as any;
     const firstSubcon = extraction.tables.subcons?.rows?.[0] as any;
+    const routingRows = (extraction.tables.routing?.rows || []) as any[];
+
+    // Material supplier: match or create
+    let materialSupplierId = '';
+    const matVendor = String(firstMaterial?.vendor_name || '').trim();
+    if (matVendor) {
+      const { data: sup } = await supabase.from('npi_suppliers')
+        .select('id').ilike('supplier_name', matVendor).maybeSingle();
+      if (sup?.id) materialSupplierId = sup.id;
+      else {
+        const { data: newSup } = await supabase.from('npi_suppliers')
+          .insert({ supplier_name: matVendor } as any).select('id').single();
+        if (newSup?.id) materialSupplierId = newSup.id;
+      }
+    }
+
+    // Subcon supplier: match or create
+    let subconSupplierId = '';
+    const subVendor = String(firstSubcon?.vendor_name || '').trim();
+    if (subVendor) {
+      const { data: sup } = await supabase.from('npi_suppliers')
+        .select('id').ilike('supplier_name', subVendor).maybeSingle();
+      if (sup?.id) subconSupplierId = sup.id;
+      else {
+        const { data: newSup } = await supabase.from('npi_suppliers')
+          .insert({ supplier_name: subVendor } as any).select('id').single();
+        if (newSup?.id) subconSupplierId = newSup.id;
+      }
+    }
+
+    // Identify the machining resources from the routing, creating any that are missing
+    const machineResources = Array.from(new Set(
+      routingRows
+        .map(r => String(r.resource || '').trim())
+        .filter(Boolean)
+        .filter(r => !NON_MACHINE.test(r)),
+    ));
+    const machineIds: string[] = [];
+    let primaryMachineId = '';
+    for (const res of machineResources) {
+      const existing = machines.find(
+        m => m.machine_name?.toLowerCase() === res.toLowerCase()
+          || m.machine_name?.toLowerCase().includes(res.toLowerCase()),
+      );
+      let id = existing?.id || '';
+      if (!id) {
+        const type = /slh|swiss/i.test(res) ? 'Swiss Turn' : /(^t|lathe|turn)/i.test(res) ? 'Turn' : 'Mill';
+        const { data: newM } = await supabase.from('npi_machines')
+          .insert({ machine_name: res, machine_type: type, daily_available_hours: 24, status: 'Available' } as any)
+          .select('id').single();
+        id = newM?.id || '';
+      }
+      if (id) {
+        machineIds.push(id);
+        // Primary = resource carrying the development / longest run time op
+        const devRow = routingRows.find(r => /develop/i.test(String(r.operation_details || '')) && String(r.resource || '').toLowerCase() === res.toLowerCase());
+        if (!primaryMachineId || devRow) primaryMachineId = id;
+      }
+    }
+
+    const materialDesc = [firstMaterial?.part_number, firstMaterial?.material_description]
+      .filter(Boolean).join(' — ');
 
     setForm((prev: any) => ({
       ...prev,
-      customer_id: matchedCustomer?.id || prev.customer_id,
+      customer_id: customerId || prev.customer_id,
       part_number: str('part_number') || prev.part_number,
       part_revision: str('revision') || prev.part_revision,
       description: str('description') || prev.description,
       qty: derived.volumeBreaks[0]?.qty || num('vol_1') || prev.qty,
-      material: firstMaterial?.material_description || prev.material,
-      material_supplier_name: firstMaterial?.vendor_name || prev.material_supplier_name,
+      material: materialDesc || prev.material,
+      material_supplier_id: materialSupplierId || prev.material_supplier_id,
+      material_supplier_name: matVendor || prev.material_supplier_name,
       material_status: firstMaterial ? 'Required' : prev.material_status,
       tooling: derived.toolingCost ? `Tooling per quotation (${derived.toolingCost})` : prev.tooling,
       tooling_status: derived.toolingCost ? 'Required' : prev.tooling_status,
       cycle_time_min: derived.cycleMinutes || prev.cycle_time_min,
       development_time_min: derived.developmentMinutes || prev.development_time_min,
       backend_time: derived.setupMinutes ? Math.round((derived.setupMinutes / 60) * 100) / 100 : prev.backend_time,
-      supplier_name: firstSubcon?.vendor_name || prev.supplier_name,
+      subcon_supplier_id: subconSupplierId || prev.subcon_supplier_id,
+      supplier_name: subVendor || prev.supplier_name,
       type_of_service: firstSubcon?.process_description || prev.type_of_service,
       subcon_status: derived.hasSubcon ? 'Required' : prev.subcon_status,
       sales_price: derived.unitPrice ?? prev.sales_price,
@@ -156,17 +233,15 @@ export default function PartSetup() {
       } as ToolLine]);
     }
 
-    // Pre-select capable machines matching routing resources
-    const resources = derived.routingResources.map(r => r.toLowerCase());
-    const matchedMachines = machines
-      .filter(m => resources.some(r => m.machine_name?.toLowerCase() === r || m.machine_name?.toLowerCase().includes(r)))
-      .map(m => m.id);
-    if (matchedMachines.length) setMachineOptionIds(ids => Array.from(new Set([...ids, ...matchedMachines])));
+    if (machineIds.length) setMachineOptionIds(ids => Array.from(new Set([...ids, ...machineIds])));
+    if (primaryMachineId) setManualMachineId(primaryMachineId);
 
     setQuotationFile(file);
     setQuotationSummary({ quote_no: str('quote_no') || null, confidence: extraction.overallConfidence });
-    toast.success('Quotation applied to the part configuration');
+    await reload();
+    toast.success('Quotation applied — customer, machines and suppliers created where needed');
   };
+
 
 
   const topLevelParts = useMemo(() => parts.filter(p => (p.part_level || 'Top Level') === 'Top Level'), [parts]);
