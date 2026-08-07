@@ -327,6 +327,19 @@ export default function JobKanban() {
           </CardContent>
         </Card>
 
+        {/* Selection toolbar */}
+        {selected.size > 0 && (
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-primary/5 px-4 py-3">
+            <span className="text-sm font-medium">{selected.size} job(s) selected</span>
+            <span className="text-xs text-muted-foreground">
+              Drag any selected card to a stage / machine row — all selected jobs move together.
+            </span>
+            <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setSelected(new Set())}>
+              <X className="h-4 w-4 mr-1" /> Clear selection
+            </Button>
+          </div>
+        )}
+
         {/* Board */}
         <div className="rounded-lg border bg-card overflow-x-auto">
           <div className="min-w-max">
