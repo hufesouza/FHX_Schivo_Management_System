@@ -140,24 +140,54 @@ export default function JobKanban() {
     return { list, max };
   }, [filteredParts, setterById]);
 
-  const moveToStage = async (partId: string, stage: string) => {
-    const part = parts.find(p => p.id === partId);
-    if (!part || (part as any).kanban_stage === stage) return;
-    setSavingId(partId);
+  const toggleSelected = (partId: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(partId) ? next.delete(partId) : next.add(partId);
+      return next;
+    });
+  };
+
+  // Moves one or many jobs to a stage, and re-assigns the machine when the row changed
+  const moveJobs = async (partIds: string[], stage: string, rowId: string) => {
+    const targetMachineId = rowId === 'unassigned' ? null : rowId;
+    const affected = parts.filter(p => partIds.includes(p.id)).filter(p => {
+      const sameStage = ((p as any).kanban_stage || KANBAN_STAGES[0].key) === stage;
+      const sameMachine = (p.machine_id || null) === targetMachineId;
+      return !(sameStage && sameMachine);
+    });
+    if (affected.length === 0) return;
+
+    setSavingIds(new Set(affected.map(p => p.id)));
     const { error } = await supabase.from('npi_parts')
-      .update({ kanban_stage: stage, stage_updated_at: new Date().toISOString() } as any)
-      .eq('id', partId);
-    setSavingId(null);
+      .update({
+        kanban_stage: stage,
+        machine_id: targetMachineId,
+        stage_updated_at: new Date().toISOString(),
+      } as any)
+      .in('id', affected.map(p => p.id));
+    setSavingIds(new Set());
     if (error) { toast.error(error.message); return; }
-    toast.success(`${part.part_number} moved to ${stage}`);
+
+    const machineName = rowId === 'unassigned'
+      ? 'No machine'
+      : (machines.find(m => m.id === rowId)?.machine_name || 'machine');
+    toast.success(
+      affected.length === 1
+        ? `${affected[0].part_number} → ${stage} · ${machineName}`
+        : `${affected.length} jobs → ${stage} · ${machineName}`
+    );
+    setSelected(new Set());
     reload();
   };
 
   const assignSetter = async (partId: string, setterId: string) => {
+    const ids = selected.has(partId) ? [...selected] : [partId];
     const { error } = await supabase.from('npi_parts')
       .update({ setter_id: setterId === 'none' ? null : setterId } as any)
-      .eq('id', partId);
+      .in('id', ids);
     if (error) { toast.error(error.message); return; }
+    if (ids.length > 1) toast.success(`Setter updated on ${ids.length} jobs`);
     reload();
   };
 
