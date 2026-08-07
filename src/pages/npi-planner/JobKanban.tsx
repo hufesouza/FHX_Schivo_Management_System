@@ -369,7 +369,10 @@ export default function JobKanban() {
                       onDrop={e => {
                         e.preventDefault();
                         setDropKey(null);
-                        if (dragId) moveToStage(dragId, stage.key);
+                        if (dragId) {
+                          const ids = selected.has(dragId) ? [...selected] : [dragId];
+                          moveJobs(ids, stage.key, row.id);
+                        }
                         setDragId(null);
                       }}
                       className={`w-56 shrink-0 border-r p-2 space-y-2 min-h-[110px] transition-colors ${
@@ -379,6 +382,7 @@ export default function JobKanban() {
                       {items.map(p => {
                         const setter = (p as any).setter_id ? setterById.get((p as any).setter_id) : undefined;
                         const color = setter?.color || '#94a3b8';
+                        const isSel = selected.has(p.id);
                         return (
                           <div
                             key={p.id}
@@ -387,10 +391,16 @@ export default function JobKanban() {
                             onDragEnd={() => { setDragId(null); setDropKey(null); }}
                             className={`rounded-md border bg-background p-2 shadow-sm cursor-grab active:cursor-grabbing ${
                               dragId === p.id ? 'opacity-50' : ''
-                            }`}
+                            } ${isSel ? 'ring-2 ring-primary' : ''}`}
                             style={{ borderLeft: `4px solid ${color}` }}
                           >
                             <div className="flex items-start gap-1">
+                              <Checkbox
+                                checked={isSel}
+                                onCheckedChange={() => toggleSelected(p.id)}
+                                aria-label={`Select ${p.part_number}`}
+                                className="mt-0.5"
+                              />
                               <GripVertical className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
                               <button
                                 className="text-left text-xs font-semibold hover:underline truncate"
@@ -398,7 +408,7 @@ export default function JobKanban() {
                               >
                                 {p.part_number}
                               </button>
-                              {savingId === p.id && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
+                              {savingIds.has(p.id) && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
                             </div>
                             {p.customer_name && (
                               <p className="text-[11px] text-muted-foreground truncate mt-0.5">{p.customer_name}</p>
