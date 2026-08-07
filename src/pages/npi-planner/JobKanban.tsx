@@ -31,7 +31,8 @@ export default function JobKanban() {
   const [lookahead, setLookahead] = useState('90');
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropKey, setDropKey] = useState<string | null>(null);
-  const [savingId, setSavingId] = useState<string | null>(null);
+  const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [settersOpen, setSettersOpen] = useState(false);
 
   const loadSetters = useCallback(async () => {
