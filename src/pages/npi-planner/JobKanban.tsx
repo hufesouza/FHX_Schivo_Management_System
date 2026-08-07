@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger,
@@ -31,7 +32,8 @@ export default function JobKanban() {
   const [lookahead, setLookahead] = useState('90');
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropKey, setDropKey] = useState<string | null>(null);
-  const [savingId, setSavingId] = useState<string | null>(null);
+  const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [settersOpen, setSettersOpen] = useState(false);
 
   const loadSetters = useCallback(async () => {
@@ -140,24 +142,54 @@ export default function JobKanban() {
     return { list, max };
   }, [filteredParts, setterById]);
 
-  const moveToStage = async (partId: string, stage: string) => {
-    const part = parts.find(p => p.id === partId);
-    if (!part || (part as any).kanban_stage === stage) return;
-    setSavingId(partId);
+  const toggleSelected = (partId: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(partId) ? next.delete(partId) : next.add(partId);
+      return next;
+    });
+  };
+
+  // Moves one or many jobs to a stage, and re-assigns the machine when the row changed
+  const moveJobs = async (partIds: string[], stage: string, rowId: string) => {
+    const targetMachineId = rowId === 'unassigned' ? null : rowId;
+    const affected = parts.filter(p => partIds.includes(p.id)).filter(p => {
+      const sameStage = ((p as any).kanban_stage || KANBAN_STAGES[0].key) === stage;
+      const sameMachine = (p.machine_id || null) === targetMachineId;
+      return !(sameStage && sameMachine);
+    });
+    if (affected.length === 0) return;
+
+    setSavingIds(new Set(affected.map(p => p.id)));
     const { error } = await supabase.from('npi_parts')
-      .update({ kanban_stage: stage, stage_updated_at: new Date().toISOString() } as any)
-      .eq('id', partId);
-    setSavingId(null);
+      .update({
+        kanban_stage: stage,
+        machine_id: targetMachineId,
+        stage_updated_at: new Date().toISOString(),
+      } as any)
+      .in('id', affected.map(p => p.id));
+    setSavingIds(new Set());
     if (error) { toast.error(error.message); return; }
-    toast.success(`${part.part_number} moved to ${stage}`);
+
+    const machineName = rowId === 'unassigned'
+      ? 'No machine'
+      : (machines.find(m => m.id === rowId)?.machine_name || 'machine');
+    toast.success(
+      affected.length === 1
+        ? `${affected[0].part_number} → ${stage} · ${machineName}`
+        : `${affected.length} jobs → ${stage} · ${machineName}`
+    );
+    setSelected(new Set());
     reload();
   };
 
   const assignSetter = async (partId: string, setterId: string) => {
+    const ids = selected.has(partId) ? [...selected] : [partId];
     const { error } = await supabase.from('npi_parts')
       .update({ setter_id: setterId === 'none' ? null : setterId } as any)
-      .eq('id', partId);
+      .in('id', ids);
     if (error) { toast.error(error.message); return; }
+    if (ids.length > 1) toast.success(`Setter updated on ${ids.length} jobs`);
     reload();
   };
 
@@ -295,6 +327,19 @@ export default function JobKanban() {
           </CardContent>
         </Card>
 
+        {/* Selection toolbar */}
+        {selected.size > 0 && (
+          <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-primary/5 px-4 py-3">
+            <span className="text-sm font-medium">{selected.size} job(s) selected</span>
+            <span className="text-xs text-muted-foreground">
+              Drag any selected card to a stage / machine row — all selected jobs move together.
+            </span>
+            <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setSelected(new Set())}>
+              <X className="h-4 w-4 mr-1" /> Clear selection
+            </Button>
+          </div>
+        )}
+
         {/* Board */}
         <div className="rounded-lg border bg-card overflow-x-auto">
           <div className="min-w-max">
@@ -338,7 +383,10 @@ export default function JobKanban() {
                       onDrop={e => {
                         e.preventDefault();
                         setDropKey(null);
-                        if (dragId) moveToStage(dragId, stage.key);
+                        if (dragId) {
+                          const ids = selected.has(dragId) ? [...selected] : [dragId];
+                          moveJobs(ids, stage.key, row.id);
+                        }
                         setDragId(null);
                       }}
                       className={`w-56 shrink-0 border-r p-2 space-y-2 min-h-[110px] transition-colors ${
@@ -348,6 +396,7 @@ export default function JobKanban() {
                       {items.map(p => {
                         const setter = (p as any).setter_id ? setterById.get((p as any).setter_id) : undefined;
                         const color = setter?.color || '#94a3b8';
+                        const isSel = selected.has(p.id);
                         return (
                           <div
                             key={p.id}
@@ -356,10 +405,16 @@ export default function JobKanban() {
                             onDragEnd={() => { setDragId(null); setDropKey(null); }}
                             className={`rounded-md border bg-background p-2 shadow-sm cursor-grab active:cursor-grabbing ${
                               dragId === p.id ? 'opacity-50' : ''
-                            }`}
+                            } ${isSel ? 'ring-2 ring-primary' : ''}`}
                             style={{ borderLeft: `4px solid ${color}` }}
                           >
                             <div className="flex items-start gap-1">
+                              <Checkbox
+                                checked={isSel}
+                                onCheckedChange={() => toggleSelected(p.id)}
+                                aria-label={`Select ${p.part_number}`}
+                                className="mt-0.5"
+                              />
                               <GripVertical className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
                               <button
                                 className="text-left text-xs font-semibold hover:underline truncate"
@@ -367,7 +422,7 @@ export default function JobKanban() {
                               >
                                 {p.part_number}
                               </button>
-                              {savingId === p.id && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
+                              {savingIds.has(p.id) && <Loader2 className="h-3 w-3 animate-spin ml-auto" />}
                             </div>
                             {p.customer_name && (
                               <p className="text-[11px] text-muted-foreground truncate mt-0.5">{p.customer_name}</p>
