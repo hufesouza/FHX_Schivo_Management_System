@@ -24,10 +24,19 @@ export const MACHINE_CATEGORIES = ['Milling', 'Turning', 'Sliding Heads', 'Misc'
 
 const MILLING_PREFIXES = ['MIL', 'DMG', 'DoosanVC', 'Hermle', 'Roders', 'Grob', 'Mikron', 'Fanuc', 'Haas'];
 const TURNING_PREFIXES = ['TRN', 'DoosanMX', 'Integrex', 'Mori', 'Nakamura', 'Mazak', 'Lathe'];
-const SLIDING_HEAD_PREFIXES = ['SLH', 'Citizen', 'Tornos', 'Star'];
+const SLIDING_HEAD_PREFIXES = ['SLH', 'Citizen', 'Tornos', 'Star', 'L12', 'L20', 'M32', 'A20', 'K16'];
 
-/** Categorise a machine by name prefix (Milling / Turning / Sliding Heads / Misc). */
-export const machineCategory = (name?: string | null): string => {
+/**
+ * Categorise a machine into Milling / Turning / Sliding Heads / Misc.
+ * Machine type (from setup) wins; the name prefix is the fallback.
+ */
+export const machineCategory = (name?: string | null, type?: string | null): string => {
+  const t = (type || '').trim().toLowerCase();
+  if (t) {
+    if (t.includes('swiss') || t.includes('sliding')) return 'Sliding Heads';
+    if (t.includes('mill')) return 'Milling';
+    if (t.includes('turn') || t.includes('lathe')) return 'Turning';
+  }
   const n = (name || '').trim().toUpperCase();
   if (!n) return 'Misc';
   const hit = (list: string[]) => list.some(p => n.startsWith(p.toUpperCase()));

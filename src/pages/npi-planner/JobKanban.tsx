@@ -68,7 +68,7 @@ export default function JobKanban() {
 
   const visibleMachines = useMemo(() => {
     return machines.filter(m => {
-      if (category !== 'all' && machineCategory(m.machine_name) !== category) return false;
+      if (category !== 'all' && machineCategory(m.machine_name, m.machine_type) !== category) return false;
       if (machineFilter !== 'all' && m.id !== machineFilter) return false;
       return true;
     });
@@ -111,10 +111,10 @@ export default function JobKanban() {
   }, [visibleMachines, filteredParts, category, machineFilter]);
 
   const rows = useMemo(() => {
-    const list = visibleMachines.map(m => ({ id: m.id, name: m.machine_name, type: m.machine_type }));
+    const list = visibleMachines.map(m => ({ id: m.id, name: m.machine_name, type: m.machine_type, category: machineCategory(m.machine_name, m.machine_type) }));
     const unassignedCount = filteredParts.filter(p => !p.machine_id).length;
     if (unassignedCount && category === 'all' && machineFilter === 'all') {
-      list.push({ id: 'unassigned', name: 'No machine assigned', type: null });
+      list.push({ id: 'unassigned', name: 'No machine assigned', type: null, category: 'Misc' });
     }
     return list;
   }, [visibleMachines, filteredParts, category, machineFilter]);
@@ -213,7 +213,7 @@ export default function JobKanban() {
                   <SelectContent>
                     <SelectItem value="all">All machines</SelectItem>
                     {machines
-                      .filter(m => category === 'all' || machineCategory(m.machine_name) === category)
+                      .filter(m => category === 'all' || machineCategory(m.machine_name, m.machine_type) === category)
                       .map(m => <SelectItem key={m.id} value={m.id}>{m.machine_name}</SelectItem>)}
                   </SelectContent>
                 </Select>
@@ -323,7 +323,7 @@ export default function JobKanban() {
                   <div className="text-sm font-semibold">{row.name}</div>
                   {row.id !== 'unassigned' && (
                     <div className="text-xs text-muted-foreground">
-                      {machineCategory(row.name)}{row.type ? ` · ${row.type}` : ''}
+                      {row.category}{row.type ? ` · ${row.type}` : ''}
                     </div>
                   )}
                 </div>
