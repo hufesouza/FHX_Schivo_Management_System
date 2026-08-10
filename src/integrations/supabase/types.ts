@@ -4966,6 +4966,315 @@ export type Database = {
         }
         Relationships: []
       }
+      sched_audit_log: {
+        Row: {
+          action: string
+          created_at: string
+          entity: string
+          entity_id: string | null
+          entity_label: string | null
+          id: string
+          new_value: Json | null
+          previous_value: Json | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          entity: string
+          entity_id?: string | null
+          entity_label?: string | null
+          id?: string
+          new_value?: Json | null
+          previous_value?: Json | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          entity?: string
+          entity_id?: string | null
+          entity_label?: string | null
+          id?: string
+          new_value?: Json | null
+          previous_value?: Json | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      sched_holidays: {
+        Row: {
+          created_at: string
+          holiday_date: string
+          id: string
+          label: string | null
+          machine_id: string | null
+          setter_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          holiday_date: string
+          id?: string
+          label?: string | null
+          machine_id?: string | null
+          setter_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          holiday_date?: string
+          id?: string
+          label?: string | null
+          machine_id?: string | null
+          setter_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sched_holidays_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "sched_machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sched_holidays_setter_id_fkey"
+            columns: ["setter_id"]
+            isOneToOne: false
+            referencedRelation: "sched_setters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sched_job_allocations: {
+        Row: {
+          alloc_date: string
+          created_at: string
+          hours: number
+          id: string
+          job_id: string
+          machine_id: string | null
+          setter_id: string | null
+        }
+        Insert: {
+          alloc_date: string
+          created_at?: string
+          hours: number
+          id?: string
+          job_id: string
+          machine_id?: string | null
+          setter_id?: string | null
+        }
+        Update: {
+          alloc_date?: string
+          created_at?: string
+          hours?: number
+          id?: string
+          job_id?: string
+          machine_id?: string | null
+          setter_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sched_job_allocations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "sched_jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sched_job_allocations_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "sched_machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sched_job_allocations_setter_id_fkey"
+            columns: ["setter_id"]
+            isOneToOne: false
+            referencedRelation: "sched_setters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sched_jobs: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer: string | null
+          development_hours: number
+          id: string
+          job_number: string
+          machine_id: string | null
+          notes: string | null
+          part_number: string | null
+          priority: Database["public"]["Enums"]["sched_job_priority"]
+          setter_id: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["sched_job_status"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer?: string | null
+          development_hours?: number
+          id?: string
+          job_number: string
+          machine_id?: string | null
+          notes?: string | null
+          part_number?: string | null
+          priority?: Database["public"]["Enums"]["sched_job_priority"]
+          setter_id?: string | null
+          start_date: string
+          status?: Database["public"]["Enums"]["sched_job_status"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer?: string | null
+          development_hours?: number
+          id?: string
+          job_number?: string
+          machine_id?: string | null
+          notes?: string | null
+          part_number?: string | null
+          priority?: Database["public"]["Enums"]["sched_job_priority"]
+          setter_id?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["sched_job_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sched_jobs_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "sched_machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sched_jobs_setter_id_fkey"
+            columns: ["setter_id"]
+            isOneToOne: false
+            referencedRelation: "sched_setters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sched_machines: {
+        Row: {
+          code: string
+          created_at: string
+          daily_hours: number
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          daily_hours?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          daily_hours?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sched_setter_days: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          hours: number
+          id: string
+          setter_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          hours?: number
+          id?: string
+          setter_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          hours?: number
+          id?: string
+          setter_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sched_setter_days_setter_id_fkey"
+            columns: ["setter_id"]
+            isOneToOne: false
+            referencedRelation: "sched_setters"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sched_setters: {
+        Row: {
+          break_minutes: number
+          color: string
+          created_at: string
+          end_time: string
+          id: string
+          is_active: boolean
+          name: string
+          notes: string | null
+          start_time: string
+          updated_at: string
+        }
+        Insert: {
+          break_minutes?: number
+          color?: string
+          created_at?: string
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          notes?: string | null
+          start_time?: string
+          updated_at?: string
+        }
+        Update: {
+          break_minutes?: number
+          color?: string
+          created_at?: string
+          end_time?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          notes?: string | null
+          start_time?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       system_quotations: {
         Row: {
           assignment_status: string | null
@@ -5557,6 +5866,13 @@ export type Database = {
         | "submitted"
         | "won"
         | "lost"
+      sched_job_priority: "low" | "medium" | "high" | "critical"
+      sched_job_status:
+        | "planned"
+        | "in_progress"
+        | "completed"
+        | "on_hold"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5701,6 +6017,14 @@ export const Constants = {
         "submitted",
         "won",
         "lost",
+      ],
+      sched_job_priority: ["low", "medium", "high", "critical"],
+      sched_job_status: [
+        "planned",
+        "in_progress",
+        "completed",
+        "on_hold",
+        "cancelled",
       ],
     },
   },
