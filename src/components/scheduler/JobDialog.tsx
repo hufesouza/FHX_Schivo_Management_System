@@ -26,6 +26,7 @@ interface JobDialogProps {
 
 const emptyForm = (date: string) => ({
   job_number: '',
+  po_number: '',
   part_number: '',
   customer: '',
   machine_id: '',
