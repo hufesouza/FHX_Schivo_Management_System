@@ -78,14 +78,7 @@ const NPIHub = () => {
 
   const isAdmin = role === 'admin';
   
-  // Filter modules based on user access
-  const visibleModules = subModules.filter(module => {
-    // NPI Projects only available to hferreira@schivomedical.com
-    if (module.id === 'npi-projects') {
-      return user?.email === 'hferreira@schivomedical.com';
-    }
-    return true;
-  });
+  const visibleModules = subModules;
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
