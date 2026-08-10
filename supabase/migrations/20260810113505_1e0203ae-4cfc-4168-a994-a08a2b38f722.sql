@@ -1,0 +1,12 @@
+DROP TABLE IF EXISTS public.balloon_features CASCADE;
+DROP TABLE IF EXISTS public.balloon_jobs CASCADE;
+DROP TABLE IF EXISTS public.meeting_recognitions CASCADE;
+DROP TABLE IF EXISTS public.meeting_participants CASCADE;
+DROP TABLE IF EXISTS public.meeting_flags CASCADE;
+DROP TABLE IF EXISTS public.meeting_actions CASCADE;
+DROP TABLE IF EXISTS public.meeting_topics CASCADE;
+DROP TABLE IF EXISTS public.meeting_customers CASCADE;
+DROP TABLE IF EXISTS public.daily_meetings CASCADE;
+DROP TABLE IF EXISTS public.tasks CASCADE;
+DROP TABLE IF EXISTS public.work_orders CASCADE;
+DROP TABLE IF EXISTS public.form_fields CASCADE;
