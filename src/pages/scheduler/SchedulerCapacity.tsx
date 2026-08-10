@@ -172,6 +172,18 @@ export default function SchedulerCapacity() {
                 <div className={cn('font-semibold', utilColor(item.util))}>{item.util}%</div>
               </div>
             </div>
+            {showSplit && (
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <div className="text-xs text-muted-foreground">Development hours</div>
+                  <div className="font-semibold">{fmtHours(item.dev ?? 0)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-muted-foreground">Production hours</div>
+                  <div className="font-semibold">{fmtHours(item.prod ?? 0)}</div>
+                </div>
+              </div>
+            )}
             <Progress value={Math.min(item.util, 100)} />
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -179,6 +191,8 @@ export default function SchedulerCapacity() {
                   <tr className="border-b border-border">
                     <th className="text-left py-1 px-2">Period</th>
                     <th className="text-right py-1 px-2">Capacity</th>
+                    {showSplit && <th className="text-right py-1 px-2">Development</th>}
+                    {showSplit && <th className="text-right py-1 px-2">Production</th>}
                     <th className="text-right py-1 px-2">Allocated</th>
                     <th className="text-right py-1 px-2">Available</th>
                     <th className="text-right py-1 px-2">Utilisation</th>
@@ -189,6 +203,8 @@ export default function SchedulerCapacity() {
                     <tr key={r.key} className="border-b border-border/60 last:border-0">
                       <td className="py-1 px-2">{r.label}</td>
                       <td className="py-1 px-2 text-right">{fmtHours(r.capacity)}</td>
+                      {showSplit && <td className="py-1 px-2 text-right">{fmtHours(r.dev ?? 0)}</td>}
+                      {showSplit && <td className="py-1 px-2 text-right">{fmtHours(r.prod ?? 0)}</td>}
                       <td className="py-1 px-2 text-right">{fmtHours(r.allocated)}</td>
                       <td className={cn('py-1 px-2 text-right', r.available < 0 && 'text-destructive font-semibold')}>
                         {fmtHours(r.available)}
@@ -197,6 +213,7 @@ export default function SchedulerCapacity() {
                     </tr>
                   ))}
                 </tbody>
+
               </table>
             </div>
           </CardContent>
