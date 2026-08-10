@@ -143,7 +143,16 @@ const App = () => (
           <Route path="/npi/capacity-planner-mvp/scheduling" element={<MVPSchedulingEngine />} />
           <Route path="/npi/capacity-planner-mvp/settings" element={<PlannerSettings />} />
 
-          
+
+          {/* NPI Resource Scheduling & Capacity Planning */}
+          <Route path="/scheduling" element={<SchedulerOverview />} />
+          <Route path="/scheduling/machines-calendar" element={<MachineCalendars />} />
+          <Route path="/scheduling/capacity" element={<SchedulerCapacity />} />
+          <Route path="/scheduling/jobs" element={<SchedulerJobs />} />
+          <Route path="/scheduling/machines" element={<SchedulerMachines />} />
+          <Route path="/scheduling/setters" element={<SchedulerSetters />} />
+          <Route path="/scheduling/audit" element={<SchedulerAudit />} />
+
           {/* Change Control Module */}
           <Route path="/change-control" element={<ChangeControlHub />} />
           
