@@ -109,6 +109,7 @@ export default function SchedulerJobs() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr>
+                  <th className="text-left py-2 px-3">PO#</th>
                   <th className="text-left py-2 px-3">Job</th>
                   <th className="text-left py-2 px-3">Part</th>
                   <th className="text-left py-2 px-3">Customer</th>
