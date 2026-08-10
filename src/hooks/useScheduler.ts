@@ -14,10 +14,15 @@ import type {
 import {
   buildSetterCalendar,
   detectConflicts,
+  detectProductionConflicts,
+  planProduction,
   planSchedule,
+  productionHours,
   type ConflictReport,
+  type ProductionConflictReport,
   type SchedulePlan,
 } from '@/utils/schedulerEngine';
+import type { CycleTimeUnit, ProductionStatus } from '@/types/scheduler';
 
 export interface JobInput {
   id?: string;
@@ -31,7 +36,14 @@ export interface JobInput {
   priority: SchedJob['priority'];
   status: SchedJob['status'];
   notes: string | null;
+  // production layer
+  production_quantity: number;
+  cycle_time: number;
+  cycle_time_unit: CycleTimeUnit;
+  production_start: string | null;
+  production_status: ProductionStatus;
 }
+
 
 export function useScheduler() {
   const { user } = useAuth();
