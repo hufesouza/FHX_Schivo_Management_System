@@ -22,7 +22,7 @@ export default function SchedulerJobs() {
   const scheduler = useScheduler();
   const { role } = useUserRole();
   const canEdit = !!role;
-  const { jobs, allocations, machineById, setterById, jobById } = scheduler;
+  const { jobs, devAllocations: allocations, prodAllocations, machineById, setterById, jobById } = scheduler;
   const [search, setSearch] = useState('');
   const [fStatus, setFStatus] = useState(ALL);
   const [fPriority, setFPriority] = useState(ALL);

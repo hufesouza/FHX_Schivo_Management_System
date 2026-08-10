@@ -35,7 +35,7 @@ export default function SchedulerOverview() {
   const [fPriority, setFPriority] = useState(ALL);
   const [fCustomer, setFCustomer] = useState('');
 
-  const { jobs, allocations, jobById, setterById, machineById, holidays, calendar, setters } = scheduler;
+  const { jobs, devAllocations: allocations, jobById, setterById, machineById, holidays, calendar, setters } = scheduler;
 
   const matchingJobIds = useMemo(() => {
     const set = new Set<string>();
