@@ -1,10 +1,11 @@
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { CalendarDays, Gauge, ListChecks, Cpu, Users, History, LayoutGrid, Factory } from 'lucide-react';
+import { CalendarDays, Gauge, ListChecks, Cpu, Users, History, LayoutGrid, Factory, Code2 } from 'lucide-react';
 
 const links = [
   { to: '/scheduling', label: 'Overview', icon: LayoutGrid, end: true },
   { to: '/scheduling/machines-calendar', label: 'Machine Calendars', icon: CalendarDays },
+  { to: '/scheduling/programming', label: 'Programming Calendar', icon: Code2 },
   { to: '/scheduling/production', label: 'Production Calendar', icon: Factory },
   { to: '/scheduling/capacity', label: 'Capacity', icon: Gauge },
   { to: '/scheduling/jobs', label: 'Jobs', icon: ListChecks },
