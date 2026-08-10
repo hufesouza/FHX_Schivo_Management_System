@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, X } from 'lucide-react';
-import { fmtHours, toISO } from '@/utils/schedulerEngine';
+import { fmtDuration, fmtHours, toISO } from '@/utils/schedulerEngine';
 import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '@/types/scheduler';
 
 const ALL = '__all__';
