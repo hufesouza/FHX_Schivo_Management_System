@@ -54,6 +54,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
     if (job) {
       setForm({
         job_number: job.job_number,
+        po_number: job.po_number ?? '',
         part_number: job.part_number ?? '',
         customer: job.customer ?? '',
         machine_id: job.machine_id ?? '',
