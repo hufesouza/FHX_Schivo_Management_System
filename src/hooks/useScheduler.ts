@@ -15,14 +15,17 @@ import {
   buildSetterCalendar,
   detectConflicts,
   detectProductionConflicts,
+  detectProgrammingConflicts,
   planProduction,
+  planProgramming,
   planSchedule,
   productionHours,
   type ConflictReport,
   type ProductionConflictReport,
+  type ProgrammingConflictReport,
   type SchedulePlan,
 } from '@/utils/schedulerEngine';
-import type { CycleTimeUnit, ProductionStatus } from '@/types/scheduler';
+import type { CycleTimeUnit, ProductionStatus, ProgrammingStatus } from '@/types/scheduler';
 
 export interface JobInput {
   id?: string;
@@ -43,6 +46,11 @@ export interface JobInput {
   cycle_time_unit: CycleTimeUnit;
   production_start: string | null;
   production_status: ProductionStatus;
+  // programming layer
+  programmer_id: string | null;
+  programming_hours: number;
+  programming_start: string | null;
+  programming_status: ProgrammingStatus;
 }
 
 
@@ -190,6 +198,27 @@ export function useScheduler() {
     [allocations, holidays, machines],
   );
 
+  /** Validate a programming plan against the programmer's own capacity (dev + programming). */
+  const validateProgramming = useCallback(
+    (input: {
+      jobId?: string | null;
+      programmerId: string | null;
+      startDate: string | null;
+      hours: number;
+    }): { plan: SchedulePlan; conflicts: ProgrammingConflictReport } => {
+      const p = planProgramming(input.startDate ?? '', input.hours, input.programmerId, calendar, holidays);
+      const conflicts = detectProgrammingConflicts(
+        p.allocations,
+        { jobId: input.jobId, programmerId: input.programmerId },
+        allocations,
+        calendar,
+        holidays,
+      );
+      return { plan: p, conflicts };
+    },
+    [allocations, calendar, holidays],
+  );
+
   const writeAllocations = useCallback(
     async (jobId: string, input: { setter_id: string | null; machine_id: string | null }, p: SchedulePlan) => {
       await supabase
@@ -235,6 +264,29 @@ export function useScheduler() {
     [],
   );
 
+  /** Programming allocations consume the programmer only — machine_id stays null. */
+  const writeProgrammingAllocations = useCallback(
+    async (jobId: string, programmerId: string | null, p: SchedulePlan) => {
+      await supabase
+        .from('sched_job_allocations')
+        .delete()
+        .eq('job_id', jobId)
+        .eq('alloc_type', 'programming');
+      if (p.allocations.length === 0) return;
+      const rows = p.allocations.map((a) => ({
+        job_id: jobId,
+        setter_id: programmerId,
+        machine_id: null,
+        alloc_date: a.alloc_date,
+        hours: a.hours,
+        alloc_type: 'programming',
+      }));
+      const { error } = await supabase.from('sched_job_allocations').insert(rows);
+      if (error) throw error;
+    },
+    [],
+  );
+
   const saveJob = useCallback(
     async (input: JobInput): Promise<{ ok: boolean; error?: string }> => {
       const p = planSchedule(input.start_date, input.development_hours, input.setter_id, calendar, holidays);
@@ -243,6 +295,13 @@ export function useScheduler() {
       const prodHours = productionHours(input.production_quantity, input.cycle_time, input.cycle_time_unit);
       const machine = machines.find((m) => m.id === input.machine_id);
       const prodPlan = planProduction(input.production_start ?? '', prodHours, machine, holidays);
+      const progPlan = planProgramming(
+        input.programming_start ?? '',
+        input.programming_hours,
+        input.programmer_id,
+        calendar,
+        holidays,
+      );
 
       const payload = {
         job_number: input.job_number,
@@ -262,6 +321,11 @@ export function useScheduler() {
         production_start: prodPlan.startDate ?? input.production_start,
         production_end: prodPlan.endDate,
         production_status: input.production_status,
+        programmer_id: input.programmer_id,
+        programming_hours: input.programming_hours,
+        programming_start: progPlan.startDate ?? input.programming_start,
+        programming_end: progPlan.endDate,
+        programming_status: input.programming_status,
       };
 
       try {
@@ -280,6 +344,7 @@ export function useScheduler() {
         }
         await writeAllocations(jobId!, input, p);
         await writeProductionAllocations(jobId!, input.machine_id, prodPlan);
+        await writeProgrammingAllocations(jobId!, input.programmer_id, progPlan);
         await logAudit({
           action: input.id ? 'update' : 'create',
           entity: 'job',
@@ -295,7 +360,7 @@ export function useScheduler() {
         return { ok: false, error: message };
       }
     },
-    [calendar, holidays, jobs, machines, logAudit, user, writeAllocations, writeProductionAllocations, fetchAll],
+    [calendar, holidays, jobs, machines, logAudit, user, writeAllocations, writeProductionAllocations, writeProgrammingAllocations, fetchAll],
   );
 
 
@@ -563,10 +628,57 @@ export function useScheduler() {
     [jobs, validateProduction, writeProductionAllocations, logAudit, fetchAll],
   );
 
+  /** Move a programming block to a new start date on the programmer's calendar. */
+  const moveProgramming = useCallback(
+    async (jobId: string, newStartDate: string): Promise<{ ok: boolean; error?: string }> => {
+      const job = jobs.find((j) => j.id === jobId);
+      if (!job) return { ok: false, error: 'Job not found' };
+      if (!job.programmer_id) return { ok: false, error: 'Assign a programmer before scheduling programming.' };
+      const { plan: p, conflicts } = validateProgramming({
+        jobId,
+        programmerId: job.programmer_id,
+        startDate: newStartDate,
+        hours: Number(job.programming_hours),
+      });
+      if (p.allocations.length === 0) {
+        return { ok: false, error: 'No programmer working hours available from that date (or no programming time set).' };
+      }
+      if (conflicts.hasConflicts) {
+        const first = conflicts.conflicts[0];
+        return {
+          ok: false,
+          error: `Resource capacity conflict on ${first.date}: ${first.existing}h already booked + ${first.requested}h requested vs ${first.capacity}h available (over by ${first.over}h).`,
+        };
+      }
+      try {
+        const { error } = await supabase
+          .from('sched_jobs')
+          .update({ programming_start: p.startDate, programming_end: p.endDate })
+          .eq('id', jobId);
+        if (error) throw error;
+        await writeProgrammingAllocations(jobId, job.programmer_id, p);
+        await logAudit({
+          action: 'move_programming',
+          entity: 'job',
+          entity_id: jobId,
+          entity_label: job.po_number ?? job.job_number,
+          previous_value: { programming_start: job.programming_start, programming_end: job.programming_end },
+          new_value: { programming_start: p.startDate, programming_end: p.endDate },
+        });
+        await fetchAll();
+        return { ok: true };
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : 'Failed to move programming' };
+      }
+    },
+    [jobs, validateProgramming, writeProgrammingAllocations, logAudit, fetchAll],
+  );
+
   const machineById = useMemo(() => Object.fromEntries(machines.map((m) => [m.id, m])), [machines]);
   const setterById = useMemo(() => Object.fromEntries(setters.map((s) => [s.id, s])), [setters]);
   const jobById = useMemo(() => Object.fromEntries(jobs.map((j) => [j.id, j])), [jobs]);
-  const devAllocations = useMemo(() => allocations.filter((a) => a.alloc_type !== 'production'), [allocations]);
+  const devAllocations = useMemo(() => allocations.filter((a) => a.alloc_type === 'development'), [allocations]);
+  const progAllocations = useMemo(() => allocations.filter((a) => a.alloc_type === 'programming'), [allocations]);
   const prodAllocations = useMemo(() => allocations.filter((a) => a.alloc_type === 'production'), [allocations]);
 
   return {
@@ -579,6 +691,7 @@ export function useScheduler() {
     allocations,
     devAllocations,
     prodAllocations,
+    progAllocations,
     audit,
     calendar,
     machineById,
@@ -588,9 +701,11 @@ export function useScheduler() {
     plan,
     validate,
     validateProduction,
+    validateProgramming,
     saveJob,
     moveJob,
     moveProduction,
+    moveProgramming,
 
     deleteJob,
     saveMachine,
