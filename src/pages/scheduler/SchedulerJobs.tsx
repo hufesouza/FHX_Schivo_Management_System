@@ -40,7 +40,7 @@ export default function SchedulerJobs() {
         if (fMachine !== ALL && j.machine_id !== fMachine) return false;
         if (fSetter !== ALL && j.setter_id !== fSetter) return false;
         if (!q) return true;
-        return [j.job_number, j.part_number, j.customer, j.notes]
+        return [j.po_number, j.job_number, j.part_number, j.customer, j.notes]
           .filter(Boolean)
           .some((v) => String(v).toLowerCase().includes(q));
       })
@@ -65,7 +65,7 @@ export default function SchedulerJobs() {
       <SchedulerNav />
       <div className="p-4 space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Input placeholder="Search job, part, customer…" className="w-64" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input placeholder="Search PO#, job, part, customer…" className="w-72" value={search} onChange={(e) => setSearch(e.target.value)} />
           <Select value={fStatus} onValueChange={setFStatus}>
             <SelectTrigger className="w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
@@ -109,6 +109,7 @@ export default function SchedulerJobs() {
             <table className="w-full text-sm">
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr>
+                  <th className="text-left py-2 px-3">PO#</th>
                   <th className="text-left py-2 px-3">Job</th>
                   <th className="text-left py-2 px-3">Part</th>
                   <th className="text-left py-2 px-3">Customer</th>
@@ -134,6 +135,7 @@ export default function SchedulerJobs() {
                     className="border-b border-border/60 last:border-0 hover:bg-accent/50 cursor-pointer"
                     onClick={() => { setEditJobId(job.id); setDialogOpen(true); }}
                   >
+                    <td className="py-2 px-3 font-semibold">{job.po_number ?? '—'}</td>
                     <td className="py-2 px-3 font-medium">{job.job_number}</td>
                     <td className="py-2 px-3">{job.part_number ?? '—'}</td>
                     <td className="py-2 px-3">{job.customer ?? '—'}</td>

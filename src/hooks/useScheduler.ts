@@ -27,6 +27,7 @@ import type { CycleTimeUnit, ProductionStatus } from '@/types/scheduler';
 export interface JobInput {
   id?: string;
   job_number: string;
+  po_number: string;
   part_number: string | null;
   customer: string | null;
   machine_id: string | null;
@@ -245,6 +246,7 @@ export function useScheduler() {
 
       const payload = {
         job_number: input.job_number,
+        po_number: input.po_number,
         part_number: input.part_number,
         customer: input.customer,
         machine_id: input.machine_id,

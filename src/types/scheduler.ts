@@ -51,6 +51,7 @@ export type AllocType = 'development' | 'production';
 export interface SchedJob {
   id: string;
   job_number: string;
+  po_number: string;
   part_number: string | null;
   customer: string | null;
   machine_id: string | null;

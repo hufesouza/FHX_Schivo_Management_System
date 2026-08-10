@@ -147,15 +147,17 @@ export function MonthCalendar({
                       }}
                       className="rounded px-1 py-0.5 cursor-pointer text-[10px] leading-tight border-l-2 bg-accent/60 hover:bg-accent"
                       style={{ borderLeftColor: color }}
-                      title={`${job.job_number} · ${job.part_number ?? ''} · ${job.customer ?? ''}`}
+                      title={`${job.po_number ?? ''} · ${job.job_number} · ${job.part_number ?? ''} · ${job.customer ?? ''}`}
                     >
-                      <div className="font-semibold truncate">{job.job_number}</div>
+                      <div className="font-semibold truncate">{job.po_number || job.job_number}</div>
+                      <div className="truncate text-muted-foreground">{job.job_number}</div>
                       <div className="truncate text-muted-foreground">
                         {mode === 'production'
                           ? `${Number(job.production_quantity) || 0} pcs`
                           : setter?.name ?? 'No setter'}
                       </div>
                       <div className="text-muted-foreground">{fmtHours(a.hours)}</div>
+
 
                     </div>
                   );

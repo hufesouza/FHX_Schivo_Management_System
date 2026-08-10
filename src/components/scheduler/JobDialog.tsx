@@ -26,6 +26,7 @@ interface JobDialogProps {
 
 const emptyForm = (date: string) => ({
   job_number: '',
+  po_number: '',
   part_number: '',
   customer: '',
   machine_id: '',
@@ -53,6 +54,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
     if (job) {
       setForm({
         job_number: job.job_number,
+        po_number: job.po_number ?? '',
         part_number: job.part_number ?? '',
         customer: job.customer ?? '',
         machine_id: job.machine_id ?? '',
@@ -108,7 +110,18 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
 
   const suggestedProdStart = plan.endDate ? addDays(plan.endDate, 1) : form.start_date;
 
+  const poTrimmed = form.po_number.trim();
+  const duplicatePo = useMemo(
+    () =>
+      !!poTrimmed &&
+      Object.values(jobById).some(
+        (j) => j && j.id !== job?.id && (j.po_number ?? '').trim().toLowerCase() === poTrimmed.toLowerCase(),
+      ),
+    [jobById, job?.id, poTrimmed],
+  );
+
   const missing: string[] = [];
+  if (!poTrimmed) missing.push('PO#');
   if (!form.part_number.trim()) missing.push('Part number');
   if (!form.start_date) missing.push('Start date');
   if (!form.setter_id) missing.push('Setter');
@@ -120,6 +133,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
   const noMachineDays = hasProduction && !!form.production_start && production.plan.allocations.length === 0;
   const blocked =
     missing.length > 0 ||
+    duplicatePo ||
     conflicts.hasConflicts ||
     !!noWorkingDays ||
     noMachineDays ||
@@ -132,6 +146,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
     const res = await saveJob({
       id: job?.id,
       job_number: form.part_number.trim(),
+      po_number: poTrimmed,
       part_number: form.part_number.trim(),
 
       customer: form.customer.trim() || null,
@@ -154,7 +169,8 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
       toast.success(job ? 'Job updated' : 'Job created');
       onOpenChange(false);
     } else {
-      toast.error(res.error || 'Failed to save job');
+      const dup = /duplicate key|po_number/i.test(res.error ?? '');
+      toast.error(dup ? 'PO# already exists.' : res.error || 'Failed to save job');
     }
   };
 
@@ -162,13 +178,24 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{job ? `Job ${job.job_number}` : 'Add Job'}</DialogTitle>
+          <DialogTitle>{job ? `${job.po_number ?? ''} · Job ${job.job_number}` : 'Add Job'}</DialogTitle>
           <DialogDescription>
             The schedule is calculated from the setter's working calendar — weekends, zero-hour days and holidays are skipped.
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label>PO# *</Label>
+            <Input
+              value={form.po_number}
+              disabled={!canEdit}
+              onChange={(e) => setForm({ ...form, po_number: e.target.value })}
+              placeholder="PO-123456"
+              aria-invalid={duplicatePo}
+            />
+            {duplicatePo && <p className="text-xs text-destructive">PO# already exists.</p>}
+          </div>
           <div className="space-y-1.5">
             <Label>Part number *</Label>
             <Input
@@ -391,7 +418,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
               </div>
               <div className="flex flex-wrap gap-1 pt-1">
                 {production.conflicts.conflictingJobIds.map((id) => (
-                  <Badge key={id} variant="outline">{jobById[id]?.job_number ?? id.slice(0, 8)}</Badge>
+                  <Badge key={id} variant="outline">{jobById[id]?.po_number ?? jobById[id]?.job_number ?? id.slice(0, 8)}</Badge>
                 ))}
               </div>
               <p className="text-xs">Options: move the production start date, choose another machine, or split the quantity.</p>
@@ -472,7 +499,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
               </div>
               <div className="flex flex-wrap gap-1 pt-1">
                 {conflicts.conflictingJobIds.map((id) => (
-                  <Badge key={id} variant="outline">{jobById[id]?.job_number ?? id.slice(0, 8)}</Badge>
+                  <Badge key={id} variant="outline">{jobById[id]?.po_number ?? jobById[id]?.job_number ?? id.slice(0, 8)}</Badge>
                 ))}
               </div>
               <p className="text-xs">Options: change start date, change setter, reduce development time, or cancel.</p>

@@ -3912,6 +3912,7 @@ export type Database = {
           machine_id: string | null
           notes: string | null
           part_number: string | null
+          po_number: string
           priority: Database["public"]["Enums"]["sched_job_priority"]
           production_end: string | null
           production_quantity: number
@@ -3934,6 +3935,7 @@ export type Database = {
           machine_id?: string | null
           notes?: string | null
           part_number?: string | null
+          po_number: string
           priority?: Database["public"]["Enums"]["sched_job_priority"]
           production_end?: string | null
           production_quantity?: number
@@ -3956,6 +3958,7 @@ export type Database = {
           machine_id?: string | null
           notes?: string | null
           part_number?: string | null
+          po_number?: string
           priority?: Database["public"]["Enums"]["sched_job_priority"]
           production_end?: string | null
           production_quantity?: number

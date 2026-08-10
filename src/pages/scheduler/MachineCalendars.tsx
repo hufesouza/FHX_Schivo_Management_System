@@ -25,6 +25,7 @@ export default function MachineCalendars() {
   const [month, setMonth] = useState(now.getMonth());
   const [fMachine, setFMachine] = useState(ALL);
   const [fSetter, setFSetter] = useState(ALL);
+  const [fPo, setFPo] = useState('');
   const [fCustomer, setFCustomer] = useState('');
   const [fJob, setFJob] = useState('');
   const [fPart, setFPart] = useState('');
@@ -33,19 +34,20 @@ export default function MachineCalendars() {
 
   const { machines, setters, jobs, devAllocations: allocations, jobById, setterById, holidays } = scheduler;
 
+  const filtersActive = fMachine !== ALL || fSetter !== ALL || !!fPo || !!fCustomer || !!fJob || !!fPart;
+
   const matching = useMemo(() => {
     const set = new Set<string>();
     for (const j of jobs) {
       if (fSetter !== ALL && j.setter_id !== fSetter) continue;
+      if (fPo && !(j.po_number ?? '').toLowerCase().includes(fPo.toLowerCase())) continue;
       if (fCustomer && !(j.customer ?? '').toLowerCase().includes(fCustomer.toLowerCase())) continue;
       if (fJob && !j.job_number.toLowerCase().includes(fJob.toLowerCase())) continue;
       if (fPart && !(j.part_number ?? '').toLowerCase().includes(fPart.toLowerCase())) continue;
       set.add(j.id);
     }
     return set;
-  }, [jobs, fSetter, fCustomer, fJob, fPart]);
-
-  const shownMachines = fMachine === ALL ? machines : machines.filter((m) => m.id === fMachine);
+  }, [jobs, fSetter, fPo, fCustomer, fJob, fPart]);
 
   const jobRows = (machineId: string) =>
     jobs
@@ -58,6 +60,16 @@ export default function MachineCalendars() {
           end: allocs[allocs.length - 1]?.alloc_date ?? j.start_date,
         };
       });
+
+  const shownMachines = useMemo(() => {
+    let list = fMachine === ALL ? machines : machines.filter((m) => m.id === fMachine);
+    if (filtersActive) {
+      const withJobs = new Set(jobs.filter((j) => matching.has(j.id) && j.machine_id).map((j) => j.machine_id as string));
+      list = list.filter((m) => withJobs.has(m.id));
+    }
+    return list;
+  }, [machines, fMachine, filtersActive, jobs, matching]);
+
 
   return (
     <AppLayout title="Machine Calendars" subtitle="NPI jobs by machine" showBackButton backTo="/scheduling">
@@ -83,18 +95,38 @@ export default function MachineCalendars() {
                 {setters.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
               </SelectContent>
             </Select>
+            <div className="relative">
+              <Input placeholder="PO# search" className="w-[170px] pr-7" value={fPo} onChange={(e) => setFPo(e.target.value)} />
+              {fPo && (
+                <button
+                  aria-label="Clear PO# filter"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setFPo('')}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
             <Input placeholder="Customer" className="w-[160px]" value={fCustomer} onChange={(e) => setFCustomer(e.target.value)} />
             <Input placeholder="Job number" className="w-[150px]" value={fJob} onChange={(e) => setFJob(e.target.value)} />
             <Input placeholder="Part number" className="w-[150px]" value={fPart} onChange={(e) => setFPart(e.target.value)} />
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => { setFMachine(ALL); setFSetter(ALL); setFCustomer(''); setFJob(''); setFPart(''); }}
+              onClick={() => { setFMachine(ALL); setFSetter(ALL); setFPo(''); setFCustomer(''); setFJob(''); setFPart(''); }}
             >
               <X className="h-4 w-4 mr-1" /> Clear filters
             </Button>
           </CardContent>
         </Card>
+
+        {shownMachines.length === 0 && (
+          <Card>
+            <CardContent className="p-6 text-sm text-muted-foreground text-center">
+              No jobs match the selected filters.
+            </CardContent>
+          </Card>
+        )}
 
         {shownMachines.map((m) => {
           const machineAllocs = allocations.filter((a) => a.machine_id === m.id && matching.has(a.job_id));
@@ -131,6 +163,7 @@ export default function MachineCalendars() {
                     <table className="w-full text-xs">
                       <thead className="text-muted-foreground">
                         <tr className="border-b border-border">
+                          <th className="text-left py-1 px-2">PO#</th>
                           <th className="text-left py-1 px-2">Job</th>
                           <th className="text-left py-1 px-2">Part</th>
                           <th className="text-left py-1 px-2">Customer</th>
@@ -147,6 +180,7 @@ export default function MachineCalendars() {
                             className="border-b border-border/60 last:border-0 hover:bg-accent/50 cursor-pointer"
                             onClick={() => { setEditJobId(job.id); setDialogOpen(true); }}
                           >
+                            <td className="py-1 px-2 font-semibold">{job.po_number ?? '—'}</td>
                             <td className="py-1 px-2 font-medium">{job.job_number}</td>
                             <td className="py-1 px-2">{job.part_number ?? '—'}</td>
                             <td className="py-1 px-2">{job.customer ?? '—'}</td>
