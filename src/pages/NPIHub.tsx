@@ -41,6 +41,15 @@ import { ReceiptText, BarChart3, LineChart } from 'lucide-react';
 
 const subModules = [
   {
+    id: 'resource-scheduling',
+    title: 'Resource Scheduling',
+    description: 'Shared NPI calendar with setter/machine capacity, overbooking prevention and live multi-user updates',
+    icon: CalendarDays,
+    href: '/scheduling',
+    color: 'bg-sky-500/10 text-sky-600 border-sky-500/20',
+    available: true,
+  },
+  {
     id: 'npi-projects',
     title: 'NPI Projects',
     description: 'Full NPI project management with charter, design transfer checklist and gate reviews',
