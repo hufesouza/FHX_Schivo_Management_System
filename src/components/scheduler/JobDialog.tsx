@@ -9,8 +9,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { SchedJob, SchedJobPriority, SchedJobStatus, CycleTimeUnit, ProductionStatus } from '@/types/scheduler';
-import { PRIORITY_OPTIONS, STATUS_OPTIONS, CYCLE_TIME_UNITS, PRODUCTION_STATUS_OPTIONS } from '@/types/scheduler';
+import type { SchedJob, SchedJobPriority, SchedJobStatus, CycleTimeUnit, ProductionStatus, ProgrammingStatus } from '@/types/scheduler';
+import { PRIORITY_OPTIONS, STATUS_OPTIONS, CYCLE_TIME_UNITS, PRODUCTION_STATUS_OPTIONS, PROGRAMMING_STATUS_OPTIONS } from '@/types/scheduler';
 import { addDays, fmtDuration, fmtHours, toISO } from '@/utils/schedulerEngine';
 import type { useScheduler } from '@/hooks/useScheduler';
 
@@ -41,11 +41,15 @@ const emptyForm = (date: string) => ({
   cycle_time_unit: 'minutes' as CycleTimeUnit,
   production_start: '',
   production_status: 'not_scheduled' as ProductionStatus,
+  programmer_id: '',
+  programming_hours: '',
+  programming_start: '',
+  programming_status: 'not_scheduled' as ProgrammingStatus,
 });
 
 
 export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, canEdit = true }: JobDialogProps) {
-  const { machines, setters, validate, validateProduction, saveJob, deleteJob, jobById } = scheduler;
+  const { machines, setters, validate, validateProduction, validateProgramming, saveJob, deleteJob, jobById } = scheduler;
   const [form, setForm] = useState(emptyForm(defaultDate || toISO(new Date())));
   const [saving, setSaving] = useState(false);
 
@@ -69,6 +73,10 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         cycle_time_unit: job.cycle_time_unit ?? 'minutes',
         production_start: job.production_start ?? '',
         production_status: job.production_status ?? 'not_scheduled',
+        programmer_id: job.programmer_id ?? '',
+        programming_hours: job.programming_hours ? String(job.programming_hours) : '',
+        programming_start: job.programming_start ?? '',
+        programming_status: job.programming_status ?? 'not_scheduled',
       });
     } else {
       setForm(emptyForm(defaultDate || toISO(new Date())));
@@ -108,7 +116,26 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
     [validateProduction, job?.id, form.machine_id, form.production_start, form.cycle_time_unit, qty, cycle],
   );
 
-  const suggestedProdStart = plan.endDate ? addDays(plan.endDate, 1) : form.start_date;
+  const progHours = Number(form.programming_hours) || 0;
+  const hasProgramming = progHours > 0;
+
+  const programming = useMemo(
+    () =>
+      validateProgramming({
+        jobId: job?.id ?? null,
+        programmerId: form.programmer_id || null,
+        startDate: form.programming_start || null,
+        hours: progHours,
+      }),
+    [validateProgramming, job?.id, form.programmer_id, form.programming_start, progHours],
+  );
+
+  const suggestedProgStart = plan.endDate ? addDays(plan.endDate, 1) : form.start_date;
+  const suggestedProdStart = programming.plan.endDate
+    ? addDays(programming.plan.endDate, 1)
+    : plan.endDate
+      ? addDays(plan.endDate, 1)
+      : form.start_date;
 
   const poTrimmed = form.po_number.trim();
   const duplicatePo = useMemo(
@@ -128,16 +155,22 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
   if (!form.machine_id) missing.push('Machine');
   if (hours <= 0) missing.push('Development hours');
   if (hasProduction && !form.production_start) missing.push('Production start date');
+  if (hasProgramming && !form.programmer_id) missing.push('Programmer');
+  if (hasProgramming && !form.programming_start) missing.push('Programming start date');
 
   const noWorkingDays = form.setter_id && hours > 0 && plan.allocations.length === 0;
   const noMachineDays = hasProduction && !!form.production_start && production.plan.allocations.length === 0;
+  const noProgrammerDays =
+    hasProgramming && !!form.programmer_id && !!form.programming_start && programming.plan.allocations.length === 0;
   const blocked =
     missing.length > 0 ||
     duplicatePo ||
     conflicts.hasConflicts ||
     !!noWorkingDays ||
     noMachineDays ||
-    (hasProduction && production.conflicts.hasConflicts);
+    (hasProduction && production.conflicts.hasConflicts) ||
+    noProgrammerDays ||
+    (hasProgramming && programming.conflicts.hasConflicts);
 
 
   const handleSave = async () => {
@@ -162,6 +195,10 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
       cycle_time_unit: form.cycle_time_unit,
       production_start: hasProduction ? form.production_start || null : null,
       production_status: form.production_status,
+      programmer_id: hasProgramming ? form.programmer_id || null : null,
+      programming_hours: progHours,
+      programming_start: hasProgramming ? form.programming_start || null : null,
+      programming_status: form.programming_status,
     });
 
     setSaving(false);
@@ -284,6 +321,136 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
             />
           </div>
         </div>
+
+        {/* ---------------- Programming layer ---------------- */}
+        <div className="rounded-lg border border-border p-3 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h4 className="text-sm font-semibold">Programming (optional)</h4>
+              <p className="text-xs text-muted-foreground">
+                Programming consumes the programmer's working hours only — the machine stays completely available.
+              </p>
+            </div>
+            <Badge variant="outline">Resource capacity only</Badge>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Programmer</Label>
+              <Select
+                value={form.programmer_id}
+                onValueChange={(v) => setForm({ ...form, programmer_id: v })}
+                disabled={!canEdit}
+              >
+                <SelectTrigger><SelectValue placeholder="Select programmer" /></SelectTrigger>
+                <SelectContent>
+                  {setters.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Programming time (hours)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.5"
+                value={form.programming_hours}
+                disabled={!canEdit}
+                onChange={(e) => setForm({ ...form, programming_hours: e.target.value })}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Programming start date</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  value={form.programming_start}
+                  disabled={!canEdit}
+                  onChange={(e) => setForm({ ...form, programming_start: e.target.value })}
+                />
+                {canEdit && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setForm({ ...form, programming_start: suggestedProgStart })}
+                  >
+                    After dev
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Programming status</Label>
+              <Select
+                value={form.programming_status}
+                onValueChange={(v) => setForm({ ...form, programming_status: v as ProgrammingStatus })}
+                disabled={!canEdit}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PROGRAMMING_STATUS_OPTIONS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-border bg-muted/40 p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            <div>
+              <div className="text-xs text-muted-foreground">Programming time</div>
+              <div className="font-semibold">{hasProgramming ? fmtDuration(progHours) : '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Programming start</div>
+              <div className="font-semibold">{programming.plan.startDate ?? '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Programming end</div>
+              <div className="font-semibold">{programming.plan.endDate ?? '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Machine impact</div>
+              <div className="font-semibold">0h</div>
+            </div>
+          </div>
+        </div>
+
+        {noProgrammerDays && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Cannot schedule programming</AlertTitle>
+            <AlertDescription>
+              The selected programmer has no working hours available from {form.programming_start}. Change the date, the
+              programmer, or their working calendar.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {hasProgramming && programming.conflicts.hasConflicts && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Resource capacity conflict — programming</AlertTitle>
+            <AlertDescription className="space-y-1">
+              <p>
+                Resource: <strong>{setters.find((s) => s.id === form.programmer_id)?.name}</strong> — over capacity by{' '}
+                <strong>{fmtHours(programming.conflicts.totalOver)}</strong> (development + programming combined).
+              </p>
+              <div className="max-h-32 overflow-y-auto">
+                {programming.conflicts.conflicts.map((c) => (
+                  <div key={c.date} className="text-xs">
+                    {c.date}: booked {fmtHours(c.existing)} + required {fmtHours(c.requested)} vs available {fmtHours(c.capacity)} → over {fmtHours(c.over)}
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1 pt-1">
+                {programming.conflicts.conflictingJobIds.map((id) => (
+                  <Badge key={id} variant="outline">{jobById[id]?.po_number ?? jobById[id]?.job_number ?? id.slice(0, 8)}</Badge>
+                ))}
+              </div>
+              <p className="text-xs">Options: change programmer, change the programming date, reduce the time, or cancel.</p>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* ---------------- Production layer ---------------- */}
         <div className="rounded-lg border border-border p-3 space-y-3">
