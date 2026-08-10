@@ -124,16 +124,12 @@ const App = () => (
           {/* Manufacturing Engineering Module */}
           <Route path="/manufacturing" element={<ManufacturingHub />} />
           
-          {/* Work Order (shared) */}
-          <Route path="/work-order/:id" element={<WorkOrderForm />} />
-          
           {/* Admin */}
           <Route path="/admin/users" element={<AdminUsers />} />
-          <Route path="/admin/form-fields" element={<AdminFormFields />} />
-          
+
           {/* User */}
-          <Route path="/tasks" element={<Tasks />} />
           <Route path="/profile" element={<Profile />} />
+
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
