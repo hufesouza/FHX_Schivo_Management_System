@@ -13,18 +13,11 @@ import {
   Users, 
   Shield, 
   User,
-  FileCheck,
-  Calculator,
   ChevronRight,
   ArrowLeft,
   ClipboardList,
-  Bell,
   CalendarDays,
   FolderKanban,
-  FileType2,
-  FileSpreadsheet,
-  CircleDot,
-  Presentation,
   Gauge
 } from 'lucide-react';
 import {
@@ -36,7 +29,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
-import { ReceiptText, BarChart3, LineChart } from 'lucide-react';
+import { BarChart3, LineChart } from 'lucide-react';
 
 const subModules = [
   {
