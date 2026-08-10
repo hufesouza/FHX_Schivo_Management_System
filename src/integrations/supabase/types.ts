@@ -3918,6 +3918,11 @@ export type Database = {
           production_quantity: number
           production_start: string | null
           production_status: string
+          programmer_id: string | null
+          programming_end: string | null
+          programming_hours: number
+          programming_start: string | null
+          programming_status: string
           setter_id: string | null
           start_date: string
           status: Database["public"]["Enums"]["sched_job_status"]
@@ -3941,6 +3946,11 @@ export type Database = {
           production_quantity?: number
           production_start?: string | null
           production_status?: string
+          programmer_id?: string | null
+          programming_end?: string | null
+          programming_hours?: number
+          programming_start?: string | null
+          programming_status?: string
           setter_id?: string | null
           start_date: string
           status?: Database["public"]["Enums"]["sched_job_status"]
@@ -3964,6 +3974,11 @@ export type Database = {
           production_quantity?: number
           production_start?: string | null
           production_status?: string
+          programmer_id?: string | null
+          programming_end?: string | null
+          programming_hours?: number
+          programming_start?: string | null
+          programming_status?: string
           setter_id?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["sched_job_status"]
@@ -3975,6 +3990,13 @@ export type Database = {
             columns: ["machine_id"]
             isOneToOne: false
             referencedRelation: "sched_machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sched_jobs_programmer_id_fkey"
+            columns: ["programmer_id"]
+            isOneToOne: false
+            referencedRelation: "sched_setters"
             referencedColumns: ["id"]
           },
           {

@@ -21,8 +21,8 @@ export interface MonthCalendarProps {
   onOpenJob?: (jobId: string) => void;
   onMoveJob?: (jobId: string, iso: string) => void;
   nonWorking?: (iso: string) => boolean;
-  /** 'production' shows quantity instead of setter name on each chip. */
-  mode?: 'development' | 'production';
+  /** 'production' shows quantity, 'programming' shows the programmer on each chip. */
+  mode?: 'development' | 'production' | 'programming';
 
 }
 
@@ -134,7 +134,8 @@ export function MonthCalendar({
                 {dayAllocs.slice(0, 4).map((a) => {
                   const job = jobById[a.job_id];
                   if (!job) return null;
-                  const setter = job.setter_id ? setterById[job.setter_id] : undefined;
+                  const resourceId = mode === 'programming' ? a.setter_id : job.setter_id;
+                  const setter = resourceId ? setterById[resourceId] : undefined;
                   const color = setter?.color || '#64748b';
                   return (
                     <div
@@ -150,11 +151,13 @@ export function MonthCalendar({
                       title={`${job.po_number ?? ''} · ${job.job_number} · ${job.part_number ?? ''} · ${job.customer ?? ''}`}
                     >
                       <div className="font-semibold truncate">{job.po_number || job.job_number}</div>
-                      <div className="truncate text-muted-foreground">{job.job_number}</div>
+                      <div className="truncate text-muted-foreground">
+                        {mode === 'programming' ? 'PROGRAMMING' : job.job_number}
+                      </div>
                       <div className="truncate text-muted-foreground">
                         {mode === 'production'
                           ? `${Number(job.production_quantity) || 0} pcs`
-                          : setter?.name ?? 'No setter'}
+                          : setter?.name ?? (mode === 'programming' ? 'No programmer' : 'No setter')}
                       </div>
                       <div className="text-muted-foreground">{fmtHours(a.hours)}</div>
 

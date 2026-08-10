@@ -204,7 +204,16 @@ export const detectConflicts = (
     // --- setter capacity ---
     if (ctx.setterId) {
       const capacity = setterHoursOn(slot.alloc_date, ctx.setterId, cal, holidays);
-      const rows = sameDay.filter((a) => a.setter_id === ctx.setterId);
+      // Programming rows of the job itself still consume the person's time.
+      const ownProgramming = existingAllocations.filter(
+        (a) =>
+          a.alloc_date === slot.alloc_date &&
+          a.alloc_type === 'programming' &&
+          a.job_id === ctx.jobId,
+      );
+      const rows = [...sameDay, ...ownProgramming].filter(
+        (a) => a.setter_id === ctx.setterId && a.alloc_type !== 'production',
+      );
       const existing = round2(rows.reduce((a, b) => a + Number(b.hours), 0));
       const over = round2(existing + slot.hours - capacity);
       if (over > 0.01) {
@@ -395,6 +404,79 @@ export const detectProductionConflicts = (
         a.alloc_date === slot.alloc_date &&
         a.machine_id === ctx.machineId &&
         !(a.job_id === ctx.jobId && a.alloc_type === 'production'),
+    );
+    const existing = round2(rows.reduce((a, b) => a + Number(b.hours), 0));
+    const over = round2(existing + slot.hours - capacity);
+    if (over > 0.01) {
+      rows.forEach((r) => conflicting.add(r.job_id));
+      conflicts.push({
+        date: slot.alloc_date,
+        capacity,
+        existing,
+        requested: slot.hours,
+        over,
+        jobIds: rows.map((r) => r.job_id),
+      });
+    }
+  }
+
+  return {
+    conflicts,
+    hasConflicts: conflicts.length > 0,
+    totalOver: round2(conflicts.reduce((a, b) => a + b.over, 0)),
+    conflictingJobIds: Array.from(conflicting),
+  };
+};
+
+
+/** Programming layer -------------------------------------------------
+ * Programming consumes the PROGRAMMER (setter resource) only.
+ * It never creates a machine allocation and never causes a machine conflict.
+ */
+
+export interface ProgrammingConflictReport {
+  conflicts: SetterConflict[];
+  hasConflicts: boolean;
+  totalOver: number;
+  conflictingJobIds: string[];
+}
+
+/** Spread programming hours across the programmer's working calendar. */
+export const planProgramming = (
+  startDate: string,
+  hours: number,
+  programmerId: string | null,
+  cal: SetterCalendarMap,
+  holidays: SchedHoliday[],
+): SchedulePlan => planSchedule(startDate, hours, programmerId, cal, holidays);
+
+/**
+ * Capacity check for a programming plan against the programmer's calendar.
+ * Counts development + programming allocations already booked on that person.
+ * Machine capacity is deliberately NOT considered.
+ */
+export const detectProgrammingConflicts = (
+  plan: PlannedAllocation[],
+  ctx: { jobId?: string | null; programmerId: string | null },
+  existingAllocations: SchedAllocation[],
+  cal: SetterCalendarMap,
+  holidays: SchedHoliday[],
+): ProgrammingConflictReport => {
+  const conflicts: SetterConflict[] = [];
+  const conflicting = new Set<string>();
+
+  if (!ctx.programmerId) {
+    return { conflicts, hasConflicts: false, totalOver: 0, conflictingJobIds: [] };
+  }
+
+  for (const slot of plan) {
+    const capacity = setterHoursOn(slot.alloc_date, ctx.programmerId, cal, holidays);
+    const rows = existingAllocations.filter(
+      (a) =>
+        a.alloc_date === slot.alloc_date &&
+        a.setter_id === ctx.programmerId &&
+        a.alloc_type !== 'production' &&
+        !(a.job_id === ctx.jobId && a.alloc_type === 'programming'),
     );
     const existing = round2(rows.reduce((a, b) => a + Number(b.hours), 0));
     const over = round2(existing + slot.hours - capacity);
