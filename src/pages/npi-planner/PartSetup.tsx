@@ -270,7 +270,7 @@ export default function PartSetup() {
 
       toast.success('Part created and allocated');
       reload();
-      navigate('/npi/capacity-planner/jobs');
+      navigate('/npi/capacity-planner-mvp/jobs');
     } catch (e: any) {
       toast.error(e.message || 'Failed to save');
     } finally {
@@ -278,10 +278,10 @@ export default function PartSetup() {
     }
   };
 
-  if (loading) return <AppLayout title="New Part" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin"/></div></AppLayout>;
+  if (loading) return <AppLayout title="New Part" showBackButton backTo="/npi/capacity-planner-mvp"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin"/></div></AppLayout>;
 
   return (
-    <AppLayout title="New Part / Job" subtitle="Setup & machine allocation" showBackButton backTo="/npi/capacity-planner">
+    <AppLayout title="New Part / Job" subtitle="Setup & machine allocation" showBackButton backTo="/npi/capacity-planner-mvp">
       <main className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
@@ -475,7 +475,7 @@ export default function PartSetup() {
               <Input placeholder="Search machines..." value={machineSearch} onChange={e => setMachineSearch(e.target.value)} className="mb-2" />
               {machines.length === 0 ? (
                 <div className="text-sm text-muted-foreground border rounded-md p-4 text-center">
-                  No NPI machines yet. Set them up in the <a href="/npi/capacity-planner/settings?tab=machines" className="underline text-primary">Machines</a> page from the Capacity Planner front page.
+                  No NPI machines yet. Set them up in the <a href="/npi/capacity-planner-mvp/settings?tab=machines" className="underline text-primary">Machines</a> page from the Capacity Planner front page.
                 </div>
               ) : (
                 <>
@@ -534,7 +534,7 @@ export default function PartSetup() {
         </Card>
 
         <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => navigate('/npi/capacity-planner')}>Cancel</Button>
+          <Button variant="outline" onClick={() => navigate('/npi/capacity-planner-mvp')}>Cancel</Button>
           <Button onClick={handleSave} disabled={saving}>{saving ? 'Saving…' : 'Save part'}</Button>
         </div>
       </main>

@@ -42,39 +42,12 @@ const subModules = [
     available: true,
   },
   {
-    id: 'npi-projects',
-    title: 'NPI Projects',
-    description: 'Full NPI project management with charter, design transfer checklist and gate reviews',
-    icon: FolderKanban,
-    href: '/npi/projects',
-    color: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/20',
-    available: true,
-  },
-  {
-    id: 'npi-pipeline',
-    title: 'NPI Pipeline',
-    description: 'Track NPI projects with prerequisites, post-MC activities and readiness status',
-    icon: ClipboardList,
-    href: '/npi/pipeline',
-    color: 'bg-cyan-500/10 text-cyan-600 border-cyan-500/20',
-    available: true,
-  },
-  {
     id: 'quotation-dashboard',
     title: 'Quotation Dashboard',
     description: 'Upload enquiry log Excel and view KPIs, charts, and analytics',
     icon: BarChart3,
     href: '/npi/quotation-dashboard',
     color: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
-    available: true,
-  },
-  {
-    id: 'capacity-planner',
-    title: 'NPI Capacity Planner',
-    description: 'Plan jobs, allocate the best machine, find next available gaps and track capacity, tooling, material & subcon',
-    icon: Gauge,
-    href: '/npi/capacity-planner',
-    color: 'bg-fuchsia-500/10 text-fuchsia-600 border-fuchsia-500/20',
     available: true,
   },
   {
@@ -105,14 +78,7 @@ const NPIHub = () => {
 
   const isAdmin = role === 'admin';
   
-  // Filter modules based on user access
-  const visibleModules = subModules.filter(module => {
-    // NPI Projects only available to hferreira@schivomedical.com
-    if (module.id === 'npi-projects') {
-      return user?.email === 'hferreira@schivomedical.com';
-    }
-    return true;
-  });
+  const visibleModules = subModules;
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {

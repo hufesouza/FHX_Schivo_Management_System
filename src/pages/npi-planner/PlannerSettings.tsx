@@ -21,10 +21,10 @@ export default function PlannerSettings() {
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') || 'machines';
 
-  if (loading) return <AppLayout title="Settings" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin"/></div></AppLayout>;
+  if (loading) return <AppLayout title="Settings" showBackButton backTo="/npi/capacity-planner-mvp"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin"/></div></AppLayout>;
 
   return (
-    <AppLayout title="Settings" subtitle="Master data, calendar & email recipients" showBackButton backTo="/npi/capacity-planner">
+    <AppLayout title="Settings" subtitle="Master data, calendar & email recipients" showBackButton backTo="/npi/capacity-planner-mvp">
       <main className="container mx-auto px-4 py-8">
         <Tabs defaultValue={initialTab}>
           <TabsList>

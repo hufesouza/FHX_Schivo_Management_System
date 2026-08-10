@@ -5,8 +5,6 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import NPIHub from "./pages/NPIHub";
-import NPIProjects from "./pages/NPIProjects";
-import NPIProjectDetail from "./pages/NPIProjectDetail";
 import ChangeControlHub from "./pages/ChangeControlHub";
 import ManufacturingHub from "./pages/ManufacturingHub";
 import ProductionHub from "./pages/ProductionHub";
@@ -18,19 +16,9 @@ import NotFound from "./pages/NotFound";
 import QuotationDashboard from "./pages/QuotationDashboard";
 import NPIOrderIntelligence from "./pages/NPIOrderIntelligence";
 import NPIOrderSiteSelect from "./pages/NPIOrderSiteSelect";
-import NPICapacityPlannerHub from "./pages/npi-planner/CapacityPlannerHub";
-import PlannerDashboard from "./pages/npi-planner/PlannerDashboard";
 import PartSetup from "./pages/npi-planner/PartSetup";
 import JobList from "./pages/npi-planner/JobList";
-import JobKanban from "./pages/npi-planner/JobKanban";
 import JobDetail from "./pages/npi-planner/JobDetail";
-import MachineCalendar from "./pages/npi-planner/MachineCalendar";
-import MachineCapacity from "./pages/npi-planner/MachineCapacity";
-import ToolingTracker from "./pages/npi-planner/ToolingTracker";
-import MaterialTracker from "./pages/npi-planner/MaterialTracker";
-import MaterialsCatalog from "./pages/npi-planner/MaterialsCatalog";
-import PartToolingStatus from "./pages/npi-planner/PartToolingStatus";
-import PlannerReports from "./pages/npi-planner/Reports";
 import PlannerSettings from "./pages/npi-planner/PlannerSettings";
 import CapacityPlannerMVPHub from "./pages/npi-planner-mvp/CapacityPlannerMVPHub";
 import MVPResources from "./pages/npi-planner-mvp/Resources";
@@ -68,25 +56,9 @@ const App = () => (
           <Route path="/npi/quotation-dashboard" element={<QuotationDashboard />} />
           <Route path="/npi/order-intelligence" element={<NPIOrderSiteSelect />} />
           <Route path="/npi/order-intelligence/:site" element={<NPIOrderIntelligence />} />
-          <Route path="/npi/projects" element={<NPIProjects />} />
-          <Route path="/npi/projects/:id" element={<NPIProjectDetail />} />
 
 
           {/* NPI Capacity Planner */}
-          <Route path="/npi/capacity-planner" element={<NPICapacityPlannerHub />} />
-          <Route path="/npi/capacity-planner/dashboard" element={<PlannerDashboard />} />
-          <Route path="/npi/capacity-planner/parts/new" element={<PartSetup />} />
-          <Route path="/npi/capacity-planner/parts/:id" element={<JobDetail />} />
-          <Route path="/npi/capacity-planner/jobs" element={<JobList />} />
-          <Route path="/npi/capacity-planner/kanban" element={<JobKanban />} />
-          <Route path="/npi/capacity-planner/calendar" element={<MachineCalendar />} />
-          <Route path="/npi/capacity-planner/capacity" element={<MachineCapacity />} />
-          <Route path="/npi/capacity-planner/tooling" element={<ToolingTracker />} />
-          <Route path="/npi/capacity-planner/material" element={<MaterialTracker />} />
-          <Route path="/npi/capacity-planner/materials-catalog" element={<MaterialsCatalog />} />
-          <Route path="/npi/capacity-planner/tooling-status" element={<PartToolingStatus />} />
-          <Route path="/npi/capacity-planner/reports" element={<PlannerReports />} />
-          <Route path="/npi/capacity-planner/settings" element={<PlannerSettings />} />
 
           {/* NPI Capacity Planner MVP (simplified) */}
           <Route path="/npi/capacity-planner-mvp" element={<CapacityPlannerMVPHub />} />

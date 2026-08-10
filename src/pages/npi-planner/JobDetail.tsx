@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { logChange, type Part, type ChangeLog } from '@/hooks/useNPIPlanning';
+import { logChange, type Part } from '@/hooks/useNPIPlanning';
 import { Loader2, Save, Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -25,7 +25,6 @@ export default function JobDetail() {
   const navigate = useNavigate();
   const [part, setPart] = useState<Part | null>(null);
   const [original, setOriginal] = useState<Part | null>(null);
-  const [history, setHistory] = useState<ChangeLog[]>([]);
   const [reason, setReason] = useState('');
   const [machines, setMachines] = useState<any[]>([]);
   const [machineOptionIds, setMachineOptionIds] = useState<string[]>([]);
@@ -102,16 +101,14 @@ export default function JobDetail() {
   useEffect(() => {
     if (!id) return;
     (async () => {
-      const [{ data: p }, { data: m }, { data: h }, { data: ap }] = await Promise.all([
+      const [{ data: p }, { data: m }, { data: ap }] = await Promise.all([
         supabase.from('npi_parts').select('*').eq('id', id).single(),
         supabase.from('npi_machines').select('*').order('machine_name'),
-        supabase.from('npi_change_log').select('*').eq('part_id', id).order('created_at', { ascending: false }),
         supabase.from('npi_parts').select('*').order('part_number'),
       ]);
       setAllParts((ap as any) || []);
       setPart(p as any); setOriginal(p as any);
       setMachines(m || []);
-      setHistory((h as any) || []);
       if (p) {
         setAllocMachineId((p as any).machine_id || '');
         setAllocStartDate((p as any).best_commence_date || new Date().toISOString().slice(0, 10));
@@ -178,7 +175,7 @@ export default function JobDetail() {
       toast.success('Saved');
       setReason('');
       setOriginal(part);
-      navigate('/npi/capacity-planner/jobs');
+      navigate('/npi/capacity-planner-mvp/jobs');
     } catch (e: any) {
       toast.error(e.message);
     } finally { setSaving(false); }
@@ -189,13 +186,13 @@ export default function JobDetail() {
     const { error } = await supabase.from('npi_parts').delete().eq('id', part.id);
     if (error) return toast.error(error.message);
     toast.success('Deleted');
-    navigate('/npi/capacity-planner/jobs');
+    navigate('/npi/capacity-planner-mvp/jobs');
   };
 
-  if (!part) return <AppLayout title="Loading…" showBackButton backTo="/npi/capacity-planner/jobs"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin"/></div></AppLayout>;
+  if (!part) return <AppLayout title="Loading…" showBackButton backTo="/npi/capacity-planner-mvp/jobs"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin"/></div></AppLayout>;
 
   return (
-    <AppLayout title={part.part_number} subtitle={part.customer_name || ''} showBackButton backTo="/npi/capacity-planner/jobs">
+    <AppLayout title={part.part_number} subtitle={part.customer_name || ''} showBackButton backTo="/npi/capacity-planner-mvp/jobs">
       <main className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
         <Card>
           <CardHeader><CardTitle className="text-base">Planning</CardTitle></CardHeader>
@@ -289,7 +286,7 @@ export default function JobDetail() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/npi/capacity-planner/parts/new?parent=${part.id}&level=Sub%20Level`)}>
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/npi/capacity-planner-mvp/parts/new?parent=${part.id}&level=Sub%20Level`)}>
                         <Plus className="h-3 w-3 mr-1" /> New Sub Level part
                       </Button>
                     </div>
@@ -305,7 +302,7 @@ export default function JobDetail() {
                     <ul className="text-sm space-y-1">
                       {children.map(c => (
                         <li key={c.id} className="flex items-center justify-between border-b pb-1">
-                          <button className="text-left hover:underline" onClick={() => navigate(`/npi/capacity-planner/parts/${c.id}`)}>
+                          <button className="text-left hover:underline" onClick={() => navigate(`/npi/capacity-planner-mvp/parts/${c.id}`)}>
                             <span className="font-medium">{c.part_number}</span>
                             {c.description && <span className="text-muted-foreground ml-2">{c.description}</span>}
                           </button>
@@ -333,7 +330,7 @@ export default function JobDetail() {
               return (
                 <div className="border rounded-md p-3 text-sm">
                   <span className="text-muted-foreground">Parent:</span>{' '}
-                  <button className="font-medium hover:underline" onClick={() => navigate(`/npi/capacity-planner/parts/${parent.id}`)}>
+                  <button className="font-medium hover:underline" onClick={() => navigate(`/npi/capacity-planner-mvp/parts/${parent.id}`)}>
                     {parent.part_number}{parent.description ? ` — ${parent.description}` : ''}
                   </button>
                 </div>
@@ -460,26 +457,6 @@ export default function JobDetail() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">Change history</CardTitle></CardHeader>
-          <CardContent>
-            {history.length === 0 ? <p className="text-sm text-muted-foreground">No changes recorded.</p> :
-              <ul className="space-y-2 text-sm">
-                {history.map(h => (
-                  <li key={h.id} className="border-b pb-2">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{h.field_changed}</Badge>
-                      <span className="text-muted-foreground text-xs">{new Date(h.created_at).toLocaleString()}</span>
-                      {h.email_sent && <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700">Email sent</Badge>}
-                    </div>
-                    <div className="mt-1"><span className="text-destructive">{h.previous_value || '—'}</span> → <span className="text-emerald-600 font-medium">{h.new_value || '—'}</span></div>
-                    {h.reason && <div className="text-muted-foreground italic mt-1">"{h.reason}"</div>}
-                    <div className="text-xs text-muted-foreground">By: {h.changed_by_name || 'Unknown'}</div>
-                  </li>
-                ))}
-              </ul>}
-          </CardContent>
-        </Card>
       </main>
       <QuickMachineDialog
         open={machineDialogOpen}
