@@ -25,6 +25,7 @@ export default function MachineCalendars() {
   const [month, setMonth] = useState(now.getMonth());
   const [fMachine, setFMachine] = useState(ALL);
   const [fSetter, setFSetter] = useState(ALL);
+  const [fPo, setFPo] = useState('');
   const [fCustomer, setFCustomer] = useState('');
   const [fJob, setFJob] = useState('');
   const [fPart, setFPart] = useState('');
@@ -33,19 +34,20 @@ export default function MachineCalendars() {
 
   const { machines, setters, jobs, devAllocations: allocations, jobById, setterById, holidays } = scheduler;
 
+  const filtersActive = fMachine !== ALL || fSetter !== ALL || !!fPo || !!fCustomer || !!fJob || !!fPart;
+
   const matching = useMemo(() => {
     const set = new Set<string>();
     for (const j of jobs) {
       if (fSetter !== ALL && j.setter_id !== fSetter) continue;
+      if (fPo && !(j.po_number ?? '').toLowerCase().includes(fPo.toLowerCase())) continue;
       if (fCustomer && !(j.customer ?? '').toLowerCase().includes(fCustomer.toLowerCase())) continue;
       if (fJob && !j.job_number.toLowerCase().includes(fJob.toLowerCase())) continue;
       if (fPart && !(j.part_number ?? '').toLowerCase().includes(fPart.toLowerCase())) continue;
       set.add(j.id);
     }
     return set;
-  }, [jobs, fSetter, fCustomer, fJob, fPart]);
-
-  const shownMachines = fMachine === ALL ? machines : machines.filter((m) => m.id === fMachine);
+  }, [jobs, fSetter, fPo, fCustomer, fJob, fPart]);
 
   const jobRows = (machineId: string) =>
     jobs
@@ -58,6 +60,16 @@ export default function MachineCalendars() {
           end: allocs[allocs.length - 1]?.alloc_date ?? j.start_date,
         };
       });
+
+  const shownMachines = useMemo(() => {
+    let list = fMachine === ALL ? machines : machines.filter((m) => m.id === fMachine);
+    if (filtersActive) {
+      const withJobs = new Set(jobs.filter((j) => matching.has(j.id) && j.machine_id).map((j) => j.machine_id as string));
+      list = list.filter((m) => withJobs.has(m.id));
+    }
+    return list;
+  }, [machines, fMachine, filtersActive, jobs, matching]);
+
 
   return (
     <AppLayout title="Machine Calendars" subtitle="NPI jobs by machine" showBackButton backTo="/scheduling">
