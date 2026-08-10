@@ -31,6 +31,8 @@ import MVPGanttChart from "./pages/npi-planner-mvp/GanttChart";
 import MVPScheduleBoard from "./pages/npi-planner-mvp/ScheduleBoardPage";
 import SchedulerOverview from "./pages/scheduler/SchedulerOverview";
 import MachineCalendars from "./pages/scheduler/MachineCalendars";
+import ProductionCalendar from "./pages/scheduler/ProductionCalendar";
+
 import SchedulerCapacity from "./pages/scheduler/SchedulerCapacity";
 import SchedulerJobs from "./pages/scheduler/SchedulerJobs";
 import SchedulerMachines from "./pages/scheduler/SchedulerMachines";

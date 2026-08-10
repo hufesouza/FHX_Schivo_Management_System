@@ -31,7 +31,7 @@ export default function MachineCalendars() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editJobId, setEditJobId] = useState<string | null>(null);
 
-  const { machines, setters, jobs, allocations, jobById, setterById, holidays } = scheduler;
+  const { machines, setters, jobs, devAllocations: allocations, jobById, setterById, holidays } = scheduler;
 
   const matching = useMemo(() => {
     const set = new Set<string>();
