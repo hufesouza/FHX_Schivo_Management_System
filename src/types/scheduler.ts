@@ -46,7 +46,10 @@ export type ProductionStatus =
   | 'cancelled';
 
 /** Allocation kind — development consumes setter + machine, production consumes machine only. */
-export type AllocType = 'development' | 'production';
+export type AllocType = 'development' | 'programming' | 'production';
+
+/** Programming status mirrors production statuses. */
+export type ProgrammingStatus = ProductionStatus;
 
 export interface SchedJob {
   id: string;
@@ -71,6 +74,12 @@ export interface SchedJob {
   production_start: string | null;
   production_end: string | null;
   production_status: ProductionStatus;
+  // --- programming layer (consumes programmer/setter time only) ---
+  programmer_id: string | null;
+  programming_hours: number;
+  programming_start: string | null;
+  programming_end: string | null;
+  programming_status: ProgrammingStatus;
 }
 
 export interface SchedAllocation {
@@ -126,6 +135,15 @@ export const PRODUCTION_STATUS_OPTIONS: { value: ProductionStatus; label: string
   { value: 'not_scheduled', label: 'Not Scheduled' },
   { value: 'scheduled', label: 'Scheduled' },
   { value: 'in_production', label: 'In Production' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'on_hold', label: 'On Hold' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
+
+export const PROGRAMMING_STATUS_OPTIONS: { value: ProgrammingStatus; label: string }[] = [
+  { value: 'not_scheduled', label: 'Not Scheduled' },
+  { value: 'scheduled', label: 'Scheduled' },
+  { value: 'in_production', label: 'In Progress' },
   { value: 'completed', label: 'Completed' },
   { value: 'on_hold', label: 'On Hold' },
   { value: 'cancelled', label: 'Cancelled' },
