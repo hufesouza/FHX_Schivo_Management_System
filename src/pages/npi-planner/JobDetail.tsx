@@ -457,26 +457,6 @@ export default function JobDetail() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><CardTitle className="text-base">Change history</CardTitle></CardHeader>
-          <CardContent>
-            {history.length === 0 ? <p className="text-sm text-muted-foreground">No changes recorded.</p> :
-              <ul className="space-y-2 text-sm">
-                {history.map(h => (
-                  <li key={h.id} className="border-b pb-2">
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{h.field_changed}</Badge>
-                      <span className="text-muted-foreground text-xs">{new Date(h.created_at).toLocaleString()}</span>
-                      {h.email_sent && <Badge variant="outline" className="bg-emerald-500/10 text-emerald-700">Email sent</Badge>}
-                    </div>
-                    <div className="mt-1"><span className="text-destructive">{h.previous_value || '—'}</span> → <span className="text-emerald-600 font-medium">{h.new_value || '—'}</span></div>
-                    {h.reason && <div className="text-muted-foreground italic mt-1">"{h.reason}"</div>}
-                    <div className="text-xs text-muted-foreground">By: {h.changed_by_name || 'Unknown'}</div>
-                  </li>
-                ))}
-              </ul>}
-          </CardContent>
-        </Card>
       </main>
       <QuickMachineDialog
         open={machineDialogOpen}
