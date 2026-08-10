@@ -114,3 +114,18 @@ export const PRIORITY_OPTIONS: { value: SchedJobPriority; label: string }[] = [
 export const DOW_LABELS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 /** Monday-first order used by the calendar grid. */
 export const MONDAY_FIRST = [1, 2, 3, 4, 5, 6, 0];
+
+export const CYCLE_TIME_UNITS: { value: CycleTimeUnit; label: string }[] = [
+  { value: 'seconds', label: 'Seconds / pc' },
+  { value: 'minutes', label: 'Minutes / pc' },
+  { value: 'hours', label: 'Hours / pc' },
+];
+
+export const PRODUCTION_STATUS_OPTIONS: { value: ProductionStatus; label: string }[] = [
+  { value: 'not_scheduled', label: 'Not Scheduled' },
+  { value: 'scheduled', label: 'Scheduled' },
+  { value: 'in_production', label: 'In Production' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'on_hold', label: 'On Hold' },
+  { value: 'cancelled', label: 'Cancelled' },
+];
