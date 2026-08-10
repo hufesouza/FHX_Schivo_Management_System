@@ -21,7 +21,6 @@ import { QuickProjectDialog } from '@/components/npi-planner/QuickProjectDialog'
 import { QuickMachineDialog } from '@/components/npi-planner/QuickMachineDialog';
 import { ToolingListEditor, type ToolLine } from '@/components/npi-planner/ToolingListEditor';
 import { SupplierPicker } from '@/components/npi-planner/SupplierPicker';
-import { QuotationImportDialog, type QuotationImportPayload } from '@/components/npi-planner/QuotationImportDialog';
 
 
 const MATERIAL_STATUSES = ['Not Required','Required','Ordered','Received','Delayed','Issue'];
@@ -46,9 +45,6 @@ export default function PartSetup() {
   const [machineSearch, setMachineSearch] = useState('');
   const [manualMachineId, setManualMachineId] = useState<string>('');
   const [manualStartDate, setManualStartDate] = useState<string>('');
-  const [quotationOpen, setQuotationOpen] = useState(false);
-  const [quotationFile, setQuotationFile] = useState<File | null>(null);
-  const [quotationSummary, setQuotationSummary] = useState<{ quote_no?: string | null; confidence: number } | null>(null);
 
   const [form, setForm] = useState<any>({
     customer_id: '', project_id: '', engineer: '',
@@ -109,140 +105,6 @@ export default function PartSetup() {
 
   // Non-machine routing resources (inspection / admin / manual benches)
   const NON_MACHINE = /^(manueng|saw|wash|dispatch|qa\d*|insp|deburr?|dry ice debur|packing|goods in|stores|subcon|outsource|programming|prog)$/i;
-
-  const applyQuotation = async ({ extraction, derived, file }: QuotationImportPayload) => {
-    const f = (k: string) => extraction.fields[k]?.value ?? null;
-    const str = (k: string) => (f(k) == null ? '' : String(f(k)));
-    const num = (k: string) => (typeof f(k) === 'number' ? (f(k) as number) : 0);
-
-    const custName = str('customer_name');
-    const custCode = str('customer_code');
-    let customerId = customers.find(
-      c => (custCode && c.customer_code?.toLowerCase() === custCode.toLowerCase())
-        || (custName && c.customer_name?.toLowerCase() === custName.toLowerCase()),
-    )?.id || '';
-
-    // Auto-create the customer when the quotation references a new one
-    if (!customerId && custName) {
-      const { data: newCust } = await supabase
-        .from('npi_customers')
-        .insert({ customer_name: custName, customer_code: custCode || null } as any)
-        .select('id')
-        .single();
-      if (newCust?.id) customerId = newCust.id;
-    }
-
-    const firstMaterial = extraction.tables.materials?.rows?.[0] as any;
-    const firstSubcon = extraction.tables.subcons?.rows?.[0] as any;
-    const routingRows = (extraction.tables.routing?.rows || []) as any[];
-
-    // Material supplier: match or create
-    let materialSupplierId = '';
-    const matVendor = String(firstMaterial?.vendor_name || '').trim();
-    if (matVendor) {
-      const { data: sup } = await supabase.from('npi_suppliers')
-        .select('id').ilike('supplier_name', matVendor).maybeSingle();
-      if (sup?.id) materialSupplierId = sup.id;
-      else {
-        const { data: newSup } = await supabase.from('npi_suppliers')
-          .insert({ supplier_name: matVendor } as any).select('id').single();
-        if (newSup?.id) materialSupplierId = newSup.id;
-      }
-    }
-
-    // Subcon supplier: match or create
-    let subconSupplierId = '';
-    const subVendor = String(firstSubcon?.vendor_name || '').trim();
-    if (subVendor) {
-      const { data: sup } = await supabase.from('npi_suppliers')
-        .select('id').ilike('supplier_name', subVendor).maybeSingle();
-      if (sup?.id) subconSupplierId = sup.id;
-      else {
-        const { data: newSup } = await supabase.from('npi_suppliers')
-          .insert({ supplier_name: subVendor } as any).select('id').single();
-        if (newSup?.id) subconSupplierId = newSup.id;
-      }
-    }
-
-    // Identify the machining resources from the routing, creating any that are missing
-    const machineResources = Array.from(new Set(
-      routingRows
-        .map(r => String(r.resource || '').trim())
-        .filter(Boolean)
-        .filter(r => !NON_MACHINE.test(r)),
-    ));
-    const machineIds: string[] = [];
-    let primaryMachineId = '';
-    for (const res of machineResources) {
-      const existing = machines.find(
-        m => m.machine_name?.toLowerCase() === res.toLowerCase()
-          || m.machine_name?.toLowerCase().includes(res.toLowerCase()),
-      );
-      let id = existing?.id || '';
-      if (!id) {
-        const type = /slh|swiss/i.test(res) ? 'Swiss Turn' : /(^t|lathe|turn)/i.test(res) ? 'Turn' : 'Mill';
-        const { data: newM } = await supabase.from('npi_machines')
-          .insert({ machine_name: res, machine_type: type, daily_available_hours: 24, status: 'Available' } as any)
-          .select('id').single();
-        id = newM?.id || '';
-      }
-      if (id) {
-        machineIds.push(id);
-        // Primary = resource carrying the development / longest run time op
-        const devRow = routingRows.find(r => /develop/i.test(String(r.operation_details || '')) && String(r.resource || '').toLowerCase() === res.toLowerCase());
-        if (!primaryMachineId || devRow) primaryMachineId = id;
-      }
-    }
-
-    const materialDesc = [firstMaterial?.part_number, firstMaterial?.material_description]
-      .filter(Boolean).join(' — ');
-
-    setForm((prev: any) => ({
-      ...prev,
-      customer_id: customerId || prev.customer_id,
-      part_number: str('part_number') || prev.part_number,
-      part_revision: str('revision') || prev.part_revision,
-      description: str('description') || prev.description,
-      qty: derived.volumeBreaks[0]?.qty || num('vol_1') || prev.qty,
-      material: materialDesc || prev.material,
-      material_supplier_id: materialSupplierId || prev.material_supplier_id,
-      material_supplier_name: matVendor || prev.material_supplier_name,
-      material_status: firstMaterial ? 'Required' : prev.material_status,
-      tooling: derived.toolingCost ? `Tooling per quotation (${derived.toolingCost})` : prev.tooling,
-      tooling_status: derived.toolingCost ? 'Required' : prev.tooling_status,
-      cycle_time_min: derived.cycleMinutes || prev.cycle_time_min,
-      development_time_min: derived.developmentMinutes || prev.development_time_min,
-      backend_time: derived.setupMinutes ? Math.round((derived.setupMinutes / 60) * 100) / 100 : prev.backend_time,
-      subcon_supplier_id: subconSupplierId || prev.subcon_supplier_id,
-      supplier_name: subVendor || prev.supplier_name,
-      type_of_service: firstSubcon?.process_description || prev.type_of_service,
-      subcon_status: derived.hasSubcon ? 'Required' : prev.subcon_status,
-      sales_price: derived.unitPrice ?? prev.sales_price,
-      notes: [prev.notes, `Imported from ${file.name}${str('quote_no') ? ` (Quote ${str('quote_no')})` : ''}`]
-        .filter(Boolean).join('\n'),
-    }));
-
-    if (derived.toolingCost > 0) {
-      setToolLines(lines => lines.length ? lines : [{
-        tooling_description: 'Tooling package (from quotation)',
-        qty: 1,
-        unit_cost: derived.toolingCost,
-        lead_time_days: 0,
-        ordered_status: 'Not Ordered',
-        save_to_catalog: false,
-      } as ToolLine]);
-    }
-
-    if (machineIds.length) setMachineOptionIds(ids => Array.from(new Set([...ids, ...machineIds])));
-    if (primaryMachineId) setManualMachineId(primaryMachineId);
-
-    setQuotationFile(file);
-    setQuotationSummary({ quote_no: str('quote_no') || null, confidence: extraction.overallConfidence });
-    await reload();
-    toast.success('Quotation applied — customer, machines and suppliers created where needed');
-  };
-
-
 
   const topLevelParts = useMemo(() => parts.filter(p => (p.part_level || 'Top Level') === 'Top Level'), [parts]);
 
@@ -314,22 +176,6 @@ export default function PartSetup() {
         : machineOptionIds;
 
       const part = await upsertPart(partData, capableIds);
-
-      // Attach the source quotation workbook to the part
-      if (part && quotationFile) {
-        const safeName = quotationFile.name.replace(/[^\w.\-]+/g, '_');
-        const path = `${part.id}/${Date.now()}-${safeName}`;
-        const { error: upErr } = await supabase.storage
-          .from('part-quotations')
-          .upload(path, quotationFile, { upsert: true });
-        if (upErr) {
-          toast.error(`Part saved, but the quotation file could not be stored: ${upErr.message}`);
-        } else {
-          await supabase.from('npi_parts')
-            .update({ quotation_file_path: path, quotation_file_name: quotationFile.name } as any)
-            .eq('id', part.id);
-        }
-      }
 
       // Manual allocation: create schedule record
       if (part && manualMachineId && manualStartDate) {
@@ -440,18 +286,8 @@ export default function PartSetup() {
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
             {presetParentId && <Badge variant="secondary">Creating Sub Level part for parent</Badge>}
-            {quotationFile && (
-              <Badge variant="outline" className="gap-1">
-                <FileSpreadsheet className="h-3 w-3" />
-                {quotationFile.name}
-                {quotationSummary ? ` — ${Math.round(quotationSummary.confidence * 100)}% confidence` : ''}
-              </Badge>
-            )}
           </div>
           <div className="flex items-center gap-2">
-            <Button type="button" variant="outline" size="sm" onClick={() => setQuotationOpen(true)}>
-              <FileSpreadsheet className="h-3 w-3 mr-1" /> Import quotation sheet
-            </Button>
             <label className="flex items-center gap-2 text-xs text-muted-foreground">
               <Checkbox checked={saveToLibrary} onCheckedChange={v => setSaveToLibrary(!!v)} />
               Save to part library
@@ -721,7 +557,6 @@ export default function PartSetup() {
         onCreated={async (p) => { await reload(); set('project_id', p.id); }}
       />
       <PartLibraryDialog open={libraryOpen} onOpenChange={setLibraryOpen} onPick={applyCatalog} />
-      <QuotationImportDialog open={quotationOpen} onOpenChange={setQuotationOpen} onApply={applyQuotation} />
     </AppLayout>
   );
 }
