@@ -21,8 +21,13 @@ export interface MonthCalendarProps {
   onOpenJob?: (jobId: string) => void;
   onMoveJob?: (jobId: string, iso: string) => void;
   nonWorking?: (iso: string) => boolean;
-  /** 'production' shows quantity, 'programming' shows the programmer on each chip. */
-  mode?: 'development' | 'production' | 'programming';
+  /**
+   * 'production' shows quantity, 'programming' shows the programmer on each chip,
+   * 'machine' shows combined machine occupancy (development + production) colour-coded by activity.
+   */
+  mode?: 'development' | 'production' | 'programming' | 'machine';
+
+
 
 }
 
