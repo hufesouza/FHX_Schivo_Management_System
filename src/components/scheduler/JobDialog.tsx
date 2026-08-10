@@ -9,10 +9,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { SchedJob, SchedJobPriority, SchedJobStatus } from '@/types/scheduler';
-import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '@/types/scheduler';
-import { fmtHours, toISO } from '@/utils/schedulerEngine';
+import type { SchedJob, SchedJobPriority, SchedJobStatus, CycleTimeUnit, ProductionStatus } from '@/types/scheduler';
+import { PRIORITY_OPTIONS, STATUS_OPTIONS, CYCLE_TIME_UNITS, PRODUCTION_STATUS_OPTIONS } from '@/types/scheduler';
+import { addDays, fmtDuration, fmtHours, toISO } from '@/utils/schedulerEngine';
 import type { useScheduler } from '@/hooks/useScheduler';
+
 
 interface JobDialogProps {
   open: boolean;
@@ -34,10 +35,16 @@ const emptyForm = (date: string) => ({
   priority: 'medium' as SchedJobPriority,
   status: 'planned' as SchedJobStatus,
   notes: '',
+  production_quantity: '',
+  cycle_time: '',
+  cycle_time_unit: 'minutes' as CycleTimeUnit,
+  production_start: '',
+  production_status: 'not_scheduled' as ProductionStatus,
 });
 
+
 export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, canEdit = true }: JobDialogProps) {
-  const { machines, setters, validate, saveJob, deleteJob, jobById } = scheduler;
+  const { machines, setters, validate, validateProduction, saveJob, deleteJob, jobById } = scheduler;
   const [form, setForm] = useState(emptyForm(defaultDate || toISO(new Date())));
   const [saving, setSaving] = useState(false);
 
@@ -55,6 +62,11 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         priority: job.priority,
         status: job.status,
         notes: job.notes ?? '',
+        production_quantity: job.production_quantity ? String(job.production_quantity) : '',
+        cycle_time: job.cycle_time ? String(job.cycle_time) : '',
+        cycle_time_unit: job.cycle_time_unit ?? 'minutes',
+        production_start: job.production_start ?? '',
+        production_status: job.production_status ?? 'not_scheduled',
       });
     } else {
       setForm(emptyForm(defaultDate || toISO(new Date())));
@@ -77,15 +89,42 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
 
   const { plan, conflicts } = result;
 
+  const qty = Number(form.production_quantity) || 0;
+  const cycle = Number(form.cycle_time) || 0;
+  const hasProduction = qty > 0 && cycle > 0;
+
+  const production = useMemo(
+    () =>
+      validateProduction({
+        jobId: job?.id ?? null,
+        machineId: form.machine_id || null,
+        startDate: form.production_start || null,
+        quantity: qty,
+        cycleTime: cycle,
+        unit: form.cycle_time_unit,
+      }),
+    [validateProduction, job?.id, form.machine_id, form.production_start, form.cycle_time_unit, qty, cycle],
+  );
+
+  const suggestedProdStart = plan.endDate ? addDays(plan.endDate, 1) : form.start_date;
+
   const missing: string[] = [];
   if (!form.part_number.trim()) missing.push('Part number');
   if (!form.start_date) missing.push('Start date');
   if (!form.setter_id) missing.push('Setter');
   if (!form.machine_id) missing.push('Machine');
   if (hours <= 0) missing.push('Development hours');
+  if (hasProduction && !form.production_start) missing.push('Production start date');
 
   const noWorkingDays = form.setter_id && hours > 0 && plan.allocations.length === 0;
-  const blocked = missing.length > 0 || conflicts.hasConflicts || !!noWorkingDays;
+  const noMachineDays = hasProduction && !!form.production_start && production.plan.allocations.length === 0;
+  const blocked =
+    missing.length > 0 ||
+    conflicts.hasConflicts ||
+    !!noWorkingDays ||
+    noMachineDays ||
+    (hasProduction && production.conflicts.hasConflicts);
+
 
   const handleSave = async () => {
     if (blocked) return;
@@ -103,7 +142,13 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
       priority: form.priority,
       status: form.status,
       notes: form.notes.trim() || null,
+      production_quantity: qty,
+      cycle_time: cycle,
+      cycle_time_unit: form.cycle_time_unit,
+      production_start: hasProduction ? form.production_start || null : null,
+      production_status: form.production_status,
     });
+
     setSaving(false);
     if (res.ok) {
       toast.success(job ? 'Job updated' : 'Job created');
