@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRole } from '@/hooks/useUserRole';
-import { useTasks } from '@/hooks/useTasks';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,18 +13,11 @@ import {
   Users, 
   Shield, 
   User,
-  FileCheck,
-  Calculator,
   ChevronRight,
   ArrowLeft,
   ClipboardList,
-  Bell,
   CalendarDays,
   FolderKanban,
-  FileType2,
-  FileSpreadsheet,
-  CircleDot,
-  Presentation,
   Gauge
 } from 'lucide-react';
 import {
@@ -37,7 +29,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
-import { ReceiptText, BarChart3, LineChart } from 'lucide-react';
+import { BarChart3, LineChart } from 'lucide-react';
 
 const subModules = [
   {
@@ -59,15 +51,6 @@ const subModules = [
     available: true,
   },
   {
-    id: 'blue-review',
-    title: 'Blue Review',
-    description: 'Work order review forms for new product introduction process (WD-FRM-0017)',
-    icon: FileCheck,
-    href: '/npi/blue-review',
-    color: 'bg-primary/10 text-primary border-primary/20',
-    available: true,
-  },
-  {
     id: 'npi-pipeline',
     title: 'NPI Pipeline',
     description: 'Track NPI projects with prerequisites, post-MC activities and readiness status',
@@ -83,69 +66,6 @@ const subModules = [
     icon: BarChart3,
     href: '/npi/quotation-dashboard',
     color: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
-    available: true,
-  },
-  {
-    id: 'quotation-system',
-    title: 'Quotation System',
-    description: 'Digital quotation with routing sheets, BOM, subcon and cost calculations (WD-FRM-0018)',
-    icon: FileSpreadsheet,
-    href: '/npi/quotation-system',
-    color: 'bg-teal-500/10 text-teal-600 border-teal-500/20',
-    available: true,
-  },
-  {
-    id: 'quotation-control',
-    title: 'Quotation Control',
-    description: 'Track enquiries, quotations and POs with full workflow visibility (WD-PRO-0020)',
-    icon: ReceiptText,
-    href: '/npi/quotation-control',
-    color: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
-    available: true,
-  },
-  {
-    id: 'daily-meeting',
-    title: 'Daily Meeting',
-    description: 'Track daily status with RAG flags per customer and topic, generate meeting minutes',
-    icon: CalendarDays,
-    href: '/npi/daily-meeting',
-    color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
-    available: true,
-  },
-  {
-    id: 'quotation',
-    title: 'CNC Smart Quoter',
-    description: 'AI-powered cycle time estimation from machining drawings',
-    icon: Calculator,
-    href: '/npi/quotation',
-    color: 'bg-violet-500/10 text-violet-600 border-violet-500/20',
-    available: true,
-  },
-  {
-    id: 'drawing-translate',
-    title: 'DrawingTranslate',
-    description: 'Translate technical drawing PDFs with text overlay replacement',
-    icon: FileType2,
-    href: '/npi/drawing-translate',
-    color: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
-    available: true,
-  },
-  {
-    id: 'balloon-dwg',
-    title: 'BalloonDWG',
-    description: 'Generate ballooned drawings and dimensional inspection reports from engineering PDFs',
-    icon: CircleDot,
-    href: '/npi/balloon-dwg',
-    color: 'bg-sky-500/10 text-sky-600 border-sky-500/20',
-    available: true,
-  },
-  {
-    id: 'quotation-presentation',
-    title: 'Quotation System Guide',
-    description: 'Interactive presentation explaining the digital quotation system and how it works',
-    icon: Presentation,
-    href: '/npi/quotation-system/guide',
-    color: 'bg-lime-500/10 text-lime-600 border-lime-500/20',
     available: true,
   },
   {
@@ -182,10 +102,8 @@ const NPIHub = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, signOut } = useAuth();
   const { role, loading: roleLoading } = useUserRole();
-  const { getMyTasks } = useTasks();
 
   const isAdmin = role === 'admin';
-  const myTasks = getMyTasks();
   
   // Filter modules based on user access
   const visibleModules = subModules.filter(module => {
@@ -219,22 +137,6 @@ const NPIHub = () => {
     <AppLayout title="NPI Engineering" subtitle="New Product Introduction" showBackButton backTo="/">
       {/* Main Content */}
       <main className="container mx-auto px-4 py-12">
-        {/* Tasks notification */}
-        {myTasks.length > 0 && (
-          <Card className="mb-8 border-primary/50 bg-primary/5 max-w-3xl mx-auto">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Bell className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-base">You have {myTasks.length} pending task{myTasks.length > 1 ? 's' : ''}</CardTitle>
-                </div>
-                <Button variant="link" onClick={() => navigate('/tasks')}>
-                  View all
-                </Button>
-              </div>
-            </CardHeader>
-          </Card>
-        )}
 
         <div className="text-center mb-12">
           <h2 className="text-3xl font-heading font-semibold mb-3">NPI Engineering Modules</h2>

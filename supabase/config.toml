@@ -3,35 +3,17 @@ project_id = "vbbpwyekwpnbyygdxxlq"
 [functions.send-invite]
 verify_jwt = true
 
-[functions.advance-workflow]
-verify_jwt = false
-
 [functions.create-test-users]
-verify_jwt = false
-
-[functions.interpret-drawing]
-verify_jwt = false
-
-[functions.recalculate-cycle-time]
 verify_jwt = false
 
 [functions.admin-users]
 verify_jwt = false
 
-[functions.drawing-ocr]
-verify_jwt = false
-
-[functions.drawing-translate]
-verify_jwt = false
-
-[functions.interpret-comment]
-verify_jwt = false
-
-[functions.meeting-summary]
-verify_jwt = false
-
 [functions.extract-part-from-drawing]
 verify_jwt = false
 
-[functions.balloon-extract]
+[functions.npi-notify-change]
+verify_jwt = false
+
+[functions.parse-action-date]
 verify_jwt = false
