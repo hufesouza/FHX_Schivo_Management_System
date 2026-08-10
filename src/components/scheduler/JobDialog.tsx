@@ -418,7 +418,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
               </div>
               <div className="flex flex-wrap gap-1 pt-1">
                 {production.conflicts.conflictingJobIds.map((id) => (
-                  <Badge key={id} variant="outline">{jobById[id]?.job_number ?? id.slice(0, 8)}</Badge>
+                  <Badge key={id} variant="outline">{jobById[id]?.po_number ?? jobById[id]?.job_number ?? id.slice(0, 8)}</Badge>
                 ))}
               </div>
               <p className="text-xs">Options: move the production start date, choose another machine, or split the quantity.</p>
@@ -499,7 +499,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
               </div>
               <div className="flex flex-wrap gap-1 pt-1">
                 {conflicts.conflictingJobIds.map((id) => (
-                  <Badge key={id} variant="outline">{jobById[id]?.job_number ?? id.slice(0, 8)}</Badge>
+                  <Badge key={id} variant="outline">{jobById[id]?.po_number ?? jobById[id]?.job_number ?? id.slice(0, 8)}</Badge>
                 ))}
               </div>
               <p className="text-xs">Options: change start date, change setter, reduce development time, or cancel.</p>

@@ -189,7 +189,7 @@ export default function SchedulerOverview() {
                         style={{ borderLeftColor: job.setter_id ? setterById[job.setter_id]?.color : undefined, borderLeftWidth: 3 }}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-semibold text-sm">{job.job_number}</span>
+                          <span className="font-semibold text-sm">{job.po_number ?? job.job_number}</span>
                           <Badge variant="outline">{fmtHours(a.hours)}</Badge>
                         </div>
                         <div className="text-xs text-muted-foreground">
