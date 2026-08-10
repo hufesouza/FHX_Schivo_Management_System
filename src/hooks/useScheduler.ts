@@ -246,6 +246,7 @@ export function useScheduler() {
 
       const payload = {
         job_number: input.job_number,
+        po_number: input.po_number,
         part_number: input.part_number,
         customer: input.customer,
         machine_id: input.machine_id,
