@@ -124,22 +124,15 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label>Job number *</Label>
-            <Input
-              value={form.job_number}
-              disabled={!canEdit}
-              onChange={(e) => setForm({ ...form, job_number: e.target.value })}
-              placeholder="JOB-004"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label>Part number</Label>
+            <Label>Part number *</Label>
             <Input
               value={form.part_number}
               disabled={!canEdit}
               onChange={(e) => setForm({ ...form, part_number: e.target.value })}
+              placeholder="PN-1234"
             />
           </div>
+
           <div className="space-y-1.5">
             <Label>Customer</Label>
             <Input
