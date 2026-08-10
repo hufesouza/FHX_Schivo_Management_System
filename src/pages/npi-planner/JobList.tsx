@@ -205,10 +205,10 @@ export default function JobList() {
 
   // Material & tooling status are read-only on the tracker — managed on dedicated tiles.
 
-  if (loading) return <AppLayout title="Jobs" showBackButton backTo="/npi/capacity-planner"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin" /></div></AppLayout>;
+  if (loading) return <AppLayout title="Jobs" showBackButton backTo="/npi/capacity-planner-mvp"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin" /></div></AppLayout>;
 
   return (
-    <AppLayout title="Job Tracker" subtitle="Material, tooling & ship status" showBackButton backTo="/npi/capacity-planner">
+    <AppLayout title="Job Tracker" subtitle="Material, tooling & ship status" showBackButton backTo="/npi/capacity-planner-mvp">
       <main className="container mx-auto px-4 py-8 space-y-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
@@ -223,7 +223,7 @@ export default function JobList() {
                   </Button>
                 </>
               )}
-              <Button onClick={() => navigate('/npi/capacity-planner/parts/new')}><Plus className="h-4 w-4 mr-2" />New part</Button>
+              <Button onClick={() => navigate('/npi/capacity-planner-mvp/parts/new')}><Plus className="h-4 w-4 mr-2" />New part</Button>
             </div>
           </CardHeader>
 
@@ -295,7 +295,7 @@ export default function JobList() {
                         </TableCell>
                         <TableCell className="font-mono text-xs">{p.po || '-'}</TableCell>
 
-                        <TableCell className="font-medium cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>
+                        <TableCell className="font-medium cursor-pointer" onClick={() => navigate(`/npi/capacity-planner-mvp/parts/${p.id}`)}>
                           <div className="flex items-center gap-1.5" style={{ paddingLeft: isChild ? 18 : 0 }}>
                             {isChild && <span className="text-muted-foreground">↳</span>}
                             <span>{p.part_number}</span>
@@ -304,7 +304,7 @@ export default function JobList() {
                             {p._delayedByChild && <Badge variant="outline" className="text-[10px] h-4 px-1 border-destructive/40 text-destructive">Sub-delay</Badge>}
                           </div>
                         </TableCell>
-                        <TableCell className="cursor-pointer" onClick={() => navigate(`/npi/capacity-planner/parts/${p.id}`)}>{p.customer_name || '-'}</TableCell>
+                        <TableCell className="cursor-pointer" onClick={() => navigate(`/npi/capacity-planner-mvp/parts/${p.id}`)}>{p.customer_name || '-'}</TableCell>
                         <TableCell>{p.machine_name || '-'}</TableCell>
                         <TableCell className="align-top text-left">
                           <div className="flex flex-col items-start gap-0.5">

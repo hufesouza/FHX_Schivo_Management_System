@@ -178,7 +178,7 @@ export default function JobDetail() {
       toast.success('Saved');
       setReason('');
       setOriginal(part);
-      navigate('/npi/capacity-planner/jobs');
+      navigate('/npi/capacity-planner-mvp/jobs');
     } catch (e: any) {
       toast.error(e.message);
     } finally { setSaving(false); }
@@ -189,13 +189,13 @@ export default function JobDetail() {
     const { error } = await supabase.from('npi_parts').delete().eq('id', part.id);
     if (error) return toast.error(error.message);
     toast.success('Deleted');
-    navigate('/npi/capacity-planner/jobs');
+    navigate('/npi/capacity-planner-mvp/jobs');
   };
 
-  if (!part) return <AppLayout title="Loading…" showBackButton backTo="/npi/capacity-planner/jobs"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin"/></div></AppLayout>;
+  if (!part) return <AppLayout title="Loading…" showBackButton backTo="/npi/capacity-planner-mvp/jobs"><div className="flex items-center justify-center h-96"><Loader2 className="animate-spin"/></div></AppLayout>;
 
   return (
-    <AppLayout title={part.part_number} subtitle={part.customer_name || ''} showBackButton backTo="/npi/capacity-planner/jobs">
+    <AppLayout title={part.part_number} subtitle={part.customer_name || ''} showBackButton backTo="/npi/capacity-planner-mvp/jobs">
       <main className="container mx-auto px-4 py-8 max-w-5xl space-y-6">
         <Card>
           <CardHeader><CardTitle className="text-base">Planning</CardTitle></CardHeader>
@@ -289,7 +289,7 @@ export default function JobDetail() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/npi/capacity-planner/parts/new?parent=${part.id}&level=Sub%20Level`)}>
+                      <Button size="sm" variant="outline" onClick={() => navigate(`/npi/capacity-planner-mvp/parts/new?parent=${part.id}&level=Sub%20Level`)}>
                         <Plus className="h-3 w-3 mr-1" /> New Sub Level part
                       </Button>
                     </div>
@@ -305,7 +305,7 @@ export default function JobDetail() {
                     <ul className="text-sm space-y-1">
                       {children.map(c => (
                         <li key={c.id} className="flex items-center justify-between border-b pb-1">
-                          <button className="text-left hover:underline" onClick={() => navigate(`/npi/capacity-planner/parts/${c.id}`)}>
+                          <button className="text-left hover:underline" onClick={() => navigate(`/npi/capacity-planner-mvp/parts/${c.id}`)}>
                             <span className="font-medium">{c.part_number}</span>
                             {c.description && <span className="text-muted-foreground ml-2">{c.description}</span>}
                           </button>
@@ -333,7 +333,7 @@ export default function JobDetail() {
               return (
                 <div className="border rounded-md p-3 text-sm">
                   <span className="text-muted-foreground">Parent:</span>{' '}
-                  <button className="font-medium hover:underline" onClick={() => navigate(`/npi/capacity-planner/parts/${parent.id}`)}>
+                  <button className="font-medium hover:underline" onClick={() => navigate(`/npi/capacity-planner-mvp/parts/${parent.id}`)}>
                     {parent.part_number}{parent.description ? ` — ${parent.description}` : ''}
                   </button>
                 </div>
