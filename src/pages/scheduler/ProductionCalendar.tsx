@@ -26,25 +26,29 @@ export default function ProductionCalendar() {
   const [month, setMonth] = useState(now.getMonth());
   const [fMachine, setFMachine] = useState(ALL);
   const [fStatus, setFStatus] = useState(ALL);
+  const [fSetter, setFSetter] = useState(ALL);
+  const [fPo, setFPo] = useState('');
   const [fCustomer, setFCustomer] = useState('');
   const [fPart, setFPart] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editJobId, setEditJobId] = useState<string | null>(null);
 
-  const { machines, jobs, prodAllocations, jobById, setterById, holidays } = scheduler;
+  const { machines, setters, jobs, prodAllocations, jobById, setterById, holidays } = scheduler;
+
+  const filtersActive = fMachine !== ALL || fStatus !== ALL || fSetter !== ALL || !!fPo || !!fCustomer || !!fPart;
 
   const matching = useMemo(() => {
     const set = new Set<string>();
     for (const j of jobs) {
       if (fStatus !== ALL && j.production_status !== fStatus) continue;
+      if (fSetter !== ALL && j.setter_id !== fSetter) continue;
+      if (fPo && !(j.po_number ?? '').toLowerCase().includes(fPo.toLowerCase())) continue;
       if (fCustomer && !(j.customer ?? '').toLowerCase().includes(fCustomer.toLowerCase())) continue;
       if (fPart && !(j.part_number ?? '').toLowerCase().includes(fPart.toLowerCase())) continue;
       set.add(j.id);
     }
     return set;
-  }, [jobs, fStatus, fCustomer, fPart]);
-
-  const shownMachines = fMachine === ALL ? machines : machines.filter((m) => m.id === fMachine);
+  }, [jobs, fStatus, fSetter, fPo, fCustomer, fPart]);
 
   const runsFor = (machineId: string) =>
     jobs
@@ -61,6 +65,20 @@ export default function ProductionCalendar() {
           days: allocs.length,
         };
       });
+
+  const shownMachines = useMemo(() => {
+    let list = fMachine === ALL ? machines : machines.filter((m) => m.id === fMachine);
+    if (filtersActive) {
+      const withRuns = new Set(
+        jobs
+          .filter((j) => matching.has(j.id) && j.machine_id && Number(j.production_quantity) > 0)
+          .map((j) => j.machine_id as string),
+      );
+      list = list.filter((m) => withRuns.has(m.id));
+    }
+    return list;
+  }, [machines, fMachine, filtersActive, jobs, matching]);
+
 
   return (
     <AppLayout
