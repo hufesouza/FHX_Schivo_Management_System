@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { fmtHours, fromISO, monthMatrix, toISO } from '@/utils/schedulerEngine';
+import { fmtDuration, fmtHours, fromISO, monthMatrix, productionHours, toISO } from '@/utils/schedulerEngine';
 import type { SchedAllocation, SchedHoliday, SchedJob, SchedSetter } from '@/types/scheduler';
 import { activityColor } from '@/utils/schedulerColors';
 
@@ -170,7 +170,10 @@ export function MonthCalendar({
                       ? `Quantity: ${Number(job.production_quantity) || 0} pcs`
                       : `Setter: ${setter?.name ?? '—'}`,
                     isProd && Number(job.cycle_time) > 0
-                      ? `Cycle time: ${job.cycle_time} ${job.cycle_time_unit === 'hours' ? 'h' : 'min'}/pc`
+                      ? `Cycle time: ${job.cycle_time} ${job.cycle_time_unit === 'hours' ? 'h' : job.cycle_time_unit === 'seconds' ? 's' : 'min'}/pc`
+                      : null,
+                    isProd
+                      ? `Total machine time: ${fmtDuration(productionHours(job.production_quantity, job.cycle_time, job.cycle_time_unit))} (${job.production_start ?? '—'} -> ${job.production_end ?? '—'})`
                       : null,
                     `Allocated: ${fmtHours(a.hours)} on ${a.alloc_date}`,
                   ].filter(Boolean).join('\n');

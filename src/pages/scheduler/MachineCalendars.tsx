@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import { toast } from 'sonner';
-import { fmtDuration, fmtHours, machineHoursOn, productionMinutes } from '@/utils/schedulerEngine';
+import { fmtDuration, fmtHours, machineHoursOn, productionHours } from '@/utils/schedulerEngine';
 import { ACTIVITY_COLORS } from '@/utils/schedulerColors';
 
 const ALL = '__all__';
@@ -263,7 +263,7 @@ export default function MachineCalendars() {
                                   : '—'}
                               </td>
                               <td className="py-1 px-2 text-right">
-                                {isProd ? fmtDuration(productionMinutes(r.job) / 60) : fmtHours(r.hours)}
+                                {isProd ? fmtDuration(productionHours(r.job.production_quantity, r.job.cycle_time, r.job.cycle_time_unit)) : fmtHours(r.hours)}
                               </td>
                               <td className="py-1 px-2">{r.start}</td>
                               <td className="py-1 px-2">{r.end}</td>
