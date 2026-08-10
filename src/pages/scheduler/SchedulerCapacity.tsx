@@ -24,7 +24,7 @@ const utilColor = (pct: number) =>
   pct > 100 ? 'text-destructive' : pct >= 90 ? 'text-amber-600' : 'text-emerald-600';
 
 export default function SchedulerCapacity() {
-  const { setters, machines, allocations, calendar, holidays, loading } = useScheduler();
+  const { setters, machines, allocations, devAllocations, prodAllocations, calendar, holidays, loading } = useScheduler();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
@@ -52,7 +52,8 @@ export default function SchedulerCapacity() {
   const setterRows = setters.map((s) => {
     const rows = buckets.map((b) => {
       const capacity = b.days.reduce((sum, iso) => sum + setterHoursOn(iso, s.id, calendar, holidays), 0);
-      const allocated = allocations
+      const allocated = devAllocations
+
         .filter((a) => a.setter_id === s.id && b.days.includes(a.alloc_date))
         .reduce((sum, a) => sum + Number(a.hours), 0);
       return {
@@ -80,28 +81,38 @@ export default function SchedulerCapacity() {
   const machineRows = machines.map((m) => {
     const rows = buckets.map((b) => {
       const capacity = b.days.reduce((sum, iso) => sum + machineHoursOn(iso, m, holidays), 0);
-      const allocated = allocations
-        .filter((a) => a.machine_id === m.id && b.days.includes(a.alloc_date))
-        .reduce((sum, a) => sum + Number(a.hours), 0);
+      const sum = (list: typeof allocations) =>
+        list.filter((a) => a.machine_id === m.id && b.days.includes(a.alloc_date))
+          .reduce((acc, a) => acc + Number(a.hours), 0);
+      const dev = sum(devAllocations);
+      const prod = sum(prodAllocations);
+      const allocated = dev + prod;
       return {
         key: b.key,
         label: b.label,
         capacity: Math.round(capacity * 10) / 10,
         allocated: Math.round(allocated * 10) / 10,
+        dev: Math.round(dev * 10) / 10,
+        prod: Math.round(prod * 10) / 10,
         available: Math.round((capacity - allocated) * 10) / 10,
         util: capacity > 0 ? Math.round((allocated / capacity) * 1000) / 10 : 0,
       };
     });
     const capacity = rows.reduce((a, b) => a + b.capacity, 0);
     const allocated = rows.reduce((a, b) => a + b.allocated, 0);
+    const dev = rows.reduce((a, b) => a + b.dev, 0);
+    const prod = rows.reduce((a, b) => a + b.prod, 0);
     return {
       resource: m,
       rows,
       capacity: Math.round(capacity * 10) / 10,
       allocated: Math.round(allocated * 10) / 10,
+      dev: Math.round(dev * 10) / 10,
+      prod: Math.round(prod * 10) / 10,
       util: capacity > 0 ? Math.round((allocated / capacity) * 1000) / 10 : 0,
     };
   });
+
 
   const renderRows = (
     items: { name: string; sub?: string; capacity: number; allocated: number; util: number; rows: { key: string; label: string; capacity: number; allocated: number; available: number; util: number }[] }[],
