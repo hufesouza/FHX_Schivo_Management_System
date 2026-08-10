@@ -169,8 +169,8 @@ export function MonthCalendar({
                     isProd
                       ? `Quantity: ${Number(job.production_quantity) || 0} pcs`
                       : `Setter: ${setter?.name ?? '—'}`,
-                    isProd && Number(job.cycle_time_minutes) > 0
-                      ? `Cycle time: ${job.cycle_time_minutes} min/pc`
+                    isProd && Number(job.cycle_time) > 0
+                      ? `Cycle time: ${job.cycle_time} ${job.cycle_time_unit === 'hours' ? 'h' : 'min'}/pc`
                       : null,
                     `Allocated: ${fmtHours(a.hours)} on ${a.alloc_date}`,
                   ].filter(Boolean).join('\n');
