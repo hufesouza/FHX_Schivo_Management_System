@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.npi-notify-change]
 verify_jwt = false
+
+[functions.parse-action-date]
+verify_jwt = false
