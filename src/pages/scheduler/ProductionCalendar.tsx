@@ -205,6 +205,7 @@ export default function ProductionCalendar() {
                             className="border-b border-border/60 last:border-0 hover:bg-accent/50 cursor-pointer"
                             onClick={() => { setEditJobId(job.id); setDialogOpen(true); }}
                           >
+                            <td className="py-1 px-2 font-semibold">{job.po_number ?? '—'}</td>
                             <td className="py-1 px-2 font-medium">{job.job_number}</td>
                             <td className="py-1 px-2">{job.part_number ?? '—'}</td>
                             <td className="py-1 px-2">{job.customer ?? '—'}</td>
