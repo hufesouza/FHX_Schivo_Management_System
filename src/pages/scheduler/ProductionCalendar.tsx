@@ -109,17 +109,44 @@ export default function ProductionCalendar() {
                 {PRODUCTION_STATUS_OPTIONS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={fSetter} onValueChange={setFSetter}>
+              <SelectTrigger className="w-[160px]"><SelectValue placeholder="Setter" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All setters</SelectItem>
+                {setters.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="relative">
+              <Input placeholder="PO# search" className="w-[170px] pr-7" value={fPo} onChange={(e) => setFPo(e.target.value)} />
+              {fPo && (
+                <button
+                  aria-label="Clear PO# filter"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setFPo('')}
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
             <Input placeholder="Customer" className="w-[160px]" value={fCustomer} onChange={(e) => setFCustomer(e.target.value)} />
             <Input placeholder="Part number" className="w-[150px]" value={fPart} onChange={(e) => setFPart(e.target.value)} />
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => { setFMachine(ALL); setFStatus(ALL); setFCustomer(''); setFPart(''); }}
+              onClick={() => { setFMachine(ALL); setFStatus(ALL); setFSetter(ALL); setFPo(''); setFCustomer(''); setFPart(''); }}
             >
               <X className="h-4 w-4 mr-1" /> Clear filters
             </Button>
           </CardContent>
         </Card>
+
+        {shownMachines.length === 0 && (
+          <Card>
+            <CardContent className="p-6 text-sm text-muted-foreground text-center">
+              No jobs match the selected filters.
+            </CardContent>
+          </Card>
+        )}
 
         {shownMachines.map((m) => {
           const allocs = prodAllocations.filter((a) => a.machine_id === m.id && matching.has(a.job_id));
