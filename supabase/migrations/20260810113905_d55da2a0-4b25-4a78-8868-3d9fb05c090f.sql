@@ -1,0 +1,12 @@
+ALTER TABLE public.npi_parts DROP COLUMN IF EXISTS project_id;
+DROP TABLE IF EXISTS public.npi_project_charter CASCADE;
+DROP TABLE IF EXISTS public.npi_project_milestones CASCADE;
+DROP TABLE IF EXISTS public.npi_project_team CASCADE;
+DROP TABLE IF EXISTS public.npi_phase_tasks CASCADE;
+DROP TABLE IF EXISTS public.npi_phase_gates CASCADE;
+DROP TABLE IF EXISTS public.npi_evidence CASCADE;
+DROP TABLE IF EXISTS public.npi_handshakes CASCADE;
+DROP TABLE IF EXISTS public.npi_blue_reviews CASCADE;
+DROP TABLE IF EXISTS public.npi_change_log CASCADE;
+DROP TABLE IF EXISTS public.npi_audit_log CASCADE;
+DROP TABLE IF EXISTS public.npi_projects CASCADE;
