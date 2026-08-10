@@ -48,14 +48,17 @@ export default function SchedulerJobs() {
         const allocs = allocations
           .filter((a) => a.job_id === j.id)
           .sort((a, b) => a.alloc_date.localeCompare(b.alloc_date));
+        const prod = prodAllocations.filter((a) => a.job_id === j.id);
         return {
           job: j,
           start: allocs[0]?.alloc_date ?? j.start_date,
           end: allocs[allocs.length - 1]?.alloc_date ?? '—',
           days: allocs.length,
+          prodHours: prod.reduce((sum, a) => sum + Number(a.hours), 0),
         };
       });
-  }, [jobs, allocations, search, fStatus, fPriority, fMachine, fSetter]);
+  }, [jobs, allocations, prodAllocations, search, fStatus, fPriority, fMachine, fSetter]);
+
 
   return (
     <AppLayout title="Jobs" subtitle="All NPI development jobs" showBackButton backTo="/scheduling">
@@ -115,12 +118,17 @@ export default function SchedulerJobs() {
                   <th className="text-left py-2 px-3">Start</th>
                   <th className="text-left py-2 px-3">Planned end</th>
                   <th className="text-right py-2 px-3">Days</th>
+                  <th className="text-right py-2 px-3">Prod qty</th>
+                  <th className="text-right py-2 px-3">Prod hours</th>
+                  <th className="text-left py-2 px-3">Prod start</th>
+                  <th className="text-left py-2 px-3">Prod end</th>
                   <th className="text-left py-2 px-3">Priority</th>
                   <th className="text-left py-2 px-3">Status</th>
+
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ job, start, end, days }) => (
+                {rows.map(({ job, start, end, days, prodHours }) => (
                   <tr
                     key={job.id}
                     className="border-b border-border/60 last:border-0 hover:bg-accent/50 cursor-pointer"
@@ -146,6 +154,11 @@ export default function SchedulerJobs() {
                     <td className="py-2 px-3">{start}</td>
                     <td className="py-2 px-3">{end}</td>
                     <td className="py-2 px-3 text-right">{days}</td>
+                    <td className="py-2 px-3 text-right">{Number(job.production_quantity) || 0}</td>
+                    <td className="py-2 px-3 text-right">{prodHours > 0 ? fmtDuration(prodHours) : '—'}</td>
+                    <td className="py-2 px-3">{job.production_start ?? '—'}</td>
+                    <td className="py-2 px-3">{job.production_end ?? '—'}</td>
+
                     <td className="py-2 px-3">
                       <Badge variant={priorityVariant(job.priority) as 'default' | 'secondary' | 'destructive'}>
                         {job.priority}
