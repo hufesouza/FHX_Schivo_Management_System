@@ -21,6 +21,9 @@ export interface MonthCalendarProps {
   onOpenJob?: (jobId: string) => void;
   onMoveJob?: (jobId: string, iso: string) => void;
   nonWorking?: (iso: string) => boolean;
+  /** 'production' shows quantity instead of setter name on each chip. */
+  mode?: 'development' | 'production';
+
 }
 
 export function MonthCalendar({
@@ -37,6 +40,8 @@ export function MonthCalendar({
   onOpenJob,
   onMoveJob,
   nonWorking,
+  mode = 'development',
+
 }: MonthCalendarProps) {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const weeks = useMemo(() => monthMatrix(year, month), [year, month]);
@@ -145,8 +150,13 @@ export function MonthCalendar({
                       title={`${job.job_number} · ${job.part_number ?? ''} · ${job.customer ?? ''}`}
                     >
                       <div className="font-semibold truncate">{job.job_number}</div>
-                      <div className="truncate text-muted-foreground">{setter?.name ?? 'No setter'}</div>
+                      <div className="truncate text-muted-foreground">
+                        {mode === 'production'
+                          ? `${Number(job.production_quantity) || 0} pcs`
+                          : setter?.name ?? 'No setter'}
+                      </div>
                       <div className="text-muted-foreground">{fmtHours(a.hours)}</div>
+
                     </div>
                   );
                 })}

@@ -9,10 +9,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { SchedJob, SchedJobPriority, SchedJobStatus } from '@/types/scheduler';
-import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '@/types/scheduler';
-import { fmtHours, toISO } from '@/utils/schedulerEngine';
+import type { SchedJob, SchedJobPriority, SchedJobStatus, CycleTimeUnit, ProductionStatus } from '@/types/scheduler';
+import { PRIORITY_OPTIONS, STATUS_OPTIONS, CYCLE_TIME_UNITS, PRODUCTION_STATUS_OPTIONS } from '@/types/scheduler';
+import { addDays, fmtDuration, fmtHours, toISO } from '@/utils/schedulerEngine';
 import type { useScheduler } from '@/hooks/useScheduler';
+
 
 interface JobDialogProps {
   open: boolean;
@@ -34,10 +35,16 @@ const emptyForm = (date: string) => ({
   priority: 'medium' as SchedJobPriority,
   status: 'planned' as SchedJobStatus,
   notes: '',
+  production_quantity: '',
+  cycle_time: '',
+  cycle_time_unit: 'minutes' as CycleTimeUnit,
+  production_start: '',
+  production_status: 'not_scheduled' as ProductionStatus,
 });
 
+
 export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, canEdit = true }: JobDialogProps) {
-  const { machines, setters, validate, saveJob, deleteJob, jobById } = scheduler;
+  const { machines, setters, validate, validateProduction, saveJob, deleteJob, jobById } = scheduler;
   const [form, setForm] = useState(emptyForm(defaultDate || toISO(new Date())));
   const [saving, setSaving] = useState(false);
 
@@ -55,6 +62,11 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         priority: job.priority,
         status: job.status,
         notes: job.notes ?? '',
+        production_quantity: job.production_quantity ? String(job.production_quantity) : '',
+        cycle_time: job.cycle_time ? String(job.cycle_time) : '',
+        cycle_time_unit: job.cycle_time_unit ?? 'minutes',
+        production_start: job.production_start ?? '',
+        production_status: job.production_status ?? 'not_scheduled',
       });
     } else {
       setForm(emptyForm(defaultDate || toISO(new Date())));
@@ -77,15 +89,42 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
 
   const { plan, conflicts } = result;
 
+  const qty = Number(form.production_quantity) || 0;
+  const cycle = Number(form.cycle_time) || 0;
+  const hasProduction = qty > 0 && cycle > 0;
+
+  const production = useMemo(
+    () =>
+      validateProduction({
+        jobId: job?.id ?? null,
+        machineId: form.machine_id || null,
+        startDate: form.production_start || null,
+        quantity: qty,
+        cycleTime: cycle,
+        unit: form.cycle_time_unit,
+      }),
+    [validateProduction, job?.id, form.machine_id, form.production_start, form.cycle_time_unit, qty, cycle],
+  );
+
+  const suggestedProdStart = plan.endDate ? addDays(plan.endDate, 1) : form.start_date;
+
   const missing: string[] = [];
   if (!form.part_number.trim()) missing.push('Part number');
   if (!form.start_date) missing.push('Start date');
   if (!form.setter_id) missing.push('Setter');
   if (!form.machine_id) missing.push('Machine');
   if (hours <= 0) missing.push('Development hours');
+  if (hasProduction && !form.production_start) missing.push('Production start date');
 
   const noWorkingDays = form.setter_id && hours > 0 && plan.allocations.length === 0;
-  const blocked = missing.length > 0 || conflicts.hasConflicts || !!noWorkingDays;
+  const noMachineDays = hasProduction && !!form.production_start && production.plan.allocations.length === 0;
+  const blocked =
+    missing.length > 0 ||
+    conflicts.hasConflicts ||
+    !!noWorkingDays ||
+    noMachineDays ||
+    (hasProduction && production.conflicts.hasConflicts);
+
 
   const handleSave = async () => {
     if (blocked) return;
@@ -103,7 +142,13 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
       priority: form.priority,
       status: form.status,
       notes: form.notes.trim() || null,
+      production_quantity: qty,
+      cycle_time: cycle,
+      cycle_time_unit: form.cycle_time_unit,
+      production_start: hasProduction ? form.production_start || null : null,
+      production_status: form.production_status,
     });
+
     setSaving(false);
     if (res.ok) {
       toast.success(job ? 'Job updated' : 'Job created');
@@ -213,7 +258,149 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
           </div>
         </div>
 
+        {/* ---------------- Production layer ---------------- */}
+        <div className="rounded-lg border border-border p-3 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h4 className="text-sm font-semibold">Production run (optional)</h4>
+              <p className="text-xs text-muted-foreground">
+                Production occupies the machine only — setters stay free and available for development work.
+              </p>
+            </div>
+            <Badge variant="outline">Machine capacity</Badge>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Production quantity</Label>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={form.production_quantity}
+                disabled={!canEdit}
+                onChange={(e) => setForm({ ...form, production_quantity: e.target.value })}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Cycle time per piece</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.cycle_time}
+                  disabled={!canEdit}
+                  onChange={(e) => setForm({ ...form, cycle_time: e.target.value })}
+                  placeholder="0"
+                />
+                <Select
+                  value={form.cycle_time_unit}
+                  onValueChange={(v) => setForm({ ...form, cycle_time_unit: v as CycleTimeUnit })}
+                  disabled={!canEdit}
+                >
+                  <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CYCLE_TIME_UNITS.map((u) => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Production start date</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  value={form.production_start}
+                  disabled={!canEdit}
+                  onChange={(e) => setForm({ ...form, production_start: e.target.value })}
+                />
+                {canEdit && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setForm({ ...form, production_start: suggestedProdStart })}
+                  >
+                    After dev
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Production status</Label>
+              <Select
+                value={form.production_status}
+                onValueChange={(v) => setForm({ ...form, production_status: v as ProductionStatus })}
+                disabled={!canEdit}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PRODUCTION_STATUS_OPTIONS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-border bg-muted/40 p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            <div>
+              <div className="text-xs text-muted-foreground">Total machine time</div>
+              <div className="font-semibold">{hasProduction ? fmtDuration(production.hours) : '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Production start</div>
+              <div className="font-semibold">{production.plan.startDate ?? '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Production end</div>
+              <div className="font-semibold">{production.plan.endDate ?? '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Machine days</div>
+              <div className="font-semibold">{production.plan.workingDays}</div>
+            </div>
+          </div>
+        </div>
+
+        {noMachineDays && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Cannot schedule production</AlertTitle>
+            <AlertDescription>
+              The selected machine has no working hours available from {form.production_start}. Change the date, the machine,
+              or the machine calendar.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {hasProduction && production.conflicts.hasConflicts && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Machine conflict — production</AlertTitle>
+            <AlertDescription className="space-y-1">
+              <p>
+                {machines.find((m) => m.id === form.machine_id)?.name} is already booked during this production window. Over
+                capacity by <strong>{fmtHours(production.conflicts.totalOver)}</strong>.
+              </p>
+              <div className="max-h-32 overflow-y-auto">
+                {production.conflicts.conflicts.map((c) => (
+                  <div key={c.date} className="text-xs">
+                    {c.date}: booked {fmtHours(c.existing)} + requested {fmtHours(c.requested)} vs capacity {fmtHours(c.capacity)} → over {fmtHours(c.over)}
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1 pt-1">
+                {production.conflicts.conflictingJobIds.map((id) => (
+                  <Badge key={id} variant="outline">{jobById[id]?.job_number ?? id.slice(0, 8)}</Badge>
+                ))}
+              </div>
+              <p className="text-xs">Options: move the production start date, choose another machine, or split the quantity.</p>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Calculated schedule */}
+
         <div className="rounded-lg border border-border p-3 bg-muted/40 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
           <div>
             <div className="text-xs text-muted-foreground">Planned start</div>

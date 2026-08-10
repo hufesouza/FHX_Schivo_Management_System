@@ -282,3 +282,139 @@ export const isoWeekKey = (iso: string): string => {
 };
 
 export const fmtHours = (n: number): string => `${Math.round((Number(n) || 0) * 10) / 10}h`;
+
+/** Production layer ---------------------------------------------------
+ * Production consumes MACHINE capacity only (never setter capacity).
+ */
+
+import type { CycleTimeUnit } from '@/types/scheduler';
+
+/** Quantity x cycle time -> hours of machine occupancy. */
+export const productionHours = (
+  quantity: number,
+  cycleTime: number,
+  unit: CycleTimeUnit,
+): number => {
+  const qty = Math.max(0, Number(quantity) || 0);
+  const ct = Math.max(0, Number(cycleTime) || 0);
+  const perPieceHours = unit === 'seconds' ? ct / 3600 : unit === 'minutes' ? ct / 60 : ct;
+  return Math.round(qty * perPieceHours * 100) / 100;
+};
+
+/** Human readable duration: 1.67h -> "1h 40m" */
+export const fmtDuration = (hours: number): string => {
+  const total = Math.max(0, Math.round((Number(hours) || 0) * 60));
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+};
+
+/**
+ * Spread production hours across the machine's working calendar,
+ * starting at `startDate`. Non-working days / holidays are skipped.
+ */
+export const planProduction = (
+  startDate: string,
+  hours: number,
+  machine: SchedMachine | undefined,
+  holidays: SchedHoliday[],
+): SchedulePlan => {
+  const allocations: PlannedAllocation[] = [];
+  let remaining = Math.max(0, Number(hours) || 0);
+  const total = remaining;
+
+  if (!startDate || remaining === 0 || !machine) {
+    return {
+      allocations,
+      startDate: null,
+      endDate: null,
+      workingDays: 0,
+      allocatedHours: 0,
+      unallocatedHours: remaining,
+    };
+  }
+
+  let cursor = startDate;
+  let guard = 0;
+  while (remaining > 0.0001 && guard < MAX_DAYS) {
+    guard += 1;
+    const cap = machineHoursOn(cursor, machine, holidays);
+    if (cap > 0) {
+      const take = Math.min(cap, remaining);
+      allocations.push({ alloc_date: cursor, hours: Math.round(take * 100) / 100 });
+      remaining -= take;
+    }
+    if (remaining > 0.0001) cursor = addDays(cursor, 1);
+  }
+
+  const allocated = allocations.reduce((a, b) => a + b.hours, 0);
+  return {
+    allocations,
+    startDate: allocations[0]?.alloc_date ?? null,
+    endDate: allocations[allocations.length - 1]?.alloc_date ?? null,
+    workingDays: allocations.length,
+    allocatedHours: Math.round(allocated * 100) / 100,
+    unallocatedHours: Math.round((total - allocated) * 100) / 100,
+  };
+};
+
+export interface ProductionConflictReport {
+  conflicts: MachineConflict[];
+  hasConflicts: boolean;
+  totalOver: number;
+  conflictingJobIds: string[];
+}
+
+/**
+ * Machine capacity check for a production plan.
+ * Counts BOTH development and production allocations already booked on the
+ * machine. Only the job's own *production* rows are ignored (they are being
+ * replaced) — its own development rows still occupy the machine.
+ */
+export const detectProductionConflicts = (
+  plan: PlannedAllocation[],
+  ctx: { jobId?: string | null; machineId: string | null },
+  existingAllocations: SchedAllocation[],
+  holidays: SchedHoliday[],
+  machines: SchedMachine[],
+): ProductionConflictReport => {
+  const machine = machines.find((m) => m.id === ctx.machineId);
+  const conflicts: MachineConflict[] = [];
+  const conflicting = new Set<string>();
+
+  if (!ctx.machineId) {
+    return { conflicts, hasConflicts: false, totalOver: 0, conflictingJobIds: [] };
+  }
+
+  for (const slot of plan) {
+    const capacity = machineHoursOn(slot.alloc_date, machine, holidays);
+    const rows = existingAllocations.filter(
+      (a) =>
+        a.alloc_date === slot.alloc_date &&
+        a.machine_id === ctx.machineId &&
+        !(a.job_id === ctx.jobId && a.alloc_type === 'production'),
+    );
+    const existing = round2(rows.reduce((a, b) => a + Number(b.hours), 0));
+    const over = round2(existing + slot.hours - capacity);
+    if (over > 0.01) {
+      rows.forEach((r) => conflicting.add(r.job_id));
+      conflicts.push({
+        date: slot.alloc_date,
+        capacity,
+        existing,
+        requested: slot.hours,
+        over,
+        jobIds: rows.map((r) => r.job_id),
+      });
+    }
+  }
+
+  return {
+    conflicts,
+    hasConflicts: conflicts.length > 0,
+    totalOver: round2(conflicts.reduce((a, b) => a + b.over, 0)),
+    conflictingJobIds: Array.from(conflicting),
+  };
+};

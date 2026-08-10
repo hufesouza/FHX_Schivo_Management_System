@@ -3847,6 +3847,7 @@ export type Database = {
       sched_job_allocations: {
         Row: {
           alloc_date: string
+          alloc_type: string
           created_at: string
           hours: number
           id: string
@@ -3856,6 +3857,7 @@ export type Database = {
         }
         Insert: {
           alloc_date: string
+          alloc_type?: string
           created_at?: string
           hours: number
           id?: string
@@ -3865,6 +3867,7 @@ export type Database = {
         }
         Update: {
           alloc_date?: string
+          alloc_type?: string
           created_at?: string
           hours?: number
           id?: string
@@ -3901,6 +3904,8 @@ export type Database = {
           created_at: string
           created_by: string | null
           customer: string | null
+          cycle_time: number
+          cycle_time_unit: string
           development_hours: number
           id: string
           job_number: string
@@ -3908,6 +3913,10 @@ export type Database = {
           notes: string | null
           part_number: string | null
           priority: Database["public"]["Enums"]["sched_job_priority"]
+          production_end: string | null
+          production_quantity: number
+          production_start: string | null
+          production_status: string
           setter_id: string | null
           start_date: string
           status: Database["public"]["Enums"]["sched_job_status"]
@@ -3917,6 +3926,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer?: string | null
+          cycle_time?: number
+          cycle_time_unit?: string
           development_hours?: number
           id?: string
           job_number: string
@@ -3924,6 +3935,10 @@ export type Database = {
           notes?: string | null
           part_number?: string | null
           priority?: Database["public"]["Enums"]["sched_job_priority"]
+          production_end?: string | null
+          production_quantity?: number
+          production_start?: string | null
+          production_status?: string
           setter_id?: string | null
           start_date: string
           status?: Database["public"]["Enums"]["sched_job_status"]
@@ -3933,6 +3948,8 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           customer?: string | null
+          cycle_time?: number
+          cycle_time_unit?: string
           development_hours?: number
           id?: string
           job_number?: string
@@ -3940,6 +3957,10 @@ export type Database = {
           notes?: string | null
           part_number?: string | null
           priority?: Database["public"]["Enums"]["sched_job_priority"]
+          production_end?: string | null
+          production_quantity?: number
+          production_start?: string | null
+          production_status?: string
           setter_id?: string | null
           start_date?: string
           status?: Database["public"]["Enums"]["sched_job_status"]
