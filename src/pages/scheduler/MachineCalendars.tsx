@@ -12,7 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import { toast } from 'sonner';
-import { fmtHours, machineHoursOn } from '@/utils/schedulerEngine';
+import { fmtDuration, fmtHours, machineHoursOn, productionMinutes } from '@/utils/schedulerEngine';
+import { ACTIVITY_COLORS } from '@/utils/schedulerColors';
 
 const ALL = '__all__';
 
@@ -32,7 +33,8 @@ export default function MachineCalendars() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editJobId, setEditJobId] = useState<string | null>(null);
 
-  const { machines, setters, jobs, devAllocations: allocations, jobById, setterById, holidays } = scheduler;
+  const { machines, setters, jobs, devAllocations, prodAllocations, jobById, setterById, holidays } = scheduler;
+  const allocations = devAllocations;
 
   const filtersActive = fMachine !== ALL || fSetter !== ALL || !!fPo || !!fCustomer || !!fJob || !!fPart;
 
@@ -49,17 +51,46 @@ export default function MachineCalendars() {
     return set;
   }, [jobs, fSetter, fPo, fCustomer, fJob, fPart]);
 
-  const jobRows = (machineId: string) =>
-    jobs
-      .filter((j) => j.machine_id === machineId && matching.has(j.id))
-      .map((j) => {
-        const allocs = allocations.filter((a) => a.job_id === j.id).sort((a, b) => a.alloc_date.localeCompare(b.alloc_date));
-        return {
+  const jobRows = (machineId: string) => {
+    const rows: {
+      key: string;
+      activity: 'development' | 'production';
+      job: typeof jobs[number];
+      hours: number;
+      start: string;
+      end: string;
+    }[] = [];
+    for (const j of jobs) {
+      if (j.machine_id !== machineId || !matching.has(j.id)) continue;
+      const dev = devAllocations
+        .filter((a) => a.job_id === j.id)
+        .sort((a, b) => a.alloc_date.localeCompare(b.alloc_date));
+      if (dev.length > 0 || Number(j.development_hours) > 0) {
+        rows.push({
+          key: `${j.id}-dev`,
+          activity: 'development',
           job: j,
-          start: allocs[0]?.alloc_date ?? j.start_date,
-          end: allocs[allocs.length - 1]?.alloc_date ?? j.start_date,
-        };
-      });
+          hours: Number(j.development_hours) || 0,
+          start: dev[0]?.alloc_date ?? j.start_date,
+          end: dev[dev.length - 1]?.alloc_date ?? j.start_date,
+        });
+      }
+      const prod = prodAllocations
+        .filter((a) => a.job_id === j.id)
+        .sort((a, b) => a.alloc_date.localeCompare(b.alloc_date));
+      if (prod.length > 0) {
+        rows.push({
+          key: `${j.id}-prod`,
+          activity: 'production',
+          job: j,
+          hours: prod.reduce((sum, a) => sum + Number(a.hours), 0),
+          start: prod[0].alloc_date,
+          end: prod[prod.length - 1].alloc_date,
+        });
+      }
+    }
+    return rows.sort((a, b) => a.start.localeCompare(b.start));
+  };
 
   const shownMachines = useMemo(() => {
     let list = fMachine === ALL ? machines : machines.filter((m) => m.id === fMachine);
@@ -129,8 +160,12 @@ export default function MachineCalendars() {
         )}
 
         {shownMachines.map((m) => {
-          const machineAllocs = allocations.filter((a) => a.machine_id === m.id && matching.has(a.job_id));
+          const machineAllocs = [...devAllocations, ...prodAllocations].filter(
+            (a) => a.machine_id === m.id && matching.has(a.job_id),
+          );
           const rows = jobRows(m.id);
+          const devHours = rows.filter((r) => r.activity === 'development').reduce((s2, r) => s2 + r.hours, 0);
+          const prodHours = rows.filter((r) => r.activity === 'production').reduce((s2, r) => s2 + r.hours, 0);
           return (
             <Card key={m.id}>
               <CardHeader className="pb-2">
@@ -138,12 +173,34 @@ export default function MachineCalendars() {
                   {m.name}
                   <Badge variant="outline">{m.code}</Badge>
                   <span className="text-xs font-normal text-muted-foreground">
-                    {fmtHours(m.daily_hours)}/day available · {rows.length} job(s)
+                    {fmtHours(m.daily_hours)}/day available · development {fmtHours(devHours)} · production {fmtHours(prodHours)} · occupied {fmtHours(devHours + prodHours)}
                   </span>
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-2.5 w-4 rounded-sm border-l-2"
+                      style={{ backgroundColor: ACTIVITY_COLORS.development.bg, borderLeftColor: ACTIVITY_COLORS.development.hex }}
+                    />
+                    DEVELOPMENT
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-2.5 w-4 rounded-sm border-l-2"
+                      style={{ backgroundColor: ACTIVITY_COLORS.production.bg, borderLeftColor: ACTIVITY_COLORS.production.hex }}
+                    />
+                    PRODUCTION / RUN
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="inline-block h-2.5 w-4 rounded-sm border border-border bg-card" />
+                    AVAILABLE
+                  </span>
+                  <span className="text-muted-foreground/70">Programming does not occupy machines</span>
+                </div>
                 <MonthCalendar
+                  mode="machine"
                   year={year}
                   month={month}
                   allocations={machineAllocs}
@@ -163,33 +220,56 @@ export default function MachineCalendars() {
                     <table className="w-full text-xs">
                       <thead className="text-muted-foreground">
                         <tr className="border-b border-border">
+                          <th className="text-left py-1 px-2">Activity</th>
                           <th className="text-left py-1 px-2">PO#</th>
                           <th className="text-left py-1 px-2">Job</th>
                           <th className="text-left py-1 px-2">Part</th>
                           <th className="text-left py-1 px-2">Customer</th>
                           <th className="text-left py-1 px-2">Setter</th>
-                          <th className="text-right py-1 px-2">Dev hours</th>
+                          <th className="text-right py-1 px-2">Qty</th>
+                          <th className="text-right py-1 px-2">Cycle</th>
+                          <th className="text-right py-1 px-2">Machine time</th>
                           <th className="text-left py-1 px-2">Start</th>
-                          <th className="text-left py-1 px-2">Planned end</th>
+                          <th className="text-left py-1 px-2">End</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {rows.map(({ job, start, end }) => (
-                          <tr
-                            key={job.id}
-                            className="border-b border-border/60 last:border-0 hover:bg-accent/50 cursor-pointer"
-                            onClick={() => { setEditJobId(job.id); setDialogOpen(true); }}
-                          >
-                            <td className="py-1 px-2 font-semibold">{job.po_number ?? '—'}</td>
-                            <td className="py-1 px-2 font-medium">{job.job_number}</td>
-                            <td className="py-1 px-2">{job.part_number ?? '—'}</td>
-                            <td className="py-1 px-2">{job.customer ?? '—'}</td>
-                            <td className="py-1 px-2">{job.setter_id ? setterById[job.setter_id]?.name : '—'}</td>
-                            <td className="py-1 px-2 text-right">{fmtHours(job.development_hours)}</td>
-                            <td className="py-1 px-2">{start}</td>
-                            <td className="py-1 px-2">{end}</td>
-                          </tr>
-                        ))}
+                        {rows.map((r) => {
+                          const isProd = r.activity === 'production';
+                          const c = isProd ? ACTIVITY_COLORS.production : ACTIVITY_COLORS.development;
+                          return (
+                            <tr
+                              key={r.key}
+                              className="border-b border-border/60 last:border-0 hover:bg-accent/50 cursor-pointer"
+                              onClick={() => { setEditJobId(r.job.id); setDialogOpen(true); }}
+                            >
+                              <td className="py-1 px-2">
+                                <span
+                                  className="inline-flex items-center rounded px-1.5 py-0.5 border-l-2 font-semibold"
+                                  style={{ backgroundColor: c.bg, borderLeftColor: c.hex, color: c.hex }}
+                                >
+                                  {isProd ? 'PRODUCTION / RUN' : 'DEVELOPMENT'}
+                                </span>
+                              </td>
+                              <td className="py-1 px-2 font-semibold">{r.job.po_number ?? '—'}</td>
+                              <td className="py-1 px-2 font-medium">{r.job.job_number}</td>
+                              <td className="py-1 px-2">{r.job.part_number ?? '—'}</td>
+                              <td className="py-1 px-2">{r.job.customer ?? '—'}</td>
+                              <td className="py-1 px-2">{!isProd && r.job.setter_id ? setterById[r.job.setter_id]?.name ?? '—' : '—'}</td>
+                              <td className="py-1 px-2 text-right">{isProd ? `${Number(r.job.production_quantity) || 0} pcs` : '—'}</td>
+                              <td className="py-1 px-2 text-right">
+                                {isProd && Number(r.job.cycle_time) > 0
+                                  ? `${r.job.cycle_time} ${r.job.cycle_time_unit === 'hours' ? 'h' : 'min'}/pc`
+                                  : '—'}
+                              </td>
+                              <td className="py-1 px-2 text-right">
+                                {isProd ? fmtDuration(productionMinutes(r.job) / 60) : fmtHours(r.hours)}
+                              </td>
+                              <td className="py-1 px-2">{r.start}</td>
+                              <td className="py-1 px-2">{r.end}</td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
