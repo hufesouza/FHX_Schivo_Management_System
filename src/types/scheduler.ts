@@ -36,6 +36,18 @@ export interface SchedHoliday {
   machine_id: string | null;
 }
 
+export type CycleTimeUnit = 'seconds' | 'minutes' | 'hours';
+export type ProductionStatus =
+  | 'not_scheduled'
+  | 'scheduled'
+  | 'in_production'
+  | 'completed'
+  | 'on_hold'
+  | 'cancelled';
+
+/** Allocation kind — development consumes setter + machine, production consumes machine only. */
+export type AllocType = 'development' | 'production';
+
 export interface SchedJob {
   id: string;
   job_number: string;
@@ -51,6 +63,13 @@ export interface SchedJob {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  // --- production layer ---
+  production_quantity: number;
+  cycle_time: number;
+  cycle_time_unit: CycleTimeUnit;
+  production_start: string | null;
+  production_end: string | null;
+  production_status: ProductionStatus;
 }
 
 export interface SchedAllocation {
@@ -60,7 +79,9 @@ export interface SchedAllocation {
   machine_id: string | null;
   alloc_date: string;
   hours: number;
+  alloc_type: AllocType;
 }
+
 
 export interface SchedAuditEntry {
   id: string;
