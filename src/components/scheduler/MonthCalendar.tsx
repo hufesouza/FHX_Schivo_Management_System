@@ -2,8 +2,9 @@ import { useMemo, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { fmtHours, fromISO, monthMatrix, toISO } from '@/utils/schedulerEngine';
+import { fmtDuration, fmtHours, fromISO, monthMatrix, productionHours, toISO } from '@/utils/schedulerEngine';
 import type { SchedAllocation, SchedHoliday, SchedJob, SchedSetter } from '@/types/scheduler';
+import { activityColor } from '@/utils/schedulerColors';
 
 const WEEKDAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
@@ -21,8 +22,13 @@ export interface MonthCalendarProps {
   onOpenJob?: (jobId: string) => void;
   onMoveJob?: (jobId: string, iso: string) => void;
   nonWorking?: (iso: string) => boolean;
-  /** 'production' shows quantity, 'programming' shows the programmer on each chip. */
-  mode?: 'development' | 'production' | 'programming';
+  /**
+   * 'production' shows quantity, 'programming' shows the programmer on each chip,
+   * 'machine' shows combined machine occupancy (development + production) colour-coded by activity.
+   */
+  mode?: 'development' | 'production' | 'programming' | 'machine';
+
+
 
 }
 
@@ -134,34 +140,61 @@ export function MonthCalendar({
                 {dayAllocs.slice(0, 4).map((a) => {
                   const job = jobById[a.job_id];
                   if (!job) return null;
+                  const isProd = a.alloc_type === 'production';
+                  const activity = mode === 'machine'
+                    ? activityColor(a.alloc_type)
+                    : mode === 'production'
+                      ? activityColor('production')
+                      : mode === 'programming'
+                        ? activityColor('programming')
+                        : activityColor('development');
                   const resourceId = mode === 'programming' ? a.setter_id : job.setter_id;
                   const setter = resourceId ? setterById[resourceId] : undefined;
-                  const color = setter?.color || '#64748b';
+                  const activityLabel = mode === 'machine'
+                    ? (isProd ? 'PRODUCTION / RUN' : 'DEVELOPMENT')
+                    : mode === 'programming'
+                      ? 'PROGRAMMING'
+                      : mode === 'production'
+                        ? 'PRODUCTION / RUN'
+                        : job.job_number;
+                  const secondary = mode === 'production' || (mode === 'machine' && isProd)
+                    ? `${Number(job.production_quantity) || 0} pcs`
+                    : setter?.name ?? (mode === 'programming' ? 'No programmer' : 'No setter');
+                  const tip = [
+                    `PO#: ${job.po_number ?? '—'}`,
+                    `Job: ${job.job_number}`,
+                    `Part: ${job.part_number ?? '—'}`,
+                    `Customer: ${job.customer ?? '—'}`,
+                    `Activity: ${mode === 'machine' ? (isProd ? 'Production / Run' : 'Development') : activityLabel}`,
+                    isProd
+                      ? `Quantity: ${Number(job.production_quantity) || 0} pcs`
+                      : `Setter: ${setter?.name ?? '—'}`,
+                    isProd && Number(job.cycle_time) > 0
+                      ? `Cycle time: ${job.cycle_time} ${job.cycle_time_unit === 'hours' ? 'h' : job.cycle_time_unit === 'seconds' ? 's' : 'min'}/pc`
+                      : null,
+                    isProd
+                      ? `Total machine time: ${fmtDuration(productionHours(job.production_quantity, job.cycle_time, job.cycle_time_unit))} (${job.production_start ?? '—'} -> ${job.production_end ?? '—'})`
+                      : null,
+                    `Allocated: ${fmtHours(a.hours)} on ${a.alloc_date}`,
+                  ].filter(Boolean).join('\n');
+                  const dragAllowed = canEdit && !isProd;
                   return (
                     <div
                       key={a.id}
-                      draggable={canEdit}
+                      draggable={dragAllowed}
                       onDragStart={(e) => e.dataTransfer.setData('text/job-id', job.id)}
                       onClick={(e) => {
                         e.stopPropagation();
                         onOpenJob?.(job.id);
                       }}
-                      className="rounded px-1 py-0.5 cursor-pointer text-[10px] leading-tight border-l-2 bg-accent/60 hover:bg-accent"
-                      style={{ borderLeftColor: color }}
-                      title={`${job.po_number ?? ''} · ${job.job_number} · ${job.part_number ?? ''} · ${job.customer ?? ''}`}
+                      className="rounded px-1 py-0.5 cursor-pointer text-[10px] leading-tight border-l-2 hover:brightness-95"
+                      style={{ borderLeftColor: activity.hex, backgroundColor: activity.bg }}
+                      title={tip}
                     >
                       <div className="font-semibold truncate">{job.po_number || job.job_number}</div>
-                      <div className="truncate text-muted-foreground">
-                        {mode === 'programming' ? 'PROGRAMMING' : job.job_number}
-                      </div>
-                      <div className="truncate text-muted-foreground">
-                        {mode === 'production'
-                          ? `${Number(job.production_quantity) || 0} pcs`
-                          : setter?.name ?? (mode === 'programming' ? 'No programmer' : 'No setter')}
-                      </div>
+                      <div className="truncate" style={{ color: activity.hex }}>{activityLabel}</div>
+                      <div className="truncate text-muted-foreground">{secondary}</div>
                       <div className="text-muted-foreground">{fmtHours(a.hours)}</div>
-
-
                     </div>
                   );
                 })}
