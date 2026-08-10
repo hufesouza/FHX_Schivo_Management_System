@@ -78,7 +78,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
   const { plan, conflicts } = result;
 
   const missing: string[] = [];
-  if (!form.job_number.trim()) missing.push('Job number');
+  if (!form.part_number.trim()) missing.push('Part number');
   if (!form.start_date) missing.push('Start date');
   if (!form.setter_id) missing.push('Setter');
   if (!form.machine_id) missing.push('Machine');
@@ -92,8 +92,9 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
     setSaving(true);
     const res = await saveJob({
       id: job?.id,
-      job_number: form.job_number.trim(),
-      part_number: form.part_number.trim() || null,
+      job_number: form.part_number.trim(),
+      part_number: form.part_number.trim(),
+
       customer: form.customer.trim() || null,
       machine_id: form.machine_id || null,
       setter_id: form.setter_id || null,
