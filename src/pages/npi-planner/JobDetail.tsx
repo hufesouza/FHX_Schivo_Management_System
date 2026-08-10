@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
-import { logChange, type Part, type ChangeLog } from '@/hooks/useNPIPlanning';
+import { logChange, type Part } from '@/hooks/useNPIPlanning';
 import { Loader2, Save, Trash2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -25,7 +25,6 @@ export default function JobDetail() {
   const navigate = useNavigate();
   const [part, setPart] = useState<Part | null>(null);
   const [original, setOriginal] = useState<Part | null>(null);
-  const [history, setHistory] = useState<ChangeLog[]>([]);
   const [reason, setReason] = useState('');
   const [machines, setMachines] = useState<any[]>([]);
   const [machineOptionIds, setMachineOptionIds] = useState<string[]>([]);
@@ -102,16 +101,14 @@ export default function JobDetail() {
   useEffect(() => {
     if (!id) return;
     (async () => {
-      const [{ data: p }, { data: m }, { data: h }, { data: ap }] = await Promise.all([
+      const [{ data: p }, { data: m }, { data: ap }] = await Promise.all([
         supabase.from('npi_parts').select('*').eq('id', id).single(),
         supabase.from('npi_machines').select('*').order('machine_name'),
-        supabase.from('npi_change_log').select('*').eq('part_id', id).order('created_at', { ascending: false }),
         supabase.from('npi_parts').select('*').order('part_number'),
       ]);
       setAllParts((ap as any) || []);
       setPart(p as any); setOriginal(p as any);
       setMachines(m || []);
-      setHistory((h as any) || []);
       if (p) {
         setAllocMachineId((p as any).machine_id || '');
         setAllocStartDate((p as any).best_commence_date || new Date().toISOString().slice(0, 10));

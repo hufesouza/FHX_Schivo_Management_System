@@ -558,35 +558,11 @@ export const upsertPart = async (part: Partial<Part>, machineOptionIds: string[]
 };
 
 export const logChange = async (
-  part: Part,
-  field: string,
-  prev: string | null,
-  next: string | null,
-  reason: string | null,
+  _part: Part,
+  _field: string,
+  _prev: string | null,
+  _next: string | null,
+  _reason: string | null,
 ) => {
-  const { data: { user } } = await supabase.auth.getUser();
-  const { data: profile } = await supabase
-    .from('profiles').select('full_name,email').eq('user_id', user?.id || '').maybeSingle();
-
-  const { data: log } = await supabase.from('npi_change_log').insert({
-    part_id: part.id,
-    part_number: part.part_number,
-    customer_name: part.customer_name,
-    project_name: part.project_name,
-    field_changed: field,
-    previous_value: prev,
-    new_value: next,
-    reason,
-    changed_by: user?.id,
-    changed_by_name: profile?.full_name || profile?.email || 'Unknown',
-  }).select().single();
-
-  // Trigger email for committed_date or machine changes
-  if (field === 'committed_date' || field === 'machine_name') {
-    try {
-      await supabase.functions.invoke('npi-notify-change', { body: { changeLogId: log?.id } });
-    } catch (e) {
-      console.error('Email notify failed', e);
-    }
-  }
+  // Change history was retired together with the NPI Capacity Planner module.
 };
