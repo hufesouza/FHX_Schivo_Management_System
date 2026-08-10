@@ -40,7 +40,7 @@ export default function SchedulerJobs() {
         if (fMachine !== ALL && j.machine_id !== fMachine) return false;
         if (fSetter !== ALL && j.setter_id !== fSetter) return false;
         if (!q) return true;
-        return [j.job_number, j.part_number, j.customer, j.notes]
+        return [j.po_number, j.job_number, j.part_number, j.customer, j.notes]
           .filter(Boolean)
           .some((v) => String(v).toLowerCase().includes(q));
       })
