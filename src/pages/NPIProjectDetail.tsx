@@ -122,23 +122,6 @@ export default function NPIProjectDetail() {
                 </Link>
               </Button>
             )}
-            {project.work_order_number && (
-              <Button variant="outline" size="sm" asChild>
-                <Link to={`/work-order/${project.work_order_number}`}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Work Order
-                  <ExternalLink className="h-3 w-3 ml-1" />
-                </Link>
-              </Button>
-            )}
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/npi/blue-review">
-                <ClipboardCheck className="h-4 w-4 mr-2" />
-                Blue Review
-                <ExternalLink className="h-3 w-3 ml-1" />
-              </Link>
-            </Button>
-            
             <Badge className={`${phaseInfo.color} text-white text-base px-4 py-2`}>
               {phaseInfo.label}
             </Badge>
