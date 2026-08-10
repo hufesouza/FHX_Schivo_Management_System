@@ -119,6 +119,10 @@ export default function SchedulerJobs() {
                   <th className="text-left py-2 px-3">Start</th>
                   <th className="text-left py-2 px-3">Planned end</th>
                   <th className="text-right py-2 px-3">Days</th>
+                  <th className="text-left py-2 px-3">Programmer</th>
+                  <th className="text-right py-2 px-3">Prog hours</th>
+                  <th className="text-left py-2 px-3">Prog start</th>
+                  <th className="text-left py-2 px-3">Prog end</th>
                   <th className="text-right py-2 px-3">Prod qty</th>
                   <th className="text-right py-2 px-3">Prod hours</th>
                   <th className="text-left py-2 px-3">Prod start</th>
@@ -156,6 +160,12 @@ export default function SchedulerJobs() {
                     <td className="py-2 px-3">{start}</td>
                     <td className="py-2 px-3">{end}</td>
                     <td className="py-2 px-3 text-right">{days}</td>
+                    <td className="py-2 px-3">{job.programmer_id ? setterById[job.programmer_id]?.name ?? '—' : '—'}</td>
+                    <td className="py-2 px-3 text-right">
+                      {Number(job.programming_hours) > 0 ? fmtHours(job.programming_hours) : '—'}
+                    </td>
+                    <td className="py-2 px-3">{job.programming_start ?? '—'}</td>
+                    <td className="py-2 px-3">{job.programming_end ?? '—'}</td>
                     <td className="py-2 px-3 text-right">{Number(job.production_quantity) || 0}</td>
                     <td className="py-2 px-3 text-right">{prodHours > 0 ? fmtDuration(prodHours) : '—'}</td>
                     <td className="py-2 px-3">{job.production_start ?? '—'}</td>
