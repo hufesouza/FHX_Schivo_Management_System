@@ -185,6 +185,7 @@ export default function ProductionCalendar() {
                     <table className="w-full text-xs">
                       <thead className="text-muted-foreground">
                         <tr className="border-b border-border">
+                          <th className="text-left py-1 px-2">PO#</th>
                           <th className="text-left py-1 px-2">Job</th>
                           <th className="text-left py-1 px-2">Part</th>
                           <th className="text-left py-1 px-2">Customer</th>
