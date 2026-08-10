@@ -65,30 +65,12 @@ const App = () => (
           
           {/* NPI Engineering Module */}
           <Route path="/npi" element={<NPIHub />} />
-          <Route path="/npi/blue-review" element={<BlueReviewDashboard />} />
-          <Route path="/npi/daily-meeting" element={<DailyMeeting />} />
-          <Route path="/npi/quotation" element={<QuotationHub />} />
-          <Route path="/npi/quotation/new" element={<QuotationNew />} />
-          <Route path="/npi/quotation/machines" element={<QuotationMachines />} />
-          <Route path="/npi/quotation/estimator" element={<PertEstimator />} />
-          <Route path="/npi/quotation/compliance" element={<QuotationComplianceSettings />} />
           <Route path="/npi/quotation-dashboard" element={<QuotationDashboard />} />
           <Route path="/npi/order-intelligence" element={<NPIOrderSiteSelect />} />
           <Route path="/npi/order-intelligence/:site" element={<NPIOrderIntelligence />} />
-          
-          <Route path="/npi/quotation-control" element={<QuotationControlHub />} />
-          <Route path="/npi/quotation-system" element={<QuotationSystemHub />} />
-          <Route path="/npi/quotation-system/enquiries" element={<EnquiryList />} />
-          <Route path="/npi/quotation-system/enquiry/:id" element={<EnquiryDetail />} />
-          <Route path="/npi/quotation-system/new" element={<QuotationSystemNew />} />
-          <Route path="/npi/quotation-system/edit/:id" element={<QuotationSystemNew />} />
-          <Route path="/npi/quotation-system/list" element={<QuotationSystemList />} />
-          <Route path="/npi/quotation-system/settings" element={<QuotationSystemSettings />} />
           <Route path="/npi/projects" element={<NPIProjects />} />
           <Route path="/npi/projects/:id" element={<NPIProjectDetail />} />
-          <Route path="/npi/drawing-translate" element={<DrawingTranslate />} />
-          <Route path="/npi/balloon-dwg" element={<BalloonDWG />} />
-          <Route path="/npi/quotation-system/guide" element={<QuotationSystemPresentation />} />
+
 
           {/* NPI Capacity Planner */}
           <Route path="/npi/capacity-planner" element={<NPICapacityPlannerHub />} />
