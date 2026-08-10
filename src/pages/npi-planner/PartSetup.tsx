@@ -14,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 
 import { useNPIPlanning, upsertPart, type Part } from '@/hooks/useNPIPlanning';
 import { toast } from 'sonner';
-import { Loader2, Plus, FileSpreadsheet } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { QuickCustomerDialog } from '@/components/npi-planner/QuickCustomerDialog';
 import { QuickProjectDialog } from '@/components/npi-planner/QuickProjectDialog';
