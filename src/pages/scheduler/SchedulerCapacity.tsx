@@ -253,6 +253,9 @@ export default function SchedulerCapacity() {
               <TabsTrigger value="machines">Machines</TabsTrigger>
             </TabsList>
             <TabsContent value="setters" className="mt-3">
+              <p className="text-xs text-muted-foreground mb-2">
+                Setter capacity counts development work only — production runs never consume setter hours.
+              </p>
               {renderRows(
                 setterRows.map((r) => ({
                   name: r.resource.name,
@@ -265,17 +268,24 @@ export default function SchedulerCapacity() {
               )}
             </TabsContent>
             <TabsContent value="machines" className="mt-3">
+              <p className="text-xs text-muted-foreground mb-2">
+                Machine occupancy combines development and production hours.
+              </p>
               {renderRows(
                 machineRows.map((r) => ({
                   name: `${r.resource.code} — ${r.resource.name}`,
                   sub: `${fmtHours(r.resource.daily_hours)}/day`,
                   capacity: r.capacity,
                   allocated: r.allocated,
+                  dev: r.dev,
+                  prod: r.prod,
                   util: r.util,
                   rows: r.rows,
                 })),
+                true,
               )}
             </TabsContent>
+
           </Tabs>
         )}
       </div>
