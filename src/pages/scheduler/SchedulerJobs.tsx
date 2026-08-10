@@ -65,7 +65,7 @@ export default function SchedulerJobs() {
       <SchedulerNav />
       <div className="p-4 space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <Input placeholder="Search job, part, customer…" className="w-64" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <Input placeholder="Search PO#, job, part, customer…" className="w-72" value={search} onChange={(e) => setSearch(e.target.value)} />
           <Select value={fStatus} onValueChange={setFStatus}>
             <SelectTrigger className="w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
