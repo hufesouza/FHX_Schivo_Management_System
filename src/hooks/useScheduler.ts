@@ -513,9 +513,59 @@ export function useScheduler() {
     [holidays, logAudit, fetchAll],
   );
 
+  /** Move a production run to a new start date on its machine. */
+  const moveProduction = useCallback(
+    async (jobId: string, newStartDate: string): Promise<{ ok: boolean; error?: string }> => {
+      const job = jobs.find((j) => j.id === jobId);
+      if (!job) return { ok: false, error: 'Job not found' };
+      if (!job.machine_id) return { ok: false, error: 'Assign a machine before scheduling production.' };
+      const { plan: p, conflicts } = validateProduction({
+        jobId,
+        machineId: job.machine_id,
+        startDate: newStartDate,
+        quantity: Number(job.production_quantity),
+        cycleTime: Number(job.cycle_time),
+        unit: job.cycle_time_unit,
+      });
+      if (p.allocations.length === 0) {
+        return { ok: false, error: 'No machine working hours available from that date (or no production quantity set).' };
+      }
+      if (conflicts.hasConflicts) {
+        const first = conflicts.conflicts[0];
+        return {
+          ok: false,
+          error: `Machine capacity exceeded on ${first.date}: ${first.existing}h already booked + ${first.requested}h requested vs ${first.capacity}h available (over by ${first.over}h).`,
+        };
+      }
+      try {
+        const { error } = await supabase
+          .from('sched_jobs')
+          .update({ production_start: p.startDate, production_end: p.endDate })
+          .eq('id', jobId);
+        if (error) throw error;
+        await writeProductionAllocations(jobId, job.machine_id, p);
+        await logAudit({
+          action: 'move_production',
+          entity: 'job',
+          entity_id: jobId,
+          entity_label: job.job_number,
+          previous_value: { production_start: job.production_start, production_end: job.production_end },
+          new_value: { production_start: p.startDate, production_end: p.endDate },
+        });
+        await fetchAll();
+        return { ok: true };
+      } catch (e) {
+        return { ok: false, error: e instanceof Error ? e.message : 'Failed to move production run' };
+      }
+    },
+    [jobs, validateProduction, writeProductionAllocations, logAudit, fetchAll],
+  );
+
   const machineById = useMemo(() => Object.fromEntries(machines.map((m) => [m.id, m])), [machines]);
   const setterById = useMemo(() => Object.fromEntries(setters.map((s) => [s.id, s])), [setters]);
   const jobById = useMemo(() => Object.fromEntries(jobs.map((j) => [j.id, j])), [jobs]);
+  const devAllocations = useMemo(() => allocations.filter((a) => a.alloc_type !== 'production'), [allocations]);
+  const prodAllocations = useMemo(() => allocations.filter((a) => a.alloc_type === 'production'), [allocations]);
 
   return {
     loading,
@@ -525,6 +575,8 @@ export function useScheduler() {
     holidays,
     jobs,
     allocations,
+    devAllocations,
+    prodAllocations,
     audit,
     calendar,
     machineById,
@@ -533,8 +585,11 @@ export function useScheduler() {
     refetch: fetchAll,
     plan,
     validate,
+    validateProduction,
     saveJob,
     moveJob,
+    moveProduction,
+
     deleteJob,
     saveMachine,
     deleteMachine,
