@@ -114,9 +114,31 @@ export default function SchedulerCapacity() {
   });
 
 
+  interface RenderRow {
+    key: string;
+    label: string;
+    capacity: number;
+    allocated: number;
+    available: number;
+    util: number;
+    dev?: number;
+    prod?: number;
+  }
+
   const renderRows = (
-    items: { name: string; sub?: string; capacity: number; allocated: number; util: number; rows: { key: string; label: string; capacity: number; allocated: number; available: number; util: number }[] }[],
+    items: {
+      name: string;
+      sub?: string;
+      capacity: number;
+      allocated: number;
+      util: number;
+      dev?: number;
+      prod?: number;
+      rows: RenderRow[];
+    }[],
+    showSplit = false,
   ) => (
+
     <div className="space-y-3">
       {items.map((item) => (
         <Card key={item.name}>
