@@ -32,6 +32,7 @@ import MVPScheduleBoard from "./pages/npi-planner-mvp/ScheduleBoardPage";
 import SchedulerOverview from "./pages/scheduler/SchedulerOverview";
 import MachineCalendars from "./pages/scheduler/MachineCalendars";
 import ProductionCalendar from "./pages/scheduler/ProductionCalendar";
+import ProgrammingCalendar from '@/pages/scheduler/ProgrammingCalendar';
 
 import SchedulerCapacity from "./pages/scheduler/SchedulerCapacity";
 import SchedulerJobs from "./pages/scheduler/SchedulerJobs";
@@ -82,6 +83,7 @@ const App = () => (
           {/* NPI Resource Scheduling & Capacity Planning */}
           <Route path="/scheduling" element={<SchedulerOverview />} />
           <Route path="/scheduling/machines-calendar" element={<MachineCalendars />} />
+          <Route path="/scheduling/programming" element={<ProgrammingCalendar />} />
           <Route path="/scheduling/production" element={<ProductionCalendar />} />
 
           <Route path="/scheduling/capacity" element={<SchedulerCapacity />} />

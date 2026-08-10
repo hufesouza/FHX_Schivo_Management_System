@@ -24,7 +24,7 @@ const utilColor = (pct: number) =>
   pct > 100 ? 'text-destructive' : pct >= 90 ? 'text-amber-600' : 'text-emerald-600';
 
 export default function SchedulerCapacity() {
-  const { setters, machines, allocations, devAllocations, prodAllocations, calendar, holidays, loading } = useScheduler();
+  const { setters, machines, allocations, devAllocations, prodAllocations, progAllocations, calendar, holidays, loading } = useScheduler();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
@@ -52,15 +52,20 @@ export default function SchedulerCapacity() {
   const setterRows = setters.map((s) => {
     const rows = buckets.map((b) => {
       const capacity = b.days.reduce((sum, iso) => sum + setterHoursOn(iso, s.id, calendar, holidays), 0);
-      const allocated = devAllocations
-
-        .filter((a) => a.setter_id === s.id && b.days.includes(a.alloc_date))
-        .reduce((sum, a) => sum + Number(a.hours), 0);
+      const sumFor = (list: typeof allocations) =>
+        list
+          .filter((a) => a.setter_id === s.id && b.days.includes(a.alloc_date))
+          .reduce((sum, a) => sum + Number(a.hours), 0);
+      const dev = sumFor(devAllocations);
+      const prog = sumFor(progAllocations);
+      const allocated = dev + prog;
       return {
         key: b.key,
         label: b.label,
         capacity: Math.round(capacity * 10) / 10,
         allocated: Math.round(allocated * 10) / 10,
+        dev: Math.round(dev * 10) / 10,
+        prog: Math.round(prog * 10) / 10,
         available: Math.round((capacity - allocated) * 10) / 10,
         util: capacity > 0 ? Math.round((allocated / capacity) * 1000) / 10 : 0,
       };
@@ -68,9 +73,13 @@ export default function SchedulerCapacity() {
     const capacity = rows.reduce((a, b) => a + b.capacity, 0);
     const allocated = rows.reduce((a, b) => a + b.allocated, 0);
     const weekly = [0, 1, 2, 3, 4, 5, 6].reduce((sum, dow) => sum + (calendar[s.id]?.[dow] ?? 0), 0);
+    const dev = rows.reduce((a, b) => a + b.dev, 0);
+    const prog = rows.reduce((a, b) => a + b.prog, 0);
     return {
       resource: s,
       rows,
+      dev: Math.round(dev * 10) / 10,
+      prog: Math.round(prog * 10) / 10,
       capacity: Math.round(capacity * 10) / 10,
       allocated: Math.round(allocated * 10) / 10,
       util: capacity > 0 ? Math.round((allocated / capacity) * 1000) / 10 : 0,
@@ -123,6 +132,7 @@ export default function SchedulerCapacity() {
     util: number;
     dev?: number;
     prod?: number;
+    prog?: number;
   }
 
   const renderRows = (
@@ -134,9 +144,11 @@ export default function SchedulerCapacity() {
       util: number;
       dev?: number;
       prod?: number;
+      prog?: number;
       rows: RenderRow[];
     }[],
     showSplit = false,
+    splitKind: 'machine' | 'resource' = 'machine',
   ) => (
 
     <div className="space-y-3">
@@ -179,8 +191,12 @@ export default function SchedulerCapacity() {
                   <div className="font-semibold">{fmtHours(item.dev ?? 0)}</div>
                 </div>
                 <div>
-                  <div className="text-xs text-muted-foreground">Production hours</div>
-                  <div className="font-semibold">{fmtHours(item.prod ?? 0)}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {splitKind === 'resource' ? 'Programming hours' : 'Production hours'}
+                  </div>
+                  <div className="font-semibold">
+                    {fmtHours((splitKind === 'resource' ? item.prog : item.prod) ?? 0)}
+                  </div>
                 </div>
               </div>
             )}
@@ -192,7 +208,9 @@ export default function SchedulerCapacity() {
                     <th className="text-left py-1 px-2">Period</th>
                     <th className="text-right py-1 px-2">Capacity</th>
                     {showSplit && <th className="text-right py-1 px-2">Development</th>}
-                    {showSplit && <th className="text-right py-1 px-2">Production</th>}
+                    {showSplit && (
+                      <th className="text-right py-1 px-2">{splitKind === 'resource' ? 'Programming' : 'Production'}</th>
+                    )}
                     <th className="text-right py-1 px-2">Allocated</th>
                     <th className="text-right py-1 px-2">Available</th>
                     <th className="text-right py-1 px-2">Utilisation</th>
@@ -204,7 +222,11 @@ export default function SchedulerCapacity() {
                       <td className="py-1 px-2">{r.label}</td>
                       <td className="py-1 px-2 text-right">{fmtHours(r.capacity)}</td>
                       {showSplit && <td className="py-1 px-2 text-right">{fmtHours(r.dev ?? 0)}</td>}
-                      {showSplit && <td className="py-1 px-2 text-right">{fmtHours(r.prod ?? 0)}</td>}
+                      {showSplit && (
+                        <td className="py-1 px-2 text-right">
+                          {fmtHours((splitKind === 'resource' ? r.prog : r.prod) ?? 0)}
+                        </td>
+                      )}
                       <td className="py-1 px-2 text-right">{fmtHours(r.allocated)}</td>
                       <td className={cn('py-1 px-2 text-right', r.available < 0 && 'text-destructive font-semibold')}>
                         {fmtHours(r.available)}
@@ -249,12 +271,12 @@ export default function SchedulerCapacity() {
         ) : (
           <Tabs defaultValue="setters">
             <TabsList>
-              <TabsTrigger value="setters">Setters</TabsTrigger>
+              <TabsTrigger value="setters">Setters / Programmers</TabsTrigger>
               <TabsTrigger value="machines">Machines</TabsTrigger>
             </TabsList>
             <TabsContent value="setters" className="mt-3">
               <p className="text-xs text-muted-foreground mb-2">
-                Setter capacity counts development work only — production runs never consume setter hours.
+                Resource capacity counts development + programming work. Production runs never consume setter hours.
               </p>
               {renderRows(
                 setterRows.map((r) => ({
@@ -262,14 +284,18 @@ export default function SchedulerCapacity() {
                   sub: `Weekly capacity ${fmtHours(r.weekly)}${r.resource.is_active ? '' : ' · inactive'}`,
                   capacity: r.capacity,
                   allocated: r.allocated,
+                  dev: r.dev,
+                  prog: r.prog,
                   util: r.util,
                   rows: r.rows,
                 })),
+                true,
+                'resource',
               )}
             </TabsContent>
             <TabsContent value="machines" className="mt-3">
               <p className="text-xs text-muted-foreground mb-2">
-                Machine occupancy combines development and production hours.
+                Machine occupancy combines development and production hours. Programming contributes 0 hours.
               </p>
               {renderRows(
                 machineRows.map((r) => ({
