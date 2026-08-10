@@ -62,6 +62,13 @@ import MVPJobEntryDetail from "./pages/npi-planner-mvp/JobEntryDetail";
 import MVPSchedulingEngine from "./pages/npi-planner-mvp/SchedulingEngine";
 import MVPGanttChart from "./pages/npi-planner-mvp/GanttChart";
 import MVPScheduleBoard from "./pages/npi-planner-mvp/ScheduleBoardPage";
+import SchedulerOverview from "./pages/scheduler/SchedulerOverview";
+import MachineCalendars from "./pages/scheduler/MachineCalendars";
+import SchedulerCapacity from "./pages/scheduler/SchedulerCapacity";
+import SchedulerJobs from "./pages/scheduler/SchedulerJobs";
+import SchedulerMachines from "./pages/scheduler/SchedulerMachines";
+import SchedulerSetters from "./pages/scheduler/SchedulerSetters";
+import SchedulerAudit from "./pages/scheduler/SchedulerAudit";
 
 
 const queryClient = new QueryClient();
@@ -136,7 +143,16 @@ const App = () => (
           <Route path="/npi/capacity-planner-mvp/scheduling" element={<MVPSchedulingEngine />} />
           <Route path="/npi/capacity-planner-mvp/settings" element={<PlannerSettings />} />
 
-          
+
+          {/* NPI Resource Scheduling & Capacity Planning */}
+          <Route path="/scheduling" element={<SchedulerOverview />} />
+          <Route path="/scheduling/machines-calendar" element={<MachineCalendars />} />
+          <Route path="/scheduling/capacity" element={<SchedulerCapacity />} />
+          <Route path="/scheduling/jobs" element={<SchedulerJobs />} />
+          <Route path="/scheduling/machines" element={<SchedulerMachines />} />
+          <Route path="/scheduling/setters" element={<SchedulerSetters />} />
+          <Route path="/scheduling/audit" element={<SchedulerAudit />} />
+
           {/* Change Control Module */}
           <Route path="/change-control" element={<ChangeControlHub />} />
           
