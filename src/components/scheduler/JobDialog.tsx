@@ -258,7 +258,149 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
           </div>
         </div>
 
+        {/* ---------------- Production layer ---------------- */}
+        <div className="rounded-lg border border-border p-3 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <h4 className="text-sm font-semibold">Production run (optional)</h4>
+              <p className="text-xs text-muted-foreground">
+                Production occupies the machine only — setters stay free and available for development work.
+              </p>
+            </div>
+            <Badge variant="outline">Machine capacity</Badge>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label>Production quantity</Label>
+              <Input
+                type="number"
+                min="0"
+                step="1"
+                value={form.production_quantity}
+                disabled={!canEdit}
+                onChange={(e) => setForm({ ...form, production_quantity: e.target.value })}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Cycle time per piece</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.cycle_time}
+                  disabled={!canEdit}
+                  onChange={(e) => setForm({ ...form, cycle_time: e.target.value })}
+                  placeholder="0"
+                />
+                <Select
+                  value={form.cycle_time_unit}
+                  onValueChange={(v) => setForm({ ...form, cycle_time_unit: v as CycleTimeUnit })}
+                  disabled={!canEdit}
+                >
+                  <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {CYCLE_TIME_UNITS.map((u) => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Production start date</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="date"
+                  value={form.production_start}
+                  disabled={!canEdit}
+                  onChange={(e) => setForm({ ...form, production_start: e.target.value })}
+                />
+                {canEdit && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setForm({ ...form, production_start: suggestedProdStart })}
+                  >
+                    After dev
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Production status</Label>
+              <Select
+                value={form.production_status}
+                onValueChange={(v) => setForm({ ...form, production_status: v as ProductionStatus })}
+                disabled={!canEdit}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {PRODUCTION_STATUS_OPTIONS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-border bg-muted/40 p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+            <div>
+              <div className="text-xs text-muted-foreground">Total machine time</div>
+              <div className="font-semibold">{hasProduction ? fmtDuration(production.hours) : '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Production start</div>
+              <div className="font-semibold">{production.plan.startDate ?? '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Production end</div>
+              <div className="font-semibold">{production.plan.endDate ?? '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Machine days</div>
+              <div className="font-semibold">{production.plan.workingDays}</div>
+            </div>
+          </div>
+        </div>
+
+        {noMachineDays && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Cannot schedule production</AlertTitle>
+            <AlertDescription>
+              The selected machine has no working hours available from {form.production_start}. Change the date, the machine,
+              or the machine calendar.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {hasProduction && production.conflicts.hasConflicts && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Machine conflict — production</AlertTitle>
+            <AlertDescription className="space-y-1">
+              <p>
+                {machines.find((m) => m.id === form.machine_id)?.name} is already booked during this production window. Over
+                capacity by <strong>{fmtHours(production.conflicts.totalOver)}</strong>.
+              </p>
+              <div className="max-h-32 overflow-y-auto">
+                {production.conflicts.conflicts.map((c) => (
+                  <div key={c.date} className="text-xs">
+                    {c.date}: booked {fmtHours(c.existing)} + requested {fmtHours(c.requested)} vs capacity {fmtHours(c.capacity)} → over {fmtHours(c.over)}
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap gap-1 pt-1">
+                {production.conflicts.conflictingJobIds.map((id) => (
+                  <Badge key={id} variant="outline">{jobById[id]?.job_number ?? id.slice(0, 8)}</Badge>
+                ))}
+              </div>
+              <p className="text-xs">Options: move the production start date, choose another machine, or split the quantity.</p>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Calculated schedule */}
+
         <div className="rounded-lg border border-border p-3 bg-muted/40 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
           <div>
             <div className="text-xs text-muted-foreground">Planned start</div>
