@@ -5,7 +5,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { fmtHours, fromISO, setterHoursOn, toISO } from '@/utils/schedulerEngine';
-import type { SchedAllocation, SchedHoliday, SetterCalendarMap } from '@/types/scheduler';
+import type { SetterCalendarMap } from '@/utils/schedulerEngine';
+import type { SchedAllocation, SchedHoliday } from '@/types/scheduler';
 
 interface SetterDatePickerProps {
   value: string;
