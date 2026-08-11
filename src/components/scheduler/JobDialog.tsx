@@ -80,7 +80,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         production_start: job.production_start ?? '',
         production_status: job.production_status ?? 'not_scheduled',
         is_npi: job.is_npi ?? true,
-        is_production: job.is_production ?? false,
+        is_production: job.is_production || Number(job.production_quantity) > 0 || Number(job.setup_hours) > 0,
         production_type: (job.production_type as ProductionType) ?? 'npi_production',
         production_setter_id: job.production_setter_id ?? '',
         setup_hours: job.setup_hours ? String(job.setup_hours) : '',
