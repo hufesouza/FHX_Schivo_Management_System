@@ -198,10 +198,39 @@ export function useScheduler() {
   );
 
   /**
+   * Machine hours already taken on each day, so a production run only consumes
+   * the hours the machine still has free. Includes the job's own DEVELOPMENT
+   * allocations (development occupies the machine too) but not its own
+   * setup/production rows, which are being replaced.
+   */
+  const machineReservedMap = useCallback(
+    (
+      machineId: string | null,
+      jobId?: string | null,
+      extraDev?: { alloc_date: string; hours: number }[],
+    ): Record<string, number> => {
+      const map: Record<string, number> = {};
+      if (!machineId) return map;
+      for (const a of allocations) {
+        if (a.machine_id !== machineId) continue;
+        if (a.job_id === jobId && (a.alloc_type === 'production' || a.alloc_type === 'setup')) continue;
+        if (a.job_id === jobId && a.alloc_type === 'development' && extraDev) continue;
+        map[a.alloc_date] = (map[a.alloc_date] ?? 0) + Number(a.hours || 0);
+      }
+      for (const a of extraDev ?? []) {
+        map[a.alloc_date] = (map[a.alloc_date] ?? 0) + Number(a.hours || 0);
+      }
+      return map;
+    },
+    [allocations],
+  );
+
+  /**
    * Validate a production plan.
    * Setup consumes the production setter + the machine, the run consumes the machine only.
    */
   const validateProduction = useCallback(
+
     (input: {
       jobId?: string | null;
       machineId: string | null;
