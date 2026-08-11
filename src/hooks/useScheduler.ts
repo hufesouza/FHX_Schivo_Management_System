@@ -24,6 +24,7 @@ import {
   type ProductionConflictReport,
   type ProgrammingConflictReport,
   type SchedulePlan,
+  type SetterCalendarMap,
 } from '@/utils/schedulerEngine';
 import type { CycleTimeUnit, ProductionStatus, ProgrammingStatus } from '@/types/scheduler';
 
@@ -519,6 +520,38 @@ export function useScheduler() {
           toast.error(error.message);
           return false;
         }
+        // Availability changed → re-plan every job that uses this person so the
+        // day-by-day allocations respect the new daily hours.
+        const nextCal: SetterCalendarMap = {
+          ...calendar,
+          [setterId!]: [0, 1, 2, 3, 4, 5, 6].reduce<Record<number, number>>((acc, dow) => {
+            acc[dow] = Number(dayHours[dow] ?? 0);
+            return acc;
+          }, {}),
+        };
+        const affected = jobs.filter((j) => j.setter_id === setterId || j.programmer_id === setterId);
+        for (const j of affected) {
+          if (j.setter_id === setterId && Number(j.development_hours) > 0 && j.start_date) {
+            const p = planSchedule(j.start_date, Number(j.development_hours), setterId!, nextCal, holidays);
+            try {
+              await writeAllocations(j.id, { setter_id: j.setter_id, machine_id: j.machine_id }, p);
+            } catch (err) {
+              toast.error(`Could not re-plan development for ${j.po_number ?? j.job_number}`);
+            }
+          }
+          if (j.programmer_id === setterId && Number(j.programming_hours) > 0 && j.programming_start) {
+            const p = planProgramming(j.programming_start, Number(j.programming_hours), setterId!, nextCal, holidays);
+            try {
+              await writeProgrammingAllocations(j.id, setterId!, p);
+              await supabase
+                .from('sched_jobs')
+                .update({ programming_start: p.startDate ?? j.programming_start, programming_end: p.endDate })
+                .eq('id', j.id);
+            } catch (err) {
+              toast.error(`Could not re-plan programming for ${j.po_number ?? j.job_number}`);
+            }
+          }
+        }
       }
       const prevDays = previous
         ? setterDays.filter((d) => d.setter_id === previous.id).map((d) => ({ [d.day_of_week]: d.hours }))
@@ -534,7 +567,7 @@ export function useScheduler() {
       await fetchAll();
       return true;
     },
-    [setters, setterDays, logAudit, fetchAll],
+    [setters, setterDays, logAudit, fetchAll, calendar, holidays, jobs, writeAllocations, writeProgrammingAllocations],
   );
 
   const deleteSetter = useCallback(
