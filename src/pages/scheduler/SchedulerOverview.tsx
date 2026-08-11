@@ -186,6 +186,7 @@ export default function SchedulerOverview() {
               onCreateAt={createAt}
               onOpenJob={openJob}
               onMoveJob={handleMove}
+              mode="machine"
             />
 
             <Card className="h-fit">
