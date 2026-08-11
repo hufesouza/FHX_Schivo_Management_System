@@ -588,31 +588,36 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                 )}
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Setup time (hours)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.1"
-                value={form.setup_hours}
-                disabled={!canEdit}
-                onChange={(e) => setForm({ ...form, setup_hours: e.target.value })}
-                placeholder="0"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Setter for setup</Label>
-              <Select
-                value={form.production_setter_id}
-                onValueChange={(v) => setForm({ ...form, production_setter_id: v })}
-                disabled={!canEdit}
-              >
-                <SelectTrigger><SelectValue placeholder="Select setter" /></SelectTrigger>
-                <SelectContent>
-                  {setters.filter((x) => x.is_active).map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {!isNpi && (
+              <div className="space-y-1.5">
+                <Label>Setup time (hours) *</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={form.setup_hours}
+                  disabled={!canEdit}
+                  onChange={(e) => setForm({ ...form, setup_hours: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
+            )}
+            {!isNpi && (
+              <div className="space-y-1.5">
+                <Label>Setter for setup *</Label>
+                <Select
+                  value={form.production_setter_id}
+                  onValueChange={(v) => setForm({ ...form, production_setter_id: v })}
+                  disabled={!canEdit}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select setter" /></SelectTrigger>
+                  <SelectContent>
+                    {setters.filter((x) => x.is_active).map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label>Production status</Label>
               <Select
