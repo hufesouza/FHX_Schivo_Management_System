@@ -539,13 +539,16 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
           <div className="flex items-center justify-between gap-2">
             <div>
               <h4 className="text-sm font-semibold">
-                Production {form.is_production ? `— ${form.production_type === 'npi_production' ? 'NPI Production' : 'Standard Production'}` : '(enable the Production job type)'}
+                {isNpi ? 'Run (machine only)' : 'Setup + Run'}
               </h4>
               <p className="text-xs text-muted-foreground">
-                Setup occupies the setter AND the machine. The run afterwards occupies the machine only.
+                {isNpi
+                  ? 'The run occupies the machine only — no setter time is booked for an NPI run.'
+                  : 'Setup occupies the setter AND the machine. The run afterwards occupies the machine only.'}
               </p>
             </div>
-            <Badge variant="outline">Setup: setter + machine · Run: machine</Badge>
+            <Badge variant="outline">{isNpi ? 'Run: machine' : 'Setup: setter + machine · Run: machine'}</Badge>
+
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
