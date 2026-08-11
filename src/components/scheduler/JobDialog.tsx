@@ -322,17 +322,20 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
               onChange={(e) => setForm({ ...form, start_date: e.target.value })}
             />
           </div>
-          <div className="space-y-1.5">
-            <Label>Development time (hours) *</Label>
-            <Input
-              type="number"
-              min="0"
-              step="0.1"
-              value={form.development_hours}
-              disabled={!canEdit}
-              onChange={(e) => setForm({ ...form, development_hours: e.target.value })}
-            />
-          </div>
+          {isNpi && (
+            <div className="space-y-1.5">
+              <Label>Development time (hours) *</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.1"
+                value={form.development_hours}
+                disabled={!canEdit}
+                onChange={(e) => setForm({ ...form, development_hours: e.target.value })}
+              />
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <Label>Priority</Label>
             <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v as SchedJobPriority })} disabled={!canEdit}>
