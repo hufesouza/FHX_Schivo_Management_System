@@ -15,6 +15,7 @@ import type { SchedJob, SchedJobPriority, SchedJobStatus, CycleTimeUnit, Product
 import { PRIORITY_OPTIONS, STATUS_OPTIONS, CYCLE_TIME_UNITS, PRODUCTION_STATUS_OPTIONS, PROGRAMMING_STATUS_OPTIONS } from '@/types/scheduler';
 import { addDays, fmtDuration, fmtHours, toISO } from '@/utils/schedulerEngine';
 import type { useScheduler } from '@/hooks/useScheduler';
+import { SetterDatePicker } from '@/components/scheduler/SetterDatePicker';
 
 
 interface JobDialogProps {
@@ -344,13 +345,19 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
           </div>
           <div className="space-y-1.5">
             <Label>Start date *</Label>
-            <Input
-              type="date"
+            <SetterDatePicker
               value={form.start_date}
+              onChange={(iso) => setForm({ ...form, start_date: iso })}
+              setterId={(isNpi ? form.setter_id : form.production_setter_id || form.setter_id) || null}
+              setterName={setters.find((s) => s.id === (isNpi ? form.setter_id : form.production_setter_id || form.setter_id))?.name}
+              calendar={scheduler.calendar}
+              holidays={scheduler.holidays}
+              allocations={scheduler.allocations}
+              excludeJobId={job?.id ?? null}
               disabled={!canEdit}
-              onChange={(e) => setForm({ ...form, start_date: e.target.value })}
             />
           </div>
+
           {isNpi && (
             <div className="space-y-1.5">
               <Label>Development time (hours) *</Label>
