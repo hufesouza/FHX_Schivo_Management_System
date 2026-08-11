@@ -112,8 +112,9 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
 
   const qty = Number(form.production_quantity) || 0;
   const cycle = Number(form.cycle_time) || 0;
-  const setupHours = Number(form.setup_hours) || 0;
-  const hasProduction = form.is_production && ((qty > 0 && cycle > 0) || setupHours > 0);
+  const setupHours = isNpi ? 0 : Number(form.setup_hours) || 0;
+  const hasProduction = (qty > 0 && cycle > 0) || setupHours > 0;
+
 
   const production = useMemo(
     () =>
