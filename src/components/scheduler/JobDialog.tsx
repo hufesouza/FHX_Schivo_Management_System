@@ -384,8 +384,10 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         </div>
 
 
-        {/* ---------------- Programming layer ---------------- */}
+        {/* ---------------- Programming layer (NPI only) ---------------- */}
+        {isNpi && (
         <div className="rounded-lg border border-border p-3 space-y-3">
+
           <div className="flex items-center justify-between gap-2">
             <div>
               <h4 className="text-sm font-semibold">Programming (optional)</h4>
