@@ -17,6 +17,7 @@ import {
   toISO,
   fromISO,
 } from '@/utils/schedulerEngine';
+import { machineEffectiveness, machinePartCapacity, jobProductionMetrics, findCycleTime } from '@/utils/capacityModel';
 
 type Granularity = 'day' | 'week' | 'month';
 
@@ -24,7 +25,7 @@ const utilColor = (pct: number) =>
   pct > 100 ? 'text-destructive' : pct >= 90 ? 'text-amber-600' : 'text-emerald-600';
 
 export default function SchedulerCapacity() {
-  const { setters, machines, allocations, devAllocations, prodAllocations, progAllocations, setupAllocations, calendar, holidays, loading } = useScheduler();
+  const { setters, machines, cycleTimes, jobs, allocations, devAllocations, prodAllocations, progAllocations, setupAllocations, calendar, holidays, loading } = useScheduler();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
@@ -293,6 +294,7 @@ export default function SchedulerCapacity() {
             <TabsList>
               <TabsTrigger value="setters">Setters / Programmers</TabsTrigger>
               <TabsTrigger value="machines">Machines</TabsTrigger>
+              <TabsTrigger value="effectiveness">Effectiveness &amp; part forecast</TabsTrigger>
             </TabsList>
             <TabsContent value="setters" className="mt-3">
               <p className="text-xs text-muted-foreground mb-2">
@@ -323,7 +325,7 @@ export default function SchedulerCapacity() {
               {renderRows(
                 machineRows.map((r) => ({
                   name: `${r.resource.code} — ${r.resource.name}`,
-                  sub: `${fmtHours(r.resource.daily_hours)}/day`,
+                  sub: `${machineEffectiveness(r.resource).effectiveMachines}x · planned ${fmtHours(machineEffectiveness(r.resource).plannedHoursPerDay)}/day · ${machineEffectiveness(r.resource).availabilityPct}% availability · effective ${fmtHours(machineEffectiveness(r.resource).effectiveHoursPerDay)}/day`,
                   capacity: r.capacity,
                   allocated: r.allocated,
                   dev: r.dev,
@@ -335,7 +337,137 @@ export default function SchedulerCapacity() {
                 true,
               )}
             </TabsContent>
+            <TabsContent value="effectiveness" className="mt-3 space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Effective hours = planned hours x effective machines x availability %. Part forecast uses the cycle time
+                configured for that machine + part number, and applies each part&apos;s scrap % to show good-piece output.
+              </p>
+              {machines.map((m) => {
+                const eff = machineEffectiveness(m);
+                const parts = cycleTimes.filter((c) => c.machine_id === m.id);
+                const machineJobs = jobs.filter(
+                  (j) => j.machine_id === m.id && Number(j.production_quantity) > 0,
+                );
+                return (
+                  <Card key={m.id}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex flex-wrap items-center gap-2">
+                        {m.code} — {m.name}
+                        <Badge variant="outline" className="ml-auto">{eff.availabilityPct}% availability</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                        <div>
+                          <div className="text-xs text-muted-foreground">Effective machines</div>
+                          <div className="font-semibold">{eff.effectiveMachines}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted-foreground">Planned hours / day</div>
+                          <div className="font-semibold">{fmtHours(eff.plannedHoursPerDay)}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted-foreground">Effective hours / day</div>
+                          <div className="font-semibold">{fmtHours(eff.effectiveHoursPerDay)}</div>
+                        </div>
+                        <div>
+                          <div className="text-xs text-muted-foreground">Effective hours / month</div>
+                          <div className="font-semibold">{fmtHours(eff.effectiveHoursPerMonth)}</div>
+                        </div>
+                      </div>
 
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead className="text-muted-foreground">
+                            <tr className="border-b border-border">
+                              <th className="text-left py-1 px-2">Part</th>
+                              <th className="text-right py-1 px-2">Cycle time</th>
+                              <th className="text-right py-1 px-2">Pcs / hour</th>
+                              <th className="text-right py-1 px-2">Gross / day</th>
+                              <th className="text-right py-1 px-2">Gross / month</th>
+                              <th className="text-right py-1 px-2">Scrap %</th>
+                              <th className="text-right py-1 px-2">Good / month</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {parts.map((c) => {
+                              const relatedJob = machineJobs.find(
+                                (j) => (j.part_number ?? '').trim().toLowerCase() === c.part_number.trim().toLowerCase(),
+                              );
+                              const cap = machinePartCapacity(m, {
+                                partNumber: c.part_number,
+                                cycleTime: Number(c.cycle_time),
+                                cycleTimeUnit: c.cycle_time_unit,
+                                scrapPct: Number(relatedJob?.scrap_pct) || 0,
+                              });
+                              return (
+                                <tr key={c.id} className="border-b border-border/60 last:border-0">
+                                  <td className="py-1 px-2 font-medium">{c.part_number}</td>
+                                  <td className="py-1 px-2 text-right">{c.cycle_time} {c.cycle_time_unit}</td>
+                                  <td className="py-1 px-2 text-right">{cap.piecesPerHour.toFixed(2)}</td>
+                                  <td className="py-1 px-2 text-right">{cap.grossPerDay.toLocaleString()}</td>
+                                  <td className="py-1 px-2 text-right">{cap.grossMonthly.toLocaleString()}</td>
+                                  <td className="py-1 px-2 text-right">{cap.scrapPct}%</td>
+                                  <td className="py-1 px-2 text-right font-semibold">{cap.goodMonthly.toLocaleString()}</td>
+                                </tr>
+                              );
+                            })}
+                            {parts.length === 0 && (
+                              <tr><td colSpan={7} className="py-2 px-2 text-muted-foreground">No machine/part cycle times configured.</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      {machineJobs.length > 0 && (
+                        <div className="overflow-x-auto">
+                          <div className="text-xs font-medium mb-1">Planned jobs on this machine</div>
+                          <table className="w-full text-xs">
+                            <thead className="text-muted-foreground">
+                              <tr className="border-b border-border">
+                                <th className="text-left py-1 px-2">PO# / Part</th>
+                                <th className="text-right py-1 px-2">Good qty</th>
+                                <th className="text-right py-1 px-2">Scrap %</th>
+                                <th className="text-right py-1 px-2">Gross qty</th>
+                                <th className="text-right py-1 px-2">Ideal time</th>
+                                <th className="text-right py-1 px-2">Planned run</th>
+                                <th className="text-right py-1 px-2">Setup</th>
+                                <th className="text-right py-1 px-2">Machine occupancy</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {machineJobs.map((j) => {
+                                const lib = findCycleTime(cycleTimes, j.machine_id, j.part_number);
+                                const mt = jobProductionMetrics(
+                                  {
+                                    ...j,
+                                    cycle_time: lib ? Number(lib.cycle_time) : j.cycle_time,
+                                    cycle_time_unit: lib ? lib.cycle_time_unit : j.cycle_time_unit,
+                                  },
+                                  m,
+                                );
+                                return (
+                                  <tr key={j.id} className="border-b border-border/60 last:border-0">
+                                    <td className="py-1 px-2">{j.po_number || j.job_number} · {j.part_number}</td>
+                                    <td className="py-1 px-2 text-right">{mt.goodQuantity.toLocaleString()}</td>
+                                    <td className="py-1 px-2 text-right">{mt.scrapPct}%</td>
+                                    <td className="py-1 px-2 text-right">{mt.grossQuantity.toLocaleString()}</td>
+                                    <td className="py-1 px-2 text-right">{fmtHours(mt.idealProductionHours)}</td>
+                                    <td className="py-1 px-2 text-right">{fmtHours(mt.plannedRunHours)}</td>
+                                    <td className="py-1 px-2 text-right">{fmtHours(mt.setupHours)}</td>
+                                    <td className="py-1 px-2 text-right font-semibold">{fmtHours(mt.totalMachineHours)}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </TabsContent>
           </Tabs>
         )}
       </div>
