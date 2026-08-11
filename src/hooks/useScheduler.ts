@@ -179,8 +179,9 @@ export function useScheduler() {
       machineId: string | null;
       startDate: string;
       hours: number;
+      dayHours?: Record<string, number> | null;
     }): { plan: SchedulePlan; conflicts: ConflictReport } => {
-      const p = planSchedule(input.startDate, input.hours, input.setterId, calendar, holidays);
+      const p = planSchedule(input.startDate, input.hours, input.setterId, calendar, holidays, input.dayHours);
       const conflicts = detectConflicts(
         p.allocations,
         { jobId: input.jobId, setterId: input.setterId, machineId: input.machineId },
