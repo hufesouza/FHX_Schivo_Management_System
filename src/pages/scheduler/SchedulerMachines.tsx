@@ -23,8 +23,7 @@ import { toast } from 'sonner';
 import type { SchedMachine } from '@/types/scheduler';
 import { fmtHours } from '@/utils/schedulerEngine';
 import { machineEffectiveness, machinePartCapacity } from '@/utils/capacityModel';
-import { CYCLE_TIME_UNITS } from '@/utils/schedulerEngine';
-import type { CycleTimeUnit } from '@/types/scheduler';
+import { CYCLE_TIME_UNITS, type CycleTimeUnit } from '@/types/scheduler';
 
 const ALL_DAYS = [
   { value: 1, label: 'Mon' },
