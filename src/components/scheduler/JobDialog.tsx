@@ -366,43 +366,22 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
           <div>
             <h4 className="text-sm font-semibold">Job type *</h4>
             <p className="text-xs text-muted-foreground">
-              A job can be NPI, Production, or both. Every production run needs a machine AND a setter for setup.
+              NPI = development + programming + run. Production = setup + run.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-6">
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={form.is_npi}
-                disabled={!canEdit}
-                onCheckedChange={(v) => setForm({ ...form, is_npi: !!v })}
-              />
-              NPI (development / programming)
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={form.is_production}
-                disabled={!canEdit}
-                onCheckedChange={(v) => setForm({ ...form, is_production: !!v })}
-              />
-              Production (setup + run)
-            </label>
-            {form.is_production && (
-              <div className="space-y-1.5">
-                <Label>Production type</Label>
-                <Select
-                  value={form.production_type}
-                  onValueChange={(v) => setForm({ ...form, production_type: v as ProductionType })}
-                  disabled={!canEdit}
-                >
-                  <SelectTrigger className="w-[210px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PRODUCTION_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
+          <Select
+            value={form.job_type}
+            onValueChange={(v) => setForm({ ...form, job_type: v as 'npi' | 'production' })}
+            disabled={!canEdit}
+          >
+            <SelectTrigger className="w-[320px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="npi">NPI — development + programming + run</SelectItem>
+              <SelectItem value="production">Production — setup + run</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+
 
         {/* ---------------- Programming layer ---------------- */}
         <div className="rounded-lg border border-border p-3 space-y-3">
