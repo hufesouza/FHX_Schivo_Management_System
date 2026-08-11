@@ -476,10 +476,10 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
               <div className="text-xs text-muted-foreground">Machine impact</div>
               <div className="font-semibold">0h</div>
             </div>
+          </div>
         </div>
         )}
 
-        </div>
 
         {noProgrammerDays && (
           <Alert variant="destructive">
