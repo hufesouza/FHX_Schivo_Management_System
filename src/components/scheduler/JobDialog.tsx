@@ -59,6 +59,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
   const { machines, setters, validate, validateProduction, validateProgramming, saveJob, deleteJob, jobById } = scheduler;
   const [form, setForm] = useState(emptyForm(defaultDate || toISO(new Date())));
   const [devDayHours, setDevDayHours] = useState<Record<string, number>>({});
+  const [setupDayHours, setSetupDayHours] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -92,9 +93,11 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         programming_status: job.programming_status ?? 'not_scheduled',
       });
       setDevDayHours(job.dev_day_hours ?? {});
+      setSetupDayHours(job.setup_day_hours ?? {});
     } else {
       setForm(emptyForm(defaultDate || toISO(new Date())));
       setDevDayHours({});
+      setSetupDayHours({});
     }
   }, [open, job, defaultDate]);
 
@@ -147,9 +150,11 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         cycleTime: cycle,
         unit: form.cycle_time_unit,
         setupHours,
+        setupDayHours,
       }),
     [
       validateProduction,
+      setupDayHours,
       job?.id,
       form.machine_id,
       form.production_setter_id,
@@ -243,6 +248,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
       start_date: form.start_date,
       development_hours: hours,
       dev_day_hours: isNpi && Object.keys(devDayHours).length > 0 ? devDayHours : null,
+      setup_day_hours: !isNpi && Object.keys(setupDayHours).length > 0 ? setupDayHours : null,
       priority: form.priority,
       status: form.status,
       notes: form.notes.trim() || null,
@@ -819,6 +825,57 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
               <p className="text-xs">Options: move the production start date, choose another machine, or split the quantity.</p>
             </AlertDescription>
           </Alert>
+        )}
+
+        {!isNpi && prodSchedule.setup.allocations.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Setup hours per day (editable)</Label>
+              {Object.keys(setupDayHours).length > 0 && canEdit && (
+                <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setSetupDayHours({})}>
+                  Reset to auto
+                </Button>
+              )}
+            </div>
+            <div className="max-h-40 overflow-y-auto rounded border border-border text-xs">
+              <table className="w-full">
+                <tbody>
+                  {prodSchedule.setup.allocations.map((a) => {
+                    const manual = setupDayHours[a.alloc_date];
+                    return (
+                      <tr key={a.alloc_date} className="border-b border-border/60 last:border-0">
+                        <td className="px-2 py-1">{a.alloc_date}</td>
+                        <td className="px-2 py-1 w-28">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            disabled={!canEdit}
+                            className="h-7 text-xs text-right"
+                            value={manual != null ? String(manual) : String(a.hours)}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              setSetupDayHours((prev) => {
+                                const next = { ...prev };
+                                if (raw === '') delete next[a.alloc_date];
+                                else next[a.alloc_date] = Math.max(0, Number(raw) || 0);
+                                return next;
+                              });
+                            }}
+                          />
+                        </td>
+                        <td className="px-2 py-1 text-muted-foreground w-10">h</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Lower a day to free the setter/machine — remaining setup hours roll over to the next working days, and the run
+              starts only after setup ends. Blank uses the full daily capacity.
+            </p>
+          </div>
         )}
 
         {/* Calculated development schedule (NPI only) */}
