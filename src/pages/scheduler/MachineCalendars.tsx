@@ -33,7 +33,7 @@ export default function MachineCalendars() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editJobId, setEditJobId] = useState<string | null>(null);
 
-  const { machines, setters, jobs, devAllocations, prodAllocations, jobById, setterById, holidays } = scheduler;
+  const { machines, setters, jobs, devAllocations, prodAllocations, setupAllocations, jobById, setterById, holidays } = scheduler;
   const allocations = devAllocations;
 
   const filtersActive = fMachine !== ALL || fSetter !== ALL || !!fPo || !!fCustomer || !!fJob || !!fPart;
@@ -54,7 +54,7 @@ export default function MachineCalendars() {
   const jobRows = (machineId: string) => {
     const rows: {
       key: string;
-      activity: 'development' | 'production';
+      activity: 'development' | 'setup' | 'production';
       job: typeof jobs[number];
       hours: number;
       start: string;
@@ -73,6 +73,19 @@ export default function MachineCalendars() {
           hours: Number(j.development_hours) || 0,
           start: dev[0]?.alloc_date ?? j.start_date,
           end: dev[dev.length - 1]?.alloc_date ?? j.start_date,
+        });
+      }
+      const setup = setupAllocations
+        .filter((a) => a.job_id === j.id)
+        .sort((a, b) => a.alloc_date.localeCompare(b.alloc_date));
+      if (setup.length > 0) {
+        rows.push({
+          key: `${j.id}-setup`,
+          activity: 'setup',
+          job: j,
+          hours: setup.reduce((sum, a) => sum + Number(a.hours), 0),
+          start: setup[0].alloc_date,
+          end: setup[setup.length - 1].alloc_date,
         });
       }
       const prod = prodAllocations
@@ -160,11 +173,12 @@ export default function MachineCalendars() {
         )}
 
         {shownMachines.map((m) => {
-          const machineAllocs = [...devAllocations, ...prodAllocations].filter(
+          const machineAllocs = [...devAllocations, ...setupAllocations, ...prodAllocations].filter(
             (a) => a.machine_id === m.id && matching.has(a.job_id),
           );
           const rows = jobRows(m.id);
           const devHours = rows.filter((r) => r.activity === 'development').reduce((s2, r) => s2 + r.hours, 0);
+          const setupHours = rows.filter((r) => r.activity === 'setup').reduce((s2, r) => s2 + r.hours, 0);
           const prodHours = rows.filter((r) => r.activity === 'production').reduce((s2, r) => s2 + r.hours, 0);
           return (
             <Card key={m.id}>
@@ -173,7 +187,7 @@ export default function MachineCalendars() {
                   {m.name}
                   <Badge variant="outline">{m.code}</Badge>
                   <span className="text-xs font-normal text-muted-foreground">
-                    {fmtHours(m.daily_hours)}/day available · development {fmtHours(devHours)} · production {fmtHours(prodHours)} · occupied {fmtHours(devHours + prodHours)}
+                    {fmtHours(m.daily_hours)}/day available · development {fmtHours(devHours)} · setup {fmtHours(setupHours)} · run {fmtHours(prodHours)} · occupied {fmtHours(devHours + setupHours + prodHours)}
                   </span>
                 </CardTitle>
               </CardHeader>
@@ -185,6 +199,13 @@ export default function MachineCalendars() {
                       style={{ backgroundColor: ACTIVITY_COLORS.development.bg, borderLeftColor: ACTIVITY_COLORS.development.hex }}
                     />
                     DEVELOPMENT
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-2.5 w-4 rounded-sm border-l-2"
+                      style={{ backgroundColor: ACTIVITY_COLORS.setup.bg, borderLeftColor: ACTIVITY_COLORS.setup.hex }}
+                    />
+                    SETUP (setter + machine)
                   </span>
                   <span className="flex items-center gap-1.5">
                     <span
@@ -236,7 +257,13 @@ export default function MachineCalendars() {
                       <tbody>
                         {rows.map((r) => {
                           const isProd = r.activity === 'production';
-                          const c = isProd ? ACTIVITY_COLORS.production : ACTIVITY_COLORS.development;
+                          const isSetup = r.activity === 'setup';
+                          const c = isSetup
+                            ? ACTIVITY_COLORS.setup
+                            : isProd
+                              ? ACTIVITY_COLORS.production
+                              : ACTIVITY_COLORS.development;
+                          const typeTag = r.job.production_type === 'standard_production' ? 'STD' : 'NPI';
                           return (
                             <tr
                               key={r.key}
@@ -248,14 +275,18 @@ export default function MachineCalendars() {
                                   className="inline-flex items-center rounded px-1.5 py-0.5 border-l-2 font-semibold"
                                   style={{ backgroundColor: c.bg, borderLeftColor: c.hex, color: c.hex }}
                                 >
-                                  {isProd ? 'PRODUCTION / RUN' : 'DEVELOPMENT'}
+                                  {isSetup ? `SETUP (${typeTag})` : isProd ? `PRODUCTION / RUN (${typeTag})` : 'DEVELOPMENT'}
                                 </span>
                               </td>
                               <td className="py-1 px-2 font-semibold">{r.job.po_number ?? '—'}</td>
                               <td className="py-1 px-2 font-medium">{r.job.job_number}</td>
                               <td className="py-1 px-2">{r.job.part_number ?? '—'}</td>
                               <td className="py-1 px-2">{r.job.customer ?? '—'}</td>
-                              <td className="py-1 px-2">{!isProd && r.job.setter_id ? setterById[r.job.setter_id]?.name ?? '—' : '—'}</td>
+                              <td className="py-1 px-2">
+                                {isSetup
+                                  ? r.job.production_setter_id ? setterById[r.job.production_setter_id]?.name ?? '—' : '—'
+                                  : !isProd && r.job.setter_id ? setterById[r.job.setter_id]?.name ?? '—' : '—'}
+                              </td>
                               <td className="py-1 px-2 text-right">{isProd ? `${Number(r.job.production_quantity) || 0} pcs` : '—'}</td>
                               <td className="py-1 px-2 text-right">
                                 {isProd && Number(r.job.cycle_time) > 0

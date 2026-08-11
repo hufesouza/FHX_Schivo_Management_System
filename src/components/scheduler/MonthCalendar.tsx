@@ -140,32 +140,44 @@ export function MonthCalendar({
                 {dayAllocs.slice(0, 4).map((a) => {
                   const job = jobById[a.job_id];
                   if (!job) return null;
+                  const isSetup = a.alloc_type === 'setup';
                   const isProd = a.alloc_type === 'production';
-                  const activity = mode === 'machine'
-                    ? activityColor(a.alloc_type)
-                    : mode === 'production'
-                      ? activityColor('production')
-                      : mode === 'programming'
-                        ? activityColor('programming')
-                        : activityColor('development');
-                  const resourceId = mode === 'programming' ? a.setter_id : job.setter_id;
-                  const setter = resourceId ? setterById[resourceId] : undefined;
-                  const activityLabel = mode === 'machine'
-                    ? (isProd ? 'PRODUCTION / RUN' : 'DEVELOPMENT')
-                    : mode === 'programming'
-                      ? 'PROGRAMMING'
+                  const activity = isSetup
+                    ? activityColor('setup')
+                    : mode === 'machine'
+                      ? activityColor(a.alloc_type)
                       : mode === 'production'
-                        ? 'PRODUCTION / RUN'
-                        : job.job_number;
-                  const secondary = mode === 'production' || (mode === 'machine' && isProd)
-                    ? `${Number(job.production_quantity) || 0} pcs`
-                    : setter?.name ?? (mode === 'programming' ? 'No programmer' : 'No setter');
+                        ? activityColor('production')
+                        : mode === 'programming'
+                          ? activityColor('programming')
+                          : activityColor('development');
+                  const resourceId = mode === 'programming' || isSetup ? a.setter_id : job.setter_id;
+                  const setter = resourceId ? setterById[resourceId] : undefined;
+                  const typeTag = job.is_production
+                    ? job.production_type === 'standard_production' ? 'STD' : 'NPI'
+                    : 'NPI';
+                  const activityLabel = isSetup
+                    ? `SETUP (${typeTag})`
+                    : mode === 'machine'
+                      ? (isProd ? `PRODUCTION / RUN (${typeTag})` : 'DEVELOPMENT')
+                      : mode === 'programming'
+                        ? 'PROGRAMMING'
+                        : mode === 'production'
+                          ? `PRODUCTION / RUN (${typeTag})`
+                          : job.job_number;
+                  const secondary = isSetup
+                    ? setter?.name ?? 'No setter'
+                    : mode === 'production' || (mode === 'machine' && isProd)
+                      ? `${Number(job.production_quantity) || 0} pcs`
+                      : setter?.name ?? (mode === 'programming' ? 'No programmer' : 'No setter');
                   const tip = [
                     `PO#: ${job.po_number ?? '—'}`,
                     `Job: ${job.job_number}`,
                     `Part: ${job.part_number ?? '—'}`,
                     `Customer: ${job.customer ?? '—'}`,
-                    `Activity: ${mode === 'machine' ? (isProd ? 'Production / Run' : 'Development') : activityLabel}`,
+                    `Activity: ${isSetup ? 'Setup (setter + machine)' : mode === 'machine' ? (isProd ? 'Production / Run' : 'Development') : activityLabel}`,
+                    job.is_production ? `Production type: ${job.production_type === 'standard_production' ? 'Standard Production' : 'NPI Production'}` : null,
+                    isSetup ? `Setup setter: ${setter?.name ?? '—'}` : null,
                     isProd
                       ? `Quantity: ${Number(job.production_quantity) || 0} pcs`
                       : `Setter: ${setter?.name ?? '—'}`,
@@ -177,7 +189,7 @@ export function MonthCalendar({
                       : null,
                     `Allocated: ${fmtHours(a.hours)} on ${a.alloc_date}`,
                   ].filter(Boolean).join('\n');
-                  const dragAllowed = canEdit && !isProd;
+                  const dragAllowed = canEdit && !isProd && !isSetup;
                   return (
                     <div
                       key={a.id}
