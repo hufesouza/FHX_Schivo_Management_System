@@ -152,10 +152,13 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         unit: form.cycle_time_unit,
         setupHours,
         setupDayHours,
+        devPlan: isNpi ? plan.allocations : null,
       }),
     [
       validateProduction,
       setupDayHours,
+      isNpi,
+      plan.allocations,
       job?.id,
       form.machine_id,
       form.production_setter_id,

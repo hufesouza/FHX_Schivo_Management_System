@@ -198,10 +198,39 @@ export function useScheduler() {
   );
 
   /**
+   * Machine hours already taken on each day, so a production run only consumes
+   * the hours the machine still has free. Includes the job's own DEVELOPMENT
+   * allocations (development occupies the machine too) but not its own
+   * setup/production rows, which are being replaced.
+   */
+  const machineReservedMap = useCallback(
+    (
+      machineId: string | null,
+      jobId?: string | null,
+      extraDev?: { alloc_date: string; hours: number }[],
+    ): Record<string, number> => {
+      const map: Record<string, number> = {};
+      if (!machineId) return map;
+      for (const a of allocations) {
+        if (a.machine_id !== machineId) continue;
+        if (a.job_id === jobId && (a.alloc_type === 'production' || a.alloc_type === 'setup')) continue;
+        if (a.job_id === jobId && a.alloc_type === 'development' && extraDev) continue;
+        map[a.alloc_date] = (map[a.alloc_date] ?? 0) + Number(a.hours || 0);
+      }
+      for (const a of extraDev ?? []) {
+        map[a.alloc_date] = (map[a.alloc_date] ?? 0) + Number(a.hours || 0);
+      }
+      return map;
+    },
+    [allocations],
+  );
+
+  /**
    * Validate a production plan.
    * Setup consumes the production setter + the machine, the run consumes the machine only.
    */
   const validateProduction = useCallback(
+
     (input: {
       jobId?: string | null;
       machineId: string | null;
@@ -214,6 +243,8 @@ export function useScheduler() {
       unit: CycleTimeUnit;
       setupHours?: number;
       setupDayHours?: Record<string, number> | null;
+      /** Development plan of the same job (it also occupies the machine). */
+      devPlan?: { alloc_date: string; hours: number }[] | null;
     }): {
       runHours: number;
       setupHours: number;
@@ -239,12 +270,29 @@ export function useScheduler() {
         calendar,
         holidays,
         input.setupDayHours,
+        machineReservedMap(input.machineId, input.jobId, input.devPlan ?? undefined),
       );
+      // When a fresh development plan is supplied, use it instead of the stale
+      // development rows stored for this job so the check matches the new plan.
+      const existing: SchedAllocation[] = input.devPlan
+        ? [
+            ...allocations.filter((a) => !(a.job_id === input.jobId && a.alloc_type === 'development')),
+            ...input.devPlan.map((a, i) => ({
+              id: `dev-plan-${i}`,
+              job_id: input.jobId ?? 'dev-plan',
+              setter_id: null,
+              machine_id: input.machineId,
+              alloc_date: a.alloc_date,
+              hours: a.hours,
+              alloc_type: 'development' as const,
+            })),
+          ]
+        : allocations;
       const conflicts = detectProductionSetupConflicts(
         schedule.setup.allocations,
         schedule.run.allocations,
         { jobId: input.jobId, machineId: input.machineId, setterId: input.setterId ?? null },
-        allocations,
+        existing,
         calendar,
         holidays,
         machines,
@@ -258,7 +306,8 @@ export function useScheduler() {
         conflicts,
       };
     },
-    [allocations, calendar, holidays, machines],
+    [allocations, calendar, holidays, machines, machineReservedMap],
+
   );
 
   /** Validate a programming plan against the programmer's own capacity (dev + programming). */
@@ -406,6 +455,7 @@ export function useScheduler() {
         calendar,
         holidays,
         setupDayHours,
+        machineReservedMap(input.machine_id, input.id ?? null, p.allocations),
       );
       const prodPlan = prodSchedule.run;
       const progPlan = planProgramming(
@@ -598,6 +648,7 @@ export function useScheduler() {
           calendar,
           holidays,
           job.setup_day_hours,
+          machineReservedMap(job.machine_id, job.id),
         );
         try {
           await writeSetupAllocations(job.id, job.production_setter_id, job.machine_id, sched.setup);
@@ -774,6 +825,7 @@ export function useScheduler() {
               nextCal,
               holidays,
               j.setup_day_hours,
+              machineReservedMap(j.machine_id, j.id),
             );
             try {
               await writeSetupAllocations(j.id, setterId!, j.machine_id, sched.setup);
