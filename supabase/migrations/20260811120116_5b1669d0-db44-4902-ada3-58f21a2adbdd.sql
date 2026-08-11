@@ -1,0 +1,1 @@
+UPDATE public.sched_jobs SET is_production = true WHERE production_quantity > 0 AND is_production = false;
