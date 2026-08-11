@@ -177,14 +177,15 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
   if (!poTrimmed) missing.push('PO#');
   if (!form.part_number.trim()) missing.push('Part number');
   if (!form.start_date) missing.push('Start date');
-  if (!form.setter_id) missing.push('Setter');
+  if (isNpi && !form.setter_id) missing.push('Setter');
   if (!form.machine_id) missing.push('Machine');
-  if (hours <= 0) missing.push('Development hours');
-  if (!form.is_npi && !form.is_production) missing.push('Job type (NPI and/or Production)');
-  if (form.is_production && !form.production_start) missing.push('Production start date');
-  if (form.is_production && qty > 0 && cycle <= 0) missing.push('Cycle time');
-  if (form.is_production && setupHours <= 0) missing.push('Setup time (hours)');
-  if (form.is_production && !form.production_setter_id) missing.push('Production setter (setup)');
+  if (isNpi && hours <= 0) missing.push('Development hours');
+  if (!form.production_start) missing.push('Run start date');
+  if (qty <= 0) missing.push('Run quantity');
+  if (cycle <= 0) missing.push('Cycle time');
+  if (!isNpi && setupHours <= 0) missing.push('Setup time (hours)');
+  if (!isNpi && !form.production_setter_id) missing.push('Setter for setup');
+
   if (hasProgramming && !form.programmer_id) missing.push('Programmer');
   if (hasProgramming && !form.programming_start) missing.push('Programming start date');
 
