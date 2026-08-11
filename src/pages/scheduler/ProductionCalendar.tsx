@@ -36,7 +36,7 @@ export default function ProductionCalendar() {
   const [editJobId, setEditJobId] = useState<string | null>(null);
 
   const [fType, setFType] = useState(ALL);
-  const { machines, setters, jobs, prodAllocations, setupAllocations, jobById, setterById, holidays } = scheduler;
+  const { machines, setters, jobs, prodAllocations, setupAllocations, jobById, setterById, machineById, holidays } = scheduler;
 
   const filtersActive =
     fMachine !== ALL || fStatus !== ALL || fSetter !== ALL || fType !== ALL || !!fPo || !!fCustomer || !!fPart;
