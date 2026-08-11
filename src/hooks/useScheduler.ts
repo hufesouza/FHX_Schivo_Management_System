@@ -567,7 +567,7 @@ export function useScheduler() {
       await fetchAll();
       return true;
     },
-    [setters, setterDays, logAudit, fetchAll],
+    [setters, setterDays, logAudit, fetchAll, calendar, holidays, jobs, writeAllocations, writeProgrammingAllocations],
   );
 
   const deleteSetter = useCallback(
