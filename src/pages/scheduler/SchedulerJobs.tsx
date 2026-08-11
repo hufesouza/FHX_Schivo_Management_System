@@ -11,7 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, X } from 'lucide-react';
 import { fmtDuration, fmtHours, toISO } from '@/utils/schedulerEngine';
-import { PRIORITY_OPTIONS, STATUS_OPTIONS } from '@/types/scheduler';
+import { PRIORITY_OPTIONS, PRODUCTION_TYPE_OPTIONS, STATUS_OPTIONS } from '@/types/scheduler';
 
 const ALL = '__all__';
 
@@ -22,12 +22,13 @@ export default function SchedulerJobs() {
   const scheduler = useScheduler();
   const { role } = useUserRole();
   const canEdit = !!role;
-  const { jobs, devAllocations: allocations, prodAllocations, machineById, setterById, jobById } = scheduler;
+  const { jobs, devAllocations: allocations, prodAllocations, setupAllocations, machineById, setterById, jobById } = scheduler;
   const [search, setSearch] = useState('');
   const [fStatus, setFStatus] = useState(ALL);
   const [fPriority, setFPriority] = useState(ALL);
   const [fMachine, setFMachine] = useState(ALL);
   const [fSetter, setFSetter] = useState(ALL);
+  const [fType, setFType] = useState(ALL);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editJobId, setEditJobId] = useState<string | null>(null);
 
@@ -38,7 +39,11 @@ export default function SchedulerJobs() {
         if (fStatus !== ALL && j.status !== fStatus) return false;
         if (fPriority !== ALL && j.priority !== fPriority) return false;
         if (fMachine !== ALL && j.machine_id !== fMachine) return false;
-        if (fSetter !== ALL && j.setter_id !== fSetter) return false;
+        if (fSetter !== ALL && j.setter_id !== fSetter && j.production_setter_id !== fSetter) return false;
+        if (fType === 'npi_only' && !(j.is_npi && !j.is_production)) return false;
+        if (fType === 'production_only' && !(j.is_production && !j.is_npi)) return false;
+        if (fType === 'both' && !(j.is_npi && j.is_production)) return false;
+        if ((fType === 'npi_production' || fType === 'standard_production') && (!j.is_production || j.production_type !== fType)) return false;
         if (!q) return true;
         return [j.po_number, j.job_number, j.part_number, j.customer, j.notes]
           .filter(Boolean)
@@ -49,15 +54,17 @@ export default function SchedulerJobs() {
           .filter((a) => a.job_id === j.id)
           .sort((a, b) => a.alloc_date.localeCompare(b.alloc_date));
         const prod = prodAllocations.filter((a) => a.job_id === j.id);
+        const setup = setupAllocations.filter((a) => a.job_id === j.id);
         return {
           job: j,
           start: allocs[0]?.alloc_date ?? j.start_date,
           end: allocs[allocs.length - 1]?.alloc_date ?? '—',
           days: allocs.length,
           prodHours: prod.reduce((sum, a) => sum + Number(a.hours), 0),
+          setupHours: setup.reduce((sum, a) => sum + Number(a.hours), 0),
         };
       });
-  }, [jobs, allocations, prodAllocations, search, fStatus, fPriority, fMachine, fSetter]);
+  }, [jobs, allocations, prodAllocations, setupAllocations, search, fStatus, fPriority, fMachine, fSetter, fType]);
 
 
   return (
@@ -94,7 +101,17 @@ export default function SchedulerJobs() {
               {scheduler.setters.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setFStatus(ALL); setFPriority(ALL); setFMachine(ALL); setFSetter(ALL); }}>
+          <Select value={fType} onValueChange={setFType}>
+            <SelectTrigger className="w-[190px]"><SelectValue placeholder="Job type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All job types</SelectItem>
+              <SelectItem value="npi_only">NPI only</SelectItem>
+              <SelectItem value="production_only">Production only</SelectItem>
+              <SelectItem value="both">NPI + Production</SelectItem>
+              {PRODUCTION_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Button variant="ghost" size="sm" onClick={() => { setSearch(''); setFStatus(ALL); setFPriority(ALL); setFMachine(ALL); setFSetter(ALL); setFType(ALL); }}>
             <X className="h-4 w-4 mr-1" /> Clear
           </Button>
           {canEdit && (
@@ -110,6 +127,7 @@ export default function SchedulerJobs() {
               <thead className="bg-muted/50 text-muted-foreground">
                 <tr>
                   <th className="text-left py-2 px-3">PO#</th>
+                  <th className="text-left py-2 px-3">Type</th>
                   <th className="text-left py-2 px-3">Job</th>
                   <th className="text-left py-2 px-3">Part</th>
                   <th className="text-left py-2 px-3">Customer</th>
@@ -123,6 +141,8 @@ export default function SchedulerJobs() {
                   <th className="text-right py-2 px-3">Prog hours</th>
                   <th className="text-left py-2 px-3">Prog start</th>
                   <th className="text-left py-2 px-3">Prog end</th>
+                  <th className="text-left py-2 px-3">Setup setter</th>
+                  <th className="text-right py-2 px-3">Setup h</th>
                   <th className="text-right py-2 px-3">Prod qty</th>
                   <th className="text-right py-2 px-3">Prod hours</th>
                   <th className="text-left py-2 px-3">Prod start</th>
@@ -133,13 +153,23 @@ export default function SchedulerJobs() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map(({ job, start, end, days, prodHours }) => (
+                {rows.map(({ job, start, end, days, prodHours, setupHours }) => (
                   <tr
                     key={job.id}
                     className="border-b border-border/60 last:border-0 hover:bg-accent/50 cursor-pointer"
                     onClick={() => { setEditJobId(job.id); setDialogOpen(true); }}
                   >
                     <td className="py-2 px-3 font-semibold">{job.po_number ?? '—'}</td>
+                    <td className="py-2 px-3">
+                      <span className="flex flex-wrap gap-1">
+                        {job.is_npi && <Badge variant="secondary">NPI</Badge>}
+                        {job.is_production && (
+                          <Badge variant="outline">
+                            {job.production_type === 'standard_production' ? 'Standard' : 'NPI Prod'}
+                          </Badge>
+                        )}
+                      </span>
+                    </td>
                     <td className="py-2 px-3 font-medium">{job.job_number}</td>
                     <td className="py-2 px-3">{job.part_number ?? '—'}</td>
                     <td className="py-2 px-3">{job.customer ?? '—'}</td>
@@ -166,6 +196,10 @@ export default function SchedulerJobs() {
                     </td>
                     <td className="py-2 px-3">{job.programming_start ?? '—'}</td>
                     <td className="py-2 px-3">{job.programming_end ?? '—'}</td>
+                    <td className="py-2 px-3">
+                      {job.production_setter_id ? setterById[job.production_setter_id]?.name ?? '—' : '—'}
+                    </td>
+                    <td className="py-2 px-3 text-right">{setupHours > 0 ? fmtDuration(setupHours) : '—'}</td>
                     <td className="py-2 px-3 text-right">{Number(job.production_quantity) || 0}</td>
                     <td className="py-2 px-3 text-right">{prodHours > 0 ? fmtDuration(prodHours) : '—'}</td>
                     <td className="py-2 px-3">{job.production_start ?? '—'}</td>
