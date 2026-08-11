@@ -628,7 +628,16 @@ export const planProductionWithSetup = (
   setup.allocations.forEach((a) => {
     reserved[a.alloc_date] = (reserved[a.alloc_date] ?? 0) + a.hours;
   });
-  const run = planRun(setup.startDate ?? startDate, runHours, machine, holidays, reserved);
+  // Setup and run are STRICTLY IN SERIES on the machine: the run can only begin
+  // once the setup is fully finished (same day only if setup left machine capacity).
+  const lastSetupDate = setup.endDate;
+  let runStart = startDate;
+  if (lastSetupDate) {
+    const machineCapOnLastDay = machineHoursOn(lastSetupDate, machine, holidays);
+    const leftover = machineCapOnLastDay - (reserved[lastSetupDate] ?? 0);
+    runStart = leftover > 0.0001 ? lastSetupDate : addDays(lastSetupDate, 1);
+  }
+  const run = planRun(runStart, runHours, machine, holidays, reserved);
   const dates = [...setup.allocations, ...run.allocations].map((a) => a.alloc_date).sort();
   return {
     setup,
