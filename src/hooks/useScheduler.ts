@@ -272,11 +272,27 @@ export function useScheduler() {
         input.setupDayHours,
         machineReservedMap(input.machineId, input.jobId, input.devPlan ?? undefined),
       );
+      // When a fresh development plan is supplied, use it instead of the stale
+      // development rows stored for this job so the check matches the new plan.
+      const existing: SchedAllocation[] = input.devPlan
+        ? [
+            ...allocations.filter((a) => !(a.job_id === input.jobId && a.alloc_type === 'development')),
+            ...input.devPlan.map((a, i) => ({
+              id: `dev-plan-${i}`,
+              job_id: input.jobId ?? 'dev-plan',
+              setter_id: null,
+              machine_id: input.machineId,
+              alloc_date: a.alloc_date,
+              hours: a.hours,
+              alloc_type: 'development' as const,
+            })),
+          ]
+        : allocations;
       const conflicts = detectProductionSetupConflicts(
         schedule.setup.allocations,
         schedule.run.allocations,
         { jobId: input.jobId, machineId: input.machineId, setterId: input.setterId ?? null },
-        allocations,
+        existing,
         calendar,
         holidays,
         machines,
