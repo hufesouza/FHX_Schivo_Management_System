@@ -229,9 +229,10 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
       cycle_time_unit: form.cycle_time_unit,
       production_start: hasProduction ? form.production_start || null : null,
       production_status: form.production_status,
-      is_npi: form.is_npi,
-      is_production: form.is_production,
-      production_type: form.production_type,
+      is_npi: isNpi,
+      is_production: !isNpi,
+      production_type: isNpi ? 'npi_production' : 'standard_production',
+
       production_setter_id: hasProduction ? form.production_setter_id || null : null,
       setup_hours: hasProduction ? setupHours : 0,
       programmer_id: hasProgramming ? form.programmer_id || null : null,
