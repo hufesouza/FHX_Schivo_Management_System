@@ -13,7 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import { fmtDuration, fmtHours, machineHoursOn } from '@/utils/schedulerEngine';
-import { PRODUCTION_STATUS_OPTIONS } from '@/types/scheduler';
+import { PRODUCTION_STATUS_OPTIONS, PRODUCTION_TYPE_OPTIONS } from '@/types/scheduler';
+import { ACTIVITY_COLORS } from '@/utils/schedulerColors';
 
 const ALL = '__all__';
 
@@ -33,36 +34,49 @@ export default function ProductionCalendar() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editJobId, setEditJobId] = useState<string | null>(null);
 
-  const { machines, setters, jobs, prodAllocations, jobById, setterById, holidays } = scheduler;
+  const [fType, setFType] = useState(ALL);
+  const { machines, setters, jobs, prodAllocations, setupAllocations, jobById, setterById, holidays } = scheduler;
 
-  const filtersActive = fMachine !== ALL || fStatus !== ALL || fSetter !== ALL || !!fPo || !!fCustomer || !!fPart;
+  const filtersActive =
+    fMachine !== ALL || fStatus !== ALL || fSetter !== ALL || fType !== ALL || !!fPo || !!fCustomer || !!fPart;
 
   const matching = useMemo(() => {
     const set = new Set<string>();
     for (const j of jobs) {
       if (fStatus !== ALL && j.production_status !== fStatus) continue;
-      if (fSetter !== ALL && j.setter_id !== fSetter) continue;
+      if (fType !== ALL && j.production_type !== fType) continue;
+      if (fSetter !== ALL && j.setter_id !== fSetter && j.production_setter_id !== fSetter) continue;
       if (fPo && !(j.po_number ?? '').toLowerCase().includes(fPo.toLowerCase())) continue;
       if (fCustomer && !(j.customer ?? '').toLowerCase().includes(fCustomer.toLowerCase())) continue;
       if (fPart && !(j.part_number ?? '').toLowerCase().includes(fPart.toLowerCase())) continue;
       set.add(j.id);
     }
     return set;
-  }, [jobs, fStatus, fSetter, fPo, fCustomer, fPart]);
+  }, [jobs, fStatus, fType, fSetter, fPo, fCustomer, fPart]);
 
   const runsFor = (machineId: string) =>
     jobs
-      .filter((j) => j.machine_id === machineId && matching.has(j.id) && Number(j.production_quantity) > 0)
+      .filter(
+        (j) =>
+          j.machine_id === machineId &&
+          matching.has(j.id) &&
+          (Number(j.production_quantity) > 0 || Number(j.setup_hours) > 0),
+      )
       .map((j) => {
+        const setup = setupAllocations
+          .filter((a) => a.job_id === j.id)
+          .sort((a, b) => a.alloc_date.localeCompare(b.alloc_date));
         const allocs = prodAllocations
           .filter((a) => a.job_id === j.id)
           .sort((a, b) => a.alloc_date.localeCompare(b.alloc_date));
+        const all = [...setup, ...allocs].sort((a, b) => a.alloc_date.localeCompare(b.alloc_date));
         return {
           job: j,
+          setupHours: setup.reduce((sum, a) => sum + Number(a.hours), 0),
           hours: allocs.reduce((sum, a) => sum + Number(a.hours), 0),
-          start: allocs[0]?.alloc_date ?? j.production_start ?? '—',
-          end: allocs[allocs.length - 1]?.alloc_date ?? j.production_end ?? '—',
-          days: allocs.length,
+          start: all[0]?.alloc_date ?? j.production_start ?? '—',
+          end: all[all.length - 1]?.alloc_date ?? j.production_end ?? '—',
+          days: new Set(all.map((a) => a.alloc_date)).size,
         };
       });
 
@@ -71,7 +85,12 @@ export default function ProductionCalendar() {
     if (filtersActive) {
       const withRuns = new Set(
         jobs
-          .filter((j) => matching.has(j.id) && j.machine_id && Number(j.production_quantity) > 0)
+          .filter(
+            (j) =>
+              matching.has(j.id) &&
+              j.machine_id &&
+              (Number(j.production_quantity) > 0 || Number(j.setup_hours) > 0),
+          )
           .map((j) => j.machine_id as string),
       );
       list = list.filter((m) => withRuns.has(m.id));
@@ -109,6 +128,13 @@ export default function ProductionCalendar() {
                 {PRODUCTION_STATUS_OPTIONS.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={fType} onValueChange={setFType}>
+              <SelectTrigger className="w-[190px]"><SelectValue placeholder="Production type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All production types</SelectItem>
+                {PRODUCTION_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Select value={fSetter} onValueChange={setFSetter}>
               <SelectTrigger className="w-[160px]"><SelectValue placeholder="Setter" /></SelectTrigger>
               <SelectContent>
@@ -133,7 +159,7 @@ export default function ProductionCalendar() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => { setFMachine(ALL); setFStatus(ALL); setFSetter(ALL); setFPo(''); setFCustomer(''); setFPart(''); }}
+              onClick={() => { setFMachine(ALL); setFStatus(ALL); setFSetter(ALL); setFType(ALL); setFPo(''); setFCustomer(''); setFPart(''); }}
             >
               <X className="h-4 w-4 mr-1" /> Clear filters
             </Button>
@@ -149,7 +175,9 @@ export default function ProductionCalendar() {
         )}
 
         {shownMachines.map((m) => {
-          const allocs = prodAllocations.filter((a) => a.machine_id === m.id && matching.has(a.job_id));
+          const allocs = [...setupAllocations, ...prodAllocations].filter(
+            (a) => a.machine_id === m.id && matching.has(a.job_id),
+          );
           const rows = runsFor(m.id);
           return (
             <Card key={m.id}>
@@ -163,6 +191,22 @@ export default function ProductionCalendar() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
+                <div className="flex flex-wrap items-center gap-4 text-[11px] text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-2.5 w-4 rounded-sm border-l-2"
+                      style={{ backgroundColor: ACTIVITY_COLORS.setup.bg, borderLeftColor: ACTIVITY_COLORS.setup.hex }}
+                    />
+                    SETUP (setter + machine)
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <span
+                      className="inline-block h-2.5 w-4 rounded-sm border-l-2"
+                      style={{ backgroundColor: ACTIVITY_COLORS.production.bg, borderLeftColor: ACTIVITY_COLORS.production.hex }}
+                    />
+                    PRODUCTION / RUN (machine only)
+                  </span>
+                </div>
                 <MonthCalendar
                   year={year}
                   month={month}
@@ -186,11 +230,15 @@ export default function ProductionCalendar() {
                       <thead className="text-muted-foreground">
                         <tr className="border-b border-border">
                           <th className="text-left py-1 px-2">PO#</th>
+                          <th className="text-left py-1 px-2">Type</th>
                           <th className="text-left py-1 px-2">Job</th>
                           <th className="text-left py-1 px-2">Part</th>
                           <th className="text-left py-1 px-2">Customer</th>
+                          <th className="text-left py-1 px-2">Setup setter</th>
+                          <th className="text-right py-1 px-2">Setup</th>
                           <th className="text-right py-1 px-2">Qty</th>
                           <th className="text-right py-1 px-2">Cycle time</th>
+                          <th className="text-right py-1 px-2">Run time</th>
                           <th className="text-right py-1 px-2">Machine time</th>
                           <th className="text-left py-1 px-2">Start</th>
                           <th className="text-left py-1 px-2">End</th>
@@ -199,21 +247,31 @@ export default function ProductionCalendar() {
                         </tr>
                       </thead>
                       <tbody>
-                        {rows.map(({ job, hours, start, end, days }) => (
+                        {rows.map(({ job, hours, setupHours, start, end, days }) => (
                           <tr
                             key={job.id}
                             className="border-b border-border/60 last:border-0 hover:bg-accent/50 cursor-pointer"
                             onClick={() => { setEditJobId(job.id); setDialogOpen(true); }}
                           >
                             <td className="py-1 px-2 font-semibold">{job.po_number ?? '—'}</td>
+                            <td className="py-1 px-2">
+                              <Badge variant="outline">
+                                {job.production_type === 'standard_production' ? 'Standard' : 'NPI'}
+                              </Badge>
+                            </td>
                             <td className="py-1 px-2 font-medium">{job.job_number}</td>
                             <td className="py-1 px-2">{job.part_number ?? '—'}</td>
                             <td className="py-1 px-2">{job.customer ?? '—'}</td>
+                            <td className="py-1 px-2">
+                              {job.production_setter_id ? setterById[job.production_setter_id]?.name ?? '—' : '—'}
+                            </td>
+                            <td className="py-1 px-2 text-right">{setupHours > 0 ? fmtDuration(setupHours) : '—'}</td>
                             <td className="py-1 px-2 text-right">{Number(job.production_quantity) || 0}</td>
                             <td className="py-1 px-2 text-right">
                               {Number(job.cycle_time) || 0} {job.cycle_time_unit === 'seconds' ? 's' : job.cycle_time_unit === 'minutes' ? 'min' : 'h'}
                             </td>
-                            <td className="py-1 px-2 text-right">{fmtDuration(hours)}</td>
+                            <td className="py-1 px-2 text-right">{hours > 0 ? fmtDuration(hours) : '—'}</td>
+                            <td className="py-1 px-2 text-right">{fmtDuration(hours + setupHours)}</td>
                             <td className="py-1 px-2">{start}</td>
                             <td className="py-1 px-2">{end}</td>
                             <td className="py-1 px-2 text-right">{days}</td>

@@ -45,8 +45,17 @@ export type ProductionStatus =
   | 'on_hold'
   | 'cancelled';
 
-/** Allocation kind — development consumes setter + machine, production consumes machine only. */
-export type AllocType = 'development' | 'programming' | 'production';
+/**
+ * Allocation kind:
+ * - development : setter + machine
+ * - programming : setter only
+ * - setup       : setter + machine (machine setup before a production run)
+ * - production  : machine only (the run itself)
+ */
+export type AllocType = 'development' | 'programming' | 'production' | 'setup';
+
+/** Both production types require a machine AND a setter for setup. */
+export type ProductionType = 'npi_production' | 'standard_production';
 
 /** Programming status mirrors production statuses. */
 export type ProgrammingStatus = ProductionStatus;
@@ -74,6 +83,12 @@ export interface SchedJob {
   production_start: string | null;
   production_end: string | null;
   production_status: ProductionStatus;
+  // --- job type + production setup ---
+  is_npi: boolean;
+  is_production: boolean;
+  production_type: ProductionType;
+  production_setter_id: string | null;
+  setup_hours: number;
   // --- programming layer (consumes programmer/setter time only) ---
   programmer_id: string | null;
   programming_hours: number;
@@ -138,6 +153,11 @@ export const PRODUCTION_STATUS_OPTIONS: { value: ProductionStatus; label: string
   { value: 'completed', label: 'Completed' },
   { value: 'on_hold', label: 'On Hold' },
   { value: 'cancelled', label: 'Cancelled' },
+];
+
+export const PRODUCTION_TYPE_OPTIONS: { value: ProductionType; label: string }[] = [
+  { value: 'npi_production', label: 'NPI Production' },
+  { value: 'standard_production', label: 'Standard Production' },
 ];
 
 export const PROGRAMMING_STATUS_OPTIONS: { value: ProgrammingStatus; label: string }[] = [

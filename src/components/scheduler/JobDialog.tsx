@@ -9,8 +9,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { SchedJob, SchedJobPriority, SchedJobStatus, CycleTimeUnit, ProductionStatus, ProgrammingStatus } from '@/types/scheduler';
-import { PRIORITY_OPTIONS, STATUS_OPTIONS, CYCLE_TIME_UNITS, PRODUCTION_STATUS_OPTIONS, PROGRAMMING_STATUS_OPTIONS } from '@/types/scheduler';
+import { Checkbox } from '@/components/ui/checkbox';
+import type { SchedJob, SchedJobPriority, SchedJobStatus, CycleTimeUnit, ProductionStatus, ProductionType, ProgrammingStatus } from '@/types/scheduler';
+import { PRIORITY_OPTIONS, STATUS_OPTIONS, CYCLE_TIME_UNITS, PRODUCTION_STATUS_OPTIONS, PRODUCTION_TYPE_OPTIONS, PROGRAMMING_STATUS_OPTIONS } from '@/types/scheduler';
 import { addDays, fmtDuration, fmtHours, toISO } from '@/utils/schedulerEngine';
 import type { useScheduler } from '@/hooks/useScheduler';
 
@@ -41,6 +42,11 @@ const emptyForm = (date: string) => ({
   cycle_time_unit: 'minutes' as CycleTimeUnit,
   production_start: '',
   production_status: 'not_scheduled' as ProductionStatus,
+  is_npi: true,
+  is_production: false,
+  production_type: 'npi_production' as ProductionType,
+  production_setter_id: '',
+  setup_hours: '',
   programmer_id: '',
   programming_hours: '',
   programming_start: '',
@@ -73,6 +79,11 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         cycle_time_unit: job.cycle_time_unit ?? 'minutes',
         production_start: job.production_start ?? '',
         production_status: job.production_status ?? 'not_scheduled',
+        is_npi: job.is_npi ?? true,
+        is_production: job.is_production || Number(job.production_quantity) > 0 || Number(job.setup_hours) > 0,
+        production_type: (job.production_type as ProductionType) ?? 'npi_production',
+        production_setter_id: job.production_setter_id ?? '',
+        setup_hours: job.setup_hours ? String(job.setup_hours) : '',
         programmer_id: job.programmer_id ?? '',
         programming_hours: job.programming_hours ? String(job.programming_hours) : '',
         programming_start: job.programming_start ?? '',
@@ -101,20 +112,34 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
 
   const qty = Number(form.production_quantity) || 0;
   const cycle = Number(form.cycle_time) || 0;
-  const hasProduction = qty > 0 && cycle > 0;
+  const setupHours = Number(form.setup_hours) || 0;
+  const hasProduction = form.is_production && ((qty > 0 && cycle > 0) || setupHours > 0);
 
   const production = useMemo(
     () =>
       validateProduction({
         jobId: job?.id ?? null,
         machineId: form.machine_id || null,
+        setterId: form.production_setter_id || null,
         startDate: form.production_start || null,
         quantity: qty,
         cycleTime: cycle,
         unit: form.cycle_time_unit,
+        setupHours,
       }),
-    [validateProduction, job?.id, form.machine_id, form.production_start, form.cycle_time_unit, qty, cycle],
+    [
+      validateProduction,
+      job?.id,
+      form.machine_id,
+      form.production_setter_id,
+      form.production_start,
+      form.cycle_time_unit,
+      qty,
+      cycle,
+      setupHours,
+    ],
   );
+  const prodSchedule = production.schedule;
 
   const progHours = Number(form.programming_hours) || 0;
   const hasProgramming = progHours > 0;
@@ -154,12 +179,18 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
   if (!form.setter_id) missing.push('Setter');
   if (!form.machine_id) missing.push('Machine');
   if (hours <= 0) missing.push('Development hours');
-  if (hasProduction && !form.production_start) missing.push('Production start date');
+  if (!form.is_npi && !form.is_production) missing.push('Job type (NPI and/or Production)');
+  if (form.is_production && !form.production_start) missing.push('Production start date');
+  if (form.is_production && qty > 0 && cycle <= 0) missing.push('Cycle time');
+  if (form.is_production && setupHours <= 0) missing.push('Setup time (hours)');
+  if (form.is_production && !form.production_setter_id) missing.push('Production setter (setup)');
   if (hasProgramming && !form.programmer_id) missing.push('Programmer');
   if (hasProgramming && !form.programming_start) missing.push('Programming start date');
 
   const noWorkingDays = form.setter_id && hours > 0 && plan.allocations.length === 0;
-  const noMachineDays = hasProduction && !!form.production_start && production.plan.allocations.length === 0;
+  const noMachineDays =
+    hasProduction && !!form.production_start && prodSchedule.run.allocations.length === 0 && production.runHours > 0;
+  const noSetupDays = hasProduction && setupHours > 0 && prodSchedule.setup.allocations.length === 0;
   const noProgrammerDays =
     hasProgramming && !!form.programmer_id && !!form.programming_start && programming.plan.allocations.length === 0;
   const blocked =
@@ -168,6 +199,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
     conflicts.hasConflicts ||
     !!noWorkingDays ||
     noMachineDays ||
+    noSetupDays ||
     (hasProduction && production.conflicts.hasConflicts) ||
     noProgrammerDays ||
     (hasProgramming && programming.conflicts.hasConflicts);
@@ -195,6 +227,11 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
       cycle_time_unit: form.cycle_time_unit,
       production_start: hasProduction ? form.production_start || null : null,
       production_status: form.production_status,
+      is_npi: form.is_npi,
+      is_production: form.is_production,
+      production_type: form.production_type,
+      production_setter_id: hasProduction ? form.production_setter_id || null : null,
+      setup_hours: hasProduction ? setupHours : 0,
       programmer_id: hasProgramming ? form.programmer_id || null : null,
       programming_hours: progHours,
       programming_start: hasProgramming ? form.programming_start || null : null,
@@ -319,6 +356,49 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
               disabled={!canEdit}
               onChange={(e) => setForm({ ...form, notes: e.target.value })}
             />
+          </div>
+        </div>
+
+        {/* ---------------- Job type ---------------- */}
+        <div className="rounded-lg border border-border p-3 space-y-3">
+          <div>
+            <h4 className="text-sm font-semibold">Job type *</h4>
+            <p className="text-xs text-muted-foreground">
+              A job can be NPI, Production, or both. Every production run needs a machine AND a setter for setup.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-6">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={form.is_npi}
+                disabled={!canEdit}
+                onCheckedChange={(v) => setForm({ ...form, is_npi: !!v })}
+              />
+              NPI (development / programming)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={form.is_production}
+                disabled={!canEdit}
+                onCheckedChange={(v) => setForm({ ...form, is_production: !!v })}
+              />
+              Production (setup + run)
+            </label>
+            {form.is_production && (
+              <div className="space-y-1.5">
+                <Label>Production type</Label>
+                <Select
+                  value={form.production_type}
+                  onValueChange={(v) => setForm({ ...form, production_type: v as ProductionType })}
+                  disabled={!canEdit}
+                >
+                  <SelectTrigger className="w-[210px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PRODUCTION_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </div>
 
@@ -456,12 +536,14 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         <div className="rounded-lg border border-border p-3 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <h4 className="text-sm font-semibold">Production run (optional)</h4>
+              <h4 className="text-sm font-semibold">
+                Production {form.is_production ? `— ${form.production_type === 'npi_production' ? 'NPI Production' : 'Standard Production'}` : '(enable the Production job type)'}
+              </h4>
               <p className="text-xs text-muted-foreground">
-                Production occupies the machine only — setters stay free and available for development work.
+                Setup occupies the setter AND the machine. The run afterwards occupies the machine only.
               </p>
             </div>
-            <Badge variant="outline">Machine capacity</Badge>
+            <Badge variant="outline">Setup: setter + machine · Run: machine</Badge>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -472,7 +554,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                 min="0"
                 step="1"
                 value={form.production_quantity}
-                disabled={!canEdit}
+                disabled={!canEdit || !form.is_production}
                 onChange={(e) => setForm({ ...form, production_quantity: e.target.value })}
                 placeholder="0"
               />
@@ -485,7 +567,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                   min="0"
                   step="0.01"
                   value={form.cycle_time}
-                  disabled={!canEdit}
+                  disabled={!canEdit || !form.is_production}
                   onChange={(e) => setForm({ ...form, cycle_time: e.target.value })}
                   placeholder="0"
                 />
@@ -507,7 +589,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                 <Input
                   type="date"
                   value={form.production_start}
-                  disabled={!canEdit}
+                  disabled={!canEdit || !form.is_production}
                   onChange={(e) => setForm({ ...form, production_start: e.target.value })}
                 />
                 {canEdit && (
@@ -520,6 +602,31 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                   </Button>
                 )}
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Setup time (hours)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.1"
+                value={form.setup_hours}
+                disabled={!canEdit || !form.is_production}
+                onChange={(e) => setForm({ ...form, setup_hours: e.target.value })}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Setter for setup</Label>
+              <Select
+                value={form.production_setter_id}
+                onValueChange={(v) => setForm({ ...form, production_setter_id: v })}
+                disabled={!canEdit || !form.is_production}
+              >
+                <SelectTrigger><SelectValue placeholder="Select setter" /></SelectTrigger>
+                <SelectContent>
+                  {setters.filter((x) => x.is_active).map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Production status</Label>
@@ -538,20 +645,46 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
 
           <div className="rounded-md border border-border bg-muted/40 p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
             <div>
-              <div className="text-xs text-muted-foreground">Total machine time</div>
-              <div className="font-semibold">{hasProduction ? fmtDuration(production.hours) : '—'}</div>
+              <div className="text-xs text-muted-foreground">Setup time (setter + machine)</div>
+              <div className="font-semibold">{setupHours > 0 ? fmtDuration(setupHours) : '—'}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Production start</div>
-              <div className="font-semibold">{production.plan.startDate ?? '—'}</div>
+              <div className="text-xs text-muted-foreground">Run time (machine only)</div>
+              <div className="font-semibold">{production.runHours > 0 ? fmtDuration(production.runHours) : '—'}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Production end</div>
-              <div className="font-semibold">{production.plan.endDate ?? '—'}</div>
+              <div className="text-xs text-muted-foreground">Total machine occupancy</div>
+              <div className="font-semibold">
+                {hasProduction ? fmtDuration(production.totalMachineHours) : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Total setter occupancy</div>
+              <div className="font-semibold">{setupHours > 0 ? fmtDuration(setupHours) : '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Setup window</div>
+              <div className="font-semibold">
+                {prodSchedule.setup.startDate ? `${prodSchedule.setup.startDate} → ${prodSchedule.setup.endDate}` : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Run window</div>
+              <div className="font-semibold">
+                {prodSchedule.run.startDate ? `${prodSchedule.run.startDate} → ${prodSchedule.run.endDate}` : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Machine unavailable from → to</div>
+              <div className="font-semibold">
+                {prodSchedule.startDate ? `${prodSchedule.startDate} → ${prodSchedule.endDate}` : '—'}
+              </div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Machine days</div>
-              <div className="font-semibold">{production.plan.workingDays}</div>
+              <div className="font-semibold">
+                {new Set([...prodSchedule.setup.allocations, ...prodSchedule.run.allocations].map((a) => a.alloc_date)).size}
+              </div>
             </div>
           </div>
         </div>
@@ -567,17 +700,49 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
           </Alert>
         )}
 
-        {hasProduction && production.conflicts.hasConflicts && (
+        {noSetupDays && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Machine conflict — production</AlertTitle>
+            <AlertTitle>Cannot schedule the setup</AlertTitle>
+            <AlertDescription>
+              Setup needs the setter and the machine on the same day. Neither is available together from{' '}
+              {form.production_start || '—'}. Change the date, the setter, the machine, or their calendars.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {hasProduction && production.conflicts.setterConflicts.length > 0 && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Setter capacity conflict — production setup</AlertTitle>
+            <AlertDescription className="space-y-1">
+              <p>
+                <strong>{setters.find((x) => x.id === form.production_setter_id)?.name}</strong> is over capacity by{' '}
+                <strong>{fmtHours(production.conflicts.totalSetterOver)}</strong> (development + programming + setup).
+              </p>
+              <div className="max-h-32 overflow-y-auto">
+                {production.conflicts.setterConflicts.map((c) => (
+                  <div key={c.date} className="text-xs">
+                    {c.date}: booked {fmtHours(c.existing)} + required {fmtHours(c.requested)} vs available {fmtHours(c.capacity)} → over {fmtHours(c.over)}
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs">Options: change the setup setter, move the production start date, or reduce setup time.</p>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {hasProduction && production.conflicts.machineConflicts.length > 0 && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Machine conflict — production (setup + run)</AlertTitle>
             <AlertDescription className="space-y-1">
               <p>
                 {machines.find((m) => m.id === form.machine_id)?.name} is already booked during this production window. Over
-                capacity by <strong>{fmtHours(production.conflicts.totalOver)}</strong>.
+                capacity by <strong>{fmtHours(production.conflicts.totalMachineOver)}</strong>.
               </p>
               <div className="max-h-32 overflow-y-auto">
-                {production.conflicts.conflicts.map((c) => (
+                {production.conflicts.machineConflicts.map((c) => (
                   <div key={c.date} className="text-xs">
                     {c.date}: booked {fmtHours(c.existing)} + requested {fmtHours(c.requested)} vs capacity {fmtHours(c.capacity)} → over {fmtHours(c.over)}
                   </div>

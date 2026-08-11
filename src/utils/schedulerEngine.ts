@@ -500,3 +500,220 @@ export const detectProgrammingConflicts = (
     conflictingJobIds: Array.from(conflicting),
   };
 };
+
+/** Production SETUP layer ---------------------------------------------
+ * Setup happens before the run and consumes BOTH the setter and the machine.
+ * The run itself consumes the machine only.
+ */
+
+/** Spread setup hours across days where the setter AND the machine are both available. */
+export const planSetup = (
+  startDate: string,
+  hours: number,
+  setterId: string | null,
+  machine: SchedMachine | undefined,
+  cal: SetterCalendarMap,
+  holidays: SchedHoliday[],
+): SchedulePlan => {
+  const allocations: PlannedAllocation[] = [];
+  let remaining = Math.max(0, Number(hours) || 0);
+  const total = remaining;
+
+  if (!startDate || remaining === 0 || !setterId || !machine) {
+    return { allocations, startDate: null, endDate: null, workingDays: 0, allocatedHours: 0, unallocatedHours: remaining };
+  }
+
+  let cursor = startDate;
+  let guard = 0;
+  while (remaining > 0.0001 && guard < MAX_DAYS) {
+    guard += 1;
+    const cap = Math.min(
+      setterHoursOn(cursor, setterId, cal, holidays),
+      machineHoursOn(cursor, machine, holidays),
+    );
+    if (cap > 0) {
+      const take = Math.min(cap, remaining);
+      allocations.push({ alloc_date: cursor, hours: Math.round(take * 100) / 100 });
+      remaining -= take;
+    }
+    if (remaining > 0.0001) cursor = addDays(cursor, 1);
+  }
+
+  const allocated = allocations.reduce((a, b) => a + b.hours, 0);
+  return {
+    allocations,
+    startDate: allocations[0]?.alloc_date ?? null,
+    endDate: allocations[allocations.length - 1]?.alloc_date ?? null,
+    workingDays: allocations.length,
+    allocatedHours: Math.round(allocated * 100) / 100,
+    unallocatedHours: Math.round((total - allocated) * 100) / 100,
+  };
+};
+
+/** Spread run hours across machine days, minus hours already reserved that day (e.g. setup). */
+export const planRun = (
+  startDate: string,
+  hours: number,
+  machine: SchedMachine | undefined,
+  holidays: SchedHoliday[],
+  reserved: Record<string, number> = {},
+): SchedulePlan => {
+  const allocations: PlannedAllocation[] = [];
+  let remaining = Math.max(0, Number(hours) || 0);
+  const total = remaining;
+
+  if (!startDate || remaining === 0 || !machine) {
+    return { allocations, startDate: null, endDate: null, workingDays: 0, allocatedHours: 0, unallocatedHours: remaining };
+  }
+
+  let cursor = startDate;
+  let guard = 0;
+  while (remaining > 0.0001 && guard < MAX_DAYS) {
+    guard += 1;
+    const cap = Math.max(0, machineHoursOn(cursor, machine, holidays) - (reserved[cursor] ?? 0));
+    if (cap > 0) {
+      const take = Math.min(cap, remaining);
+      allocations.push({ alloc_date: cursor, hours: Math.round(take * 100) / 100 });
+      remaining -= take;
+    }
+    if (remaining > 0.0001) cursor = addDays(cursor, 1);
+  }
+
+  const allocated = allocations.reduce((a, b) => a + b.hours, 0);
+  return {
+    allocations,
+    startDate: allocations[0]?.alloc_date ?? null,
+    endDate: allocations[allocations.length - 1]?.alloc_date ?? null,
+    workingDays: allocations.length,
+    allocatedHours: Math.round(allocated * 100) / 100,
+    unallocatedHours: Math.round((total - allocated) * 100) / 100,
+  };
+};
+
+export interface ProductionSchedule {
+  setup: SchedulePlan;
+  run: SchedulePlan;
+  setupHours: number;
+  runHours: number;
+  totalMachineHours: number;
+  startDate: string | null;
+  endDate: string | null;
+}
+
+/** Plan setup (setter + machine) followed by the run (machine only). */
+export const planProductionWithSetup = (
+  startDate: string,
+  input: { setupHours: number; runHours: number },
+  machine: SchedMachine | undefined,
+  setterId: string | null,
+  cal: SetterCalendarMap,
+  holidays: SchedHoliday[],
+): ProductionSchedule => {
+  const setupHours = Math.max(0, Number(input.setupHours) || 0);
+  const runHours = Math.max(0, Number(input.runHours) || 0);
+  const setup = planSetup(startDate, setupHours, setterId, machine, cal, holidays);
+  const reserved: Record<string, number> = {};
+  setup.allocations.forEach((a) => {
+    reserved[a.alloc_date] = (reserved[a.alloc_date] ?? 0) + a.hours;
+  });
+  const run = planRun(setup.startDate ?? startDate, runHours, machine, holidays, reserved);
+  const dates = [...setup.allocations, ...run.allocations].map((a) => a.alloc_date).sort();
+  return {
+    setup,
+    run,
+    setupHours,
+    runHours,
+    totalMachineHours: round2(setupHours + runHours),
+    startDate: dates[0] ?? null,
+    endDate: dates[dates.length - 1] ?? null,
+  };
+};
+
+export interface ProductionSetupConflictReport {
+  machineConflicts: MachineConflict[];
+  setterConflicts: SetterConflict[];
+  hasConflicts: boolean;
+  totalMachineOver: number;
+  totalSetterOver: number;
+  conflictingJobIds: string[];
+}
+
+/**
+ * Capacity check for a setup + run plan.
+ * Machine: setup + run hours, against every other allocation on the machine.
+ * Setter : setup hours only, against the person's development / programming / setup work.
+ */
+export const detectProductionSetupConflicts = (
+  setupPlan: PlannedAllocation[],
+  runPlan: PlannedAllocation[],
+  ctx: { jobId?: string | null; machineId: string | null; setterId: string | null },
+  existingAllocations: SchedAllocation[],
+  cal: SetterCalendarMap,
+  holidays: SchedHoliday[],
+  machines: SchedMachine[],
+): ProductionSetupConflictReport => {
+  const machine = machines.find((m) => m.id === ctx.machineId);
+  const machineConflicts: MachineConflict[] = [];
+  const setterConflicts: SetterConflict[] = [];
+  const conflicting = new Set<string>();
+
+  // --- machine: aggregate setup + run per date ---
+  if (ctx.machineId) {
+    const byDate: Record<string, number> = {};
+    [...setupPlan, ...runPlan].forEach((a) => {
+      byDate[a.alloc_date] = round2((byDate[a.alloc_date] ?? 0) + a.hours);
+    });
+    for (const [date, requested] of Object.entries(byDate)) {
+      const capacity = machineHoursOn(date, machine, holidays);
+      const rows = existingAllocations.filter(
+        (a) =>
+          a.alloc_date === date &&
+          a.machine_id === ctx.machineId &&
+          !(a.job_id === ctx.jobId && (a.alloc_type === 'production' || a.alloc_type === 'setup')),
+      );
+      const existing = round2(rows.reduce((s, r) => s + Number(r.hours), 0));
+      const over = round2(existing + requested - capacity);
+      if (over > 0.01) {
+        rows.forEach((r) => conflicting.add(r.job_id));
+        machineConflicts.push({ date, capacity, existing, requested, over, jobIds: rows.map((r) => r.job_id) });
+      }
+    }
+    machineConflicts.sort((a, b) => a.date.localeCompare(b.date));
+  }
+
+  // --- setter: setup hours only ---
+  if (ctx.setterId) {
+    for (const slot of setupPlan) {
+      const capacity = setterHoursOn(slot.alloc_date, ctx.setterId, cal, holidays);
+      const rows = existingAllocations.filter(
+        (a) =>
+          a.alloc_date === slot.alloc_date &&
+          a.setter_id === ctx.setterId &&
+          a.alloc_type !== 'production' &&
+          !(a.job_id === ctx.jobId && a.alloc_type === 'setup'),
+      );
+      const existing = round2(rows.reduce((s, r) => s + Number(r.hours), 0));
+      const over = round2(existing + slot.hours - capacity);
+      if (over > 0.01) {
+        rows.forEach((r) => conflicting.add(r.job_id));
+        setterConflicts.push({
+          date: slot.alloc_date,
+          capacity,
+          existing,
+          requested: slot.hours,
+          over,
+          jobIds: rows.map((r) => r.job_id),
+        });
+      }
+    }
+  }
+
+  return {
+    machineConflicts,
+    setterConflicts,
+    hasConflicts: machineConflicts.length > 0 || setterConflicts.length > 0,
+    totalMachineOver: round2(machineConflicts.reduce((a, b) => a + b.over, 0)),
+    totalSetterOver: round2(setterConflicts.reduce((a, b) => a + b.over, 0)),
+    conflictingJobIds: Array.from(conflicting),
+  };
+};
