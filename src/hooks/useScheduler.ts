@@ -594,7 +594,9 @@ export function useScheduler() {
             return acc;
           }, {}),
         };
-        const affected = jobs.filter((j) => j.setter_id === setterId || j.programmer_id === setterId);
+        const affected = jobs.filter(
+          (j) => j.setter_id === setterId || j.programmer_id === setterId || j.production_setter_id === setterId,
+        );
         for (const j of affected) {
           if (j.setter_id === setterId && Number(j.development_hours) > 0 && j.start_date) {
             const p = planSchedule(j.start_date, Number(j.development_hours), setterId!, nextCal, holidays);
@@ -602,6 +604,28 @@ export function useScheduler() {
               await writeAllocations(j.id, { setter_id: j.setter_id, machine_id: j.machine_id }, p);
             } catch (err) {
               toast.error(`Could not re-plan development for ${j.po_number ?? j.job_number}`);
+            }
+          }
+          if (j.production_setter_id === setterId && Number(j.setup_hours) > 0 && j.production_start) {
+            const runHours = productionHours(j.production_quantity, j.cycle_time, j.cycle_time_unit);
+            const machine = machines.find((m) => m.id === j.machine_id);
+            const sched = planProductionWithSetup(
+              j.production_start,
+              { setupHours: Number(j.setup_hours), runHours },
+              machine,
+              setterId!,
+              nextCal,
+              holidays,
+            );
+            try {
+              await writeSetupAllocations(j.id, setterId!, j.machine_id, sched.setup);
+              await writeProductionAllocations(j.id, j.machine_id, sched.run);
+              await supabase
+                .from('sched_jobs')
+                .update({ production_start: sched.startDate ?? j.production_start, production_end: sched.endDate })
+                .eq('id', j.id);
+            } catch (err) {
+              toast.error(`Could not re-plan production setup for ${j.po_number ?? j.job_number}`);
             }
           }
           if (j.programmer_id === setterId && Number(j.programming_hours) > 0 && j.programming_start) {
@@ -632,7 +656,20 @@ export function useScheduler() {
       await fetchAll();
       return true;
     },
-    [setters, setterDays, logAudit, fetchAll, calendar, holidays, jobs, writeAllocations, writeProgrammingAllocations],
+    [
+      setters,
+      setterDays,
+      logAudit,
+      fetchAll,
+      calendar,
+      holidays,
+      jobs,
+      machines,
+      writeAllocations,
+      writeProgrammingAllocations,
+      writeSetupAllocations,
+      writeProductionAllocations,
+    ],
   );
 
   const deleteSetter = useCallback(
