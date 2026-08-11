@@ -303,7 +303,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Setter *</Label>
+            <Label>{isNpi ? 'Setter (development) *' : 'Setter (optional)'}</Label>
             <Select value={form.setter_id} onValueChange={(v) => setForm({ ...form, setter_id: v })} disabled={!canEdit}>
               <SelectTrigger><SelectValue placeholder="Select setter" /></SelectTrigger>
               <SelectContent>
