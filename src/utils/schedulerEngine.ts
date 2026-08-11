@@ -630,11 +630,17 @@ export const planProductionWithSetup = (
   holidays: SchedHoliday[],
   /** Manual per-day setup hour caps. */
   setupDayHours?: Record<string, number> | null,
+  /**
+   * Machine hours already reserved per day by anything else (other jobs, and the
+   * job's own DEVELOPMENT which also occupies the machine). The run only uses the
+   * hours left on the machine that day instead of assuming the full capacity.
+   */
+  machineReserved?: Record<string, number> | null,
 ): ProductionSchedule => {
   const setupHours = Math.max(0, Number(input.setupHours) || 0);
   const runHours = Math.max(0, Number(input.runHours) || 0);
   const setup = planSetup(startDate, setupHours, setterId, machine, cal, holidays, setupDayHours);
-  const reserved: Record<string, number> = {};
+  const reserved: Record<string, number> = { ...(machineReserved ?? {}) };
   setup.allocations.forEach((a) => {
     reserved[a.alloc_date] = (reserved[a.alloc_date] ?? 0) + a.hours;
   });
