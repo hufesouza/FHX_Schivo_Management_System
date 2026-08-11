@@ -39,7 +39,6 @@ export default function SchedulerOverview() {
     jobs,
     devAllocations,
     setupAllocations,
-    prodAllocations,
     jobById,
     setterById,
     machineById,
@@ -48,10 +47,10 @@ export default function SchedulerOverview() {
     setters,
   } = scheduler;
 
-  // Overall calendar: development + production setup + production run
+  // Overall calendar: development + production setup (production runs are hidden here)
   const allocations = useMemo(
-    () => [...devAllocations, ...setupAllocations, ...prodAllocations],
-    [devAllocations, setupAllocations, prodAllocations],
+    () => [...devAllocations, ...setupAllocations],
+    [devAllocations, setupAllocations],
   );
 
   const matchingJobIds = useMemo(() => {
