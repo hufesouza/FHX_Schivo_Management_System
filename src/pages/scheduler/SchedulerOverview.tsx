@@ -35,13 +35,30 @@ export default function SchedulerOverview() {
   const [fPriority, setFPriority] = useState(ALL);
   const [fCustomer, setFCustomer] = useState('');
 
-  const { jobs, devAllocations: allocations, jobById, setterById, machineById, holidays, calendar, setters } = scheduler;
+  const {
+    jobs,
+    devAllocations,
+    setupAllocations,
+    prodAllocations,
+    jobById,
+    setterById,
+    machineById,
+    holidays,
+    calendar,
+    setters,
+  } = scheduler;
+
+  // Overall calendar: development + production setup + production run
+  const allocations = useMemo(
+    () => [...devAllocations, ...setupAllocations, ...prodAllocations],
+    [devAllocations, setupAllocations, prodAllocations],
+  );
 
   const matchingJobIds = useMemo(() => {
     const set = new Set<string>();
     for (const j of jobs) {
       if (fMachine !== ALL && j.machine_id !== fMachine) continue;
-      if (fSetter !== ALL && j.setter_id !== fSetter) continue;
+      if (fSetter !== ALL && j.setter_id !== fSetter && j.production_setter_id !== fSetter) continue;
       if (fStatus !== ALL && j.status !== fStatus) continue;
       if (fPriority !== ALL && j.priority !== fPriority) continue;
       if (fCustomer && !(j.customer ?? '').toLowerCase().includes(fCustomer.toLowerCase())) continue;
