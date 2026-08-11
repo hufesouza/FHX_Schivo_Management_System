@@ -530,6 +530,8 @@ export const planSetup = (
   machine: SchedMachine | undefined,
   cal: SetterCalendarMap,
   holidays: SchedHoliday[],
+  /** Manual per-day setup hour caps, e.g. { '2026-08-14': 3 }. */
+  dayHours?: Record<string, number> | null,
 ): SchedulePlan => {
   const allocations: PlannedAllocation[] = [];
   let remaining = Math.max(0, Number(hours) || 0);
@@ -543,10 +545,12 @@ export const planSetup = (
   let guard = 0;
   while (remaining > 0.0001 && guard < MAX_DAYS) {
     guard += 1;
-    const cap = Math.min(
+    const rawCap = Math.min(
       setterHoursOn(cursor, setterId, cal, holidays),
       machineHoursOn(cursor, machine, holidays),
     );
+    const manual = dayHours && dayHours[cursor] != null ? Math.max(0, Number(dayHours[cursor]) || 0) : null;
+    const cap = manual != null ? Math.min(manual, rawCap) : rawCap;
     if (cap > 0) {
       const take = Math.min(cap, remaining);
       allocations.push({ alloc_date: cursor, hours: Math.round(take * 100) / 100 });
@@ -624,10 +628,12 @@ export const planProductionWithSetup = (
   setterId: string | null,
   cal: SetterCalendarMap,
   holidays: SchedHoliday[],
+  /** Manual per-day setup hour caps. */
+  setupDayHours?: Record<string, number> | null,
 ): ProductionSchedule => {
   const setupHours = Math.max(0, Number(input.setupHours) || 0);
   const runHours = Math.max(0, Number(input.runHours) || 0);
-  const setup = planSetup(startDate, setupHours, setterId, machine, cal, holidays);
+  const setup = planSetup(startDate, setupHours, setterId, machine, cal, holidays, setupDayHours);
   const reserved: Record<string, number> = {};
   setup.allocations.forEach((a) => {
     reserved[a.alloc_date] = (reserved[a.alloc_date] ?? 0) + a.hours;

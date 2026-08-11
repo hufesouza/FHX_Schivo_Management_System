@@ -3930,6 +3930,7 @@ export type Database = {
           programming_status: string
           scrap_pct: number
           setter_id: string | null
+          setup_day_hours: Json | null
           setup_hours: number
           start_date: string
           status: Database["public"]["Enums"]["sched_job_status"]
@@ -3965,6 +3966,7 @@ export type Database = {
           programming_status?: string
           scrap_pct?: number
           setter_id?: string | null
+          setup_day_hours?: Json | null
           setup_hours?: number
           start_date: string
           status?: Database["public"]["Enums"]["sched_job_status"]
@@ -4000,6 +4002,7 @@ export type Database = {
           programming_status?: string
           scrap_pct?: number
           setter_id?: string | null
+          setup_day_hours?: Json | null
           setup_hours?: number
           start_date?: string
           status?: Database["public"]["Enums"]["sched_job_status"]
