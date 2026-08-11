@@ -8,6 +8,7 @@ import type {
   SchedHoliday,
   SchedJob,
   SchedMachine,
+  SchedMachinePartCycleTime,
   SchedSetter,
   SchedSetterDay,
 } from '@/types/scheduler';
@@ -19,7 +20,6 @@ import {
   planProductionWithSetup,
   planProgramming,
   planSchedule,
-  productionHours,
   type ConflictReport,
   type ProductionSchedule,
   type ProductionSetupConflictReport,
@@ -27,6 +27,12 @@ import {
   type SchedulePlan,
   type SetterCalendarMap,
 } from '@/utils/schedulerEngine';
+import {
+  findCycleTime,
+  jobProductionMetrics,
+  productionMetrics,
+  type ProductionMetrics,
+} from '@/utils/capacityModel';
 import type { CycleTimeUnit, ProductionStatus, ProductionType, ProgrammingStatus } from '@/types/scheduler';
 
 export interface JobInput {
@@ -42,8 +48,9 @@ export interface JobInput {
   priority: SchedJob['priority'];
   status: SchedJob['status'];
   notes: string | null;
-  // production layer
+  // production layer — production_quantity is the REQUIRED GOOD QUANTITY
   production_quantity: number;
+  scrap_pct: number;
   cycle_time: number;
   cycle_time_unit: CycleTimeUnit;
   production_start: string | null;
@@ -71,11 +78,12 @@ export function useScheduler() {
   const [jobs, setJobs] = useState<SchedJob[]>([]);
   const [allocations, setAllocations] = useState<SchedAllocation[]>([]);
   const [audit, setAudit] = useState<SchedAuditEntry[]>([]);
+  const [cycleTimes, setCycleTimes] = useState<SchedMachinePartCycleTime[]>([]);
   const [loading, setLoading] = useState(true);
   const debounceRef = useRef<number | null>(null);
 
   const fetchAll = useCallback(async () => {
-    const [m, s, sd, h, j, a, au] = await Promise.all([
+    const [m, s, sd, h, j, a, au, ct] = await Promise.all([
       supabase.from('sched_machines').select('*').order('code'),
       supabase.from('sched_setters').select('*').order('name'),
       supabase.from('sched_setter_days').select('*'),
@@ -83,6 +91,7 @@ export function useScheduler() {
       supabase.from('sched_jobs').select('*').order('start_date'),
       supabase.from('sched_job_allocations').select('*'),
       supabase.from('sched_audit_log').select('*').order('created_at', { ascending: false }).limit(200),
+      supabase.from('sched_machine_part_cycle_times').select('*').order('part_number'),
     ]);
     if (m.data) setMachines(m.data as SchedMachine[]);
     if (s.data) setSetters(s.data as SchedSetter[]);
@@ -91,6 +100,7 @@ export function useScheduler() {
     if (j.data) setJobs(j.data as SchedJob[]);
     if (a.data) setAllocations(a.data as SchedAllocation[]);
     if (au.data) setAudit(au.data as unknown as SchedAuditEntry[]);
+    if (ct.data) setCycleTimes(ct.data as SchedMachinePartCycleTime[]);
     setLoading(false);
   }, []);
 
@@ -113,6 +123,7 @@ export function useScheduler() {
       'sched_jobs',
       'sched_job_allocations',
       'sched_audit_log',
+      'sched_machine_part_cycle_times',
     ];
     const channel = supabase.channel('npi-scheduler-realtime');
     tables.forEach((table) => {
@@ -191,7 +202,9 @@ export function useScheduler() {
       machineId: string | null;
       setterId?: string | null;
       startDate: string | null;
+      /** REQUIRED GOOD QUANTITY */
       quantity: number;
+      scrapPct?: number;
       cycleTime: number;
       unit: CycleTimeUnit;
       setupHours?: number;
@@ -199,15 +212,22 @@ export function useScheduler() {
       runHours: number;
       setupHours: number;
       totalMachineHours: number;
+      metrics: ProductionMetrics;
       schedule: ProductionSchedule;
       conflicts: ProductionSetupConflictReport;
     } => {
-      const runHours = productionHours(input.quantity, input.cycleTime, input.unit);
-      const setupHours = Math.max(0, Number(input.setupHours) || 0);
       const machine = machines.find((m) => m.id === input.machineId);
+      const metrics = productionMetrics({
+        quantity: input.quantity,
+        scrapPct: input.scrapPct ?? 0,
+        cycleTime: input.cycleTime,
+        cycleTimeUnit: input.unit,
+        setupHours: input.setupHours,
+        machine,
+      });
       const schedule = planProductionWithSetup(
         input.startDate ?? '',
-        { setupHours, runHours },
+        { setupHours: metrics.setupHours, runHours: metrics.plannedRunHours },
         machine,
         input.setterId ?? null,
         calendar,
@@ -222,7 +242,14 @@ export function useScheduler() {
         holidays,
         machines,
       );
-      return { runHours, setupHours, totalMachineHours: schedule.totalMachineHours, schedule, conflicts };
+      return {
+        runHours: metrics.plannedRunHours,
+        setupHours: metrics.setupHours,
+        totalMachineHours: metrics.totalMachineHours,
+        metrics,
+        schedule,
+        conflicts,
+      };
     },
     [allocations, calendar, holidays, machines],
   );
@@ -344,11 +371,18 @@ export function useScheduler() {
       const p = planSchedule(input.start_date, input.development_hours, input.setter_id, calendar, holidays);
       const previous = input.id ? jobs.find((j) => j.id === input.id) ?? null : null;
 
-      const runHours = productionHours(input.production_quantity, input.cycle_time, input.cycle_time_unit);
       const machine = machines.find((m) => m.id === input.machine_id);
+      const metrics = productionMetrics({
+        quantity: input.production_quantity,
+        scrapPct: input.scrap_pct,
+        cycleTime: input.cycle_time,
+        cycleTimeUnit: input.cycle_time_unit,
+        setupHours: input.setup_hours,
+        machine,
+      });
       const prodSchedule = planProductionWithSetup(
         input.production_start ?? '',
-        { setupHours: input.setup_hours, runHours },
+        { setupHours: metrics.setupHours, runHours: metrics.plannedRunHours },
         machine,
         input.production_setter_id,
         calendar,
@@ -376,6 +410,7 @@ export function useScheduler() {
         status: input.status,
         notes: input.notes,
         production_quantity: input.production_quantity,
+        scrap_pct: input.scrap_pct,
         cycle_time: input.cycle_time,
         cycle_time_unit: input.cycle_time_unit,
         production_start: prodSchedule.startDate ?? input.production_start,
@@ -495,15 +530,94 @@ export function useScheduler() {
     [jobs, logAudit, fetchAll],
   );
 
+  /** Central recalculation engine ---------------------------------------
+   * Re-derives gross quantity, ideal time, planned run time, total machine
+   * occupancy and the calendar position of every affected production job from
+   * its stored INPUTS. Called whenever machine configuration, machine/part
+   * cycle times, scrap, quantity, setup or start dates change — the user never
+   * has to reschedule jobs manually.
+   */
+  const recalculateProductionJobs = useCallback(
+    async (opts?: {
+      machineOverrides?: Record<string, SchedMachine>;
+      cycleOverrides?: SchedMachinePartCycleTime[];
+      filter?: (job: SchedJob) => boolean;
+    }) => {
+      const machineList = machines.map((m) => opts?.machineOverrides?.[m.id] ?? m);
+      const cycleList = opts?.cycleOverrides ?? cycleTimes;
+      const affected = jobs.filter(
+        (j) =>
+          !!j.machine_id &&
+          !!j.production_start &&
+          Number(j.production_quantity) > 0 &&
+          (opts?.filter ? opts.filter(j) : true),
+      );
+      for (const job of affected) {
+        const machine = machineList.find((m) => m.id === job.machine_id);
+        const libCycle = findCycleTime(cycleList, job.machine_id, job.part_number);
+        const cycleTime = libCycle ? Number(libCycle.cycle_time) : Number(job.cycle_time);
+        const cycleUnit = libCycle ? libCycle.cycle_time_unit : job.cycle_time_unit;
+        const metrics = productionMetrics({
+          quantity: Number(job.production_quantity),
+          scrapPct: Number(job.scrap_pct),
+          cycleTime,
+          cycleTimeUnit: cycleUnit,
+          setupHours: Number(job.setup_hours),
+          machine,
+        });
+        const sched = planProductionWithSetup(
+          job.production_start!,
+          { setupHours: metrics.setupHours, runHours: metrics.plannedRunHours },
+          machine,
+          job.production_setter_id,
+          calendar,
+          holidays,
+        );
+        try {
+          await writeSetupAllocations(job.id, job.production_setter_id, job.machine_id, sched.setup);
+          await writeProductionAllocations(job.id, job.machine_id, sched.run);
+          await supabase
+            .from('sched_jobs')
+            .update({
+              cycle_time: cycleTime,
+              cycle_time_unit: cycleUnit,
+              production_start: sched.startDate ?? job.production_start,
+              production_end: sched.endDate,
+            })
+            .eq('id', job.id);
+        } catch {
+          toast.error(`Could not recalculate production for ${job.po_number || job.job_number}`);
+        }
+      }
+      return affected.length;
+    },
+    [
+      jobs,
+      machines,
+      cycleTimes,
+      calendar,
+      holidays,
+      writeSetupAllocations,
+      writeProductionAllocations,
+    ],
+  );
+
   /** Machines --------------------------------------------------------- */
   const saveMachine = useCallback(
     async (m: Partial<SchedMachine> & { name: string; code: string }) => {
       const previous = m.id ? machines.find((x) => x.id === m.id) ?? null : null;
+      const plannedHours = Number(m.planned_hours_per_day ?? m.daily_hours ?? 18) || 0;
       const payload = {
         name: m.name,
         code: m.code,
         is_active: m.is_active ?? true,
-        daily_hours: m.daily_hours ?? 24,
+        daily_hours: plannedHours,
+        planned_hours_per_day: plannedHours,
+        effective_machines: Number(m.effective_machines ?? 1) || 1,
+        days_per_week: Number(m.days_per_week ?? 7) || 7,
+        weeks_per_month: Number(m.weeks_per_month ?? 4.33) || 4.33,
+        availability_pct: Number(m.availability_pct ?? 85) || 85,
+        working_days: m.working_days && m.working_days.length ? m.working_days : [0, 1, 2, 3, 4, 5, 6],
         notes: m.notes ?? null,
       };
       const { error } = m.id
@@ -521,10 +635,20 @@ export function useScheduler() {
         previous_value: previous,
         new_value: payload,
       });
+      // Machine capacity parameters changed → recalculate every production job
+      // on this machine so the calendar and end dates follow automatically.
+      if (m.id) {
+        const next = { ...(previous as SchedMachine), ...payload, id: m.id } as SchedMachine;
+        const count = await recalculateProductionJobs({
+          machineOverrides: { [m.id]: next },
+          filter: (j) => j.machine_id === m.id,
+        });
+        if (count > 0) toast.success(`${count} production job(s) recalculated`);
+      }
       await fetchAll();
       return true;
     },
-    [machines, logAudit, fetchAll],
+    [machines, logAudit, fetchAll, recalculateProductionJobs],
   );
 
   const deleteMachine = useCallback(
@@ -607,11 +731,11 @@ export function useScheduler() {
             }
           }
           if (j.production_setter_id === setterId && Number(j.setup_hours) > 0 && j.production_start) {
-            const runHours = productionHours(j.production_quantity, j.cycle_time, j.cycle_time_unit);
             const machine = machines.find((m) => m.id === j.machine_id);
+            const m = jobProductionMetrics(j, machine);
             const sched = planProductionWithSetup(
               j.production_start,
-              { setupHours: Number(j.setup_hours), runHours },
+              { setupHours: m.setupHours, runHours: m.plannedRunHours },
               machine,
               setterId!,
               nextCal,
@@ -727,6 +851,7 @@ export function useScheduler() {
         setterId: job.production_setter_id,
         startDate: newStartDate,
         quantity: Number(job.production_quantity),
+        scrapPct: Number(job.scrap_pct),
         cycleTime: Number(job.cycle_time),
         unit: job.cycle_time_unit,
         setupHours: Number(job.setup_hours),
@@ -817,6 +942,77 @@ export function useScheduler() {
     [jobs, validateProgramming, writeProgrammingAllocations, logAudit, fetchAll],
   );
 
+  /** Machine + Part cycle times ---------------------------------------- */
+  const saveCycleTime = useCallback(
+    async (row: {
+      id?: string;
+      machine_id: string;
+      part_number: string;
+      cycle_time: number;
+      cycle_time_unit: CycleTimeUnit;
+      notes?: string | null;
+    }) => {
+      const payload = {
+        machine_id: row.machine_id,
+        part_number: row.part_number.trim(),
+        cycle_time: Number(row.cycle_time) || 0,
+        cycle_time_unit: row.cycle_time_unit,
+        notes: row.notes ?? null,
+      };
+      const { data, error } = row.id
+        ? await supabase.from('sched_machine_part_cycle_times').update(payload).eq('id', row.id).select('*').single()
+        : await supabase
+            .from('sched_machine_part_cycle_times')
+            .upsert(payload, { onConflict: 'machine_id,part_number' })
+            .select('*')
+            .single();
+      if (error) {
+        toast.error(error.message);
+        return false;
+      }
+      await logAudit({
+        action: row.id ? 'update' : 'create',
+        entity: 'cycle_time',
+        entity_id: data?.id ?? null,
+        entity_label: `${payload.part_number}`,
+        new_value: payload,
+      });
+      // Cycle time changed → recalculate every production job on this
+      // machine + part number combination.
+      const saved = data as SchedMachinePartCycleTime;
+      const overrides = [...cycleTimes.filter((c) => c.id !== saved.id), saved];
+      const pn = payload.part_number.toLowerCase();
+      const count = await recalculateProductionJobs({
+        cycleOverrides: overrides,
+        filter: (j) => j.machine_id === payload.machine_id && (j.part_number ?? '').trim().toLowerCase() === pn,
+      });
+      if (count > 0) toast.success(`${count} production job(s) recalculated`);
+      await fetchAll();
+      return true;
+    },
+    [cycleTimes, logAudit, fetchAll, recalculateProductionJobs],
+  );
+
+  const deleteCycleTime = useCallback(
+    async (id: string) => {
+      const previous = cycleTimes.find((c) => c.id === id) ?? null;
+      const { error } = await supabase.from('sched_machine_part_cycle_times').delete().eq('id', id);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      await logAudit({
+        action: 'delete',
+        entity: 'cycle_time',
+        entity_id: id,
+        entity_label: previous?.part_number ?? null,
+        previous_value: previous,
+      });
+      await fetchAll();
+    },
+    [cycleTimes, logAudit, fetchAll],
+  );
+
   const machineById = useMemo(() => Object.fromEntries(machines.map((m) => [m.id, m])), [machines]);
   const setterById = useMemo(() => Object.fromEntries(setters.map((s) => [s.id, s])), [setters]);
   const jobById = useMemo(() => Object.fromEntries(jobs.map((j) => [j.id, j])), [jobs]);
@@ -859,5 +1055,9 @@ export function useScheduler() {
     deleteSetter,
     addHoliday,
     deleteHoliday,
+    cycleTimes,
+    saveCycleTime,
+    deleteCycleTime,
+    recalculateProductionJobs,
   };
 }

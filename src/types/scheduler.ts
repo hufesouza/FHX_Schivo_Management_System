@@ -6,8 +6,30 @@ export interface SchedMachine {
   name: string;
   code: string;
   is_active: boolean;
+  /** Legacy field kept as a fallback for planned_hours_per_day. */
   daily_hours: number;
   notes: string | null;
+  // --- production capacity configuration ---
+  effective_machines: number;
+  planned_hours_per_day: number;
+  days_per_week: number;
+  weeks_per_month: number;
+  /** Percentage of planned machine time effectively available (NOT full OEE). */
+  availability_pct: number;
+  /** Days of the week the machine runs (0 = Sunday ... 6 = Saturday). */
+  working_days: number[];
+}
+
+/** Cycle time is machine + part specific: one machine can have many cycle times. */
+export interface SchedMachinePartCycleTime {
+  id: string;
+  machine_id: string;
+  part_number: string;
+  cycle_time: number;
+  cycle_time_unit: CycleTimeUnit;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SchedSetter {
@@ -77,7 +99,10 @@ export interface SchedJob {
   created_at: string;
   updated_at: string;
   // --- production layer ---
+  /** REQUIRED GOOD QUANTITY (scrap is added on top via scrap_pct). */
   production_quantity: number;
+  /** Scrap / yield loss in % (quality loss, separate from machine availability). */
+  scrap_pct: number;
   cycle_time: number;
   cycle_time_unit: CycleTimeUnit;
   production_start: string | null;

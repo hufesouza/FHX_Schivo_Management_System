@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { findCycleTime } from '@/utils/capacityModel';
 import type { SchedJob, SchedJobPriority, SchedJobStatus, CycleTimeUnit, ProductionStatus, ProgrammingStatus } from '@/types/scheduler';
 import { PRIORITY_OPTIONS, STATUS_OPTIONS, CYCLE_TIME_UNITS, PRODUCTION_STATUS_OPTIONS, PROGRAMMING_STATUS_OPTIONS } from '@/types/scheduler';
 import { addDays, fmtDuration, fmtHours, toISO } from '@/utils/schedulerEngine';
@@ -40,6 +41,7 @@ const emptyForm = (date: string) => ({
   production_quantity: '',
   cycle_time: '',
   cycle_time_unit: 'minutes' as CycleTimeUnit,
+  scrap_pct: '0',
   production_start: '',
   production_status: 'not_scheduled' as ProductionStatus,
   job_type: 'npi' as 'npi' | 'production',
@@ -76,6 +78,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         production_quantity: job.production_quantity ? String(job.production_quantity) : '',
         cycle_time: job.cycle_time ? String(job.cycle_time) : '',
         cycle_time_unit: job.cycle_time_unit ?? 'minutes',
+        scrap_pct: job.scrap_pct != null ? String(job.scrap_pct) : '0',
         production_start: job.production_start ?? '',
         production_status: job.production_status ?? 'not_scheduled',
         job_type: job.is_production && !job.is_npi ? 'production' : 'npi',
@@ -91,6 +94,17 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
       setForm(emptyForm(defaultDate || toISO(new Date())));
     }
   }, [open, job, defaultDate]);
+
+  // A machine + part number cycle time in the library always wins.
+  const libCycle = findCycleTime(scheduler.cycleTimes ?? [], form.machine_id || null, form.part_number || null);
+  useEffect(() => {
+    if (!open || !libCycle) return;
+    setForm((f) =>
+      Number(f.cycle_time) === Number(libCycle.cycle_time) && f.cycle_time_unit === libCycle.cycle_time_unit
+        ? f
+        : { ...f, cycle_time: String(libCycle.cycle_time), cycle_time_unit: libCycle.cycle_time_unit },
+    );
+  }, [open, libCycle?.id, libCycle?.cycle_time, libCycle?.cycle_time_unit]);
 
   const isNpi = form.job_type === 'npi';
   const hours = isNpi ? Number(form.development_hours) || 0 : 0;
@@ -113,6 +127,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
   const qty = Number(form.production_quantity) || 0;
   const cycle = Number(form.cycle_time) || 0;
   const setupHours = isNpi ? 0 : Number(form.setup_hours) || 0;
+  const scrapPct = Math.max(0, Number(form.scrap_pct) || 0);
   const hasProduction = (qty > 0 && cycle > 0) || setupHours > 0;
 
 
@@ -124,6 +139,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         setterId: form.production_setter_id || null,
         startDate: form.production_start || null,
         quantity: qty,
+        scrapPct,
         cycleTime: cycle,
         unit: form.cycle_time_unit,
         setupHours,
@@ -137,6 +153,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
       form.cycle_time_unit,
       qty,
       cycle,
+      scrapPct,
       setupHours,
     ],
   );
@@ -181,7 +198,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
   if (!form.machine_id) missing.push('Machine');
   if (isNpi && hours <= 0) missing.push('Development hours');
   if (!form.production_start) missing.push('Run start date');
-  if (qty <= 0) missing.push('Run quantity');
+  if (qty <= 0) missing.push('Required good pieces');
   if (cycle <= 0) missing.push('Cycle time');
   if (!isNpi && setupHours <= 0) missing.push('Setup time (hours)');
   if (!isNpi && !form.production_setter_id) missing.push('Setter for setup');
@@ -227,6 +244,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
       production_quantity: qty,
       cycle_time: cycle,
       cycle_time_unit: form.cycle_time_unit,
+      scrap_pct: scrapPct,
       production_start: hasProduction ? form.production_start || null : null,
       production_status: form.production_status,
       is_npi: isNpi,
@@ -540,7 +558,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
-              <Label>Production quantity</Label>
+              <Label>Required good pieces</Label>
               <Input
                 type="number"
                 min="0"
@@ -574,6 +592,22 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Scrap %</Label>
+              <Input
+                type="number"
+                min="0"
+                max="99"
+                step="0.1"
+                value={form.scrap_pct}
+                disabled={!canEdit}
+                onChange={(e) => setForm({ ...form, scrap_pct: e.target.value })}
+                placeholder="0"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Gross qty = CEILING(good / (1 - scrap %)) — the machine is reserved for the gross quantity.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label>Production start date</Label>
@@ -642,12 +676,38 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
 
           <div className="rounded-md border border-border bg-muted/40 p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
             <div>
-              <div className="text-xs text-muted-foreground">Setup time (setter + machine)</div>
-              <div className="font-semibold">{setupHours > 0 ? fmtDuration(setupHours) : '—'}</div>
+              <div className="text-xs text-muted-foreground">Good pieces required</div>
+              <div className="font-semibold">{qty > 0 ? qty.toLocaleString() : '—'}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Run time (machine only)</div>
+              <div className="text-xs text-muted-foreground">Gross qty to run (scrap {scrapPct}%)</div>
+              <div className="font-semibold">
+                {qty > 0 ? production.metrics.grossQuantity.toLocaleString() : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Pieces / hour</div>
+              <div className="font-semibold">
+                {production.metrics.piecesPerHour > 0 ? production.metrics.piecesPerHour.toFixed(2) : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Machine availability</div>
+              <div className="font-semibold">{production.metrics.availabilityPct}%</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Ideal production time</div>
+              <div className="font-semibold">
+                {production.metrics.idealProductionHours > 0 ? fmtDuration(production.metrics.idealProductionHours) : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Planned machine run time</div>
               <div className="font-semibold">{production.runHours > 0 ? fmtDuration(production.runHours) : '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Setup time (setter + machine)</div>
+              <div className="font-semibold">{setupHours > 0 ? fmtDuration(setupHours) : '—'}</div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Total machine occupancy</div>
@@ -659,6 +719,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
               <div className="text-xs text-muted-foreground">Total setter occupancy</div>
               <div className="font-semibold">{setupHours > 0 ? fmtDuration(setupHours) : '—'}</div>
             </div>
+
             <div>
               <div className="text-xs text-muted-foreground">Setup window</div>
               <div className="font-semibold">

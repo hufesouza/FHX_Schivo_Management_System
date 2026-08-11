@@ -3927,6 +3927,7 @@ export type Database = {
           programming_hours: number
           programming_start: string | null
           programming_status: string
+          scrap_pct: number
           setter_id: string | null
           setup_hours: number
           start_date: string
@@ -3960,6 +3961,7 @@ export type Database = {
           programming_hours?: number
           programming_start?: string | null
           programming_status?: string
+          scrap_pct?: number
           setter_id?: string | null
           setup_hours?: number
           start_date: string
@@ -3993,6 +3995,7 @@ export type Database = {
           programming_hours?: number
           programming_start?: string | null
           programming_status?: string
+          scrap_pct?: number
           setter_id?: string | null
           setup_hours?: number
           start_date?: string
@@ -4030,36 +4033,95 @@ export type Database = {
           },
         ]
       }
+      sched_machine_part_cycle_times: {
+        Row: {
+          created_at: string
+          cycle_time: number
+          cycle_time_unit: string
+          id: string
+          machine_id: string
+          notes: string | null
+          part_number: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cycle_time?: number
+          cycle_time_unit?: string
+          id?: string
+          machine_id: string
+          notes?: string | null
+          part_number: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cycle_time?: number
+          cycle_time_unit?: string
+          id?: string
+          machine_id?: string
+          notes?: string | null
+          part_number?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sched_machine_part_cycle_times_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "sched_machines"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sched_machines: {
         Row: {
+          availability_pct: number
           code: string
           created_at: string
           daily_hours: number
+          days_per_week: number
+          effective_machines: number
           id: string
           is_active: boolean
           name: string
           notes: string | null
+          planned_hours_per_day: number
           updated_at: string
+          weeks_per_month: number
+          working_days: number[]
         }
         Insert: {
+          availability_pct?: number
           code: string
           created_at?: string
           daily_hours?: number
+          days_per_week?: number
+          effective_machines?: number
           id?: string
           is_active?: boolean
           name: string
           notes?: string | null
+          planned_hours_per_day?: number
           updated_at?: string
+          weeks_per_month?: number
+          working_days?: number[]
         }
         Update: {
+          availability_pct?: number
           code?: string
           created_at?: string
           daily_hours?: number
+          days_per_week?: number
+          effective_machines?: number
           id?: string
           is_active?: boolean
           name?: string
           notes?: string | null
+          planned_hours_per_day?: number
           updated_at?: string
+          weeks_per_month?: number
+          working_days?: number[]
         }
         Relationships: []
       }
