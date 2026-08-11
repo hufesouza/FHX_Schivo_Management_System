@@ -359,6 +359,49 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
           </div>
         </div>
 
+        {/* ---------------- Job type ---------------- */}
+        <div className="rounded-lg border border-border p-3 space-y-3">
+          <div>
+            <h4 className="text-sm font-semibold">Job type *</h4>
+            <p className="text-xs text-muted-foreground">
+              A job can be NPI, Production, or both. Every production run needs a machine AND a setter for setup.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-6">
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={form.is_npi}
+                disabled={!canEdit}
+                onCheckedChange={(v) => setForm({ ...form, is_npi: !!v })}
+              />
+              NPI (development / programming)
+            </label>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={form.is_production}
+                disabled={!canEdit}
+                onCheckedChange={(v) => setForm({ ...form, is_production: !!v })}
+              />
+              Production (setup + run)
+            </label>
+            {form.is_production && (
+              <div className="space-y-1.5">
+                <Label>Production type</Label>
+                <Select
+                  value={form.production_type}
+                  onValueChange={(v) => setForm({ ...form, production_type: v as ProductionType })}
+                  disabled={!canEdit}
+                >
+                  <SelectTrigger className="w-[210px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {PRODUCTION_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* ---------------- Programming layer ---------------- */}
         <div className="rounded-lg border border-border p-3 space-y-3">
           <div className="flex items-center justify-between gap-2">
@@ -493,12 +536,14 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         <div className="rounded-lg border border-border p-3 space-y-3">
           <div className="flex items-center justify-between gap-2">
             <div>
-              <h4 className="text-sm font-semibold">Production run (optional)</h4>
+              <h4 className="text-sm font-semibold">
+                Production {form.is_production ? `— ${form.production_type === 'npi_production' ? 'NPI Production' : 'Standard Production'}` : '(enable the Production job type)'}
+              </h4>
               <p className="text-xs text-muted-foreground">
-                Production occupies the machine only — setters stay free and available for development work.
+                Setup occupies the setter AND the machine. The run afterwards occupies the machine only.
               </p>
             </div>
-            <Badge variant="outline">Machine capacity</Badge>
+            <Badge variant="outline">Setup: setter + machine · Run: machine</Badge>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -509,7 +554,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                 min="0"
                 step="1"
                 value={form.production_quantity}
-                disabled={!canEdit}
+                disabled={!canEdit || !form.is_production}
                 onChange={(e) => setForm({ ...form, production_quantity: e.target.value })}
                 placeholder="0"
               />
@@ -522,7 +567,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                   min="0"
                   step="0.01"
                   value={form.cycle_time}
-                  disabled={!canEdit}
+                  disabled={!canEdit || !form.is_production}
                   onChange={(e) => setForm({ ...form, cycle_time: e.target.value })}
                   placeholder="0"
                 />
@@ -544,7 +589,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                 <Input
                   type="date"
                   value={form.production_start}
-                  disabled={!canEdit}
+                  disabled={!canEdit || !form.is_production}
                   onChange={(e) => setForm({ ...form, production_start: e.target.value })}
                 />
                 {canEdit && (
@@ -557,6 +602,31 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                   </Button>
                 )}
               </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Setup time (hours)</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.1"
+                value={form.setup_hours}
+                disabled={!canEdit || !form.is_production}
+                onChange={(e) => setForm({ ...form, setup_hours: e.target.value })}
+                placeholder="0"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Setter for setup</Label>
+              <Select
+                value={form.production_setter_id}
+                onValueChange={(v) => setForm({ ...form, production_setter_id: v })}
+                disabled={!canEdit || !form.is_production}
+              >
+                <SelectTrigger><SelectValue placeholder="Select setter" /></SelectTrigger>
+                <SelectContent>
+                  {setters.filter((x) => x.is_active).map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label>Production status</Label>
@@ -575,20 +645,46 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
 
           <div className="rounded-md border border-border bg-muted/40 p-3 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
             <div>
-              <div className="text-xs text-muted-foreground">Total machine time</div>
-              <div className="font-semibold">{hasProduction ? fmtDuration(production.hours) : '—'}</div>
+              <div className="text-xs text-muted-foreground">Setup time (setter + machine)</div>
+              <div className="font-semibold">{setupHours > 0 ? fmtDuration(setupHours) : '—'}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Production start</div>
-              <div className="font-semibold">{production.plan.startDate ?? '—'}</div>
+              <div className="text-xs text-muted-foreground">Run time (machine only)</div>
+              <div className="font-semibold">{production.runHours > 0 ? fmtDuration(production.runHours) : '—'}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Production end</div>
-              <div className="font-semibold">{production.plan.endDate ?? '—'}</div>
+              <div className="text-xs text-muted-foreground">Total machine occupancy</div>
+              <div className="font-semibold">
+                {hasProduction ? fmtDuration(production.totalMachineHours) : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Total setter occupancy</div>
+              <div className="font-semibold">{setupHours > 0 ? fmtDuration(setupHours) : '—'}</div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Setup window</div>
+              <div className="font-semibold">
+                {prodSchedule.setup.startDate ? `${prodSchedule.setup.startDate} → ${prodSchedule.setup.endDate}` : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Run window</div>
+              <div className="font-semibold">
+                {prodSchedule.run.startDate ? `${prodSchedule.run.startDate} → ${prodSchedule.run.endDate}` : '—'}
+              </div>
+            </div>
+            <div>
+              <div className="text-xs text-muted-foreground">Machine unavailable from → to</div>
+              <div className="font-semibold">
+                {prodSchedule.startDate ? `${prodSchedule.startDate} → ${prodSchedule.endDate}` : '—'}
+              </div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Machine days</div>
-              <div className="font-semibold">{production.plan.workingDays}</div>
+              <div className="font-semibold">
+                {new Set([...prodSchedule.setup.allocations, ...prodSchedule.run.allocations].map((a) => a.alloc_date)).size}
+              </div>
             </div>
           </div>
         </div>
@@ -604,17 +700,49 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
           </Alert>
         )}
 
-        {hasProduction && production.conflicts.hasConflicts && (
+        {noSetupDays && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Machine conflict — production</AlertTitle>
+            <AlertTitle>Cannot schedule the setup</AlertTitle>
+            <AlertDescription>
+              Setup needs the setter and the machine on the same day. Neither is available together from{' '}
+              {form.production_start || '—'}. Change the date, the setter, the machine, or their calendars.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {hasProduction && production.conflicts.setterConflicts.length > 0 && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Setter capacity conflict — production setup</AlertTitle>
+            <AlertDescription className="space-y-1">
+              <p>
+                <strong>{setters.find((x) => x.id === form.production_setter_id)?.name}</strong> is over capacity by{' '}
+                <strong>{fmtHours(production.conflicts.totalSetterOver)}</strong> (development + programming + setup).
+              </p>
+              <div className="max-h-32 overflow-y-auto">
+                {production.conflicts.setterConflicts.map((c) => (
+                  <div key={c.date} className="text-xs">
+                    {c.date}: booked {fmtHours(c.existing)} + required {fmtHours(c.requested)} vs available {fmtHours(c.capacity)} → over {fmtHours(c.over)}
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs">Options: change the setup setter, move the production start date, or reduce setup time.</p>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {hasProduction && production.conflicts.machineConflicts.length > 0 && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Machine conflict — production (setup + run)</AlertTitle>
             <AlertDescription className="space-y-1">
               <p>
                 {machines.find((m) => m.id === form.machine_id)?.name} is already booked during this production window. Over
-                capacity by <strong>{fmtHours(production.conflicts.totalOver)}</strong>.
+                capacity by <strong>{fmtHours(production.conflicts.totalMachineOver)}</strong>.
               </p>
               <div className="max-h-32 overflow-y-auto">
-                {production.conflicts.conflicts.map((c) => (
+                {production.conflicts.machineConflicts.map((c) => (
                   <div key={c.date} className="text-xs">
                     {c.date}: booked {fmtHours(c.existing)} + requested {fmtHours(c.requested)} vs capacity {fmtHours(c.capacity)} → over {fmtHours(c.over)}
                   </div>
