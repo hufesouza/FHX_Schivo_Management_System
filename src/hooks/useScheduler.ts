@@ -63,6 +63,8 @@ export interface JobInput {
   production_type: ProductionType;
   production_setter_id: string | null;
   setup_hours: number;
+  /** Optional manual setup hours per calendar day. */
+  setup_day_hours?: Record<string, number> | null;
   // programming layer
   programmer_id: string | null;
   programming_hours: number;
@@ -211,6 +213,7 @@ export function useScheduler() {
       cycleTime: number;
       unit: CycleTimeUnit;
       setupHours?: number;
+      setupDayHours?: Record<string, number> | null;
     }): {
       runHours: number;
       setupHours: number;
@@ -235,6 +238,7 @@ export function useScheduler() {
         input.setterId ?? null,
         calendar,
         holidays,
+        input.setupDayHours,
       );
       const conflicts = detectProductionSetupConflicts(
         schedule.setup.allocations,
@@ -392,6 +396,8 @@ export function useScheduler() {
         setupHours: input.setup_hours,
         machine,
       });
+      const setupDayHours =
+        input.setup_day_hours && Object.keys(input.setup_day_hours).length > 0 ? input.setup_day_hours : null;
       const prodSchedule = planProductionWithSetup(
         input.production_start ?? '',
         { setupHours: metrics.setupHours, runHours: metrics.plannedRunHours },
@@ -399,6 +405,7 @@ export function useScheduler() {
         input.production_setter_id,
         calendar,
         holidays,
+        setupDayHours,
       );
       const prodPlan = prodSchedule.run;
       const progPlan = planProgramming(
@@ -434,6 +441,7 @@ export function useScheduler() {
         production_type: input.production_type,
         production_setter_id: input.production_setter_id,
         setup_hours: input.setup_hours,
+        setup_day_hours: setupDayHours,
         programmer_id: input.programmer_id,
         programming_hours: input.programming_hours,
         programming_start: progPlan.startDate ?? input.programming_start,
@@ -589,6 +597,7 @@ export function useScheduler() {
           job.production_setter_id,
           calendar,
           holidays,
+          job.setup_day_hours,
         );
         try {
           await writeSetupAllocations(job.id, job.production_setter_id, job.machine_id, sched.setup);
@@ -764,6 +773,7 @@ export function useScheduler() {
               setterId!,
               nextCal,
               holidays,
+              j.setup_day_hours,
             );
             try {
               await writeSetupAllocations(j.id, setterId!, j.machine_id, sched.setup);

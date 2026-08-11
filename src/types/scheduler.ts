@@ -116,6 +116,8 @@ export interface SchedJob {
   production_type: ProductionType;
   production_setter_id: string | null;
   setup_hours: number;
+  /** Optional manual setup hours per day: { '2026-08-14': 3 }. */
+  setup_day_hours: Record<string, number> | null;
   // --- programming layer (consumes programmer/setter time only) ---
   programmer_id: string | null;
   programming_hours: number;
