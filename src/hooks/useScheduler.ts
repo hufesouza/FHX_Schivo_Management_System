@@ -455,6 +455,7 @@ export function useScheduler() {
         calendar,
         holidays,
         setupDayHours,
+        machineReservedMap(input.machine_id, input.id ?? null, p.allocations),
       );
       const prodPlan = prodSchedule.run;
       const progPlan = planProgramming(
