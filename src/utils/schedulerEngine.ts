@@ -6,6 +6,7 @@
 // job's explicit start date.
 
 import type { SchedAllocation, SchedHoliday, SchedMachine, SchedSetterDay } from '@/types/scheduler';
+import { plannedHoursPerDay } from '@/utils/capacityModel';
 
 export interface PlannedAllocation {
   alloc_date: string;
@@ -82,6 +83,13 @@ export const setterHoursOn = (
   return base;
 };
 
+/**
+ * PLANNED machine hours available on a date.
+ * Respects the machine's working days, planned hours/day, effective machine
+ * count and any machine-specific downtime. Machine availability % is NOT
+ * applied here: it is applied to the production run duration instead
+ * (planned run time = ideal / availability), so it must not be double counted.
+ */
 export const machineHoursOn = (
   iso: string,
   machine: SchedMachine | undefined,
@@ -89,7 +97,11 @@ export const machineHoursOn = (
 ): number => {
   if (!machine) return 0;
   if (isBlockedDay(iso, holidays, { machineId: machine.id })) return 0;
-  return Number(machine.daily_hours) || 0;
+  const days = Array.isArray(machine.working_days) && machine.working_days.length
+    ? machine.working_days.map(Number)
+    : [0, 1, 2, 3, 4, 5, 6];
+  if (!days.includes(fromISO(iso).getDay())) return 0;
+  return plannedHoursPerDay(machine);
 };
 
 const MAX_DAYS = 730;
