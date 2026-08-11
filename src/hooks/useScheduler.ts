@@ -45,6 +45,8 @@ export interface JobInput {
   setter_id: string | null;
   start_date: string;
   development_hours: number;
+  /** Optional manual development hours per calendar day. */
+  dev_day_hours?: Record<string, number> | null;
   priority: SchedJob['priority'];
   status: SchedJob['status'];
   notes: string | null;
