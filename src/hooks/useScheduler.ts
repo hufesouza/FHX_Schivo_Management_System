@@ -97,7 +97,7 @@ export function useScheduler() {
     if (s.data) setSetters(s.data as SchedSetter[]);
     if (sd.data) setSetterDays(sd.data as SchedSetterDay[]);
     if (h.data) setHolidays(h.data as SchedHoliday[]);
-    if (j.data) setJobs(j.data as SchedJob[]);
+    if (j.data) setJobs(j.data as unknown as SchedJob[]);
     if (a.data) setAllocations(a.data as SchedAllocation[]);
     if (au.data) setAudit(au.data as unknown as SchedAuditEntry[]);
     if (ct.data) setCycleTimes(ct.data as SchedMachinePartCycleTime[]);
