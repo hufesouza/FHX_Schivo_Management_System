@@ -15,6 +15,7 @@ import type { SchedJob, SchedJobPriority, SchedJobStatus, CycleTimeUnit, Product
 import { PRIORITY_OPTIONS, STATUS_OPTIONS, CYCLE_TIME_UNITS, PRODUCTION_STATUS_OPTIONS, PROGRAMMING_STATUS_OPTIONS } from '@/types/scheduler';
 import { addDays, fmtDuration, fmtHours, toISO } from '@/utils/schedulerEngine';
 import type { useScheduler } from '@/hooks/useScheduler';
+import { SetterDatePicker } from '@/components/scheduler/SetterDatePicker';
 
 
 interface JobDialogProps {
