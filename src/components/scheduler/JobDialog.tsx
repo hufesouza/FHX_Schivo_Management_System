@@ -9,9 +9,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Checkbox } from '@/components/ui/checkbox';
-import type { SchedJob, SchedJobPriority, SchedJobStatus, CycleTimeUnit, ProductionStatus, ProductionType, ProgrammingStatus } from '@/types/scheduler';
-import { PRIORITY_OPTIONS, STATUS_OPTIONS, CYCLE_TIME_UNITS, PRODUCTION_STATUS_OPTIONS, PRODUCTION_TYPE_OPTIONS, PROGRAMMING_STATUS_OPTIONS } from '@/types/scheduler';
+
+import type { SchedJob, SchedJobPriority, SchedJobStatus, CycleTimeUnit, ProductionStatus, ProgrammingStatus } from '@/types/scheduler';
+import { PRIORITY_OPTIONS, STATUS_OPTIONS, CYCLE_TIME_UNITS, PRODUCTION_STATUS_OPTIONS, PROGRAMMING_STATUS_OPTIONS } from '@/types/scheduler';
 import { addDays, fmtDuration, fmtHours, toISO } from '@/utils/schedulerEngine';
 import type { useScheduler } from '@/hooks/useScheduler';
 
@@ -42,11 +42,10 @@ const emptyForm = (date: string) => ({
   cycle_time_unit: 'minutes' as CycleTimeUnit,
   production_start: '',
   production_status: 'not_scheduled' as ProductionStatus,
-  is_npi: true,
-  is_production: false,
-  production_type: 'npi_production' as ProductionType,
+  job_type: 'npi' as 'npi' | 'production',
   production_setter_id: '',
   setup_hours: '',
+
   programmer_id: '',
   programming_hours: '',
   programming_start: '',
@@ -79,9 +78,8 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         cycle_time_unit: job.cycle_time_unit ?? 'minutes',
         production_start: job.production_start ?? '',
         production_status: job.production_status ?? 'not_scheduled',
-        is_npi: job.is_npi ?? true,
-        is_production: job.is_production || Number(job.production_quantity) > 0 || Number(job.setup_hours) > 0,
-        production_type: (job.production_type as ProductionType) ?? 'npi_production',
+        job_type: job.is_production && !job.is_npi ? 'production' : 'npi',
+
         production_setter_id: job.production_setter_id ?? '',
         setup_hours: job.setup_hours ? String(job.setup_hours) : '',
         programmer_id: job.programmer_id ?? '',
@@ -94,7 +92,9 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
     }
   }, [open, job, defaultDate]);
 
-  const hours = Number(form.development_hours) || 0;
+  const isNpi = form.job_type === 'npi';
+  const hours = isNpi ? Number(form.development_hours) || 0 : 0;
+
 
   const result = useMemo(
     () =>
@@ -112,8 +112,9 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
 
   const qty = Number(form.production_quantity) || 0;
   const cycle = Number(form.cycle_time) || 0;
-  const setupHours = Number(form.setup_hours) || 0;
-  const hasProduction = form.is_production && ((qty > 0 && cycle > 0) || setupHours > 0);
+  const setupHours = isNpi ? 0 : Number(form.setup_hours) || 0;
+  const hasProduction = (qty > 0 && cycle > 0) || setupHours > 0;
+
 
   const production = useMemo(
     () =>
@@ -141,7 +142,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
   );
   const prodSchedule = production.schedule;
 
-  const progHours = Number(form.programming_hours) || 0;
+  const progHours = isNpi ? Number(form.programming_hours) || 0 : 0;
   const hasProgramming = progHours > 0;
 
   const programming = useMemo(
@@ -176,14 +177,15 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
   if (!poTrimmed) missing.push('PO#');
   if (!form.part_number.trim()) missing.push('Part number');
   if (!form.start_date) missing.push('Start date');
-  if (!form.setter_id) missing.push('Setter');
+  if (isNpi && !form.setter_id) missing.push('Setter');
   if (!form.machine_id) missing.push('Machine');
-  if (hours <= 0) missing.push('Development hours');
-  if (!form.is_npi && !form.is_production) missing.push('Job type (NPI and/or Production)');
-  if (form.is_production && !form.production_start) missing.push('Production start date');
-  if (form.is_production && qty > 0 && cycle <= 0) missing.push('Cycle time');
-  if (form.is_production && setupHours <= 0) missing.push('Setup time (hours)');
-  if (form.is_production && !form.production_setter_id) missing.push('Production setter (setup)');
+  if (isNpi && hours <= 0) missing.push('Development hours');
+  if (!form.production_start) missing.push('Run start date');
+  if (qty <= 0) missing.push('Run quantity');
+  if (cycle <= 0) missing.push('Cycle time');
+  if (!isNpi && setupHours <= 0) missing.push('Setup time (hours)');
+  if (!isNpi && !form.production_setter_id) missing.push('Setter for setup');
+
   if (hasProgramming && !form.programmer_id) missing.push('Programmer');
   if (hasProgramming && !form.programming_start) missing.push('Programming start date');
 
@@ -227,9 +229,10 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
       cycle_time_unit: form.cycle_time_unit,
       production_start: hasProduction ? form.production_start || null : null,
       production_status: form.production_status,
-      is_npi: form.is_npi,
-      is_production: form.is_production,
-      production_type: form.production_type,
+      is_npi: isNpi,
+      is_production: !isNpi,
+      production_type: isNpi ? 'npi_production' : 'standard_production',
+
       production_setter_id: hasProduction ? form.production_setter_id || null : null,
       setup_hours: hasProduction ? setupHours : 0,
       programmer_id: hasProgramming ? form.programmer_id || null : null,
@@ -300,7 +303,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label>Setter *</Label>
+            <Label>{isNpi ? 'Setter (development) *' : 'Setter (optional)'}</Label>
             <Select value={form.setter_id} onValueChange={(v) => setForm({ ...form, setter_id: v })} disabled={!canEdit}>
               <SelectTrigger><SelectValue placeholder="Select setter" /></SelectTrigger>
               <SelectContent>
@@ -319,17 +322,20 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
               onChange={(e) => setForm({ ...form, start_date: e.target.value })}
             />
           </div>
-          <div className="space-y-1.5">
-            <Label>Development time (hours) *</Label>
-            <Input
-              type="number"
-              min="0"
-              step="0.1"
-              value={form.development_hours}
-              disabled={!canEdit}
-              onChange={(e) => setForm({ ...form, development_hours: e.target.value })}
-            />
-          </div>
+          {isNpi && (
+            <div className="space-y-1.5">
+              <Label>Development time (hours) *</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.1"
+                value={form.development_hours}
+                disabled={!canEdit}
+                onChange={(e) => setForm({ ...form, development_hours: e.target.value })}
+              />
+            </div>
+          )}
+
           <div className="space-y-1.5">
             <Label>Priority</Label>
             <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v as SchedJobPriority })} disabled={!canEdit}>
@@ -364,46 +370,27 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
           <div>
             <h4 className="text-sm font-semibold">Job type *</h4>
             <p className="text-xs text-muted-foreground">
-              A job can be NPI, Production, or both. Every production run needs a machine AND a setter for setup.
+              NPI = development + programming + run. Production = setup + run.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-6">
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={form.is_npi}
-                disabled={!canEdit}
-                onCheckedChange={(v) => setForm({ ...form, is_npi: !!v })}
-              />
-              NPI (development / programming)
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <Checkbox
-                checked={form.is_production}
-                disabled={!canEdit}
-                onCheckedChange={(v) => setForm({ ...form, is_production: !!v })}
-              />
-              Production (setup + run)
-            </label>
-            {form.is_production && (
-              <div className="space-y-1.5">
-                <Label>Production type</Label>
-                <Select
-                  value={form.production_type}
-                  onValueChange={(v) => setForm({ ...form, production_type: v as ProductionType })}
-                  disabled={!canEdit}
-                >
-                  <SelectTrigger className="w-[210px]"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {PRODUCTION_TYPE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
+          <Select
+            value={form.job_type}
+            onValueChange={(v) => setForm({ ...form, job_type: v as 'npi' | 'production' })}
+            disabled={!canEdit}
+          >
+            <SelectTrigger className="w-[320px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="npi">NPI — development + programming + run</SelectItem>
+              <SelectItem value="production">Production — setup + run</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
-        {/* ---------------- Programming layer ---------------- */}
+
+        {/* ---------------- Programming layer (NPI only) ---------------- */}
+        {isNpi && (
         <div className="rounded-lg border border-border p-3 space-y-3">
+
           <div className="flex items-center justify-between gap-2">
             <div>
               <h4 className="text-sm font-semibold">Programming (optional)</h4>
@@ -494,6 +481,8 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
             </div>
           </div>
         </div>
+        )}
+
 
         {noProgrammerDays && (
           <Alert variant="destructive">
@@ -537,13 +526,16 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
           <div className="flex items-center justify-between gap-2">
             <div>
               <h4 className="text-sm font-semibold">
-                Production {form.is_production ? `— ${form.production_type === 'npi_production' ? 'NPI Production' : 'Standard Production'}` : '(enable the Production job type)'}
+                {isNpi ? 'Run (machine only)' : 'Setup + Run'}
               </h4>
               <p className="text-xs text-muted-foreground">
-                Setup occupies the setter AND the machine. The run afterwards occupies the machine only.
+                {isNpi
+                  ? 'The run occupies the machine only — no setter time is booked for an NPI run.'
+                  : 'Setup occupies the setter AND the machine. The run afterwards occupies the machine only.'}
               </p>
             </div>
-            <Badge variant="outline">Setup: setter + machine · Run: machine</Badge>
+            <Badge variant="outline">{isNpi ? 'Run: machine' : 'Setup: setter + machine · Run: machine'}</Badge>
+
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
@@ -554,7 +546,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                 min="0"
                 step="1"
                 value={form.production_quantity}
-                disabled={!canEdit || !form.is_production}
+                disabled={!canEdit}
                 onChange={(e) => setForm({ ...form, production_quantity: e.target.value })}
                 placeholder="0"
               />
@@ -567,7 +559,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                   min="0"
                   step="0.01"
                   value={form.cycle_time}
-                  disabled={!canEdit || !form.is_production}
+                  disabled={!canEdit}
                   onChange={(e) => setForm({ ...form, cycle_time: e.target.value })}
                   placeholder="0"
                 />
@@ -589,7 +581,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                 <Input
                   type="date"
                   value={form.production_start}
-                  disabled={!canEdit || !form.is_production}
+                  disabled={!canEdit}
                   onChange={(e) => setForm({ ...form, production_start: e.target.value })}
                 />
                 {canEdit && (
@@ -603,31 +595,36 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                 )}
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>Setup time (hours)</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.1"
-                value={form.setup_hours}
-                disabled={!canEdit || !form.is_production}
-                onChange={(e) => setForm({ ...form, setup_hours: e.target.value })}
-                placeholder="0"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Setter for setup</Label>
-              <Select
-                value={form.production_setter_id}
-                onValueChange={(v) => setForm({ ...form, production_setter_id: v })}
-                disabled={!canEdit || !form.is_production}
-              >
-                <SelectTrigger><SelectValue placeholder="Select setter" /></SelectTrigger>
-                <SelectContent>
-                  {setters.filter((x) => x.is_active).map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
+            {!isNpi && (
+              <div className="space-y-1.5">
+                <Label>Setup time (hours) *</Label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  value={form.setup_hours}
+                  disabled={!canEdit}
+                  onChange={(e) => setForm({ ...form, setup_hours: e.target.value })}
+                  placeholder="0"
+                />
+              </div>
+            )}
+            {!isNpi && (
+              <div className="space-y-1.5">
+                <Label>Setter for setup *</Label>
+                <Select
+                  value={form.production_setter_id}
+                  onValueChange={(v) => setForm({ ...form, production_setter_id: v })}
+                  disabled={!canEdit}
+                >
+                  <SelectTrigger><SelectValue placeholder="Select setter" /></SelectTrigger>
+                  <SelectContent>
+                    {setters.filter((x) => x.is_active).map((x) => <SelectItem key={x.id} value={x.id}>{x.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="space-y-1.5">
               <Label>Production status</Label>
               <Select
@@ -758,8 +755,9 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
           </Alert>
         )}
 
-        {/* Calculated schedule */}
+        {/* Calculated development schedule (NPI only) */}
 
+        {isNpi && (
         <div className="rounded-lg border border-border p-3 bg-muted/40 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
           <div>
             <div className="text-xs text-muted-foreground">Planned start</div>
@@ -778,8 +776,9 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
             <div className="font-semibold">{fmtHours(plan.allocatedHours)}</div>
           </div>
         </div>
+        )}
 
-        {plan.allocations.length > 0 && (
+        {isNpi && plan.allocations.length > 0 && (
           <div className="max-h-32 overflow-y-auto rounded border border-border text-xs">
             <table className="w-full">
               <tbody>
