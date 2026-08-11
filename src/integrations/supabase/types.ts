@@ -3908,6 +3908,8 @@ export type Database = {
           cycle_time_unit: string
           development_hours: number
           id: string
+          is_npi: boolean
+          is_production: boolean
           job_number: string
           machine_id: string | null
           notes: string | null
@@ -3916,14 +3918,17 @@ export type Database = {
           priority: Database["public"]["Enums"]["sched_job_priority"]
           production_end: string | null
           production_quantity: number
+          production_setter_id: string | null
           production_start: string | null
           production_status: string
+          production_type: string
           programmer_id: string | null
           programming_end: string | null
           programming_hours: number
           programming_start: string | null
           programming_status: string
           setter_id: string | null
+          setup_hours: number
           start_date: string
           status: Database["public"]["Enums"]["sched_job_status"]
           updated_at: string
@@ -3936,6 +3941,8 @@ export type Database = {
           cycle_time_unit?: string
           development_hours?: number
           id?: string
+          is_npi?: boolean
+          is_production?: boolean
           job_number: string
           machine_id?: string | null
           notes?: string | null
@@ -3944,14 +3951,17 @@ export type Database = {
           priority?: Database["public"]["Enums"]["sched_job_priority"]
           production_end?: string | null
           production_quantity?: number
+          production_setter_id?: string | null
           production_start?: string | null
           production_status?: string
+          production_type?: string
           programmer_id?: string | null
           programming_end?: string | null
           programming_hours?: number
           programming_start?: string | null
           programming_status?: string
           setter_id?: string | null
+          setup_hours?: number
           start_date: string
           status?: Database["public"]["Enums"]["sched_job_status"]
           updated_at?: string
@@ -3964,6 +3974,8 @@ export type Database = {
           cycle_time_unit?: string
           development_hours?: number
           id?: string
+          is_npi?: boolean
+          is_production?: boolean
           job_number?: string
           machine_id?: string | null
           notes?: string | null
@@ -3972,14 +3984,17 @@ export type Database = {
           priority?: Database["public"]["Enums"]["sched_job_priority"]
           production_end?: string | null
           production_quantity?: number
+          production_setter_id?: string | null
           production_start?: string | null
           production_status?: string
+          production_type?: string
           programmer_id?: string | null
           programming_end?: string | null
           programming_hours?: number
           programming_start?: string | null
           programming_status?: string
           setter_id?: string | null
+          setup_hours?: number
           start_date?: string
           status?: Database["public"]["Enums"]["sched_job_status"]
           updated_at?: string
@@ -3990,6 +4005,13 @@ export type Database = {
             columns: ["machine_id"]
             isOneToOne: false
             referencedRelation: "sched_machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sched_jobs_production_setter_id_fkey"
+            columns: ["production_setter_id"]
+            isOneToOne: false
+            referencedRelation: "sched_setters"
             referencedColumns: ["id"]
           },
           {
