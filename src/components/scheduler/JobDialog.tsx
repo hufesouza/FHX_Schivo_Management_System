@@ -555,7 +555,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                 min="0"
                 step="1"
                 value={form.production_quantity}
-                disabled={!canEdit || !form.is_production}
+                disabled={!canEdit}
                 onChange={(e) => setForm({ ...form, production_quantity: e.target.value })}
                 placeholder="0"
               />
@@ -568,7 +568,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                   min="0"
                   step="0.01"
                   value={form.cycle_time}
-                  disabled={!canEdit || !form.is_production}
+                  disabled={!canEdit}
                   onChange={(e) => setForm({ ...form, cycle_time: e.target.value })}
                   placeholder="0"
                 />
@@ -590,7 +590,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                 <Input
                   type="date"
                   value={form.production_start}
-                  disabled={!canEdit || !form.is_production}
+                  disabled={!canEdit}
                   onChange={(e) => setForm({ ...form, production_start: e.target.value })}
                 />
                 {canEdit && (
@@ -611,7 +611,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
                 min="0"
                 step="0.1"
                 value={form.setup_hours}
-                disabled={!canEdit || !form.is_production}
+                disabled={!canEdit}
                 onChange={(e) => setForm({ ...form, setup_hours: e.target.value })}
                 placeholder="0"
               />
@@ -621,7 +621,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
               <Select
                 value={form.production_setter_id}
                 onValueChange={(v) => setForm({ ...form, production_setter_id: v })}
-                disabled={!canEdit || !form.is_production}
+                disabled={!canEdit}
               >
                 <SelectTrigger><SelectValue placeholder="Select setter" /></SelectTrigger>
                 <SelectContent>
