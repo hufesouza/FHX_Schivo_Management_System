@@ -142,7 +142,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
   );
   const prodSchedule = production.schedule;
 
-  const progHours = Number(form.programming_hours) || 0;
+  const progHours = isNpi ? Number(form.programming_hours) || 0 : 0;
   const hasProgramming = progHours > 0;
 
   const programming = useMemo(
