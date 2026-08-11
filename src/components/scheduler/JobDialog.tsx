@@ -92,7 +92,9 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
     }
   }, [open, job, defaultDate]);
 
-  const hours = Number(form.development_hours) || 0;
+  const isNpi = form.job_type === 'npi';
+  const hours = isNpi ? Number(form.development_hours) || 0 : 0;
+
 
   const result = useMemo(
     () =>
