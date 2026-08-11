@@ -755,8 +755,9 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
           </Alert>
         )}
 
-        {/* Calculated schedule */}
+        {/* Calculated development schedule (NPI only) */}
 
+        {isNpi && (
         <div className="rounded-lg border border-border p-3 bg-muted/40 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
           <div>
             <div className="text-xs text-muted-foreground">Planned start</div>
@@ -775,8 +776,9 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
             <div className="font-semibold">{fmtHours(plan.allocatedHours)}</div>
           </div>
         </div>
+        )}
 
-        {plan.allocations.length > 0 && (
+        {isNpi && plan.allocations.length > 0 && (
           <div className="max-h-32 overflow-y-auto rounded border border-border text-xs">
             <table className="w-full">
               <tbody>
