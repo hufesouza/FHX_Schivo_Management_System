@@ -9,8 +9,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, CheckCircle2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { SchedJob, SchedJobPriority, SchedJobStatus, CycleTimeUnit, ProductionStatus, ProgrammingStatus } from '@/types/scheduler';
-import { PRIORITY_OPTIONS, STATUS_OPTIONS, CYCLE_TIME_UNITS, PRODUCTION_STATUS_OPTIONS, PROGRAMMING_STATUS_OPTIONS } from '@/types/scheduler';
+import { Checkbox } from '@/components/ui/checkbox';
+import type { SchedJob, SchedJobPriority, SchedJobStatus, CycleTimeUnit, ProductionStatus, ProductionType, ProgrammingStatus } from '@/types/scheduler';
+import { PRIORITY_OPTIONS, STATUS_OPTIONS, CYCLE_TIME_UNITS, PRODUCTION_STATUS_OPTIONS, PRODUCTION_TYPE_OPTIONS, PROGRAMMING_STATUS_OPTIONS } from '@/types/scheduler';
 import { addDays, fmtDuration, fmtHours, toISO } from '@/utils/schedulerEngine';
 import type { useScheduler } from '@/hooks/useScheduler';
 
@@ -41,6 +42,11 @@ const emptyForm = (date: string) => ({
   cycle_time_unit: 'minutes' as CycleTimeUnit,
   production_start: '',
   production_status: 'not_scheduled' as ProductionStatus,
+  is_npi: true,
+  is_production: false,
+  production_type: 'npi_production' as ProductionType,
+  production_setter_id: '',
+  setup_hours: '',
   programmer_id: '',
   programming_hours: '',
   programming_start: '',
@@ -73,6 +79,11 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         cycle_time_unit: job.cycle_time_unit ?? 'minutes',
         production_start: job.production_start ?? '',
         production_status: job.production_status ?? 'not_scheduled',
+        is_npi: job.is_npi ?? true,
+        is_production: job.is_production ?? false,
+        production_type: (job.production_type as ProductionType) ?? 'npi_production',
+        production_setter_id: job.production_setter_id ?? '',
+        setup_hours: job.setup_hours ? String(job.setup_hours) : '',
         programmer_id: job.programmer_id ?? '',
         programming_hours: job.programming_hours ? String(job.programming_hours) : '',
         programming_start: job.programming_start ?? '',
@@ -101,20 +112,34 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
 
   const qty = Number(form.production_quantity) || 0;
   const cycle = Number(form.cycle_time) || 0;
-  const hasProduction = qty > 0 && cycle > 0;
+  const setupHours = Number(form.setup_hours) || 0;
+  const hasProduction = form.is_production && ((qty > 0 && cycle > 0) || setupHours > 0);
 
   const production = useMemo(
     () =>
       validateProduction({
         jobId: job?.id ?? null,
         machineId: form.machine_id || null,
+        setterId: form.production_setter_id || null,
         startDate: form.production_start || null,
         quantity: qty,
         cycleTime: cycle,
         unit: form.cycle_time_unit,
+        setupHours,
       }),
-    [validateProduction, job?.id, form.machine_id, form.production_start, form.cycle_time_unit, qty, cycle],
+    [
+      validateProduction,
+      job?.id,
+      form.machine_id,
+      form.production_setter_id,
+      form.production_start,
+      form.cycle_time_unit,
+      qty,
+      cycle,
+      setupHours,
+    ],
   );
+  const prodSchedule = production.schedule;
 
   const progHours = Number(form.programming_hours) || 0;
   const hasProgramming = progHours > 0;
@@ -154,12 +179,18 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
   if (!form.setter_id) missing.push('Setter');
   if (!form.machine_id) missing.push('Machine');
   if (hours <= 0) missing.push('Development hours');
-  if (hasProduction && !form.production_start) missing.push('Production start date');
+  if (!form.is_npi && !form.is_production) missing.push('Job type (NPI and/or Production)');
+  if (form.is_production && !form.production_start) missing.push('Production start date');
+  if (form.is_production && qty > 0 && cycle <= 0) missing.push('Cycle time');
+  if (form.is_production && setupHours <= 0) missing.push('Setup time (hours)');
+  if (form.is_production && !form.production_setter_id) missing.push('Production setter (setup)');
   if (hasProgramming && !form.programmer_id) missing.push('Programmer');
   if (hasProgramming && !form.programming_start) missing.push('Programming start date');
 
   const noWorkingDays = form.setter_id && hours > 0 && plan.allocations.length === 0;
-  const noMachineDays = hasProduction && !!form.production_start && production.plan.allocations.length === 0;
+  const noMachineDays =
+    hasProduction && !!form.production_start && prodSchedule.run.allocations.length === 0 && production.runHours > 0;
+  const noSetupDays = hasProduction && setupHours > 0 && prodSchedule.setup.allocations.length === 0;
   const noProgrammerDays =
     hasProgramming && !!form.programmer_id && !!form.programming_start && programming.plan.allocations.length === 0;
   const blocked =
@@ -168,6 +199,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
     conflicts.hasConflicts ||
     !!noWorkingDays ||
     noMachineDays ||
+    noSetupDays ||
     (hasProduction && production.conflicts.hasConflicts) ||
     noProgrammerDays ||
     (hasProgramming && programming.conflicts.hasConflicts);
@@ -195,6 +227,11 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
       cycle_time_unit: form.cycle_time_unit,
       production_start: hasProduction ? form.production_start || null : null,
       production_status: form.production_status,
+      is_npi: form.is_npi,
+      is_production: form.is_production,
+      production_type: form.production_type,
+      production_setter_id: hasProduction ? form.production_setter_id || null : null,
+      setup_hours: hasProduction ? setupHours : 0,
       programmer_id: hasProgramming ? form.programmer_id || null : null,
       programming_hours: progHours,
       programming_start: hasProgramming ? form.programming_start || null : null,
