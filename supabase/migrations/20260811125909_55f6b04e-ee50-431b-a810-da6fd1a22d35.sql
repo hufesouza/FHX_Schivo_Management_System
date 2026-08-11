@@ -1,0 +1,1 @@
+ALTER TABLE public.sched_jobs ADD COLUMN IF NOT EXISTS setup_day_hours jsonb;
