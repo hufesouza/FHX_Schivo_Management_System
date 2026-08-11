@@ -24,6 +24,7 @@ import {
   type ProductionConflictReport,
   type ProgrammingConflictReport,
   type SchedulePlan,
+  type SetterCalendarMap,
 } from '@/utils/schedulerEngine';
 import type { CycleTimeUnit, ProductionStatus, ProgrammingStatus } from '@/types/scheduler';
 
