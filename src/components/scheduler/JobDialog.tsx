@@ -42,11 +42,10 @@ const emptyForm = (date: string) => ({
   cycle_time_unit: 'minutes' as CycleTimeUnit,
   production_start: '',
   production_status: 'not_scheduled' as ProductionStatus,
-  is_npi: true,
-  is_production: false,
-  production_type: 'npi_production' as ProductionType,
+  job_type: 'npi' as 'npi' | 'production',
   production_setter_id: '',
   setup_hours: '',
+
   programmer_id: '',
   programming_hours: '',
   programming_start: '',
