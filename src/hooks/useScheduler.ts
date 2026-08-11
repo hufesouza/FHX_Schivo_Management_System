@@ -648,6 +648,7 @@ export function useScheduler() {
           calendar,
           holidays,
           job.setup_day_hours,
+          machineReservedMap(job.machine_id, job.id),
         );
         try {
           await writeSetupAllocations(job.id, job.production_setter_id, job.machine_id, sched.setup);
@@ -824,6 +825,7 @@ export function useScheduler() {
               nextCal,
               holidays,
               j.setup_day_hours,
+              machineReservedMap(j.machine_id, j.id),
             );
             try {
               await writeSetupAllocations(j.id, setterId!, j.machine_id, sched.setup);
