@@ -14,19 +14,20 @@ import type {
 import {
   buildSetterCalendar,
   detectConflicts,
-  detectProductionConflicts,
+  detectProductionSetupConflicts,
   detectProgrammingConflicts,
-  planProduction,
+  planProductionWithSetup,
   planProgramming,
   planSchedule,
   productionHours,
   type ConflictReport,
-  type ProductionConflictReport,
+  type ProductionSchedule,
+  type ProductionSetupConflictReport,
   type ProgrammingConflictReport,
   type SchedulePlan,
   type SetterCalendarMap,
 } from '@/utils/schedulerEngine';
-import type { CycleTimeUnit, ProductionStatus, ProgrammingStatus } from '@/types/scheduler';
+import type { CycleTimeUnit, ProductionStatus, ProductionType, ProgrammingStatus } from '@/types/scheduler';
 
 export interface JobInput {
   id?: string;
@@ -47,6 +48,12 @@ export interface JobInput {
   cycle_time_unit: CycleTimeUnit;
   production_start: string | null;
   production_status: ProductionStatus;
+  // job type + production setup
+  is_npi: boolean;
+  is_production: boolean;
+  production_type: ProductionType;
+  production_setter_id: string | null;
+  setup_hours: number;
   // programming layer
   programmer_id: string | null;
   programming_hours: number;
@@ -174,29 +181,50 @@ export function useScheduler() {
     [allocations, calendar, holidays, machines],
   );
 
-  /** Validate a production plan against machine capacity (dev + production). */
+  /**
+   * Validate a production plan.
+   * Setup consumes the production setter + the machine, the run consumes the machine only.
+   */
   const validateProduction = useCallback(
     (input: {
       jobId?: string | null;
       machineId: string | null;
+      setterId?: string | null;
       startDate: string | null;
       quantity: number;
       cycleTime: number;
       unit: CycleTimeUnit;
-    }): { hours: number; plan: SchedulePlan; conflicts: ProductionConflictReport } => {
-      const hours = productionHours(input.quantity, input.cycleTime, input.unit);
+      setupHours?: number;
+    }): {
+      runHours: number;
+      setupHours: number;
+      totalMachineHours: number;
+      schedule: ProductionSchedule;
+      conflicts: ProductionSetupConflictReport;
+    } => {
+      const runHours = productionHours(input.quantity, input.cycleTime, input.unit);
+      const setupHours = Math.max(0, Number(input.setupHours) || 0);
       const machine = machines.find((m) => m.id === input.machineId);
-      const p = planProduction(input.startDate ?? '', hours, machine, holidays);
-      const conflicts = detectProductionConflicts(
-        p.allocations,
-        { jobId: input.jobId, machineId: input.machineId },
+      const schedule = planProductionWithSetup(
+        input.startDate ?? '',
+        { setupHours, runHours },
+        machine,
+        input.setterId ?? null,
+        calendar,
+        holidays,
+      );
+      const conflicts = detectProductionSetupConflicts(
+        schedule.setup.allocations,
+        schedule.run.allocations,
+        { jobId: input.jobId, machineId: input.machineId, setterId: input.setterId ?? null },
         allocations,
+        calendar,
         holidays,
         machines,
       );
-      return { hours, plan: p, conflicts };
+      return { runHours, setupHours, totalMachineHours: schedule.totalMachineHours, schedule, conflicts };
     },
-    [allocations, holidays, machines],
+    [allocations, calendar, holidays, machines],
   );
 
   /** Validate a programming plan against the programmer's own capacity (dev + programming). */
@@ -265,6 +293,29 @@ export function useScheduler() {
     [],
   );
 
+  /** Setup allocations consume the production setter AND the machine. */
+  const writeSetupAllocations = useCallback(
+    async (jobId: string, setterId: string | null, machineId: string | null, p: SchedulePlan) => {
+      await supabase
+        .from('sched_job_allocations')
+        .delete()
+        .eq('job_id', jobId)
+        .eq('alloc_type', 'setup');
+      if (p.allocations.length === 0) return;
+      const rows = p.allocations.map((a) => ({
+        job_id: jobId,
+        setter_id: setterId,
+        machine_id: machineId,
+        alloc_date: a.alloc_date,
+        hours: a.hours,
+        alloc_type: 'setup',
+      }));
+      const { error } = await supabase.from('sched_job_allocations').insert(rows);
+      if (error) throw error;
+    },
+    [],
+  );
+
   /** Programming allocations consume the programmer only — machine_id stays null. */
   const writeProgrammingAllocations = useCallback(
     async (jobId: string, programmerId: string | null, p: SchedulePlan) => {
@@ -293,9 +344,17 @@ export function useScheduler() {
       const p = planSchedule(input.start_date, input.development_hours, input.setter_id, calendar, holidays);
       const previous = input.id ? jobs.find((j) => j.id === input.id) ?? null : null;
 
-      const prodHours = productionHours(input.production_quantity, input.cycle_time, input.cycle_time_unit);
+      const runHours = productionHours(input.production_quantity, input.cycle_time, input.cycle_time_unit);
       const machine = machines.find((m) => m.id === input.machine_id);
-      const prodPlan = planProduction(input.production_start ?? '', prodHours, machine, holidays);
+      const prodSchedule = planProductionWithSetup(
+        input.production_start ?? '',
+        { setupHours: input.setup_hours, runHours },
+        machine,
+        input.production_setter_id,
+        calendar,
+        holidays,
+      );
+      const prodPlan = prodSchedule.run;
       const progPlan = planProgramming(
         input.programming_start ?? '',
         input.programming_hours,
@@ -319,9 +378,14 @@ export function useScheduler() {
         production_quantity: input.production_quantity,
         cycle_time: input.cycle_time,
         cycle_time_unit: input.cycle_time_unit,
-        production_start: prodPlan.startDate ?? input.production_start,
-        production_end: prodPlan.endDate,
+        production_start: prodSchedule.startDate ?? input.production_start,
+        production_end: prodSchedule.endDate ?? prodPlan.endDate,
         production_status: input.production_status,
+        is_npi: input.is_npi,
+        is_production: input.is_production,
+        production_type: input.production_type,
+        production_setter_id: input.production_setter_id,
+        setup_hours: input.setup_hours,
         programmer_id: input.programmer_id,
         programming_hours: input.programming_hours,
         programming_start: progPlan.startDate ?? input.programming_start,
@@ -344,6 +408,7 @@ export function useScheduler() {
           jobId = data.id;
         }
         await writeAllocations(jobId!, input, p);
+        await writeSetupAllocations(jobId!, input.production_setter_id, input.machine_id, prodSchedule.setup);
         await writeProductionAllocations(jobId!, input.machine_id, prodPlan);
         await writeProgrammingAllocations(jobId!, input.programmer_id, progPlan);
         await logAudit({
@@ -361,7 +426,7 @@ export function useScheduler() {
         return { ok: false, error: message };
       }
     },
-    [calendar, holidays, jobs, machines, logAudit, user, writeAllocations, writeProductionAllocations, writeProgrammingAllocations, fetchAll],
+    [calendar, holidays, jobs, machines, logAudit, user, writeAllocations, writeProductionAllocations, writeSetupAllocations, writeProgrammingAllocations, fetchAll],
   );
 
 
@@ -619,30 +684,38 @@ export function useScheduler() {
       const job = jobs.find((j) => j.id === jobId);
       if (!job) return { ok: false, error: 'Job not found' };
       if (!job.machine_id) return { ok: false, error: 'Assign a machine before scheduling production.' };
-      const { plan: p, conflicts } = validateProduction({
+      const { schedule, conflicts } = validateProduction({
         jobId,
         machineId: job.machine_id,
+        setterId: job.production_setter_id,
         startDate: newStartDate,
         quantity: Number(job.production_quantity),
         cycleTime: Number(job.cycle_time),
         unit: job.cycle_time_unit,
+        setupHours: Number(job.setup_hours),
       });
-      if (p.allocations.length === 0) {
+      const p = schedule.run;
+      if (p.allocations.length === 0 && schedule.setup.allocations.length === 0) {
         return { ok: false, error: 'No machine working hours available from that date (or no production quantity set).' };
       }
+      if (Number(job.setup_hours) > 0 && schedule.setup.allocations.length === 0) {
+        return { ok: false, error: 'Setup cannot be scheduled from that date — the production setter has no available hours.' };
+      }
       if (conflicts.hasConflicts) {
-        const first = conflicts.conflicts[0];
+        const first = conflicts.machineConflicts[0] ?? conflicts.setterConflicts[0];
+        const kind = conflicts.machineConflicts.length ? 'Machine' : 'Setter';
         return {
           ok: false,
-          error: `Machine capacity exceeded on ${first.date}: ${first.existing}h already booked + ${first.requested}h requested vs ${first.capacity}h available (over by ${first.over}h).`,
+          error: `${kind} capacity exceeded on ${first.date}: ${first.existing}h already booked + ${first.requested}h requested vs ${first.capacity}h available (over by ${first.over}h).`,
         };
       }
       try {
         const { error } = await supabase
           .from('sched_jobs')
-          .update({ production_start: p.startDate, production_end: p.endDate })
+          .update({ production_start: schedule.startDate, production_end: schedule.endDate })
           .eq('id', jobId);
         if (error) throw error;
+        await writeSetupAllocations(jobId, job.production_setter_id, job.machine_id, schedule.setup);
         await writeProductionAllocations(jobId, job.machine_id, p);
         await logAudit({
           action: 'move_production',
@@ -650,7 +723,7 @@ export function useScheduler() {
           entity_id: jobId,
           entity_label: job.job_number,
           previous_value: { production_start: job.production_start, production_end: job.production_end },
-          new_value: { production_start: p.startDate, production_end: p.endDate },
+          new_value: { production_start: schedule.startDate, production_end: schedule.endDate },
         });
         await fetchAll();
         return { ok: true };
@@ -658,7 +731,7 @@ export function useScheduler() {
         return { ok: false, error: e instanceof Error ? e.message : 'Failed to move production run' };
       }
     },
-    [jobs, validateProduction, writeProductionAllocations, logAudit, fetchAll],
+    [jobs, validateProduction, writeProductionAllocations, writeSetupAllocations, logAudit, fetchAll],
   );
 
   /** Move a programming block to a new start date on the programmer's calendar. */
@@ -713,6 +786,7 @@ export function useScheduler() {
   const devAllocations = useMemo(() => allocations.filter((a) => a.alloc_type === 'development'), [allocations]);
   const progAllocations = useMemo(() => allocations.filter((a) => a.alloc_type === 'programming'), [allocations]);
   const prodAllocations = useMemo(() => allocations.filter((a) => a.alloc_type === 'production'), [allocations]);
+  const setupAllocations = useMemo(() => allocations.filter((a) => a.alloc_type === 'setup'), [allocations]);
 
   return {
     loading,
@@ -725,6 +799,7 @@ export function useScheduler() {
     devAllocations,
     prodAllocations,
     progAllocations,
+    setupAllocations,
     audit,
     calendar,
     machineById,
