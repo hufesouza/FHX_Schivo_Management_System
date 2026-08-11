@@ -3906,6 +3906,7 @@ export type Database = {
           customer: string | null
           cycle_time: number
           cycle_time_unit: string
+          dev_day_hours: Json | null
           development_hours: number
           id: string
           is_npi: boolean
@@ -3940,6 +3941,7 @@ export type Database = {
           customer?: string | null
           cycle_time?: number
           cycle_time_unit?: string
+          dev_day_hours?: Json | null
           development_hours?: number
           id?: string
           is_npi?: boolean
@@ -3974,6 +3976,7 @@ export type Database = {
           customer?: string | null
           cycle_time?: number
           cycle_time_unit?: string
+          dev_day_hours?: Json | null
           development_hours?: number
           id?: string
           is_npi?: boolean
