@@ -116,6 +116,8 @@ export const planSchedule = (
   setterId: string | null,
   cal: SetterCalendarMap,
   holidays: SchedHoliday[],
+  /** Manual per-day hour caps, e.g. { '2026-08-14': 3 }. Days not listed use the setter's full capacity. */
+  dayHours?: Record<string, number> | null,
 ): SchedulePlan => {
   const allocations: PlannedAllocation[] = [];
   let remaining = Math.max(0, Number(hours) || 0);
@@ -137,8 +139,10 @@ export const planSchedule = (
   while (remaining > 0.0001 && guard < MAX_DAYS) {
     guard += 1;
     const cap = setterHoursOn(cursor, setterId, cal, holidays);
-    if (cap > 0) {
-      const take = Math.min(cap, remaining);
+    const manual = dayHours && dayHours[cursor] != null ? Math.max(0, Number(dayHours[cursor]) || 0) : null;
+    const limit = manual != null ? Math.min(manual, cap) : cap;
+    if (limit > 0) {
+      const take = Math.min(limit, remaining);
       allocations.push({ alloc_date: cursor, hours: Math.round(take * 100) / 100 });
       remaining -= take;
     }

@@ -92,6 +92,8 @@ export interface SchedJob {
   setter_id: string | null;
   start_date: string;
   development_hours: number;
+  /** Optional manual development hours per day: { '2026-08-14': 3 }. Unset days fall back to setter capacity. */
+  dev_day_hours: Record<string, number> | null;
   priority: SchedJobPriority;
   status: SchedJobStatus;
   notes: string | null;

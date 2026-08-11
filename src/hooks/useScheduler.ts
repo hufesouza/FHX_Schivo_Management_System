@@ -45,6 +45,8 @@ export interface JobInput {
   setter_id: string | null;
   start_date: string;
   development_hours: number;
+  /** Optional manual development hours per calendar day. */
+  dev_day_hours?: Record<string, number> | null;
   priority: SchedJob['priority'];
   status: SchedJob['status'];
   notes: string | null;
@@ -97,7 +99,7 @@ export function useScheduler() {
     if (s.data) setSetters(s.data as SchedSetter[]);
     if (sd.data) setSetterDays(sd.data as SchedSetterDay[]);
     if (h.data) setHolidays(h.data as SchedHoliday[]);
-    if (j.data) setJobs(j.data as SchedJob[]);
+    if (j.data) setJobs(j.data as unknown as SchedJob[]);
     if (a.data) setAllocations(a.data as SchedAllocation[]);
     if (au.data) setAudit(au.data as unknown as SchedAuditEntry[]);
     if (ct.data) setCycleTimes(ct.data as SchedMachinePartCycleTime[]);
@@ -177,8 +179,9 @@ export function useScheduler() {
       machineId: string | null;
       startDate: string;
       hours: number;
+      dayHours?: Record<string, number> | null;
     }): { plan: SchedulePlan; conflicts: ConflictReport } => {
-      const p = planSchedule(input.startDate, input.hours, input.setterId, calendar, holidays);
+      const p = planSchedule(input.startDate, input.hours, input.setterId, calendar, holidays, input.dayHours);
       const conflicts = detectConflicts(
         p.allocations,
         { jobId: input.jobId, setterId: input.setterId, machineId: input.machineId },
@@ -368,7 +371,16 @@ export function useScheduler() {
 
   const saveJob = useCallback(
     async (input: JobInput): Promise<{ ok: boolean; error?: string }> => {
-      const p = planSchedule(input.start_date, input.development_hours, input.setter_id, calendar, holidays);
+      const devDayHours =
+        input.dev_day_hours && Object.keys(input.dev_day_hours).length > 0 ? input.dev_day_hours : null;
+      const p = planSchedule(
+        input.start_date,
+        input.development_hours,
+        input.setter_id,
+        calendar,
+        holidays,
+        devDayHours,
+      );
       const previous = input.id ? jobs.find((j) => j.id === input.id) ?? null : null;
 
       const machine = machines.find((m) => m.id === input.machine_id);
@@ -406,6 +418,7 @@ export function useScheduler() {
         setter_id: input.setter_id,
         start_date: input.start_date,
         development_hours: input.development_hours,
+        dev_day_hours: devDayHours,
         priority: input.priority,
         status: input.status,
         notes: input.notes,
@@ -489,7 +502,11 @@ export function useScheduler() {
         };
       }
       try {
-        const { error } = await supabase.from('sched_jobs').update({ start_date: newStartDate }).eq('id', jobId);
+        // Manual per-day hours are tied to specific dates → drop them on a move.
+        const { error } = await supabase
+          .from('sched_jobs')
+          .update({ start_date: newStartDate, dev_day_hours: null })
+          .eq('id', jobId);
         if (error) throw error;
         await writeAllocations(jobId, { setter_id: job.setter_id, machine_id: job.machine_id }, p);
         await logAudit({
@@ -723,7 +740,14 @@ export function useScheduler() {
         );
         for (const j of affected) {
           if (j.setter_id === setterId && Number(j.development_hours) > 0 && j.start_date) {
-            const p = planSchedule(j.start_date, Number(j.development_hours), setterId!, nextCal, holidays);
+            const p = planSchedule(
+              j.start_date,
+              Number(j.development_hours),
+              setterId!,
+              nextCal,
+              holidays,
+              j.dev_day_hours,
+            );
             try {
               await writeAllocations(j.id, { setter_id: j.setter_id, machine_id: j.machine_id }, p);
             } catch (err) {
