@@ -243,6 +243,8 @@ export function useScheduler() {
       unit: CycleTimeUnit;
       setupHours?: number;
       setupDayHours?: Record<string, number> | null;
+      /** Development plan of the same job (it also occupies the machine). */
+      devPlan?: { alloc_date: string; hours: number }[] | null;
     }): {
       runHours: number;
       setupHours: number;
@@ -268,6 +270,7 @@ export function useScheduler() {
         calendar,
         holidays,
         input.setupDayHours,
+        machineReservedMap(input.machineId, input.jobId, input.devPlan ?? undefined),
       );
       const conflicts = detectProductionSetupConflicts(
         schedule.setup.allocations,
@@ -287,7 +290,8 @@ export function useScheduler() {
         conflicts,
       };
     },
-    [allocations, calendar, holidays, machines],
+    [allocations, calendar, holidays, machines, machineReservedMap],
+
   );
 
   /** Validate a programming plan against the programmer's own capacity (dev + programming). */
