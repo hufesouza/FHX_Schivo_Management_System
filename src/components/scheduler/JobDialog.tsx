@@ -58,6 +58,7 @@ const emptyForm = (date: string) => ({
 export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, canEdit = true }: JobDialogProps) {
   const { machines, setters, validate, validateProduction, validateProgramming, saveJob, deleteJob, jobById } = scheduler;
   const [form, setForm] = useState(emptyForm(defaultDate || toISO(new Date())));
+  const [devDayHours, setDevDayHours] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -90,8 +91,10 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         programming_start: job.programming_start ?? '',
         programming_status: job.programming_status ?? 'not_scheduled',
       });
+      setDevDayHours(job.dev_day_hours ?? {});
     } else {
       setForm(emptyForm(defaultDate || toISO(new Date())));
+      setDevDayHours({});
     }
   }, [open, job, defaultDate]);
 
@@ -118,8 +121,9 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         machineId: form.machine_id || null,
         startDate: form.start_date,
         hours,
+        dayHours: devDayHours,
       }),
-    [validate, job?.id, form.setter_id, form.machine_id, form.start_date, hours],
+    [validate, job?.id, form.setter_id, form.machine_id, form.start_date, hours, devDayHours],
   );
 
   const { plan, conflicts } = result;
@@ -238,6 +242,7 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
       setter_id: form.setter_id || null,
       start_date: form.start_date,
       development_hours: hours,
+      dev_day_hours: isNpi && Object.keys(devDayHours).length > 0 ? devDayHours : null,
       priority: form.priority,
       status: form.status,
       notes: form.notes.trim() || null,
@@ -840,17 +845,53 @@ export function JobDialog({ open, onOpenChange, job, defaultDate, scheduler, can
         )}
 
         {isNpi && plan.allocations.length > 0 && (
-          <div className="max-h-32 overflow-y-auto rounded border border-border text-xs">
-            <table className="w-full">
-              <tbody>
-                {plan.allocations.map((a) => (
-                  <tr key={a.alloc_date} className="border-b border-border/60 last:border-0">
-                    <td className="px-2 py-1">{a.alloc_date}</td>
-                    <td className="px-2 py-1 text-right">{fmtHours(a.hours)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs">Development hours per day (editable)</Label>
+              {Object.keys(devDayHours).length > 0 && canEdit && (
+                <Button variant="ghost" size="sm" className="h-6 text-xs" onClick={() => setDevDayHours({})}>
+                  Reset to auto
+                </Button>
+              )}
+            </div>
+            <div className="max-h-40 overflow-y-auto rounded border border-border text-xs">
+              <table className="w-full">
+                <tbody>
+                  {plan.allocations.map((a) => {
+                    const manual = devDayHours[a.alloc_date];
+                    return (
+                      <tr key={a.alloc_date} className="border-b border-border/60 last:border-0">
+                        <td className="px-2 py-1">{a.alloc_date}</td>
+                        <td className="px-2 py-1 w-28">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="0.5"
+                            disabled={!canEdit}
+                            className="h-7 text-xs text-right"
+                            value={manual != null ? String(manual) : String(a.hours)}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              setDevDayHours((prev) => {
+                                const next = { ...prev };
+                                if (raw === '') delete next[a.alloc_date];
+                                else next[a.alloc_date] = Math.max(0, Number(raw) || 0);
+                                return next;
+                              });
+                            }}
+                          />
+                        </td>
+                        <td className="px-2 py-1 text-muted-foreground w-10">h</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Lower a day to free capacity — the remaining hours roll over to the next working days automatically.
+              Blank uses the setter's full daily capacity.
+            </p>
           </div>
         )}
 
