@@ -3,6 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { SchedulerNav } from '@/components/scheduler/SchedulerNav';
 import { MonthCalendar, MonthNav } from '@/components/scheduler/MonthCalendar';
 import { JobDialog } from '@/components/scheduler/JobDialog';
+import { jobProductionMetrics } from '@/utils/capacityModel';
 import { useScheduler } from '@/hooks/useScheduler';
 import { useUserRole } from '@/hooks/useUserRole';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -236,9 +237,12 @@ export default function ProductionCalendar() {
                           <th className="text-left py-1 px-2">Customer</th>
                           <th className="text-left py-1 px-2">Setup setter</th>
                           <th className="text-right py-1 px-2">Setup</th>
-                          <th className="text-right py-1 px-2">Qty</th>
+                          <th className="text-right py-1 px-2">Good qty</th>
+                          <th className="text-right py-1 px-2">Scrap %</th>
+                          <th className="text-right py-1 px-2">Gross qty</th>
                           <th className="text-right py-1 px-2">Cycle time</th>
-                          <th className="text-right py-1 px-2">Run time</th>
+                          <th className="text-right py-1 px-2">Ideal time</th>
+                          <th className="text-right py-1 px-2">Planned run</th>
                           <th className="text-right py-1 px-2">Machine time</th>
                           <th className="text-left py-1 px-2">Start</th>
                           <th className="text-left py-1 px-2">End</th>
@@ -267,8 +271,15 @@ export default function ProductionCalendar() {
                             </td>
                             <td className="py-1 px-2 text-right">{setupHours > 0 ? fmtDuration(setupHours) : '—'}</td>
                             <td className="py-1 px-2 text-right">{Number(job.production_quantity) || 0}</td>
+                            <td className="py-1 px-2 text-right">{Number(job.scrap_pct) || 0}%</td>
+                            <td className="py-1 px-2 text-right font-medium">
+                              {jobProductionMetrics(job, machineById[job.machine_id ?? '']).grossQuantity.toLocaleString()}
+                            </td>
                             <td className="py-1 px-2 text-right">
                               {Number(job.cycle_time) || 0} {job.cycle_time_unit === 'seconds' ? 's' : job.cycle_time_unit === 'minutes' ? 'min' : 'h'}
+                            </td>
+                            <td className="py-1 px-2 text-right">
+                              {fmtDuration(jobProductionMetrics(job, machineById[job.machine_id ?? '']).idealProductionHours)}
                             </td>
                             <td className="py-1 px-2 text-right">{hours > 0 ? fmtDuration(hours) : '—'}</td>
                             <td className="py-1 px-2 text-right">{fmtDuration(hours + setupHours)}</td>
