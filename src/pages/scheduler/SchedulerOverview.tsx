@@ -28,7 +28,7 @@ export default function SchedulerOverview() {
   const [selectedDate, setSelectedDate] = useState<string | null>(toISO(now));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editJobId, setEditJobId] = useState<string | null>(null);
-  const [defaultDate, setDefaultDate] = useState<string | null>(null);
+  const [view, setView] = useState<'month' | 'year'>('month');
 
   const [fMachine, setFMachine] = useState(ALL);
   const [fSetter, setFSetter] = useState(ALL);
