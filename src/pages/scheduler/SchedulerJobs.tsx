@@ -78,6 +78,17 @@ export default function SchedulerJobs() {
       <SchedulerNav />
       <div className="p-4 space-y-4">
         <div className="flex flex-wrap items-center gap-2">
+          <Button variant={view === 'open' ? 'default' : 'outline'} size="sm" onClick={() => setView('open')}>
+            Open jobs
+            <Badge variant="secondary" className="ml-2">{openRows.length}</Badge>
+          </Button>
+          <Button variant={view === 'completed' ? 'default' : 'outline'} size="sm" onClick={() => setView('completed')}>
+            Completed jobs
+            <Badge variant="secondary" className="ml-2">{completedRows.length}</Badge>
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
           <Input placeholder="Search PO#, job, part, customer…" className="w-72" value={search} onChange={(e) => setSearch(e.target.value)} />
           <Select value={fStatus} onValueChange={setFStatus}>
             <SelectTrigger className="w-[150px]"><SelectValue placeholder="Status" /></SelectTrigger>
