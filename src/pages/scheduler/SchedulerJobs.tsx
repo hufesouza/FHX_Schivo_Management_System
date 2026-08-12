@@ -234,7 +234,7 @@ export default function SchedulerJobs() {
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="py-8 text-center text-muted-foreground">No jobs match the filters.</td>
+                    <td colSpan={11} className="py-8 text-center text-muted-foreground">{view === 'open' ? 'No open jobs match the filters.' : 'No completed jobs match the filters.'}</td>
                   </tr>
                 )}
               </tbody>
