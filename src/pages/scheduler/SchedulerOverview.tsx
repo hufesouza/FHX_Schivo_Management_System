@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { SchedulerNav } from '@/components/scheduler/SchedulerNav';
 import { MonthCalendar, MonthNav } from '@/components/scheduler/MonthCalendar';
+import { YearCalendar, YearNav } from '@/components/scheduler/YearCalendar';
 import { JobDialog } from '@/components/scheduler/JobDialog';
 import { useScheduler } from '@/hooks/useScheduler';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -28,6 +29,7 @@ export default function SchedulerOverview() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editJobId, setEditJobId] = useState<string | null>(null);
   const [defaultDate, setDefaultDate] = useState<string | null>(null);
+  const [view, setView] = useState<'month' | 'year'>('month');
 
   const [fMachine, setFMachine] = useState(ALL);
   const [fSetter, setFSetter] = useState(ALL);
@@ -112,13 +114,24 @@ export default function SchedulerOverview() {
       <SchedulerNav />
       <div className="p-4 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <MonthNav year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
+          <div className="flex flex-wrap items-center gap-3">
+            {view === 'month' ? (
+              <MonthNav year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
+            ) : (
+              <YearNav year={year} onChange={setYear} />
+            )}
+            <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
+              <Button size="sm" variant={view === 'month' ? 'default' : 'ghost'} onClick={() => setView('month')}>Month</Button>
+              <Button size="sm" variant={view === 'year' ? 'default' : 'ghost'} onClick={() => setView('year')}>Year</Button>
+            </div>
+          </div>
           {canEdit && (
             <Button onClick={() => createAt(selectedDate ?? toISO(new Date()))}>
               <Plus className="h-4 w-4 mr-1" /> Add Job
             </Button>
           )}
         </div>
+
 
         <Card>
           <CardContent className="p-3 flex flex-wrap items-end gap-2">
@@ -170,23 +183,39 @@ export default function SchedulerOverview() {
             <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading schedule…
           </div>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
-            <MonthCalendar
-              year={year}
-              month={month}
-              allocations={visibleAllocations}
-              jobById={jobById}
-              setterById={setterById}
-              holidays={holidays}
-              selectedDate={selectedDate}
-              canEdit={canEdit}
-              nonWorking={nonWorking}
-              onSelectDate={setSelectedDate}
-              onCreateAt={createAt}
-              onOpenJob={openJob}
-              onMoveJob={handleMove}
-              mode="machine"
-            />
+          <div className={view === 'year' ? 'space-y-4' : 'grid gap-4 lg:grid-cols-[1fr_300px]'}>
+            {view === 'month' ? (
+              <MonthCalendar
+                year={year}
+                month={month}
+                allocations={visibleAllocations}
+                jobById={jobById}
+                setterById={setterById}
+                holidays={holidays}
+                selectedDate={selectedDate}
+                canEdit={canEdit}
+                nonWorking={nonWorking}
+                onSelectDate={setSelectedDate}
+                onCreateAt={createAt}
+                onOpenJob={openJob}
+                onMoveJob={handleMove}
+                mode="machine"
+              />
+            ) : (
+              <YearCalendar
+                year={year}
+                allocations={visibleAllocations}
+                jobById={jobById}
+                setterById={setterById}
+                holidays={holidays}
+                selectedDate={selectedDate}
+                nonWorking={nonWorking}
+                onSelectDate={setSelectedDate}
+                onOpenJob={openJob}
+                mode="machine"
+              />
+            )}
+
 
             <Card className="h-fit">
               <CardContent className="p-4 space-y-3">

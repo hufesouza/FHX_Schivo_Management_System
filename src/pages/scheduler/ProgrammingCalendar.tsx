@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { SchedulerNav } from '@/components/scheduler/SchedulerNav';
 import { MonthCalendar, MonthNav } from '@/components/scheduler/MonthCalendar';
+import { YearCalendar, YearNav } from '@/components/scheduler/YearCalendar';
 import { JobDialog } from '@/components/scheduler/JobDialog';
 import { useScheduler } from '@/hooks/useScheduler';
 import { useUserRole } from '@/hooks/useUserRole';
@@ -24,6 +25,7 @@ export default function ProgrammingCalendar() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
+  const [view, setView] = useState<'month' | 'year'>('month');
   const [fProgrammer, setFProgrammer] = useState(ALL);
   const [fStatus, setFStatus] = useState(ALL);
   const [fPo, setFPo] = useState('');
@@ -79,7 +81,15 @@ export default function ProgrammingCalendar() {
       <SchedulerNav />
       <div className="p-4 space-y-4">
         <div className="flex flex-wrap items-center gap-3">
-          <MonthNav year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
+          {view === 'month' ? (
+            <MonthNav year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
+          ) : (
+            <YearNav year={year} onChange={setYear} />
+          )}
+          <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
+            <Button size="sm" variant={view === 'month' ? 'default' : 'ghost'} onClick={() => setView('month')}>Month</Button>
+            <Button size="sm" variant={view === 'year' ? 'default' : 'ghost'} onClick={() => setView('year')}>Year</Button>
+          </div>
         </div>
 
         <Card>
@@ -145,23 +155,36 @@ export default function ProgrammingCalendar() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <MonthCalendar
-                  year={year}
-                  month={month}
-                  mode="programming"
-                  allocations={allocs}
-                  jobById={jobById}
-                  setterById={setterById}
-                  holidays={holidays}
-                  canEdit={canEdit}
-                  nonWorking={(iso) => setterHoursOn(iso, s.id, calendar, holidays) === 0}
-                  onOpenJob={(id) => { setEditJobId(id); setDialogOpen(true); }}
-                  onMoveJob={async (jobId, iso) => {
-                    const res = await scheduler.moveProgramming(jobId, iso);
-                    if (res.ok) toast.success('Programming moved');
-                    else toast.error(res.error || 'Move rejected');
-                  }}
-                />
+                {view === 'month' ? (
+                  <MonthCalendar
+                    year={year}
+                    month={month}
+                    mode="programming"
+                    allocations={allocs}
+                    jobById={jobById}
+                    setterById={setterById}
+                    holidays={holidays}
+                    canEdit={canEdit}
+                    nonWorking={(iso) => setterHoursOn(iso, s.id, calendar, holidays) === 0}
+                    onOpenJob={(id) => { setEditJobId(id); setDialogOpen(true); }}
+                    onMoveJob={async (jobId, iso) => {
+                      const res = await scheduler.moveProgramming(jobId, iso);
+                      if (res.ok) toast.success('Programming moved');
+                      else toast.error(res.error || 'Move rejected');
+                    }}
+                  />
+                ) : (
+                  <YearCalendar
+                    year={year}
+                    allocations={allocs}
+                    jobById={jobById}
+                    setterById={setterById}
+                    holidays={holidays}
+                    nonWorking={(iso) => setterHoursOn(iso, s.id, calendar, holidays) === 0}
+                    onOpenJob={(id) => { setEditJobId(id); setDialogOpen(true); }}
+                    mode="programming"
+                  />
+                )}
                 {rows.length > 0 && (
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
