@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { SchedulerNav } from '@/components/scheduler/SchedulerNav';
 import { MonthCalendar, MonthNav } from '@/components/scheduler/MonthCalendar';
+import { YearCalendar, YearNav } from '@/components/scheduler/YearCalendar';
 import { JobDialog } from '@/components/scheduler/JobDialog';
 import { jobProductionMetrics } from '@/utils/capacityModel';
 import { useScheduler } from '@/hooks/useScheduler';
@@ -26,6 +27,7 @@ export default function ProductionCalendar() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth());
+  const [view, setView] = useState<'month' | 'year'>('month');
   const [fMachine, setFMachine] = useState(ALL);
   const [fStatus, setFStatus] = useState(ALL);
   const [fSetter, setFSetter] = useState(ALL);
@@ -110,7 +112,15 @@ export default function ProductionCalendar() {
       <SchedulerNav />
       <div className="p-4 space-y-4">
         <div className="flex flex-wrap items-center gap-3">
-          <MonthNav year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
+          {view === 'month' ? (
+            <MonthNav year={year} month={month} onChange={(y, m) => { setYear(y); setMonth(m); }} />
+          ) : (
+            <YearNav year={year} onChange={setYear} />
+          )}
+          <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
+            <Button size="sm" variant={view === 'month' ? 'default' : 'ghost'} onClick={() => setView('month')}>Month</Button>
+            <Button size="sm" variant={view === 'year' ? 'default' : 'ghost'} onClick={() => setView('year')}>Year</Button>
+          </div>
         </div>
 
         <Card>
@@ -208,23 +218,36 @@ export default function ProductionCalendar() {
                     PRODUCTION / RUN (machine only)
                   </span>
                 </div>
-                <MonthCalendar
-                  year={year}
-                  month={month}
-                  mode="production"
-                  allocations={allocs}
-                  jobById={jobById}
-                  setterById={setterById}
-                  holidays={holidays}
-                  canEdit={canEdit}
-                  nonWorking={(iso) => machineHoursOn(iso, m, holidays) === 0}
-                  onOpenJob={(id) => { setEditJobId(id); setDialogOpen(true); }}
-                  onMoveJob={async (jobId, iso) => {
-                    const res = await scheduler.moveProduction(jobId, iso);
-                    if (res.ok) toast.success('Production run moved');
-                    else toast.error(res.error || 'Move rejected');
-                  }}
-                />
+                {view === 'month' ? (
+                  <MonthCalendar
+                    year={year}
+                    month={month}
+                    mode="production"
+                    allocations={allocs}
+                    jobById={jobById}
+                    setterById={setterById}
+                    holidays={holidays}
+                    canEdit={canEdit}
+                    nonWorking={(iso) => machineHoursOn(iso, m, holidays) === 0}
+                    onOpenJob={(id) => { setEditJobId(id); setDialogOpen(true); }}
+                    onMoveJob={async (jobId, iso) => {
+                      const res = await scheduler.moveProduction(jobId, iso);
+                      if (res.ok) toast.success('Production run moved');
+                      else toast.error(res.error || 'Move rejected');
+                    }}
+                  />
+                ) : (
+                  <YearCalendar
+                    year={year}
+                    allocations={allocs}
+                    jobById={jobById}
+                    setterById={setterById}
+                    holidays={holidays}
+                    nonWorking={(iso) => machineHoursOn(iso, m, holidays) === 0}
+                    onOpenJob={(id) => { setEditJobId(id); setDialogOpen(true); }}
+                    mode="production"
+                  />
+                )}
                 {rows.length > 0 && (
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
