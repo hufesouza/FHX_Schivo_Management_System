@@ -16,19 +16,6 @@ import NotFound from "./pages/NotFound";
 import QuotationDashboard from "./pages/QuotationDashboard";
 import NPIOrderIntelligence from "./pages/NPIOrderIntelligence";
 import NPIOrderSiteSelect from "./pages/NPIOrderSiteSelect";
-import PartSetup from "./pages/npi-planner/PartSetup";
-import JobList from "./pages/npi-planner/JobList";
-import JobDetail from "./pages/npi-planner/JobDetail";
-import PlannerSettings from "./pages/npi-planner/PlannerSettings";
-import CapacityPlannerMVPHub from "./pages/npi-planner-mvp/CapacityPlannerMVPHub";
-import MVPResources from "./pages/npi-planner-mvp/Resources";
-import MVPPartLibrary from "./pages/npi-planner-mvp/PartLibrary";
-import MVPPartLibraryDetail from "./pages/npi-planner-mvp/PartLibraryDetail";
-import MVPJobEntryList from "./pages/npi-planner-mvp/JobEntryList";
-import MVPJobEntryDetail from "./pages/npi-planner-mvp/JobEntryDetail";
-import MVPSchedulingEngine from "./pages/npi-planner-mvp/SchedulingEngine";
-import MVPGanttChart from "./pages/npi-planner-mvp/GanttChart";
-import MVPScheduleBoard from "./pages/npi-planner-mvp/ScheduleBoardPage";
 import SchedulerOverview from "./pages/scheduler/SchedulerOverview";
 import MachineCalendars from "./pages/scheduler/MachineCalendars";
 import ProductionCalendar from "./pages/scheduler/ProductionCalendar";
@@ -61,23 +48,6 @@ const App = () => (
           <Route path="/npi/order-intelligence/:site" element={<NPIOrderIntelligence />} />
 
 
-          {/* NPI Capacity Planner */}
-
-          {/* NPI Capacity Planner MVP (simplified) */}
-          <Route path="/npi/capacity-planner-mvp" element={<CapacityPlannerMVPHub />} />
-          <Route path="/npi/capacity-planner-mvp/parts/new" element={<PartSetup />} />
-          <Route path="/npi/capacity-planner-mvp/parts/:id" element={<JobDetail />} />
-          <Route path="/npi/capacity-planner-mvp/jobs" element={<JobList />} />
-          <Route path="/npi/capacity-planner-mvp/gantt" element={<MVPGanttChart />} />
-          <Route path="/npi/capacity-planner-mvp/schedule-board" element={<MVPScheduleBoard />} />
-          <Route path="/npi/capacity-planner-mvp/resources" element={<MVPResources />} />
-          <Route path="/npi/capacity-planner-mvp/part-library" element={<MVPPartLibrary />} />
-          <Route path="/npi/capacity-planner-mvp/part-library/:id" element={<MVPPartLibraryDetail />} />
-          <Route path="/npi/capacity-planner-mvp/jobs-mvp" element={<MVPJobEntryList />} />
-          <Route path="/npi/capacity-planner-mvp/jobs-mvp/new" element={<MVPJobEntryDetail />} />
-          <Route path="/npi/capacity-planner-mvp/jobs-mvp/:id" element={<MVPJobEntryDetail />} />
-          <Route path="/npi/capacity-planner-mvp/scheduling" element={<MVPSchedulingEngine />} />
-          <Route path="/npi/capacity-planner-mvp/settings" element={<PlannerSettings />} />
 
 
           {/* NPI Resource Scheduling & Capacity Planning */}
