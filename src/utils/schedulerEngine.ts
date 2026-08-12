@@ -37,6 +37,14 @@ export const fromISO = (s: string): Date => {
   return new Date(y, (m || 1) - 1, d || 1);
 };
 
+/** Format an ISO date (YYYY-MM-DD) as DD/MM/YYYY, or return the fallback. */
+export const fmtDate = (iso: string | null | undefined, fallback = '—'): string => {
+  if (!iso) return fallback;
+  const [y, m, d] = iso.split('-');
+  if (!y || !m || !d) return fallback;
+  return `${d}/${m}/${y}`;
+};
+
 export const addDays = (s: string, n: number): string => {
   const d = fromISO(s);
   d.setDate(d.getDate() + n);
