@@ -31,8 +31,9 @@ export default function SchedulerJobs() {
   const [fType, setFType] = useState(ALL);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editJobId, setEditJobId] = useState<string | null>(null);
+  const [view, setView] = useState<'open' | 'completed'>('open');
 
-  const rows = useMemo(() => {
+  const allRows = useMemo(() => {
     const q = search.toLowerCase();
     return jobs
       .filter((j) => {
@@ -65,6 +66,11 @@ export default function SchedulerJobs() {
         };
       });
   }, [jobs, allocations, prodAllocations, setupAllocations, search, fStatus, fPriority, fMachine, fSetter, fType]);
+
+  const openRows = useMemo(() => allRows.filter((r) => r.job.status !== 'completed'), [allRows]);
+  const completedRows = useMemo(() => allRows.filter((r) => r.job.status === 'completed'), [allRows]);
+  const rows = view === 'open' ? openRows : completedRows;
+
 
 
   return (
