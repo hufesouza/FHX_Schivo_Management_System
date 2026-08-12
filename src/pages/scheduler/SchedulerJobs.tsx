@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, X } from 'lucide-react';
-import { fmtDuration, fmtHours, toISO } from '@/utils/schedulerEngine';
+import { fmtDate, fmtDuration, fmtHours, toISO } from '@/utils/schedulerEngine';
 import { PRIORITY_OPTIONS, PRODUCTION_TYPE_OPTIONS, STATUS_OPTIONS } from '@/types/scheduler';
 
 const ALL = '__all__';
@@ -187,23 +187,23 @@ export default function SchedulerJobs() {
                       {!job.setter_id && '—'}
                     </td>
                     <td className="py-2 px-3 text-right">{fmtHours(job.development_hours)}</td>
-                    <td className="py-2 px-3">{start}</td>
-                    <td className="py-2 px-3">{end}</td>
+                    <td className="py-2 px-3">{fmtDate(start)}</td>
+                    <td className="py-2 px-3">{fmtDate(end)}</td>
                     <td className="py-2 px-3 text-right">{days}</td>
                     <td className="py-2 px-3">{job.programmer_id ? setterById[job.programmer_id]?.name ?? '—' : '—'}</td>
                     <td className="py-2 px-3 text-right">
                       {Number(job.programming_hours) > 0 ? fmtHours(job.programming_hours) : '—'}
                     </td>
-                    <td className="py-2 px-3">{job.programming_start ?? '—'}</td>
-                    <td className="py-2 px-3">{job.programming_end ?? '—'}</td>
+                    <td className="py-2 px-3">{fmtDate(job.programming_start)}</td>
+                    <td className="py-2 px-3">{fmtDate(job.programming_end)}</td>
                     <td className="py-2 px-3">
                       {job.production_setter_id ? setterById[job.production_setter_id]?.name ?? '—' : '—'}
                     </td>
                     <td className="py-2 px-3 text-right">{setupHours > 0 ? fmtDuration(setupHours) : '—'}</td>
                     <td className="py-2 px-3 text-right">{Number(job.production_quantity) || 0}</td>
                     <td className="py-2 px-3 text-right">{prodHours > 0 ? fmtDuration(prodHours) : '—'}</td>
-                    <td className="py-2 px-3">{job.production_start ?? '—'}</td>
-                    <td className="py-2 px-3">{job.production_end ?? '—'}</td>
+                    <td className="py-2 px-3">{fmtDate(job.production_start)}</td>
+                    <td className="py-2 px-3">{fmtDate(job.production_end)}</td>
 
                     <td className="py-2 px-3">
                       <Badge variant={priorityVariant(job.priority) as 'default' | 'secondary' | 'destructive'}>
