@@ -17,8 +17,7 @@ import {
   ArrowLeft,
   ClipboardList,
   CalendarDays,
-  FolderKanban,
-  Gauge
+  FolderKanban
 } from 'lucide-react';
 import {
   DropdownMenu,
