@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { SchedulerNav } from '@/components/scheduler/SchedulerNav';
 import { MonthCalendar, MonthNav } from '@/components/scheduler/MonthCalendar';
+import { YearCalendar, YearNav } from '@/components/scheduler/YearCalendar';
 import { JobDialog } from '@/components/scheduler/JobDialog';
 import { useScheduler } from '@/hooks/useScheduler';
 import { useUserRole } from '@/hooks/useUserRole';
