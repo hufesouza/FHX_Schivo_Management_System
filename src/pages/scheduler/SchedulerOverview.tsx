@@ -183,23 +183,39 @@ export default function SchedulerOverview() {
             <Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading schedule…
           </div>
         ) : (
-          <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
-            <MonthCalendar
-              year={year}
-              month={month}
-              allocations={visibleAllocations}
-              jobById={jobById}
-              setterById={setterById}
-              holidays={holidays}
-              selectedDate={selectedDate}
-              canEdit={canEdit}
-              nonWorking={nonWorking}
-              onSelectDate={setSelectedDate}
-              onCreateAt={createAt}
-              onOpenJob={openJob}
-              onMoveJob={handleMove}
-              mode="machine"
-            />
+          <div className={view === 'year' ? 'space-y-4' : 'grid gap-4 lg:grid-cols-[1fr_300px]'}>
+            {view === 'month' ? (
+              <MonthCalendar
+                year={year}
+                month={month}
+                allocations={visibleAllocations}
+                jobById={jobById}
+                setterById={setterById}
+                holidays={holidays}
+                selectedDate={selectedDate}
+                canEdit={canEdit}
+                nonWorking={nonWorking}
+                onSelectDate={setSelectedDate}
+                onCreateAt={createAt}
+                onOpenJob={openJob}
+                onMoveJob={handleMove}
+                mode="machine"
+              />
+            ) : (
+              <YearCalendar
+                year={year}
+                allocations={visibleAllocations}
+                jobById={jobById}
+                setterById={setterById}
+                holidays={holidays}
+                selectedDate={selectedDate}
+                nonWorking={nonWorking}
+                onSelectDate={setSelectedDate}
+                onOpenJob={openJob}
+                mode="machine"
+              />
+            )}
+
 
             <Card className="h-fit">
               <CardContent className="p-4 space-y-3">
