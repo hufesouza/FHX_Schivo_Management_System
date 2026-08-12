@@ -17,8 +17,7 @@ import {
   ArrowLeft,
   ClipboardList,
   CalendarDays,
-  FolderKanban,
-  Gauge
+  FolderKanban
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -57,15 +56,6 @@ const subModules = [
     icon: LineChart,
     href: '/npi/order-intelligence',
     color: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
-    available: true,
-  },
-  {
-    id: 'capacity-planner-mvp',
-    title: 'MVP Simples Capacity Planner',
-    description: 'Versão simplificada do planner: cadastro de peças, job tracker e calendário das máquinas',
-    icon: Gauge,
-    href: '/npi/capacity-planner-mvp',
-    color: 'bg-pink-500/10 text-pink-600 border-pink-500/20',
     available: true,
   },
 ];
