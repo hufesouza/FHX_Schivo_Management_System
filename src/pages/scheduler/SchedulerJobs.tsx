@@ -31,8 +31,9 @@ export default function SchedulerJobs() {
   const [fType, setFType] = useState(ALL);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editJobId, setEditJobId] = useState<string | null>(null);
+  const [view, setView] = useState<'open' | 'completed'>('open');
 
-  const rows = useMemo(() => {
+  const allRows = useMemo(() => {
     const q = search.toLowerCase();
     return jobs
       .filter((j) => {
@@ -66,11 +67,27 @@ export default function SchedulerJobs() {
       });
   }, [jobs, allocations, prodAllocations, setupAllocations, search, fStatus, fPriority, fMachine, fSetter, fType]);
 
+  const openRows = useMemo(() => allRows.filter((r) => r.job.status !== 'completed'), [allRows]);
+  const completedRows = useMemo(() => allRows.filter((r) => r.job.status === 'completed'), [allRows]);
+  const rows = view === 'open' ? openRows : completedRows;
+
+
 
   return (
     <AppLayout title="Jobs" subtitle="All NPI development jobs" showBackButton backTo="/scheduling">
       <SchedulerNav />
       <div className="p-4 space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant={view === 'open' ? 'default' : 'outline'} size="sm" onClick={() => setView('open')}>
+            Open jobs
+            <Badge variant="secondary" className="ml-2">{openRows.length}</Badge>
+          </Button>
+          <Button variant={view === 'completed' ? 'default' : 'outline'} size="sm" onClick={() => setView('completed')}>
+            Completed jobs
+            <Badge variant="secondary" className="ml-2">{completedRows.length}</Badge>
+          </Button>
+        </div>
+
         <div className="flex flex-wrap items-center gap-2">
           <Input placeholder="Search PO#, job, part, customer…" className="w-72" value={search} onChange={(e) => setSearch(e.target.value)} />
           <Select value={fStatus} onValueChange={setFStatus}>
@@ -217,7 +234,7 @@ export default function SchedulerJobs() {
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={11} className="py-8 text-center text-muted-foreground">No jobs match the filters.</td>
+                    <td colSpan={11} className="py-8 text-center text-muted-foreground">{view === 'open' ? 'No open jobs match the filters.' : 'No completed jobs match the filters.'}</td>
                   </tr>
                 )}
               </tbody>
