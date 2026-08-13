@@ -1371,6 +1371,36 @@ export type Database = {
           },
         ]
       }
+      npi_order_dashboard_data: {
+        Row: {
+          data: Json
+          file_name: string
+          id: string
+          site: string
+          updated_at: string
+          uploaded_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          data?: Json
+          file_name: string
+          id?: string
+          site: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          data?: Json
+          file_name?: string
+          id?: string
+          site?: string
+          updated_at?: string
+          uploaded_at?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
       npi_part_machine_options: {
         Row: {
           created_at: string
