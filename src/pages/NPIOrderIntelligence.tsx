@@ -756,8 +756,8 @@ export default function NPIOrderIntelligence() {
 
       const renderSection = async (
         title: string,
-        left: { title: string; ref: HTMLElement | null },
-        right: { title: string; ref: HTMLElement | null },
+        left: { title: string; ref: HTMLElement | null; empty?: boolean; note?: string },
+        right: { title: string; ref: HTMLElement | null; empty?: boolean; note?: string },
       ) => {
         const needed = sectionTitleH + cellH + sectionGap;
         if (y + needed > ph - 12) { pdf.addPage(); y = margin + 4; }
@@ -781,21 +781,33 @@ export default function NPIOrderIntelligence() {
           pdf.setFont('helvetica', 'bold');
           pdf.setTextColor(15, 23, 42);
           pdf.text(items[i].title, x + 3, y + 5);
-          const img = await capture(items[i].ref);
-          if (img) pdf.addImage(img, 'PNG', x + 2, y + titleH, colW - 4, chartImgH, undefined, 'NONE');
+          if (items[i].empty) {
+            pdf.setFont('helvetica', 'normal');
+            pdf.setFontSize(8);
+            pdf.setTextColor(148, 163, 184);
+            pdf.text(items[i].note || 'No data available', x + colW / 2, y + titleH + chartImgH / 2, { align: 'center' });
+          } else {
+            const img = await capture(items[i].ref);
+            if (img) pdf.addImage(img, 'PNG', x + 2, y + titleH, colW - 4, chartImgH, undefined, 'NONE');
+          }
         }
         y += cellH + sectionGap;
       };
 
+      const noPart = partByRevenue.length === 0;
+      const noMonth = monthly.length === 0;
+      const partNote = colMap.part ? 'No data available' : 'Part column not found in the uploaded file';
+      const monthNote = colMap.date ? 'No data available' : 'Date column not found in the uploaded file';
+
       await renderSection(
         'Customer Performance',
-        { title: 'Revenue by Customer (Top 15)', ref: chartRefs.revByCustomer.current },
-        { title: 'Orders by Customer (Top 15)', ref: chartRefs.ordByCustomer.current },
+        { title: 'Revenue by Customer (Top 15)', ref: chartRefs.revByCustomer.current, empty: customerByRevenue.length === 0 },
+        { title: 'Orders by Customer (Top 15)', ref: chartRefs.ordByCustomer.current, empty: customerByOrders.length === 0 },
       );
       await renderSection(
         'Top Parts',
-        { title: 'Revenue by Part (Top 15)', ref: chartRefs.revByPart.current },
-        { title: 'Orders by Part (Top 15)', ref: chartRefs.ordByPart.current },
+        { title: 'Revenue by Part (Top 15)', ref: chartRefs.revByPart.current, empty: noPart, note: partNote },
+        { title: 'Orders by Part (Top 15)', ref: chartRefs.ordByPart.current, empty: partByOrders.length === 0, note: partNote },
       );
       if (hasCommodityData) {
         await renderSection(
@@ -806,9 +818,10 @@ export default function NPIOrderIntelligence() {
       }
       await renderSection(
         'Monthly Trend',
-        { title: 'Orders by Month', ref: chartRefs.ordByMonth.current },
-        { title: 'Revenue by Month', ref: chartRefs.revByMonth.current },
+        { title: 'Orders by Month', ref: chartRefs.ordByMonth.current, empty: noMonth, note: monthNote },
+        { title: 'Revenue by Month', ref: chartRefs.revByMonth.current, empty: noMonth, note: monthNote },
       );
+
 
       pdfFooter(pdf);
       const now = new Date();
