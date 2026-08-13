@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, FileBarChart, LineChart, Plus, Trash2 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -10,7 +10,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
-import { addCustomSite, getAllSites, removeCustomSite } from '@/lib/npiSites';
+import { addCustomSite, fetchAllSites, getAllSites, removeCustomSite } from '@/lib/npiSites';
 import { GroupReportDialog } from '@/components/npi-order/GroupReportDialog';
 
 export default function NPIOrderSiteSelect() {
@@ -19,23 +19,38 @@ export default function NPIOrderSiteSelect() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [reportOpen, setReportOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const handleAdd = () => {
-    const created = addCustomSite(name);
+  // The shared site list is stored in the database so every user sees the same sites.
+  useEffect(() => {
+    let active = true;
+    void fetchAllSites().then((s) => { if (active) setSites(s); });
+    return () => { active = false; };
+  }, []);
+
+  const handleAdd = async () => {
+    setSaving(true);
+    const created = await addCustomSite(name);
+    setSaving(false);
     if (!created) {
-      toast({ title: 'Could not add site', description: 'Enter a unique site name.', variant: 'destructive' });
+      toast({ title: 'Could not add site', description: 'Enter a unique site name. You must be signed in to add sites.', variant: 'destructive' });
       return;
     }
-    setSites(getAllSites());
+    setSites(await fetchAllSites());
     setName('');
     setOpen(false);
     toast({ title: 'Site added', description: `${created.title} is ready to receive uploads.` });
   };
 
-  const handleRemove = (id: string) => {
-    removeCustomSite(id);
-    setSites(getAllSites());
+  const handleRemove = async (id: string) => {
+    const ok = await removeCustomSite(id);
+    if (!ok) {
+      toast({ title: 'Could not remove site', description: 'You must be signed in to remove sites.', variant: 'destructive' });
+      return;
+    }
+    setSites(await fetchAllSites());
   };
+
 
   return (
     <AppLayout title="NPI Order Dashboard" subtitle="Select a site to open its dashboard" showBackButton backTo="/npi">
@@ -108,7 +123,7 @@ export default function NPIOrderSiteSelect() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleAdd} disabled={!name.trim()}>Add site</Button>
+            <Button onClick={handleAdd} disabled={!name.trim() || saving}>Add site</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

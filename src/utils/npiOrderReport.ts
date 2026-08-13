@@ -132,7 +132,7 @@ export const loadSiteDataset = async (site: string): Promise<SiteDataset> => {
 
   const { data } = await supabase
     .from('npi_order_dashboard_data')
-    .select('data, file_name')
+    .select('data, file_name, revenue_targets')
     .eq('site', site)
     .maybeSingle();
 
@@ -149,6 +149,17 @@ export const loadSiteDataset = async (site: string): Promise<SiteDataset> => {
     }
   }
 
+  // Cache the shared revenue targets so getSiteRevenueTarget works for sites
+  // this browser has never opened.
+  if (data?.revenue_targets && typeof data.revenue_targets === 'object') {
+    Object.entries(data.revenue_targets as Record<string, number>).forEach(([k, v]) => {
+      const key = k === 'all'
+        ? `npi-oi-total-company-revenue:${site}`
+        : `npi-oi-total-company-revenue:${site}:${k}`;
+      try { localStorage.setItem(key, String(v || 0)); } catch {}
+    });
+  }
+
   const { rows, hasNpiCol } = normaliseRows(raw);
   return { site, fileName, rows, hasNpiCol, source };
 };
@@ -163,6 +174,7 @@ export const getSiteRevenueTarget = (site: string, year: string): number => {
   }
   return 0;
 };
+
 
 export type SiteStats = {
   site: string;

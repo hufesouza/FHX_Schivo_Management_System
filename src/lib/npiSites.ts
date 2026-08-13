@@ -1,3 +1,5 @@
+import { supabase } from '@/integrations/supabase/client';
+
 export type NpiSite = {
   id: string;
   title: string;
@@ -6,6 +8,8 @@ export type NpiSite = {
   custom?: boolean;
 };
 
+// Custom sites live in the database so every user sees the same list.
+// localStorage is only a cache so labels resolve instantly on first paint.
 const CUSTOM_KEY = 'npi-oi-custom-sites';
 
 export const BUILTIN_SITES: NpiSite[] = [
@@ -49,27 +53,67 @@ export const getCustomSites = (): NpiSite[] => {
   }
 };
 
+const setCache = (sites: NpiSite[]) => {
+  try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(sites)); } catch {}
+};
+
 export const getAllSites = (): NpiSite[] => [...BUILTIN_SITES, ...getCustomSites()];
 
-export const addCustomSite = (name: string): NpiSite | null => {
+/** Loads the shared site list from the database (falls back to the cache offline). */
+export const fetchAllSites = async (): Promise<NpiSite[]> => {
+  const { data, error } = await supabase
+    .from('npi_dashboard_sites')
+    .select('site_id, title, description, color')
+    .order('created_at', { ascending: true });
+
+  if (error || !data) return getAllSites();
+
+  const custom: NpiSite[] = data
+    .filter(r => !BUILTIN_SITES.some(b => b.id === r.site_id))
+    .map(r => ({
+      id: r.site_id,
+      title: r.title,
+      description: r.description || `Upload and analyse NPI orders for ${r.title}.`,
+      color: r.color,
+      custom: true,
+    }));
+
+  setCache(custom);
+  return [...BUILTIN_SITES, ...custom];
+};
+
+export const addCustomSite = async (name: string): Promise<NpiSite | null> => {
   const id = slugifySite(name);
   if (!id) return null;
-  const existing = getAllSites();
+  const existing = await fetchAllSites();
   if (existing.some((s) => s.id === id)) return null;
-  const custom = getCustomSites();
+
+  const customCount = existing.filter(s => s.custom).length;
   const site: NpiSite = {
     id,
     title: name.trim(),
     description: `Upload and analyse NPI orders for ${name.trim()}.`,
-    color: PALETTE[custom.length % PALETTE.length],
+    color: PALETTE[customCount % PALETTE.length],
     custom: true,
   };
-  localStorage.setItem(CUSTOM_KEY, JSON.stringify([...custom, site]));
+
+  const { error } = await supabase.from('npi_dashboard_sites').insert({
+    site_id: site.id,
+    title: site.title,
+    description: site.description,
+    color: site.color,
+  });
+  if (error) return null;
+
+  setCache([...existing.filter(s => s.custom), site]);
   return site;
 };
 
-export const removeCustomSite = (id: string) => {
-  localStorage.setItem(CUSTOM_KEY, JSON.stringify(getCustomSites().filter((s) => s.id !== id)));
+export const removeCustomSite = async (id: string): Promise<boolean> => {
+  const { error } = await supabase.from('npi_dashboard_sites').delete().eq('site_id', id);
+  if (error) return false;
+  setCache(getCustomSites().filter((s) => s.id !== id));
+  return true;
 };
 
 export const getSiteLabel = (id: string): string =>
