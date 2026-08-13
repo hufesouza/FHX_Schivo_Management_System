@@ -891,11 +891,6 @@ export default function NPIOrderIntelligence() {
                 />
               </label>
               {fileName && <span className="text-sm text-muted-foreground">{fileName} — {rows.length} rows</span>}
-              {!empty && (
-                <Button variant="ghost" size="sm" onClick={() => { setRows([]); setFileName(''); localStorage.removeItem(STORAGE_KEY_DATA(site)); localStorage.removeItem(STORAGE_KEY_FILENAME(site)); }}>
-                  Clear
-                </Button>
-              )}
             </div>
           </CardContent>
         </Card>
