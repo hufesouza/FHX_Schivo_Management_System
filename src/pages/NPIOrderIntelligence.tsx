@@ -490,22 +490,34 @@ export default function NPIOrderIntelligence() {
   useEffect(() => {
     if (fYear !== 'all') {
       const y = parseInt(fYear, 10);
-      setYearRevenue(parseFloat(localStorage.getItem(STORAGE_KEY_REV_YEAR(site, y)) || '0') || 0);
+      setYearRevenue(readCachedTarget(site, String(y)));
+    } else {
+      setTotalCompanyRevenue(readCachedTarget(site, 'all'));
     }
-  }, [fYear, site]);
+  }, [fYear, site, targetsVersion]);
+
+  const persistTarget = (key: string, n: number) => {
+    void saveRevenueTarget(site, key, n, user?.id).then(err => {
+      if (err === 'not-signed-in') {
+        toast.warning('Not signed in — this revenue target stays on this device only.');
+      } else if (err) {
+        toast.error('Could not save the revenue target: ' + err);
+      }
+    });
+  };
 
   const saveTotalRev = (v: string) => {
     const n = parseFloat(v) || 0;
     if (fYear !== 'all') {
       const y = parseInt(fYear, 10);
       setYearRevenue(n);
-      localStorage.setItem(STORAGE_KEY_REV_YEAR(site, y), String(n));
+      persistTarget(String(y), n);
       // keep compare-mode in sync if applicable
       if (String(y) === yearA) setCompanyRevA(n);
       if (String(y) === yearB) setCompanyRevB(n);
     } else {
       setTotalCompanyRevenue(n);
-      localStorage.setItem(STORAGE_KEY_REV(site), String(n));
+      persistTarget('all', n);
     }
   };
 
@@ -518,16 +530,17 @@ export default function NPIOrderIntelligence() {
 
   // load per-year revenues whenever selection changes
   useEffect(() => {
-    if (yearA) setCompanyRevA(parseFloat(localStorage.getItem(STORAGE_KEY_REV_YEAR(site, yA)) || '0') || 0);
-  }, [yearA, yA, site]);
+    if (yearA) setCompanyRevA(readCachedTarget(site, String(yA)));
+  }, [yearA, yA, site, targetsVersion]);
   useEffect(() => {
-    if (yearB) setCompanyRevB(parseFloat(localStorage.getItem(STORAGE_KEY_REV_YEAR(site, yB)) || '0') || 0);
-  }, [yearB, yB, site]);
+    if (yearB) setCompanyRevB(readCachedTarget(site, String(yB)));
+  }, [yearB, yB, site, targetsVersion]);
 
   const saveYearRev = (year: number, v: string, side: 'A' | 'B') => {
     const n = parseFloat(v) || 0;
-    localStorage.setItem(STORAGE_KEY_REV_YEAR(site, year), String(n));
+    persistTarget(String(year), n);
     if (side === 'A') setCompanyRevA(n); else setCompanyRevB(n);
+
   };
 
   const filteredForYear = useCallback((year: number) => {
