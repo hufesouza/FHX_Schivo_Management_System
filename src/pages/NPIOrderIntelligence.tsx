@@ -329,7 +329,7 @@ export default function NPIOrderIntelligence() {
   // first row alone can hide columns (e.g. part / date) present further down.
   const cols = useMemo(() => {
     const set = new Set<string>();
-    rows.slice(0, 500).forEach(r => Object.keys(r || {}).forEach(k => set.add(k)));
+    rows.slice(0, 500).forEach(r => Object.keys(r || {}).forEach(k => { if (k !== '__rowId') set.add(k); }));
     return Array.from(set);
   }, [rows]);
   const autoColMap = useMemo(() => ({
