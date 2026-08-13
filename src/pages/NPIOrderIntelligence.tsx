@@ -1,6 +1,8 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { getSiteLabel } from '@/lib/npiSites';
+import { getSiteLabel, fetchAllSites } from '@/lib/npiSites';
+import { fetchRevenueTargets, saveRevenueTarget, readCachedTarget } from '@/lib/npiRevenueTargets';
+
 import * as XLSX from 'xlsx';
 import {
   BarChart, Bar, PieChart, Pie, LineChart, Line, XAxis, YAxis,
