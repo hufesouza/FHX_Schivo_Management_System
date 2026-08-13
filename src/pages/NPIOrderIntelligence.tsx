@@ -780,7 +780,7 @@ export default function NPIOrderIntelligence() {
 
       pdfFooter(pdf);
       const now = new Date();
-      pdf.save(`npi-order-intelligence${fYear !== 'all' ? '-' + fYear : ''}-${now.toISOString().slice(0, 10)}.pdf`);
+      pdf.save(`npi-order-dashboard${fYear !== 'all' ? '-' + fYear : ''}-${now.toISOString().slice(0, 10)}.pdf`);
       toast.success('PDF report generated');
     } catch (e: any) {
       toast.error('PDF export failed: ' + e.message);
