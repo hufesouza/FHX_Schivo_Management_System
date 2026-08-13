@@ -130,24 +130,26 @@ export const loadSiteDataset = async (site: string): Promise<SiteDataset> => {
   let fileName = '';
   let source: SiteDataset['source'] = 'none';
 
+  // Shared row-level store is authoritative.
+  const stored = await fetchSiteRows(site);
+  if (stored.rows.length) {
+    raw = stored.rows.map(({ __rowId, ...rest }) => rest);
+    fileName = stored.fileName;
+    source = 'database';
+  }
+
   const { data } = await supabase
     .from('npi_order_dashboard_data')
     .select('data, file_name, revenue_targets')
     .eq('site', site)
     .maybeSingle();
 
-  if (data && Array.isArray(data.data) && data.data.length) {
+  if (!raw.length && data && Array.isArray(data.data) && data.data.length) {
     raw = data.data as Row[];
     fileName = data.file_name || '';
     source = 'database';
-  } else {
-    const local = localData(site);
-    if (local.rows.length) {
-      raw = local.rows;
-      fileName = local.fileName;
-      source = 'local';
-    }
   }
+
 
   // Cache the shared revenue targets so getSiteRevenueTarget works for sites
   // this browser has never opened.
