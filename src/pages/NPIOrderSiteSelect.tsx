@@ -16,6 +16,12 @@ const SITES = [
     description: 'Upload and analyse NPI orders for the PlainView site.',
     color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
   },
+  {
+    id: 'quebec',
+    title: 'Schivo Quebec',
+    description: 'Upload and analyse NPI orders for the Quebec site.',
+    color: 'bg-violet-500/10 text-violet-600 border-violet-500/20',
+  },
 ];
 
 export default function NPIOrderSiteSelect() {
@@ -23,7 +29,7 @@ export default function NPIOrderSiteSelect() {
   return (
     <AppLayout title="NPI Order Dashboard" subtitle="Select a site to open its dashboard" showBackButton backTo="/npi">
       <main className="container mx-auto px-4 py-8">
-        <div className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto">
+        <div className="grid gap-6 md:grid-cols-3 max-w-6xl mx-auto">
           {SITES.map((s) => (
             <Card
               key={s.id}
