@@ -2,6 +2,10 @@ import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { getSiteLabel, fetchAllSites } from '@/lib/npiSites';
 import { fetchRevenueTargets, saveRevenueTarget, readCachedTarget } from '@/lib/npiRevenueTargets';
+import {
+  fetchSiteRows, replaceSiteRows, appendSiteRows, clearSiteRows, deleteSiteRowIds,
+  type StoredRow,
+} from '@/lib/npiOrderStore';
 
 import * as XLSX from 'xlsx';
 import {
@@ -10,7 +14,7 @@ import {
 } from 'recharts';
 import {
   Upload, Download, FileSpreadsheet, Package, CheckCircle2, Clock, Euro,
-  Search, FileDown, Info, TrendingUp, TrendingDown, Minus, GitCompare,
+  Search, FileDown, Info, TrendingUp, TrendingDown, Minus, GitCompare, Trash2, Database,
 } from 'lucide-react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -117,8 +121,6 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 const STORAGE_KEY_REV = (site: string) => `npi-oi-total-company-revenue:${site}`;
 const STORAGE_KEY_REV_YEAR = (site: string, y: number) => `npi-oi-total-company-revenue:${site}:${y}`;
-const STORAGE_KEY_DATA = (site: string) => `npi-oi-data:${site}`;
-const STORAGE_KEY_FILENAME = (site: string) => `npi-oi-filename:${site}`;
 
 type NormRow = {
   raw: Row;
@@ -140,14 +142,11 @@ export default function NPIOrderIntelligence() {
   const sym = '€';
 
 
-  const [rows, setRows] = useState<Row[]>(() => {
-    try {
-      const cached = localStorage.getItem(STORAGE_KEY_DATA(site));
-      return cached ? JSON.parse(cached) : [];
-    } catch { return []; }
-  });
-  const [fileName, setFileName] = useState<string>(() => localStorage.getItem(STORAGE_KEY_FILENAME(site)) || '');
+  // Rows live ONLY in the shared database (public.npi_order_rows).
+  const [rows, setRows] = useState<StoredRow[]>([]);
+  const [fileName, setFileName] = useState<string>('');
   const [dataLoading, setDataLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [totalCompanyRevenue, setTotalCompanyRevenue] = useState<number>(() => {
     return parseFloat(localStorage.getItem(STORAGE_KEY_REV(site)) || '0') || 0;
   });
@@ -156,91 +155,51 @@ export default function NPIOrderIntelligence() {
   // bumped whenever shared revenue targets arrive so dependent effects re-read them
   const [targetsVersion, setTargetsVersion] = useState(0);
 
-  // The database is authoritative; local storage remains an offline/fast-load fallback.
+  const reload = useCallback(async () => {
+    const res = await fetchSiteRows(site);
+    if (res.error) {
+      toast.error('Could not load the shared database: ' + res.error);
+      return;
+    }
+    setRows(res.rows);
+    setFileName(res.fileName);
+  }, [site]);
+
   useEffect(() => {
     if (authLoading) return;
     let active = true;
 
     const loadLatestData = async () => {
       setDataLoading(true);
+      const res = await fetchSiteRows(site);
+      if (!active) return;
+      if (res.error) {
+        toast.error('Could not load the shared database: ' + res.error);
+      } else {
+        setRows(res.rows);
+        setFileName(res.fileName);
+      }
+
       if (user) {
-        const { data, error } = await supabase
-          .from('npi_order_dashboard_data')
-          .select('data, file_name')
-          .eq('site', site)
-          .maybeSingle();
-
-        if (!active) return;
-        if (!error && data) {
-          const savedRows = Array.isArray(data.data) ? data.data as Row[] : [];
-          setRows(savedRows);
-          setFileName(data.file_name);
-          localStorage.setItem(STORAGE_KEY_DATA(site), JSON.stringify(savedRows));
-          localStorage.setItem(STORAGE_KEY_FILENAME(site), data.file_name);
-        } else if (!error) {
-          // Recover uploads made before shared persistence was working. If this
-          // browser has the site's last dataset and the shared row is missing,
-          // publish it once so every signed-in user can load it from now on.
-          let cachedRows: Row[] = [];
-          let cachedFileName = '';
-          try {
-            const cached = localStorage.getItem(STORAGE_KEY_DATA(site));
-            const parsed = cached ? JSON.parse(cached) : [];
-            cachedRows = Array.isArray(parsed) ? parsed : [];
-            cachedFileName = localStorage.getItem(STORAGE_KEY_FILENAME(site)) || '';
-          } catch {
-            cachedRows = [];
-          }
-
-          if (cachedRows.length > 0) {
-            const { error: recoveryError } = await supabase
-              .from('npi_order_dashboard_data')
-              .upsert({
-                site,
-                file_name: cachedFileName,
-                data: cachedRows,
-                uploaded_by: user.id,
-                uploaded_at: new Date().toISOString(),
-              }, { onConflict: 'site' });
-
-            if (!active) return;
-            if (recoveryError) {
-              toast.error('Could not publish the saved dashboard data: ' + recoveryError.message);
-            } else {
-              setRows(cachedRows);
-              setFileName(cachedFileName);
-              toast.success(`${siteLabel} data is now shared with all signed-in users.`);
-            }
-          }
-        } else if (error) {
-          toast.error('Could not load the saved dashboard data');
-        }
-
-        // Shared company revenue targets
         const targets = await fetchRevenueTargets(site);
         if (!active) return;
         if (targets.all !== undefined) setTotalCompanyRevenue(targets.all || 0);
         setTargetsVersion(v => v + 1);
-        // Keeps custom site labels resolvable after a hard reload
         void fetchAllSites();
       }
 
       if (active) setDataLoading(false);
     };
 
-
-    try {
-      const cached = localStorage.getItem(STORAGE_KEY_DATA(site));
-      setRows(cached ? JSON.parse(cached) : []);
-    } catch { setRows([]); }
-    setFileName(localStorage.getItem(STORAGE_KEY_FILENAME(site)) || '');
+    setRows([]);
+    setFileName('');
     setTotalCompanyRevenue(parseFloat(localStorage.getItem(STORAGE_KEY_REV(site)) || '0') || 0);
     setNpiOnly(site !== 'plainview');
     void loadLatestData();
 
     const channel = supabase
-      .channel(`npi-order-dashboard-${site}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'npi_order_dashboard_data', filter: `site=eq.${site}` }, () => {
+      .channel(`npi-order-rows-${site}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'npi_order_rows', filter: `site=eq.${site}` }, () => {
         void loadLatestData();
       })
       .subscribe();
@@ -250,6 +209,7 @@ export default function NPIOrderIntelligence() {
       void supabase.removeChannel(channel);
     };
   }, [site, user, authLoading]);
+
 
 
   // View mode
@@ -288,7 +248,12 @@ export default function NPIOrderIntelligence() {
     cmpKpiExport: useRef<HTMLDivElement>(null),
   };
 
-  const handleFile = useCallback(async (file: File) => {
+  const handleFile = useCallback(async (file: File, mode: 'replace' | 'append' = 'replace') => {
+    if (!user) {
+      toast.error('Sign in to upload — the data is stored in the shared database.');
+      return;
+    }
+    setBusy(true);
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: 'array', cellDates: true });
@@ -306,44 +271,63 @@ export default function NPIOrderIntelligence() {
       const ws = wb.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json<Row>(ws, { defval: null });
 
-      // Always show the data locally first, then try to persist it for everyone.
-      setRows(data);
-      setFileName(file.name);
-      try {
-        localStorage.setItem(STORAGE_KEY_DATA(site), JSON.stringify(data));
-        localStorage.setItem(STORAGE_KEY_FILENAME(site), file.name);
-      } catch {}
-      toast.success(`Loaded ${data.length} rows from ${sheetName} in ${file.name}`);
+      const err = mode === 'append'
+        ? await appendSiteRows(site, file.name, data, user.id)
+        : await replaceSiteRows(site, file.name, data, user.id);
 
-      if (!user) {
-        toast.warning('Not signed in — this upload stays on this device only. Sign in to share it with everyone.');
-        return;
-      }
-
-      const { error: saveError } = await supabase
-        .from('npi_order_dashboard_data')
-        .upsert({
-          site,
-          file_name: file.name,
-          data,
-          uploaded_by: user.id,
-          uploaded_at: new Date().toISOString(),
-        }, { onConflict: 'site' });
-      if (saveError) {
-        toast.error('Loaded locally, but saving to the shared database failed: ' + saveError.message);
+      if (err) {
+        toast.error('Saving to the shared database failed: ' + err);
       } else {
-        toast.success('Upload saved and shared with all signed-in users.');
+        toast.success(
+          `${mode === 'append' ? 'Added' : 'Saved'} ${data.length} rows from ${sheetName} — shared with all users.`,
+        );
       }
+      await reload();
     } catch (e: any) {
       toast.error('Failed to read file: ' + e.message);
+    } finally {
+      setBusy(false);
     }
-  }, [site, user]);
+  }, [site, user, reload]);
+
+  const handleClearAll = useCallback(async () => {
+    if (!user) {
+      toast.error('Sign in to change the shared database.');
+      return;
+    }
+    if (!window.confirm(`Delete ALL ${siteLabel} records from the shared database? This cannot be undone.`)) return;
+    setBusy(true);
+    const err = await clearSiteRows(site);
+    setBusy(false);
+    if (err) toast.error('Could not clear the database: ' + err);
+    else {
+      toast.success('Shared database cleared.');
+      await reload();
+    }
+  }, [site, siteLabel, user, reload]);
+
+  const handleDeleteRows = useCallback(async (ids: string[]) => {
+    if (!user) {
+      toast.error('Sign in to change the shared database.');
+      return;
+    }
+    if (!ids.length) return;
+    setBusy(true);
+    const err = await deleteSiteRowIds(ids);
+    setBusy(false);
+    if (err) toast.error('Could not delete: ' + err);
+    else {
+      toast.success(`${ids.length} record${ids.length > 1 ? 's' : ''} removed from the shared database.`);
+      await reload();
+    }
+  }, [user, reload]);
+
 
   // Column detection must scan many rows: XLSX omits keys for empty cells, so the
   // first row alone can hide columns (e.g. part / date) present further down.
   const cols = useMemo(() => {
     const set = new Set<string>();
-    rows.slice(0, 500).forEach(r => Object.keys(r || {}).forEach(k => set.add(k)));
+    rows.slice(0, 500).forEach(r => Object.keys(r || {}).forEach(k => { if (k !== '__rowId') set.add(k); }));
     return Array.from(set);
   }, [rows]);
   const autoColMap = useMemo(() => ({
@@ -962,20 +946,44 @@ export default function NPIOrderIntelligence() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3 flex-wrap">
-              <label className="flex items-center gap-2 px-4 py-2 border border-dashed rounded-md cursor-pointer hover:bg-accent transition">
+              <label className={`flex items-center gap-2 px-4 py-2 border border-dashed rounded-md transition ${busy ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-accent'}`}>
                 <Upload className="h-4 w-4" />
-                <span className="text-sm font-medium">Choose file</span>
+                <span className="text-sm font-medium">Replace database with file</span>
                 <input
                   type="file"
                   accept=".xlsx,.xlsm,.xls"
                   className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f, 'replace'); e.currentTarget.value = ''; }}
                 />
               </label>
-              {fileName && <span className="text-sm text-muted-foreground">{fileName} — {rows.length} rows</span>}
+              <label className={`flex items-center gap-2 px-4 py-2 border border-dashed rounded-md transition ${busy ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-accent'}`}>
+                <Upload className="h-4 w-4" />
+                <span className="text-sm font-medium">Add file to database</span>
+                <input
+                  type="file"
+                  accept=".xlsx,.xlsm,.xls"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f, 'append'); e.currentTarget.value = ''; }}
+                />
+              </label>
+              {!empty && (
+                <Button variant="destructive" size="sm" disabled={busy} onClick={() => void handleClearAll()}>
+                  <Trash2 className="h-4 w-4 mr-1" />Clear database
+                </Button>
+              )}
+              <span className="text-sm text-muted-foreground">
+                {rows.length > 0
+                  ? <>Shared database: <span className="font-medium text-foreground">{rows.length}</span> records{fileName ? <> · last file {fileName}</> : null}</>
+                  : 'Shared database is empty.'}
+              </span>
             </div>
           </CardContent>
         </Card>
+
+        {!empty && (
+          <RecordsManager rows={rows} cols={cols} busy={busy} onDelete={handleDeleteRows} />
+        )}
+
 
         {dataLoading ? (
           <Card>
@@ -1772,5 +1780,96 @@ function CompareCardExport({ label, a, b, yearA, yearB, currency, suffix, highli
       </div>
 
     </div>
+  );
+}
+
+function RecordsManager({ rows, cols, busy, onDelete }: {
+  rows: StoredRow[];
+  cols: string[];
+  busy: boolean;
+  onDelete: (ids: string[]) => void | Promise<void>;
+}) {
+  const [search, setSearch] = useState('');
+  const [limit, setLimit] = useState(25);
+  const [selected, setSelected] = useState<Record<string, boolean>>({});
+
+  const shown = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const filtered = q
+      ? rows.filter(r => cols.some(c => String(r[c] ?? '').toLowerCase().includes(q)))
+      : rows;
+    return { total: filtered.length, page: filtered.slice(0, limit) };
+  }, [rows, cols, search, limit]);
+
+  const selectedIds = Object.keys(selected).filter(k => selected[k]);
+  const visibleCols = cols.slice(0, 8);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <CardTitle className="text-base flex items-center gap-2"><Database className="h-4 w-4" />Shared database records</CardTitle>
+            <CardDescription>Stored in the database and visible to every signed-in user. Delete individual records here.</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="h-3.5 w-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search records" className="h-8 pl-7 w-48" />
+            </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={busy || selectedIds.length === 0}
+              onClick={() => { void onDelete(selectedIds); setSelected({}); }}
+            >
+              <Trash2 className="h-4 w-4 mr-1" />Delete selected ({selectedIds.length})
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-auto max-h-[420px] border rounded-md">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10"></TableHead>
+                {visibleCols.map(c => <TableHead key={c} className="whitespace-nowrap text-xs">{c}</TableHead>)}
+                <TableHead className="w-16 text-right text-xs">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {shown.page.map(r => (
+                <TableRow key={r.__rowId}>
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      checked={!!selected[r.__rowId]}
+                      onChange={(e) => setSelected(s => ({ ...s, [r.__rowId]: e.target.checked }))}
+                    />
+                  </TableCell>
+                  {visibleCols.map(c => (
+                    <TableCell key={c} className="text-xs whitespace-nowrap max-w-[180px] truncate">
+                      {r[c] === null || r[c] === undefined ? '' : String(r[c] instanceof Date ? (r[c] as Date).toLocaleDateString('en-GB') : r[c])}
+                    </TableCell>
+                  ))}
+                  <TableCell className="text-right">
+                    <Button variant="ghost" size="sm" disabled={busy} onClick={() => void onDelete([r.__rowId])}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <div className="flex items-center justify-between mt-3 text-xs text-muted-foreground">
+          <span>Showing {shown.page.length} of {shown.total} records</span>
+          {shown.page.length < shown.total && (
+            <Button variant="outline" size="sm" onClick={() => setLimit(l => l + 50)}>Show more</Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }

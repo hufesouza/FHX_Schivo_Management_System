@@ -1437,6 +1437,39 @@ export type Database = {
         }
         Relationships: []
       }
+      npi_order_rows: {
+        Row: {
+          created_at: string
+          file_name: string
+          id: string
+          row_data: Json
+          row_index: number
+          site: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string
+          id?: string
+          row_data?: Json
+          row_index?: number
+          site: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          id?: string
+          row_data?: Json
+          row_index?: number
+          site?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       npi_part_machine_options: {
         Row: {
           created_at: string
