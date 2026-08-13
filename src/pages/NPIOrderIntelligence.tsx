@@ -257,7 +257,20 @@ export default function NPIOrderIntelligence() {
       }
       const ws = wb.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json<Row>(ws, { defval: null });
-      if (!user) throw new Error('You must be signed in to save dashboard data');
+
+      // Always show the data locally first, then try to persist it for everyone.
+      setRows(data);
+      setFileName(file.name);
+      try {
+        localStorage.setItem(STORAGE_KEY_DATA(site), JSON.stringify(data));
+        localStorage.setItem(STORAGE_KEY_FILENAME(site), file.name);
+      } catch {}
+      toast.success(`Loaded ${data.length} rows from ${sheetName} in ${file.name}`);
+
+      if (!user) {
+        toast.warning('Not signed in — this upload stays on this device only. Sign in to share it with everyone.');
+        return;
+      }
 
       const { error: saveError } = await supabase
         .from('npi_order_dashboard_data')
@@ -268,15 +281,9 @@ export default function NPIOrderIntelligence() {
           uploaded_by: user.id,
           uploaded_at: new Date().toISOString(),
         }, { onConflict: 'site' });
-      if (saveError) throw saveError;
-
-      setRows(data);
-      setFileName(file.name);
-      try {
-        localStorage.setItem(STORAGE_KEY_DATA(site), JSON.stringify(data));
-        localStorage.setItem(STORAGE_KEY_FILENAME(site), file.name);
-      } catch {}
-      toast.success(`Loaded ${data.length} rows from ${sheetName} in ${file.name}`);
+      if (saveError) {
+        toast.error('Loaded locally, but saving to the shared database failed: ' + saveError.message);
+      }
     } catch (e: any) {
       toast.error('Failed to read file: ' + e.message);
     }
