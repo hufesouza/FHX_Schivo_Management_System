@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { getSiteLabel } from '@/lib/npiSites';
 import * as XLSX from 'xlsx';
 import {
   BarChart, Bar, PieChart, Pie, LineChart, Line, XAxis, YAxis,
@@ -103,24 +104,15 @@ const isYes = (v: any): boolean => {
   return u === 'YES' || u === 'Y' || u === 'TRUE' || u === '1';
 };
 
-let CUR_CODE: 'EUR' | 'USD' | 'CAD' = 'EUR';
-let CUR_LOCALE = 'en-IE';
-let CUR_SYM = '€';
-const setCurrency = (code: 'EUR' | 'USD' | 'CAD') => {
-  CUR_CODE = code;
-  CUR_LOCALE = code === 'USD' ? 'en-US' : code === 'CAD' ? 'en-CA' : 'en-IE';
-  CUR_SYM = code === 'EUR' ? '€' : '$';
-};
+const CUR_CODE = 'EUR';
+const CUR_LOCALE = 'en-IE';
+const CUR_SYM = '€';
 const fmtEur = (n: number) => new Intl.NumberFormat(CUR_LOCALE, { style: 'currency', currency: CUR_CODE, maximumFractionDigits: 0 }).format(n || 0);
 const fmtNum = (n: number) => new Intl.NumberFormat(CUR_LOCALE).format(n || 0);
 const curSym = () => CUR_SYM;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const SITE_LABELS: Record<string, string> = {
-  waterford: 'Schivo Waterford',
-  plainview: 'Schivo PlainView',
-  quebec: 'Schivo Quebec',
-};
+
 const STORAGE_KEY_REV = (site: string) => `npi-oi-total-company-revenue:${site}`;
 const STORAGE_KEY_REV_YEAR = (site: string, y: number) => `npi-oi-total-company-revenue:${site}:${y}`;
 const STORAGE_KEY_DATA = (site: string) => `npi-oi-data:${site}`;
@@ -142,9 +134,9 @@ export default function NPIOrderIntelligence() {
   const { site: siteParam } = useParams<{ site: string }>();
   const { user, loading: authLoading } = useAuth();
   const site = (siteParam || 'waterford').toLowerCase();
-  const siteLabel = SITE_LABELS[site] || 'Schivo Waterford';
-  setCurrency(site === 'plainview' ? 'USD' : site === 'quebec' ? 'CAD' : 'EUR');
-  const sym = site === 'waterford' ? '€' : '$';
+  const siteLabel = getSiteLabel(site);
+  const sym = '€';
+
 
   const [rows, setRows] = useState<Row[]>(() => {
     try {
