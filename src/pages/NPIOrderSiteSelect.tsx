@@ -123,7 +123,7 @@ export default function NPIOrderSiteSelect() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={handleAdd} disabled={!name.trim()}>Add site</Button>
+            <Button onClick={handleAdd} disabled={!name.trim() || saving}>Add site</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
