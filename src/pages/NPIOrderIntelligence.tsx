@@ -177,6 +177,41 @@ export default function NPIOrderIntelligence() {
           setFileName(data.file_name);
           localStorage.setItem(STORAGE_KEY_DATA(site), JSON.stringify(savedRows));
           localStorage.setItem(STORAGE_KEY_FILENAME(site), data.file_name);
+        } else if (!error) {
+          // Recover uploads made before shared persistence was working. If this
+          // browser has the site's last dataset and the shared row is missing,
+          // publish it once so every signed-in user can load it from now on.
+          let cachedRows: Row[] = [];
+          let cachedFileName = '';
+          try {
+            const cached = localStorage.getItem(STORAGE_KEY_DATA(site));
+            const parsed = cached ? JSON.parse(cached) : [];
+            cachedRows = Array.isArray(parsed) ? parsed : [];
+            cachedFileName = localStorage.getItem(STORAGE_KEY_FILENAME(site)) || '';
+          } catch {
+            cachedRows = [];
+          }
+
+          if (cachedRows.length > 0) {
+            const { error: recoveryError } = await supabase
+              .from('npi_order_dashboard_data')
+              .upsert({
+                site,
+                file_name: cachedFileName,
+                data: cachedRows,
+                uploaded_by: user.id,
+                uploaded_at: new Date().toISOString(),
+              }, { onConflict: 'site' });
+
+            if (!active) return;
+            if (recoveryError) {
+              toast.error('Could not publish the saved dashboard data: ' + recoveryError.message);
+            } else {
+              setRows(cachedRows);
+              setFileName(cachedFileName);
+              toast.success(`${siteLabel} data is now shared with all signed-in users.`);
+            }
+          }
         } else if (error) {
           toast.error('Could not load the saved dashboard data');
         }
@@ -296,6 +331,8 @@ export default function NPIOrderIntelligence() {
         }, { onConflict: 'site' });
       if (saveError) {
         toast.error('Loaded locally, but saving to the shared database failed: ' + saveError.message);
+      } else {
+        toast.success('Upload saved and shared with all signed-in users.');
       }
     } catch (e: any) {
       toast.error('Failed to read file: ' + e.message);
