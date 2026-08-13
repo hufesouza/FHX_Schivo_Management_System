@@ -119,6 +119,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const SITE_LABELS: Record<string, string> = {
   waterford: 'Schivo Waterford',
   plainview: 'Schivo PlainView',
+  quebec: 'Schivo Quebec',
 };
 const STORAGE_KEY_REV = (site: string) => `npi-oi-total-company-revenue:${site}`;
 const STORAGE_KEY_REV_YEAR = (site: string, y: number) => `npi-oi-total-company-revenue:${site}:${y}`;
