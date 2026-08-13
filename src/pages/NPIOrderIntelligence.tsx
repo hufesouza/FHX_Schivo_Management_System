@@ -948,20 +948,44 @@ export default function NPIOrderIntelligence() {
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-3 flex-wrap">
-              <label className="flex items-center gap-2 px-4 py-2 border border-dashed rounded-md cursor-pointer hover:bg-accent transition">
+              <label className={`flex items-center gap-2 px-4 py-2 border border-dashed rounded-md transition ${busy ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-accent'}`}>
                 <Upload className="h-4 w-4" />
-                <span className="text-sm font-medium">Choose file</span>
+                <span className="text-sm font-medium">Replace database with file</span>
                 <input
                   type="file"
                   accept=".xlsx,.xlsm,.xls"
                   className="hidden"
-                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); }}
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f, 'replace'); e.currentTarget.value = ''; }}
                 />
               </label>
-              {fileName && <span className="text-sm text-muted-foreground">{fileName} — {rows.length} rows</span>}
+              <label className={`flex items-center gap-2 px-4 py-2 border border-dashed rounded-md transition ${busy ? 'opacity-50 pointer-events-none' : 'cursor-pointer hover:bg-accent'}`}>
+                <Upload className="h-4 w-4" />
+                <span className="text-sm font-medium">Add file to database</span>
+                <input
+                  type="file"
+                  accept=".xlsx,.xlsm,.xls"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) void handleFile(f, 'append'); e.currentTarget.value = ''; }}
+                />
+              </label>
+              {!empty && (
+                <Button variant="destructive" size="sm" disabled={busy} onClick={() => void handleClearAll()}>
+                  <Trash2 className="h-4 w-4 mr-1" />Clear database
+                </Button>
+              )}
+              <span className="text-sm text-muted-foreground">
+                {rows.length > 0
+                  ? <>Shared database: <span className="font-medium text-foreground">{rows.length}</span> records{fileName ? <> · last file {fileName}</> : null}</>
+                  : 'Shared database is empty.'}
+              </span>
             </div>
           </CardContent>
         </Card>
+
+        {!empty && (
+          <RecordsManager rows={rows} cols={cols} busy={busy} onDelete={handleDeleteRows} />
+        )}
+
 
         {dataLoading ? (
           <Card>
