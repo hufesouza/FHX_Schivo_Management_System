@@ -1148,6 +1148,39 @@ export type Database = {
         }
         Relationships: []
       }
+      npi_dashboard_sites: {
+        Row: {
+          color: string
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          site_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          site_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          site_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       npi_email_recipients: {
         Row: {
           created_at: string
@@ -1376,6 +1409,7 @@ export type Database = {
           data: Json
           file_name: string
           id: string
+          revenue_targets: Json
           site: string
           updated_at: string
           uploaded_at: string
@@ -1385,6 +1419,7 @@ export type Database = {
           data?: Json
           file_name: string
           id?: string
+          revenue_targets?: Json
           site: string
           updated_at?: string
           uploaded_at?: string
@@ -1394,6 +1429,7 @@ export type Database = {
           data?: Json
           file_name?: string
           id?: string
+          revenue_targets?: Json
           site?: string
           updated_at?: string
           uploaded_at?: string
