@@ -24,6 +24,8 @@ import { Tooltip as ShadcnTooltip, TooltipTrigger, TooltipContent, TooltipProvid
 import { toast } from 'sonner';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 type Row = Record<string, any>;
 
@@ -137,6 +139,7 @@ type NormRow = {
 
 export default function NPIOrderIntelligence() {
   const { site: siteParam } = useParams<{ site: string }>();
+  const { user, loading: authLoading } = useAuth();
   const site = (siteParam || 'waterford').toLowerCase();
   const siteLabel = SITE_LABELS[site] || 'Schivo Waterford';
   setCurrency(site === 'plainview' ? 'USD' : 'EUR');
@@ -149,14 +152,42 @@ export default function NPIOrderIntelligence() {
     } catch { return []; }
   });
   const [fileName, setFileName] = useState<string>(() => localStorage.getItem(STORAGE_KEY_FILENAME(site)) || '');
+  const [dataLoading, setDataLoading] = useState(true);
   const [totalCompanyRevenue, setTotalCompanyRevenue] = useState<number>(() => {
     return parseFloat(localStorage.getItem(STORAGE_KEY_REV(site)) || '0') || 0;
   });
   // per-year override in single mode
   const [yearRevenue, setYearRevenue] = useState<number>(0);
 
-  // Reload site-scoped state when the site route changes
+  // The database is authoritative; local storage remains an offline/fast-load fallback.
   useEffect(() => {
+    if (authLoading) return;
+    let active = true;
+
+    const loadLatestData = async () => {
+      setDataLoading(true);
+      if (user) {
+        const { data, error } = await supabase
+          .from('npi_order_dashboard_data')
+          .select('data, file_name')
+          .eq('site', site)
+          .maybeSingle();
+
+        if (!active) return;
+        if (!error && data) {
+          const savedRows = Array.isArray(data.data) ? data.data as Row[] : [];
+          setRows(savedRows);
+          setFileName(data.file_name);
+          localStorage.setItem(STORAGE_KEY_DATA(site), JSON.stringify(savedRows));
+          localStorage.setItem(STORAGE_KEY_FILENAME(site), data.file_name);
+        } else if (error) {
+          toast.error('Could not load the saved dashboard data');
+        }
+      }
+
+      if (active) setDataLoading(false);
+    };
+
     try {
       const cached = localStorage.getItem(STORAGE_KEY_DATA(site));
       setRows(cached ? JSON.parse(cached) : []);
@@ -164,7 +195,20 @@ export default function NPIOrderIntelligence() {
     setFileName(localStorage.getItem(STORAGE_KEY_FILENAME(site)) || '');
     setTotalCompanyRevenue(parseFloat(localStorage.getItem(STORAGE_KEY_REV(site)) || '0') || 0);
     setNpiOnly(site !== 'plainview');
-  }, [site]);
+    void loadLatestData();
+
+    const channel = supabase
+      .channel(`npi-order-dashboard-${site}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'npi_order_dashboard_data', filter: `site=eq.${site}` }, () => {
+        void loadLatestData();
+      })
+      .subscribe();
+
+    return () => {
+      active = false;
+      void supabase.removeChannel(channel);
+    };
+  }, [site, user, authLoading]);
 
 
   // View mode
@@ -220,6 +264,19 @@ export default function NPIOrderIntelligence() {
       }
       const ws = wb.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json<Row>(ws, { defval: null });
+      if (!user) throw new Error('You must be signed in to save dashboard data');
+
+      const { error: saveError } = await supabase
+        .from('npi_order_dashboard_data')
+        .upsert({
+          site,
+          file_name: file.name,
+          data,
+          uploaded_by: user.id,
+          uploaded_at: new Date().toISOString(),
+        }, { onConflict: 'site' });
+      if (saveError) throw saveError;
+
       setRows(data);
       setFileName(file.name);
       try {
@@ -230,7 +287,7 @@ export default function NPIOrderIntelligence() {
     } catch (e: any) {
       toast.error('Failed to read file: ' + e.message);
     }
-  }, [site]);
+  }, [site, user]);
 
   const cols = useMemo(() => rows.length ? Object.keys(rows[0]) : [], [rows]);
   const autoColMap = useMemo(() => ({
@@ -843,7 +900,14 @@ export default function NPIOrderIntelligence() {
           </CardContent>
         </Card>
 
-        {empty ? (
+        {dataLoading ? (
+          <Card>
+            <CardContent className="py-16 text-center text-muted-foreground">
+              <FileSpreadsheet className="h-12 w-12 mx-auto mb-3 opacity-30 animate-pulse" />
+              <p>Loading the latest saved dashboard data…</p>
+            </CardContent>
+          </Card>
+        ) : empty ? (
           <Card>
             <CardContent className="py-16 text-center text-muted-foreground">
               <FileSpreadsheet className="h-12 w-12 mx-auto mb-3 opacity-30" />
