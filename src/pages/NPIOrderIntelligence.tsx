@@ -140,14 +140,11 @@ export default function NPIOrderIntelligence() {
   const sym = '€';
 
 
-  const [rows, setRows] = useState<Row[]>(() => {
-    try {
-      const cached = localStorage.getItem(STORAGE_KEY_DATA(site));
-      return cached ? JSON.parse(cached) : [];
-    } catch { return []; }
-  });
-  const [fileName, setFileName] = useState<string>(() => localStorage.getItem(STORAGE_KEY_FILENAME(site)) || '');
+  // Rows live ONLY in the shared database (public.npi_order_rows).
+  const [rows, setRows] = useState<StoredRow[]>([]);
+  const [fileName, setFileName] = useState<string>('');
   const [dataLoading, setDataLoading] = useState(true);
+  const [busy, setBusy] = useState(false);
   const [totalCompanyRevenue, setTotalCompanyRevenue] = useState<number>(() => {
     return parseFloat(localStorage.getItem(STORAGE_KEY_REV(site)) || '0') || 0;
   });
@@ -156,91 +153,51 @@ export default function NPIOrderIntelligence() {
   // bumped whenever shared revenue targets arrive so dependent effects re-read them
   const [targetsVersion, setTargetsVersion] = useState(0);
 
-  // The database is authoritative; local storage remains an offline/fast-load fallback.
+  const reload = useCallback(async () => {
+    const res = await fetchSiteRows(site);
+    if (res.error) {
+      toast.error('Could not load the shared database: ' + res.error);
+      return;
+    }
+    setRows(res.rows);
+    setFileName(res.fileName);
+  }, [site]);
+
   useEffect(() => {
     if (authLoading) return;
     let active = true;
 
     const loadLatestData = async () => {
       setDataLoading(true);
+      const res = await fetchSiteRows(site);
+      if (!active) return;
+      if (res.error) {
+        toast.error('Could not load the shared database: ' + res.error);
+      } else {
+        setRows(res.rows);
+        setFileName(res.fileName);
+      }
+
       if (user) {
-        const { data, error } = await supabase
-          .from('npi_order_dashboard_data')
-          .select('data, file_name')
-          .eq('site', site)
-          .maybeSingle();
-
-        if (!active) return;
-        if (!error && data) {
-          const savedRows = Array.isArray(data.data) ? data.data as Row[] : [];
-          setRows(savedRows);
-          setFileName(data.file_name);
-          localStorage.setItem(STORAGE_KEY_DATA(site), JSON.stringify(savedRows));
-          localStorage.setItem(STORAGE_KEY_FILENAME(site), data.file_name);
-        } else if (!error) {
-          // Recover uploads made before shared persistence was working. If this
-          // browser has the site's last dataset and the shared row is missing,
-          // publish it once so every signed-in user can load it from now on.
-          let cachedRows: Row[] = [];
-          let cachedFileName = '';
-          try {
-            const cached = localStorage.getItem(STORAGE_KEY_DATA(site));
-            const parsed = cached ? JSON.parse(cached) : [];
-            cachedRows = Array.isArray(parsed) ? parsed : [];
-            cachedFileName = localStorage.getItem(STORAGE_KEY_FILENAME(site)) || '';
-          } catch {
-            cachedRows = [];
-          }
-
-          if (cachedRows.length > 0) {
-            const { error: recoveryError } = await supabase
-              .from('npi_order_dashboard_data')
-              .upsert({
-                site,
-                file_name: cachedFileName,
-                data: cachedRows,
-                uploaded_by: user.id,
-                uploaded_at: new Date().toISOString(),
-              }, { onConflict: 'site' });
-
-            if (!active) return;
-            if (recoveryError) {
-              toast.error('Could not publish the saved dashboard data: ' + recoveryError.message);
-            } else {
-              setRows(cachedRows);
-              setFileName(cachedFileName);
-              toast.success(`${siteLabel} data is now shared with all signed-in users.`);
-            }
-          }
-        } else if (error) {
-          toast.error('Could not load the saved dashboard data');
-        }
-
-        // Shared company revenue targets
         const targets = await fetchRevenueTargets(site);
         if (!active) return;
         if (targets.all !== undefined) setTotalCompanyRevenue(targets.all || 0);
         setTargetsVersion(v => v + 1);
-        // Keeps custom site labels resolvable after a hard reload
         void fetchAllSites();
       }
 
       if (active) setDataLoading(false);
     };
 
-
-    try {
-      const cached = localStorage.getItem(STORAGE_KEY_DATA(site));
-      setRows(cached ? JSON.parse(cached) : []);
-    } catch { setRows([]); }
-    setFileName(localStorage.getItem(STORAGE_KEY_FILENAME(site)) || '');
+    setRows([]);
+    setFileName('');
     setTotalCompanyRevenue(parseFloat(localStorage.getItem(STORAGE_KEY_REV(site)) || '0') || 0);
     setNpiOnly(site !== 'plainview');
     void loadLatestData();
 
     const channel = supabase
-      .channel(`npi-order-dashboard-${site}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'npi_order_dashboard_data', filter: `site=eq.${site}` }, () => {
+      .channel(`npi-order-rows-${site}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'npi_order_rows', filter: `site=eq.${site}` }, () => {
         void loadLatestData();
       })
       .subscribe();
@@ -250,6 +207,7 @@ export default function NPIOrderIntelligence() {
       void supabase.removeChannel(channel);
     };
   }, [site, user, authLoading]);
+
 
 
   // View mode
