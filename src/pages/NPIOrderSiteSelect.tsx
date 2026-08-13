@@ -29,7 +29,7 @@ export default function NPIOrderSiteSelect() {
   return (
     <AppLayout title="NPI Order Dashboard" subtitle="Select a site to open its dashboard" showBackButton backTo="/npi">
       <main className="container mx-auto px-4 py-8">
-        <div className="grid gap-6 md:grid-cols-2 max-w-4xl mx-auto">
+        <div className="grid gap-6 md:grid-cols-3 max-w-6xl mx-auto">
           {SITES.map((s) => (
             <Card
               key={s.id}
