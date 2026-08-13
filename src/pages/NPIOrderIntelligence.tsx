@@ -980,9 +980,6 @@ export default function NPIOrderIntelligence() {
           </CardContent>
         </Card>
 
-        {!empty && (
-          <RecordsManager rows={rows} cols={cols} busy={busy} onDelete={handleDeleteRows} />
-        )}
 
 
         {dataLoading ? (
