@@ -246,7 +246,12 @@ export default function NPIOrderIntelligence() {
     cmpKpiExport: useRef<HTMLDivElement>(null),
   };
 
-  const handleFile = useCallback(async (file: File) => {
+  const handleFile = useCallback(async (file: File, mode: 'replace' | 'append' = 'replace') => {
+    if (!user) {
+      toast.error('Sign in to upload — the data is stored in the shared database.');
+      return;
+    }
+    setBusy(true);
     try {
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, { type: 'array', cellDates: true });
@@ -264,38 +269,57 @@ export default function NPIOrderIntelligence() {
       const ws = wb.Sheets[sheetName];
       const data = XLSX.utils.sheet_to_json<Row>(ws, { defval: null });
 
-      // Always show the data locally first, then try to persist it for everyone.
-      setRows(data);
-      setFileName(file.name);
-      try {
-        localStorage.setItem(STORAGE_KEY_DATA(site), JSON.stringify(data));
-        localStorage.setItem(STORAGE_KEY_FILENAME(site), file.name);
-      } catch {}
-      toast.success(`Loaded ${data.length} rows from ${sheetName} in ${file.name}`);
+      const err = mode === 'append'
+        ? await appendSiteRows(site, file.name, data, user.id)
+        : await replaceSiteRows(site, file.name, data, user.id);
 
-      if (!user) {
-        toast.warning('Not signed in — this upload stays on this device only. Sign in to share it with everyone.');
-        return;
-      }
-
-      const { error: saveError } = await supabase
-        .from('npi_order_dashboard_data')
-        .upsert({
-          site,
-          file_name: file.name,
-          data,
-          uploaded_by: user.id,
-          uploaded_at: new Date().toISOString(),
-        }, { onConflict: 'site' });
-      if (saveError) {
-        toast.error('Loaded locally, but saving to the shared database failed: ' + saveError.message);
+      if (err) {
+        toast.error('Saving to the shared database failed: ' + err);
       } else {
-        toast.success('Upload saved and shared with all signed-in users.');
+        toast.success(
+          `${mode === 'append' ? 'Added' : 'Saved'} ${data.length} rows from ${sheetName} — shared with all users.`,
+        );
       }
+      await reload();
     } catch (e: any) {
       toast.error('Failed to read file: ' + e.message);
+    } finally {
+      setBusy(false);
     }
-  }, [site, user]);
+  }, [site, user, reload]);
+
+  const handleClearAll = useCallback(async () => {
+    if (!user) {
+      toast.error('Sign in to change the shared database.');
+      return;
+    }
+    if (!window.confirm(`Delete ALL ${siteLabel} records from the shared database? This cannot be undone.`)) return;
+    setBusy(true);
+    const err = await clearSiteRows(site);
+    setBusy(false);
+    if (err) toast.error('Could not clear the database: ' + err);
+    else {
+      toast.success('Shared database cleared.');
+      await reload();
+    }
+  }, [site, siteLabel, user, reload]);
+
+  const handleDeleteRows = useCallback(async (ids: string[]) => {
+    if (!user) {
+      toast.error('Sign in to change the shared database.');
+      return;
+    }
+    if (!ids.length) return;
+    setBusy(true);
+    const err = await deleteSiteRowIds(ids);
+    setBusy(false);
+    if (err) toast.error('Could not delete: ' + err);
+    else {
+      toast.success(`${ids.length} record${ids.length > 1 ? 's' : ''} removed from the shared database.`);
+      await reload();
+    }
+  }, [user, reload]);
+
 
   // Column detection must scan many rows: XLSX omits keys for empty cells, so the
   // first row alone can hide columns (e.g. part / date) present further down.
