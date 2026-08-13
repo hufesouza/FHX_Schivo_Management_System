@@ -143,8 +143,8 @@ export default function NPIOrderIntelligence() {
   const { user, loading: authLoading } = useAuth();
   const site = (siteParam || 'waterford').toLowerCase();
   const siteLabel = SITE_LABELS[site] || 'Schivo Waterford';
-  setCurrency(site === 'plainview' ? 'USD' : 'EUR');
-  const sym = site === 'plainview' ? '$' : '€';
+  setCurrency(site === 'plainview' ? 'USD' : site === 'quebec' ? 'CAD' : 'EUR');
+  const sym = site === 'waterford' ? '€' : '$';
 
   const [rows, setRows] = useState<Row[]>(() => {
     try {
