@@ -121,8 +121,6 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 
 const STORAGE_KEY_REV = (site: string) => `npi-oi-total-company-revenue:${site}`;
 const STORAGE_KEY_REV_YEAR = (site: string, y: number) => `npi-oi-total-company-revenue:${site}:${y}`;
-const STORAGE_KEY_DATA = (site: string) => `npi-oi-data:${site}`;
-const STORAGE_KEY_FILENAME = (site: string) => `npi-oi-filename:${site}`;
 
 type NormRow = {
   raw: Row;
