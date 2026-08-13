@@ -153,6 +153,8 @@ export default function NPIOrderIntelligence() {
   });
   // per-year override in single mode
   const [yearRevenue, setYearRevenue] = useState<number>(0);
+  // bumped whenever shared revenue targets arrive so dependent effects re-read them
+  const [targetsVersion, setTargetsVersion] = useState(0);
 
   // The database is authoritative; local storage remains an offline/fast-load fallback.
   useEffect(() => {
@@ -178,10 +180,19 @@ export default function NPIOrderIntelligence() {
         } else if (error) {
           toast.error('Could not load the saved dashboard data');
         }
+
+        // Shared company revenue targets
+        const targets = await fetchRevenueTargets(site);
+        if (!active) return;
+        if (targets.all !== undefined) setTotalCompanyRevenue(targets.all || 0);
+        setTargetsVersion(v => v + 1);
+        // Keeps custom site labels resolvable after a hard reload
+        void fetchAllSites();
       }
 
       if (active) setDataLoading(false);
     };
+
 
     try {
       const cached = localStorage.getItem(STORAGE_KEY_DATA(site));
