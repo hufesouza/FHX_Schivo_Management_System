@@ -1015,6 +1015,24 @@ export default function NPIOrderIntelligence() {
                   <KpiCard label="Closed Value (Invoiced)" value={fmtEur(kpis.closedRev)} icon={Euro} tone="green" />
                 </div>
 
+                {/* Reconciliation helper: explains any gap vs the raw column total */}
+                {rows.length > 0 && (() => {
+                  const fileTotal = normalised.reduce((s, r) => s + r.revenue, 0);
+                  const gap = fileTotal - kpis.totalRev;
+                  const excludedNpi = hasNpiCol && npiOnly ? normalised.filter(r => !r.isNpi).length : 0;
+                  const noDate = fYear !== 'all' ? normalised.filter(r => !r.date).length : 0;
+                  if (Math.abs(gap) < 0.01) return null;
+                  return (
+                    <div className="rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                      Raw file total ({colMap.revenue || 'revenue column'}): <span className="font-semibold text-foreground tabular-nums">{fmtEur(fileTotal)}</span> over {fmtNum(normalised.length)} rows.
+                      Current filters show <span className="font-semibold text-foreground tabular-nums">{fmtEur(kpis.totalRev)}</span> over {fmtNum(kpis.total)} rows — difference {fmtEur(gap)}.
+                      {excludedNpi > 0 && <> {fmtNum(excludedNpi)} rows hidden by “NPI only”.</>}
+                      {noDate > 0 && <> {fmtNum(noDate)} rows have no date and are excluded by the year filter.</>}
+                    </div>
+                  );
+                })()}
+
+
                 {/* NPVI */}
                 <Card>
                   <CardContent className="p-5">
