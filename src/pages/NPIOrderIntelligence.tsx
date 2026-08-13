@@ -302,7 +302,13 @@ export default function NPIOrderIntelligence() {
     }
   }, [site, user]);
 
-  const cols = useMemo(() => rows.length ? Object.keys(rows[0]) : [], [rows]);
+  // Column detection must scan many rows: XLSX omits keys for empty cells, so the
+  // first row alone can hide columns (e.g. part / date) present further down.
+  const cols = useMemo(() => {
+    const set = new Set<string>();
+    rows.slice(0, 500).forEach(r => Object.keys(r || {}).forEach(k => set.add(k)));
+    return Array.from(set);
+  }, [rows]);
   const autoColMap = useMemo(() => ({
     customer: findCol(cols, ['customer_name', 'customername', 'customer name', 'customer', 'client', 'account']),
     po: findCol(cols, ['so_number', 'sonumber', 'so number', 'so no', 'po', 'po number', 'po no', 'purchase order', 'order no', 'order number']),
