@@ -114,7 +114,7 @@ export const buildInteractiveGroupData = (
         : siteBlocks[0]?.label || '-',
     months: months.map(k => ({ k, label: mLabel(k) })),
     sites,
-    custPages: Math.max(1, Math.min(maxCustomers, ...[Math.max(...sites.map(s => s.customers.length), 1)])),
+    custPages: Math.max(1, Math.min(maxCustomers, Math.max(...sites.map(s => s.customers.length), 1))),
   };
 };
 
@@ -643,7 +643,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
 
   // Open as a single visible page, no thumbnails / no viewer chrome.
   try {
-    pdf.setDisplayMode('fullpage', 'single', 'UseNone');
+    (pdf as any).setDisplayMode('fullpage', 'single', 'UseNone');
     (pdf as any).viewerPreferences?.({
       HideToolbar: true,
       HideMenubar: true,
