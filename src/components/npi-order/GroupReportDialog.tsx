@@ -84,6 +84,28 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
     }
   };
 
+  const handleInteractive = async () => {
+    if (!chosen.length) {
+      toast.error('Select at least one site with uploaded data');
+      return;
+    }
+    setInteractive(true);
+    try {
+      const data = buildInteractiveGroupData(
+        chosen.map(d => ({ ds: d, label: sites.find(s => s.id === d.site)?.title || d.site })),
+        year,
+        npiOnly
+      );
+      await exportInteractiveGroupReport(data);
+      toast.success(`Interactive group PDF generated for ${chosen.length} site(s) — open it in Adobe Acrobat Reader`);
+    } catch (e: any) {
+      toast.error('Could not generate the interactive PDF: ' + e.message);
+    } finally {
+      setInteractive(false);
+    }
+  };
+
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
