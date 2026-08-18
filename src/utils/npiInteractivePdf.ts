@@ -400,34 +400,35 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     {
       const x = panel(0, 'NPI target coverage');
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(17);
+      pdf.setFontSize(16);
       pdf.setTextColor(15, 23, 42);
-      pdf.text(pctTxt(coverage), x + 4, panelY + 16);
+      pdf.text(pctTxt(coverage), x + 4, panelY + 14);
       const gw = panW - 8;
-      const gy = panelY + 20;
+      const gy = panelY + 16.5;
       pdf.setFillColor(226, 232, 240);
-      pdf.roundedRect(x + 4, gy, gw, 4.5, 1, 1, 'F');
+      pdf.roundedRect(x + 4, gy, gw, 4, 1, 1, 'F');
       const frac = coverage === null ? 0 : Math.max(0, Math.min(1, coverage / 100));
       if (frac > 0) {
         pdf.setFillColor(...(coverage !== null && coverage >= 100 ? [16, 185, 129] : [59, 130, 246]) as [number, number, number]);
-        pdf.roundedRect(x + 4, gy, Math.max(1, gw * frac), 4.5, 1, 1, 'F');
+        pdf.roundedRect(x + 4, gy, Math.max(1, gw * frac), 4, 1, 1, 'F');
       }
       pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(6.8);
+      pdf.setFontSize(6.6);
       pdf.setTextColor(71, 85, 105);
       pdf.text(
         requiredNpi > 0
           ? `${fmtM(gTotal)} achieved / ${fmtM(requiredNpi)} required`
           : 'Enter projected revenue and NPVI benchmark',
-        x + 4, gy + 9
+        x + 4, gy + 7.5
       );
       if (requiredNpi > 0) {
         pdf.text(
           npiGap > 0 ? `${fmtM(npiGap)} remaining` : `${fmtM(-npiGap)} above requirement`,
-          x + 4, gy + 13
+          x + 4, gy + 11.3
         );
       }
     }
+
 
     // panel 2 - pipeline coverage
     {
