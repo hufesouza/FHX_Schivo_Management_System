@@ -88,36 +88,64 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
   }, [visibleMonths, selectedMonth]);
 
 
+  const isAll = selectedMonth === ALL;
   const monthIdx = monthKeys.indexOf(selectedMonth);
   const prevMonthKey = monthIdx > 0 ? monthKeys[monthIdx - 1] : '';
 
+  // previous comparable window (same number of months immediately before the visible range)
+  const prevWindow = useMemo(() => {
+    if (!visibleMonths.length) return [] as string[];
+    const firstIdx = monthKeys.indexOf(visibleMonths[0]);
+    const n = visibleMonths.length;
+    return monthKeys.slice(Math.max(0, firstIdx - n), firstIdx);
+  }, [monthKeys, visibleMonths]);
+
+  const periodLabel = isAll
+    ? visibleMonths.length
+      ? `${monthLabel(visibleMonths[0])} – ${monthLabel(visibleMonths[visibleMonths.length - 1])}`
+      : '—'
+    : selectedMonth
+      ? monthLabel(selectedMonth)
+      : '—';
+
   const ranking = useMemo(() => {
-    const inner = byMonth.get(selectedMonth);
-    const prev = byMonth.get(prevMonthKey);
-    const totalRev = totals.get(selectedMonth) || 0;
-    const list = inner
-      ? Array.from(inner.entries())
-          .filter(([, v]) => v > 0)
-          .sort((a, b) => b[1] - a[1])
-      : [];
+    const aggregate = (keys: string[]) => {
+      const m = new Map<string, number>();
+      let total = 0;
+      keys.forEach(k => {
+        const inner = byMonth.get(k);
+        if (inner) inner.forEach((v, name) => m.set(name, (m.get(name) || 0) + v));
+        total += totals.get(k) || 0;
+      });
+      return { m, total };
+    };
+
+    const cur = isAll ? aggregate(visibleMonths) : aggregate(selectedMonth ? [selectedMonth] : []);
+    const prevAgg = isAll ? aggregate(prevWindow) : aggregate(prevMonthKey ? [prevMonthKey] : []);
+    const prev = prevAgg.m;
+    const totalRev = cur.total;
+    const list = Array.from(cur.m.entries())
+      .filter(([, v]) => v > 0)
+      .sort((a, b) => b[1] - a[1]);
     const top = list.slice(0, 10).map(([name, revenue], i) => ({
       name,
       revenue,
       color: PALETTE[i % PALETTE.length],
       share: totalRev > 0 ? (revenue / totalRev) * 100 : 0,
-      d: delta(revenue, prev?.get(name) || 0),
+      d: delta(revenue, prev.get(name) || 0),
     }));
     const topTotal = top.reduce((s, c) => s + c.revenue, 0);
-    const prevTopTotal = top.reduce((s, c) => s + (prev?.get(c.name) || 0), 0);
+    const prevTopTotal = top.reduce((s, c) => s + (prev.get(c.name) || 0), 0);
     return {
       top,
       totalRev,
       topTotal,
       others: Math.max(totalRev - topTotal, 0),
       topDelta: delta(topTotal, prevTopTotal),
-      monthDelta: delta(totalRev, totals.get(prevMonthKey) || 0),
+      monthDelta: delta(totalRev, prevAgg.total),
     };
-  }, [byMonth, totals, selectedMonth, prevMonthKey]);
+  }, [byMonth, totals, selectedMonth, prevMonthKey, isAll, visibleMonths, prevWindow]);
+
 
   const colorOf = useMemo(() => {
     const m = new Map<string, string>();
