@@ -307,7 +307,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     (s, m) => s + G.customers.reduce((a, c) => a + cellOf(G, c, m.k).c, 0), 0);
   const gOpen = gTotal - gClosed;
 
-  // ---------- PAGE 1: EXECUTIVE SUMMARY ----------
+  // ---------- PAGE 1: OVERVIEW ----------
   {
     pdf.setPage(OVERVIEW);
     header();
@@ -319,7 +319,6 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     const npviVsProjected = projected > 0 ? (gTotal / projected) * 100 : null;
     const achievement = projected > 0 && actualCompany > 0 ? (actualCompany / projected) * 100 : null;
 
-
     const fmtM = (n: number) => {
       const v = n || 0;
       const a = Math.abs(v);
@@ -329,107 +328,123 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     };
     const pctTxt = (n: number | null) => (n === null ? 'n/a' : `${n.toFixed(1)}%`);
 
-    // deep dive buttons (top right area / row)
-    const navs: { t: string; p: number }[] = [
-      { t: 'SITE PERFORMANCE >', p: GROUP },
-      { t: 'MONTHLY PERFORMANCE >', p: pageOf(0, nMonths - 1) },
-      { t: 'CUSTOMER PERFORMANCE >', p: custOf(0, 0) },
-      { t: 'NPI PIPELINE >', p: matrixOf(0) },
-    ];
-    const nbw = (pw - 2 * M - 3 * 4) / 4;
-    navs.forEach((n, i) => darkPill(n.t, M + i * (nbw + 4), 31, nbw, n.p));
+    // site navigation row + pipeline deep dive
+    label('GO TO SITE', 29);
+    const sw0 = Math.min(58, (pw - 2 * M - 44 - (nSites - 1) * 3) / nSites);
+    data.sites.forEach((s, i) => {
+      pill(s.label, M + i * (sw0 + 3), 31, sw0, 7, i === 0, i === 0 ? GROUP : pageOf(i, nMonths - 1));
+    });
+    darkPill('NPI PIPELINE >', pw - M - 42, 31, 42, matrixOf(0));
 
-    // SECTION A
-    sectionTitle('Company performance', 44);
-    kpiGrid([
-      { label: 'Site revenue (actual)', value: actualCompany > 0 ? fmtM(actualCompany) : 'not set', accent: [15, 23, 42], tint: [241, 245, 249] },
-      { label: 'Projected company revenue', value: projected > 0 ? fmtM(projected) : 'not set', accent: [59, 130, 246], tint: [239, 246, 255] },
+    // KPI row 1 - group figures
+    let y = kpiGrid([
+      { label: 'NPI revenue (period)', value: fmtEur(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
+      { label: 'Site revenue', value: actualCompany > 0 ? fmtEur(actualCompany) : 'not set', accent: [15, 23, 42], tint: [241, 245, 249] },
+      { label: 'New Product Vitality Index', value: actualNpvi === null ? 'n/a' : `${actualNpvi.toFixed(2)}%`, accent: [139, 92, 246], tint: [245, 243, 255] },
+      { label: 'Invoiced (closed)', value: fmtEur(gClosed), accent: [16, 185, 129], tint: [236, 253, 245] },
+      { label: 'To invoice (open)', value: fmtEur(gOpen), accent: [245, 158, 11], tint: [255, 251, 235] },
+      { label: 'Customers', value: String(G.customers.length), accent: [100, 116, 139], tint: [248, 250, 252] },
+    ], 42);
+
+    // KPI row 2 - projected revenue metrics
+    y = kpiGrid([
+      { label: 'Projected company revenue', value: projected > 0 ? fmtM(projected) : 'not set', accent: [37, 99, 235], tint: [239, 246, 255] },
       { label: 'Revenue achievement', value: pctTxt(achievement), accent: [37, 99, 235], tint: [239, 246, 255] },
-    ], 47.5, 14);
+      { label: 'New Product Vitality Index vs projected revenue', value: npviVsProjected === null ? 'n/a' : `${npviVsProjected.toFixed(2)}%`, accent: [139, 92, 246], tint: [245, 243, 255] },
+    ], y - 2, 15);
 
-    // SECTION B
-    sectionTitle('NPI performance', 66);
-    kpiGrid([
-      { label: 'NPI revenue (period)', value: fmtM(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
-      { label: 'Open NPI (to invoice)', value: fmtM(gOpen), accent: [245, 158, 11], tint: [255, 251, 235] },
-      { label: 'Actual New Product Vitality Index', value: actualNpvi === null ? 'n/a' : `${actualNpvi.toFixed(2)}%`, accent: [139, 92, 246], tint: [245, 243, 255] },
-      { label: 'New Product Vitality Index vs projected revenue', value: npviVsProjected === null ? 'n/a' : `${npviVsProjected.toFixed(2)}%`, accent: [37, 99, 235], tint: [239, 246, 255] },
-    ], 69.5, 16);
-
-    const panelY = 87;
-    const panelH = 0;
-
-
-
-
-    // SECTION E - site performance (compact)
-    let sy = panelY + panelH + 6;
-    sectionTitle('Site performance', sy);
-    pill('VIEW SITE DETAILS >', pw - M - 42, sy - 4, 42, 6, false, GROUP);
-    const detail = data.sites.slice(1, 7);
-    const npviOf = (S: SiteBlock) => {
-      const t = siteTotal(S);
-      return S.companyRevenue > 0 ? (t / S.companyRevenue) * 100 : 0;
-    };
-    const closedOf = (S: SiteBlock) =>
-      data.months.reduce((s, m) => s + S.customers.reduce((a, c) => a + cellOf(S, c, m.k).c, 0), 0);
+    sectionTitle('Site comparison', y);
     autoTable(pdf, {
-      startY: sy + 3,
-      head: [['Site', 'NPI revenue', '% of NPI Revenue', 'New Product Vitality Index', 'Closed', 'Open']],
-      body: detail.map(S => {
+      startY: y + 4,
+      head: [['Site', 'NPI revenue', 'Share of group', 'Site revenue', 'New Product Vitality Index', 'Closed', 'Open', 'Customers']],
+      body: data.sites.slice(1).map(S => {
         const t = siteTotal(S);
-        const c = closedOf(S);
+        const closed = data.months.reduce((s, m) => s + S.customers.reduce((a, c) => a + cellOf(S, c, m.k).c, 0), 0);
         return [
-          clip(S.label, 34), fmtM(t),
+          clip(S.label, 34),
+          fmtEur(t),
           gTotal > 0 ? `${((t / gTotal) * 100).toFixed(1)}%` : '-',
-          S.companyRevenue > 0 ? `${npviOf(S).toFixed(2)}%` : 'n/a',
-          fmtM(c), fmtM(t - c),
+          S.companyRevenue > 0 ? fmtEur(S.companyRevenue) : 'not set',
+          npvi(t, S.companyRevenue) === null ? 'n/a' : fmtPp(npvi(t, S.companyRevenue)),
+          fmtEur(closed),
+          fmtEur(t - closed),
+          String(S.customers.length),
         ];
       }),
       foot: [[
-        'GROUP', fmtM(gTotal), '100.0%',
+        'GROUP', fmtEur(gTotal), '100.0%',
+        actualCompany > 0 ? fmtEur(actualCompany) : 'not set',
         actualNpvi === null ? 'n/a' : `${actualNpvi.toFixed(2)}%`,
-        fmtM(gClosed), fmtM(gOpen),
+        fmtEur(gClosed), fmtEur(gOpen), String(G.customers.length),
       ]],
       margin: { left: M, right: M },
       theme: 'grid',
-      styles: { fontSize: 7.2, cellPadding: 1.3, halign: 'right', textColor: [30, 41, 59], lineColor: [226, 232, 240] },
-      columnStyles: {
-        0: { halign: 'left', cellWidth: 58, fontStyle: 'bold' },
-      },
-      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 6.6, halign: 'right' },
+      styles: { fontSize: 8, cellPadding: 1.8, halign: 'right', textColor: [30, 41, 59], lineColor: [226, 232, 240] },
+      columnStyles: { 0: { halign: 'left', cellWidth: 62, fontStyle: 'bold' } },
+      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7, halign: 'right' },
       footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', halign: 'right' },
       alternateRowStyles: { fillColor: [249, 250, 252] },
       didParseCell: (d: any) => {
         if (d.section === 'head' && d.column.index === 0) d.cell.styles.halign = 'left';
       },
-
       didDrawCell: (d: any) => {
         if (d.section === 'body' && d.column.index === 0) {
-          const S = detail[d.row.index];
+          const S = data.sites.slice(1)[d.row.index];
           const si = data.sites.indexOf(S);
           if (si > 0) pdf.link(d.cell.x, d.cell.y, d.cell.width, d.cell.height, { pageNumber: pageOf(si, nMonths - 1) });
         }
       },
     });
 
-    // SECTION F - customer concentration
-    let cy = Math.min(((pdf as any).lastAutoTable?.finalY || sy + 24) + 6, 150);
-    sectionTitle('Customer concentration', cy);
-    pill('VIEW CUSTOMER DETAILS >', pw - M - 48, cy - 4, 48, 6, false, custOf(0, 0));
-    const sumTop = (n: number) => G.customers.slice(0, n).reduce((s, c) => s + (G.custTotals[c] || 0), 0);
-    const share = (v: number) => (gTotal > 0 ? `${((v / gTotal) * 100).toFixed(1)}%` : 'n/a');
-    const top1Name = G.customers[0] || 'n/a';
-    kpiGrid([
-      { label: `Top customer - ${clip(top1Name, 26)}`, value: `${fmtM(sumTop(1))}  (${share(sumTop(1))})`, accent: [59, 130, 246], tint: [239, 246, 255] },
-      { label: 'Top 3 customers', value: `${fmtM(sumTop(3))}  (${share(sumTop(3))})`, accent: [37, 99, 235], tint: [239, 246, 255] },
-      { label: 'Top 10 customers', value: `${fmtM(sumTop(10))}  (${share(sumTop(10))})`, accent: [15, 23, 42], tint: [241, 245, 249] },
-      { label: 'Active customers', value: String(G.customers.length), accent: [100, 116, 139], tint: [248, 250, 252] },
-    ], cy + 4, 16);
-
+    let yc = ((pdf as any).lastAutoTable?.finalY || y + 30) + 8;
+    sectionTitle('Top 10 group customers - revenue and New Product Vitality Index contribution', yc);
+    const topC = G.customers.slice(0, 10);
+    const maxC = Math.max(1, ...topC.map(c => G.custTotals[c] || 0));
+    autoTable(pdf, {
+      startY: yc + 4,
+      head: [['#', 'Customer', 'Share', 'Revenue', '% of NPI Revenue', 'New Product Vitality Index contribution']],
+      body: topC.map((c, i) => [
+        String(i + 1),
+        clip(c, 40),
+        '',
+        fmtEur(G.custTotals[c] || 0),
+        gTotal > 0 ? `${(((G.custTotals[c] || 0) / gTotal) * 100).toFixed(1)}%` : '-',
+        npvi(G.custTotals[c] || 0, G.companyRevenue) === null ? 'n/a' : fmtPp(npvi(G.custTotals[c] || 0, G.companyRevenue)),
+      ]),
+      margin: { left: M, right: M },
+      theme: 'grid',
+      styles: { fontSize: 7.6, cellPadding: 1.6, textColor: [30, 41, 59], lineColor: [226, 232, 240] },
+      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7, halign: 'left' },
+      alternateRowStyles: { fillColor: [249, 250, 252] },
+      columnStyles: {
+        0: { cellWidth: 9, halign: 'center', fontStyle: 'bold', textColor: [100, 116, 139] },
+        1: { cellWidth: 66 },
+        2: { cellWidth: 46 },
+        3: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
+        4: { cellWidth: 28, halign: 'right' },
+        5: { halign: 'right' },
+      },
+      didDrawCell: (d: any) => {
+        if (d.section !== 'body') return;
+        const name = topC[d.row.index];
+        if (!name) return;
+        if (d.column.index === 2) {
+          const bw = d.cell.width - 4;
+          const by = d.cell.y + d.cell.height / 2 - 1.5;
+          pdf.setFillColor(226, 232, 240);
+          pdf.roundedRect(d.cell.x + 2, by, bw, 3, 0.8, 0.8, 'F');
+          pdf.setFillColor(59, 130, 246);
+          pdf.roundedRect(d.cell.x + 2, by, Math.max(0.8, ((G.custTotals[name] || 0) / maxC) * bw), 3, 0.8, 0.8, 'F');
+        }
+        if (d.column.index === 1 && d.row.index < nCust) {
+          pdf.link(d.cell.x, d.cell.y, d.cell.width, d.cell.height, { pageNumber: custOf(0, d.row.index) });
+        }
+      },
+    });
 
     footer(OVERVIEW);
   }
+
 
   // ---------- PAGE 2: GROUP DEEP DIVE ----------
   {
