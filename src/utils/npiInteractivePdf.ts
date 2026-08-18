@@ -440,22 +440,22 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       ];
       rows.forEach((r, i) => {
         pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(7);
+        pdf.setFontSize(6.8);
         pdf.setTextColor(71, 85, 105);
-        pdf.text(r[0], x + 4, panelY + 11 + i * 4.6);
+        pdf.text(r[0], x + 4, panelY + 10.5 + i * 4.2);
         pdf.setFont('helvetica', 'bold');
         pdf.setTextColor(15, 23, 42);
-        pdf.text(r[1], x + panW - 4, panelY + 11 + i * 4.6, { align: 'right' });
+        pdf.text(r[1], x + panW - 4, panelY + 10.5 + i * 4.2, { align: 'right' });
       });
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(12);
+      pdf.setFontSize(11);
       pdf.setTextColor(...(openCoverage !== null && openCoverage >= 100 ? [16, 185, 129] : [245, 158, 11]) as [number, number, number]);
       pdf.text(
         openCoverage === null ? (requiredNpi > 0 ? 'no gap' : 'n/a') : `${openCoverage.toFixed(0)}%`,
-        x + 4, panelY + 30
+        x + 4, panelY + 27
       );
       pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(6.4);
+      pdf.setFontSize(6.2);
       pdf.setTextColor(71, 85, 105);
       const msg =
         requiredNpi <= 0
@@ -463,9 +463,9 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
           : npiGap <= 0
             ? 'No NPI gap: current NPI revenue already meets the requirement.'
             : openCoverage !== null && openCoverage >= 100
-              ? `Current open NPI provides ${openCoverage.toFixed(0)}% coverage of the identified NPI gap.`
-              : `Current open NPI provides ${(openCoverage || 0).toFixed(0)}% coverage of the identified NPI gap (not sufficient).`;
-      pdf.text(pdf.splitTextToSize(msg, panW - 26), x + 22, panelY + 27.5);
+              ? `Open NPI provides ${openCoverage.toFixed(0)}% coverage of the identified NPI gap.`
+              : `Open NPI provides ${(openCoverage || 0).toFixed(0)}% coverage of the identified NPI gap (not sufficient).`;
+      pdf.text(pdf.splitTextToSize(msg, panW - 28), x + 24, panelY + 24.5);
     }
 
     // panel 3 - outlook
@@ -479,20 +479,21 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       ];
       rows.forEach((r, i) => {
         pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(6.8);
+        pdf.setFontSize(6.6);
         pdf.setTextColor(71, 85, 105);
-        pdf.text(r[0], x + 4, panelY + 11 + i * 4.4);
+        pdf.text(r[0], x + 4, panelY + 10.5 + i * 4);
         pdf.setFont('helvetica', 'bold');
         pdf.setTextColor(15, 23, 42);
-        pdf.text(r[1], x + panW - 4, panelY + 11 + i * 4.4, { align: 'right' });
+        pdf.text(r[1], x + panW - 4, panelY + 10.5 + i * 4, { align: 'right' });
       });
       pdf.setFillColor(...statusCol);
-      pdf.roundedRect(x + 4, panelY + 27, 44, 5.6, 1.2, 1.2, 'F');
+      pdf.roundedRect(x + 4, panelY + 23, 44, 5.4, 1.2, 1.2, 'F');
       pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(7.4);
+      pdf.setFontSize(7.2);
       pdf.setTextColor(255, 255, 255);
-      pdf.text(status, x + 26, panelY + 30.9, { align: 'center' });
+      pdf.text(status, x + 26, panelY + 26.7, { align: 'center' });
     }
+
 
     // SECTION E - site performance (compact)
     let sy = panelY + panelH + 6;
