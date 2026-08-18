@@ -442,6 +442,28 @@ export default function NPIOrderIntelligence() {
   const customerByOrders = useMemo(() =>
     [...byCustomer].sort((a, b) => b.orders - a.orders).slice(0, 15), [byCustomer]);
 
+  // Top 10 customers, revenue split by month (stacked)
+  const top10Customers = useMemo(() =>
+    [...byCustomer].sort((a, b) => b.revenue - a.revenue).slice(0, 10).map(c => c.name),
+    [byCustomer]);
+
+  const top10CustomerMonthly = useMemo(() => {
+    const set = new Set(top10Customers);
+    const map = new Map<string, any>();
+    filtered.forEach(r => {
+      if (!r.date || !r.customer || !set.has(r.customer)) return;
+      const sortKey = `${r.date.getFullYear()}-${String(r.date.getMonth() + 1).padStart(2, '0')}`;
+      let bucket = map.get(sortKey);
+      if (!bucket) {
+        bucket = { sortKey, month: r.date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }) };
+        top10Customers.forEach(n => { bucket[n] = 0; });
+        map.set(sortKey, bucket);
+      }
+      bucket[r.customer] += r.revenue;
+    });
+    return Array.from(map.values()).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  }, [filtered, top10Customers]);
+
   const byCommodity = useMemo(() => {
     const map = new Map<string, { revenue: number; orders: number }>();
     filtered.forEach(r => {
@@ -1212,7 +1234,24 @@ export default function NPIOrderIntelligence() {
                         </BarChart>
                       </ResponsiveContainer>
                     </ChartCard>
+                    <div className="md:col-span-2">
+                      <ChartCard title="Top 10 Customers by Month (Revenue)">
+                        <ResponsiveContainer width="100%" height={400}>
+                          <BarChart data={top10CustomerMonthly} margin={{ left: 10, right: 10, top: 10, bottom: 10 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                            <YAxis tickFormatter={(v) => `${sym}${(v / 1000).toFixed(0)}k`} />
+                            <Tooltip formatter={(v: any) => fmtEur(v as number)} />
+                            <Legend wrapperStyle={{ fontSize: 11 }} />
+                            {top10Customers.map((name, i) => (
+                              <Bar key={name} dataKey={name} stackId="c" fill={COLORS[i % COLORS.length]} />
+                            ))}
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </ChartCard>
+                    </div>
                   </TabsContent>
+
 
                   <TabsContent value="part" className="grid md:grid-cols-2 gap-4 mt-4">
                     <ChartCard title="Revenue by Part (Top 15)">
