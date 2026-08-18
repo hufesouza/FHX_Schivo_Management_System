@@ -40,20 +40,20 @@ export type InteractiveGroupData = {
 const emptyCell = (): Cell => ({ t: 0, o: 0, c: 0 });
 
 export const buildInteractiveGroupData = (
-  inputs: { ds: SiteDataset; label: string }[],
+  inputs: { ds: SiteDataset; label: string; companyRevenue?: number }[],
   year: string,
   npiOnly: boolean,
   maxMonths = 12,
   maxCustomers = 10
 ): InteractiveGroupData => {
-  const prepared = inputs.map(({ ds, label }) => {
+  const prepared = inputs.map(({ ds, label, companyRevenue }) => {
     let rows: NormRow[] = ds.rows;
     if (npiOnly && ds.hasNpiCol) rows = rows.filter(r => r.isNpi);
     if (year !== 'all') rows = rows.filter(r => r.date && String(r.date.getFullYear()) === year);
     return {
       label,
       rows: rows.filter(r => r.date),
-      companyRevenue: getSiteRevenueTarget(ds.site, year),
+      companyRevenue: companyRevenue ?? getSiteRevenueTarget(ds.site, year),
     };
   });
 
@@ -119,8 +119,10 @@ export const buildInteractiveGroupData = (
 };
 
 // ---------- PDF generation (link-driven interactivity) ----------
-const fmtEur = (n: number) =>
-  '\u20AC' + new Intl.NumberFormat('en-IE', { maximumFractionDigits: 0 }).format(Math.round(n || 0));
+const fmtEur = (n: number) => {
+  const v = Math.round(n || 0) || 0;
+  return '\u20AC' + new Intl.NumberFormat('en-IE', { maximumFractionDigits: 0 }).format(v);
+};
 const fmtNum = (n: number) => (n ? new Intl.NumberFormat('en-IE').format(Math.round(n)) : '-');
 const fmtPct = (n: number | null) => (n === null ? 'n/a' : `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`);
 const fmtPp = (n: number | null) => (n === null ? 'n/a' : `${n.toFixed(2)} pp`);
