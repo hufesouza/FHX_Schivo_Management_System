@@ -78,8 +78,15 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
 
   useEffect(() => {
     if (!visibleMonths.length) { setSelectedMonth(''); return; }
-    if (!visibleMonths.includes(selectedMonth)) setSelectedMonth(visibleMonths[visibleMonths.length - 1]);
+    if (!visibleMonths.includes(selectedMonth)) {
+      // default to the most recent month that is not in the future
+      const now = new Date();
+      const nowKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const past = visibleMonths.filter(m => m <= nowKey);
+      setSelectedMonth((past.length ? past : visibleMonths)[(past.length ? past : visibleMonths).length - 1]);
+    }
   }, [visibleMonths, selectedMonth]);
+
 
   const monthIdx = monthKeys.indexOf(selectedMonth);
   const prevMonthKey = monthIdx > 0 ? monthKeys[monthIdx - 1] : '';
