@@ -30,6 +30,32 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
   const [year, setYear] = useState('all');
   const [npiOnly, setNpiOnly] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [interactive, setInteractive] = useState(false);
+  const [interactiveSite, setInteractiveSite] = useState('');
+
+  useEffect(() => {
+    if (!interactiveSite) {
+      const first = datasets.find(d => d.rows.length > 0);
+      if (first) setInteractiveSite(first.site);
+    }
+  }, [datasets, interactiveSite]);
+
+  const handleInteractive = async () => {
+    const ds = datasets.find(d => d.site === interactiveSite);
+    if (!ds) return;
+    setInteractive(true);
+    try {
+      const label = sites.find(s => s.id === ds.site)?.title || ds.site;
+      const data = buildInteractiveData(ds, label, year, npiOnly);
+      await exportInteractiveCustomerReport(data);
+      toast.success('Interactive PDF generated — open it in Adobe Acrobat Reader');
+    } catch (e: any) {
+      toast.error('Could not generate the interactive PDF: ' + e.message);
+    } finally {
+      setInteractive(false);
+    }
+  };
+
 
   useEffect(() => {
     if (!open) return;
