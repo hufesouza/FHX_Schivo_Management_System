@@ -244,6 +244,82 @@ export function exportMultiSiteReport(stats: SiteStats[], year: string) {
       theme: 'grid',
       didDrawPage: () => drawHeader(),
     });
+    y = (pdf as any).lastAutoTable.finalY + 8;
+
+    // ---------- Top 10 Customers by Month ----------
+    const cw = s.customerWindow;
+    if (cw && cw.rows.length) {
+      pdf.addPage();
+      drawHeader();
+      y = 28;
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(12);
+      pdf.setTextColor(accent[0], accent[1], accent[2]);
+      pdf.text(`${s.label} - Top 10 Customers by Month`, margin, y);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(`Period: ${cw.periodLabel}  |  Top 10 total ${fmtEur(cw.rows.reduce((a, r) => a + r.total, 0))} of ${fmtEur(cw.total)}`, margin, y + 5);
+      y += 12;
+
+      const periodGrowth = cw.prevTotal > 0 ? ((cw.total - cw.prevTotal) / cw.prevTotal) * 100 : null;
+      kpiGrid([
+        { label: 'Period Revenue', value: fmtEur(cw.total), accent: [16, 185, 129], tint: [236, 253, 245] },
+        { label: 'Previous Period', value: fmtEur(cw.prevTotal), accent: [148, 163, 184], tint: [248, 250, 252] },
+        { label: 'Period Growth', value: periodGrowth === null ? 'n/a' : `${periodGrowth >= 0 ? '+' : ''}${periodGrowth.toFixed(1)}%`, accent: periodGrowth !== null && periodGrowth < 0 ? [244, 63, 94] : [59, 130, 246], tint: [239, 246, 255] },
+        { label: 'Customers In Period', value: String(cw.rows.length), accent: [139, 92, 246], tint: [245, 243, 255] },
+      ], 4);
+
+      sectionTitle('Ranking (period revenue)');
+      barChart(cw.rows.map(r => ({ label: r.name, value: Math.round(r.total), color: accent })), fmtEur, 6.6);
+
+      sectionTitle('Ranking Detail');
+      autoTable(pdf, {
+        startY: y,
+        head: [['#', 'Customer', 'Period Revenue', 'Share', 'Growth vs prev.']],
+        body: cw.rows.map((r, i) => [
+          String(i + 1),
+          r.name,
+          fmtEur(r.total),
+          `${r.share.toFixed(1)}%`,
+          r.growth === null ? 'new' : `${r.growth >= 0 ? '+' : ''}${r.growth.toFixed(1)}%`,
+        ]),
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 7.5, cellPadding: 1.6 },
+        columnStyles: { 0: { cellWidth: 8 }, 2: { halign: 'right' }, 3: { halign: 'right' }, 4: { halign: 'right' } },
+        headStyles: { fillColor: [30, 41, 59], textColor: 255 },
+        theme: 'grid',
+        didDrawPage: () => drawHeader(),
+      });
+      y = (pdf as any).lastAutoTable.finalY + 8;
+
+      sectionTitle('Monthly Revenue Matrix');
+      autoTable(pdf, {
+        startY: y,
+        head: [['Customer', ...cw.monthLabels, 'Total']],
+        body: cw.rows.map(r => [
+          r.name,
+          ...r.months.map(v => (v ? Math.round(v).toLocaleString('en-IE') : '-')),
+          Math.round(r.total).toLocaleString('en-IE'),
+        ]),
+        foot: [[
+          'TOP 10 TOTAL',
+          ...cw.monthKeys.map((_, i) => {
+            const v = cw.rows.reduce((a, r) => a + r.months[i], 0);
+            return v ? Math.round(v).toLocaleString('en-IE') : '-';
+          }),
+          Math.round(cw.rows.reduce((a, r) => a + r.total, 0)).toLocaleString('en-IE'),
+        ]],
+        margin: { left: margin, right: margin },
+        styles: { fontSize: 6.2, cellPadding: 1.2, halign: 'right' },
+        columnStyles: { 0: { halign: 'left', cellWidth: 30, fontStyle: 'bold' } },
+        headStyles: { fillColor: [30, 41, 59], textColor: 255, halign: 'right' },
+        footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', halign: 'right' },
+        theme: 'grid',
+        didDrawPage: () => drawHeader(),
+      });
+    }
+
   });
 
   const total = pdf.getNumberOfPages();
