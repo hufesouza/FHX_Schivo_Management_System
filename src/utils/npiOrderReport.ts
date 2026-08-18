@@ -200,7 +200,23 @@ export type SiteStats = {
   topParts: { name: string; revenue: number; lines: number }[];
   monthly: number[];
   monthlyOrders: number[];
+  /** Rolling window (max 12 months) used by the Top 10 Customers by Month panel */
+  customerWindow: {
+    monthKeys: string[];
+    monthLabels: string[];
+    periodLabel: string;
+    total: number;
+    prevTotal: number;
+    rows: {
+      name: string;
+      total: number;
+      share: number;
+      growth: number | null; // % vs previous window of same length
+      months: number[];
+    }[];
+  };
 };
+
 
 export const computeSiteStats = (
   ds: SiteDataset,
