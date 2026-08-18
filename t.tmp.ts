@@ -10,3 +10,6 @@ const data=buildInteractiveData(ds,'Schivo Waterford','all',true);
 console.log('months',data.months.length,'customers',data.customers.length);
 await exportInteractiveCustomerReport(data);
 console.log('OK');
+import { writeFileSync } from 'fs';
+writeFileSync('/tmp/out.pdf', Buffer.from((globalThis as any).__blobParts[0]));
+console.log('wrote', (globalThis as any).__blobParts ? 'yes':'no');
