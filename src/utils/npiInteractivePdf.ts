@@ -314,22 +314,11 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
 
     const P = data.params || { projectedRevenue: 0, npviBenchmark: 0 };
     const projected = P.projectedRevenue > 0 ? P.projectedRevenue : 0;
-    const bench = P.npviBenchmark > 0 ? P.npviBenchmark : 0;
     const actualCompany = G.companyRevenue > 0 ? G.companyRevenue : 0;
     const actualNpvi = actualCompany > 0 ? (gTotal / actualCompany) * 100 : null;
-    const requiredNpi = projected > 0 && bench > 0 ? (projected * bench) / 100 : 0;
-    const npiGap = requiredNpi > 0 ? requiredNpi - gTotal : 0;
-    const coverage = requiredNpi > 0 ? (gTotal / requiredNpi) * 100 : null;
+    const npviVsProjected = projected > 0 ? (gTotal / projected) * 100 : null;
     const achievement = projected > 0 && actualCompany > 0 ? (actualCompany / projected) * 100 : null;
-    const revGap = projected > 0 && actualCompany > 0 ? projected - actualCompany : 0;
-    const openCoverage = npiGap > 0 ? (gOpen / npiGap) * 100 : null;
-    const monthsElapsed = data.months.filter(m => (G.totals[m.k] || 0) !== 0).length || nMonths;
-    const runRate = monthsElapsed > 0 ? (gTotal / monthsElapsed) * 12 : 0;
-    const runVs = requiredNpi > 0 && runRate > 0 ? (runRate / requiredNpi) * 100 : null;
-    const status =
-      runVs === null ? 'NO TARGET SET' : runVs >= 100 ? 'ON TRACK' : runVs >= 90 ? 'AT RISK' : 'BELOW TARGET';
-    const statusCol: [number, number, number] =
-      runVs === null ? [100, 116, 139] : runVs >= 100 ? [16, 185, 129] : runVs >= 90 ? [245, 158, 11] : [244, 63, 94];
+
 
     const fmtM = (n: number) => {
       const v = n || 0;
