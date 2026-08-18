@@ -1212,33 +1212,10 @@ export default function NPIOrderIntelligence() {
                     <TabsTrigger value="quality">Data Quality</TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="customer" className="grid md:grid-cols-2 gap-4 mt-4">
-                    <ChartCard title="Revenue by Customer">
-                      <ResponsiveContainer width="100%" height={360}>
-                        <BarChart data={customerByRevenue} layout="vertical" margin={{ left: 80 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis type="number" tickFormatter={(v) => `${sym}${(v / 1000).toFixed(0)}k`} />
-                          <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
-                          <Tooltip formatter={(v: any) => fmtEur(v as number)} />
-                          <Bar dataKey="revenue" fill="#3b82f6" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </ChartCard>
-                    <ChartCard title="Orders by Customer">
-                      <ResponsiveContainer width="100%" height={360}>
-                        <BarChart data={customerByOrders} layout="vertical" margin={{ left: 80 }}>
-                          <CartesianGrid strokeDasharray="3 3" />
-                          <XAxis type="number" />
-                          <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 11 }} />
-                          <Tooltip />
-                          <Bar dataKey="orders" fill="#10b981" />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </ChartCard>
-                    <div className="md:col-span-2">
-                      <TopCustomersPanel rows={filtered} />
-                    </div>
+                  <TabsContent value="customer" className="mt-4">
+                    <TopCustomersPanel rows={filtered} />
                   </TabsContent>
+
 
 
                   <TabsContent value="part" className="grid md:grid-cols-2 gap-4 mt-4">
