@@ -255,13 +255,64 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
 
               <Button
                 variant="secondary"
-                onClick={handleInteractive}
+                onClick={openConfig}
                 disabled={interactive || chosen.length === 0}
                 className="w-full sm:w-auto"
               >
                 {interactive ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                Generate Interactive Group Report
+                Generate Interactive PDF
               </Button>
+
+              <Dialog open={configOpen} onOpenChange={setConfigOpen}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Generate Interactive PDF</DialogTitle>
+                    <DialogDescription>
+                      These values are embedded in this report only and drive the executive summary
+                      on page 1.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="projected-rev">Projected company revenue (full year)</Label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">€</span>
+                        <Input
+                          id="projected-rev"
+                          inputMode="decimal"
+                          placeholder="114000000"
+                          value={projected}
+                          onChange={e => setProjected(e.target.value)}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Total projected company revenue — not NPI revenue.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="npvi-bench">NPVI benchmark / target (%)</Label>
+                      <Input
+                        id="npvi-bench"
+                        inputMode="decimal"
+                        placeholder="4.28"
+                        value={benchmark}
+                        onChange={e => setBenchmark(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Prefilled with the current group vitality index; edit as needed.
+                      </p>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setConfigOpen(false)}>Cancel</Button>
+                    <Button onClick={handleInteractive} disabled={interactive}>
+                      {interactive ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                      Generate report
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
 
             </div>
           </div>
