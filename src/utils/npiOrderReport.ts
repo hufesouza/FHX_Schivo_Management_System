@@ -200,7 +200,23 @@ export type SiteStats = {
   topParts: { name: string; revenue: number; lines: number }[];
   monthly: number[];
   monthlyOrders: number[];
+  /** Rolling window (max 12 months) used by the Top 10 Customers by Month panel */
+  customerWindow: {
+    monthKeys: string[];
+    monthLabels: string[];
+    periodLabel: string;
+    total: number;
+    prevTotal: number;
+    rows: {
+      name: string;
+      total: number;
+      share: number;
+      growth: number | null; // % vs previous window of same length
+      months: number[];
+    }[];
+  };
 };
+
 
 export const computeSiteStats = (
   ds: SiteDataset,
@@ -240,6 +256,56 @@ export const computeSiteStats = (
 
   const companyRevenue = getSiteRevenueTarget(ds.site, year);
 
+  // ---- Top 10 Customers by Month (rolling window, max 12 months) ----
+  const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const mKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  const mLabel = (k: string) => `${MON[Number(k.slice(5, 7)) - 1]} ${k.slice(2, 4)}`;
+  const allKeys = Array.from(new Set(rows.filter(r => r.date).map(r => mKey(r.date!)))).sort();
+  const monthKeys = allKeys.slice(-12);
+  const prevKeys = allKeys.slice(Math.max(0, allKeys.length - 24), allKeys.length - monthKeys.length);
+  const inWin = rows.filter(r => r.date && monthKeys.includes(mKey(r.date!)));
+  const inPrev = rows.filter(r => r.date && prevKeys.includes(mKey(r.date!)));
+  const winTotal = inWin.reduce((s, r) => s + r.revenue, 0);
+  const prevTotal = inPrev.reduce((s, r) => s + r.revenue, 0);
+  const byCust: Record<string, { total: number; months: Record<string, number> }> = {};
+  inWin.forEach(r => {
+    const k = r.customer || 'Unknown';
+    if (!byCust[k]) byCust[k] = { total: 0, months: {} };
+    byCust[k].total += r.revenue;
+    const mk = mKey(r.date!);
+    byCust[k].months[mk] = (byCust[k].months[mk] || 0) + r.revenue;
+  });
+  const prevByCust: Record<string, number> = {};
+  inPrev.forEach(r => {
+    const k = r.customer || 'Unknown';
+    prevByCust[k] = (prevByCust[k] || 0) + r.revenue;
+  });
+  const customerWindow = {
+    monthKeys,
+    monthLabels: monthKeys.map(mLabel),
+    periodLabel: monthKeys.length
+      ? monthKeys.length === 1
+        ? mLabel(monthKeys[0])
+        : `${mLabel(monthKeys[0])} - ${mLabel(monthKeys[monthKeys.length - 1])}`
+      : '-',
+    total: winTotal,
+    prevTotal,
+    rows: Object.entries(byCust)
+      .sort((a, b) => b[1].total - a[1].total)
+      .slice(0, 10)
+      .map(([name, v]) => {
+        const prev = prevByCust[name] || 0;
+        return {
+          name,
+          total: v.total,
+          share: winTotal > 0 ? (v.total / winTotal) * 100 : 0,
+          growth: prev > 0 ? ((v.total - prev) / prev) * 100 : null,
+          months: monthKeys.map(k => v.months[k] || 0),
+        };
+      }),
+  };
+
+
   return {
     site: ds.site,
     label,
@@ -260,7 +326,9 @@ export const computeSiteStats = (
     topParts: agg(r => r.part).slice(0, 5),
     monthly,
     monthlyOrders,
+    customerWindow,
   };
+
 };
 
 export const availableYears = (datasets: SiteDataset[]): string[] => {
