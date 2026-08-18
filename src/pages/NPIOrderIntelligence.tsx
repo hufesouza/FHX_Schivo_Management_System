@@ -442,6 +442,28 @@ export default function NPIOrderIntelligence() {
   const customerByOrders = useMemo(() =>
     [...byCustomer].sort((a, b) => b.orders - a.orders).slice(0, 15), [byCustomer]);
 
+  // Top 10 customers, revenue split by month (stacked)
+  const top10Customers = useMemo(() =>
+    [...byCustomer].sort((a, b) => b.revenue - a.revenue).slice(0, 10).map(c => c.name),
+    [byCustomer]);
+
+  const top10CustomerMonthly = useMemo(() => {
+    const set = new Set(top10Customers);
+    const map = new Map<string, any>();
+    filtered.forEach(r => {
+      if (!r.date || !r.customer || !set.has(r.customer)) return;
+      const sortKey = `${r.date.getFullYear()}-${String(r.date.getMonth() + 1).padStart(2, '0')}`;
+      let bucket = map.get(sortKey);
+      if (!bucket) {
+        bucket = { sortKey, month: r.date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' }) };
+        top10Customers.forEach(n => { bucket[n] = 0; });
+        map.set(sortKey, bucket);
+      }
+      bucket[r.customer] += r.revenue;
+    });
+    return Array.from(map.values()).sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  }, [filtered, top10Customers]);
+
   const byCommodity = useMemo(() => {
     const map = new Map<string, { revenue: number; orders: number }>();
     filtered.forEach(r => {
