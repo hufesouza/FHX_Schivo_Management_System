@@ -340,15 +340,6 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     };
     const pctTxt = (n: number | null) => (n === null ? 'n/a' : `${n.toFixed(1)}%`);
 
-    // scope line
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(7.4);
-    pdf.setTextColor(100, 116, 139);
-    pdf.text(
-      `Executive summary  |  ${data.scope}  |  Period ${data.period}  |  Projected company revenue ${projected > 0 ? fmtM(projected) : 'not provided'}  |  NPVI benchmark ${bench > 0 ? bench.toFixed(2) + '%' : 'not provided'}`,
-      M, 28
-    );
-
     // deep dive buttons (top right area / row)
     const navs: { t: string; p: number }[] = [
       { t: 'SITE PERFORMANCE >', p: GROUP },
