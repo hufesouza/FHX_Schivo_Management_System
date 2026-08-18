@@ -326,7 +326,9 @@ export const computeSiteStats = (
     topParts: agg(r => r.part).slice(0, 5),
     monthly,
     monthlyOrders,
+    customerWindow,
   };
+
 };
 
 export const availableYears = (datasets: SiteDataset[]): string[] => {
