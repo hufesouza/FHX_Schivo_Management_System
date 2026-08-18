@@ -105,6 +105,7 @@ function ranking(k) {
   return arr;
 }
 function setF(n, v) { var f = this.getField(n); if (f) f.value = v; }
+function padCap(s) { var o = s; while (o.length < 74) { o += " "; } return o; }
 function setCap(n, v) { var f = this.getField(n); if (f) f.buttonSetCaption(v); }
 function fill(n, c) { var f = this.getField(n); if (f) f.fillColor = c; }
 
@@ -144,16 +145,16 @@ function paintOverview() {
   for (var j = 0; j < 10; j++) {
     var row = r[j];
     if (row) {
-      setF("rn" + j, (j + 1) + ".  " + row.n);
+      setCap("rc" + j, padCap((j + 1) + ".  " + row.n));
       setF("rr" + j, eur(row.v));
       setF("rp" + j, total > 0 ? ((row.v / total) * 100).toFixed(1) + "%" : "-");
       var pv = prevK ? cell(row.n, prevK).t : 0;
       setF("rd" + j, pv > 0 ? pct(((row.v - pv) / pv) * 100) : (row.v > 0 ? "new" : "-"));
-      fill("rn" + j, row.n === CUST ? BLUE : WHITE);
-      var fb = this.getField("rn" + j); if (fb) fb.textColor = row.n === CUST ? WHITE : NAVY;
+      fill("rc" + j, row.n === CUST ? BLUE : WHITE);
+      var fb = this.getField("rc" + j); if (fb) fb.textColor = row.n === CUST ? WHITE : NAVY;
     } else {
-      setF("rn" + j, ""); setF("rr" + j, ""); setF("rp" + j, ""); setF("rd" + j, "");
-      fill("rn" + j, WHITE);
+      setCap("rc" + j, ""); setF("rr" + j, ""); setF("rp" + j, ""); setF("rd" + j, "");
+      fill("rc" + j, WHITE);
     }
   }
 }
@@ -386,6 +387,7 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
     init[`h_s${i}`] = c.t > 0 ? (c.o > 0 && c.c > 0 ? 'Open / Closed' : c.o > 0 ? 'Open (to receive)' : 'Closed') : '-';
   });
   const I = (n: string) => init[n] ?? '';
+  const padCap = (t: string) => (t + ' '.repeat(74)).slice(0, Math.max(74, t.length));
 
   // ================= PAGE 1 : OVERVIEW =================
   const p1 = pages[0];
@@ -437,9 +439,8 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
     const y = ry - j * 24;
     p1.drawLine({ start: { x: 32, y: y - 3 }, end: { x: W - 32, y: y - 3 }, color: line, thickness: 0.5 });
     p1.drawText(String(j + 1), { x: 40, y: y + 5, size: 8.5, font: bold, color: slate });
-    txt(`rn${j}`, rank0[j] ? `${j + 1}.  ${rank0[j].n}` : '', p1, 72, y + 2, 330, 15, { size: 8.5, boldFont: true });
-    btn(`rc${j}`, '', p1, 72, y, 330, 18, `setCustomerByRank(${j});`, {
-      size: 8.5, transparent: true,
+    btn(`rc${j}`, rank0[j] ? padCap(`${j + 1}.  ${rank0[j].n}`) : '', p1, 72, y, 330, 18, `setCustomerByRank(${j});`, {
+      size: 8.5, bg: white, fg: navy, border: white,
     });
     txt(`rr${j}`, I(`rr${j}`), p1, 402, y + 2, 100, 14, { size: 8.5, align: TextAlignment.Right, boldFont: true });
     txt(`rp${j}`, I(`rp${j}`), p1, 512, y + 2, 80, 14, { size: 8.5, align: TextAlignment.Right });
