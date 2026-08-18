@@ -34,6 +34,10 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
   const [npiOnly, setNpiOnly] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [interactive, setInteractive] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [projected, setProjected] = useState('');
+  const [benchmark, setBenchmark] = useState('');
+
 
 
 
