@@ -33,6 +33,7 @@ import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { TopCustomersPanel } from '@/components/npi-order/TopCustomersPanel';
 
 type Row = Record<string, any>;
 
