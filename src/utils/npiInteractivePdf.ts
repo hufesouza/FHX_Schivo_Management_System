@@ -370,9 +370,8 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
         1: { cellWidth: 66 },
         2: { cellWidth: 46 },
         3: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
-        4: { cellWidth: 24, halign: 'right' },
-        5: { cellWidth: 32, halign: 'right' },
-        6: { halign: 'center', textColor: [59, 130, 246], fontStyle: 'bold' },
+        4: { cellWidth: 28, halign: 'right' },
+        5: { halign: 'right' },
       },
       didDrawCell: (d: any) => {
         if (d.section !== 'body') return;
@@ -386,7 +385,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
           pdf.setFillColor(59, 130, 246);
           pdf.roundedRect(d.cell.x + 2, cy, Math.max(0.8, ((G.custTotals[name] || 0) / maxV) * bw), 3, 0.8, 0.8, 'F');
         }
-        if (d.column.index === 6 && d.row.index < nCust) {
+        if (d.column.index === 1 && d.row.index < nCust) {
           pdf.link(d.cell.x, d.cell.y, d.cell.width, d.cell.height, { pageNumber: custOf(0, d.row.index) });
         }
       },
