@@ -154,12 +154,14 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
   const nMonths = data.months.length;
   const nCust = data.custPages;
   const perSite = nMonths + 1 + nCust;                    // month pages + matrix + customer pages
-  const OVERVIEW = 1;
-  const base = (si: number) => OVERVIEW + si * perSite;
+  const OVERVIEW = 1;          // executive summary
+  const GROUP = 2;             // group deep dive (site comparison + top group customers)
+  const base = (si: number) => GROUP + si * perSite;
   const pageOf = (si: number, mi: number) => base(si) + mi + 1;
   const matrixOf = (si: number) => base(si) + nMonths + 1;
   const custOf = (si: number, ci: number) => base(si) + nMonths + 1 + ci + 1;
-  const totalPages = OVERVIEW + nSites * perSite;
+  const totalPages = GROUP + nSites * perSite;
+
 
   for (let i = 1; i < totalPages; i++) pdf.addPage();
 
