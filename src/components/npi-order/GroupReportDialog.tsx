@@ -113,18 +113,27 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
 
   const handleInteractive = async () => {
     const projectedRevenue = parseFloat(projected.replace(/[^\d.-]/g, '')) || 0;
-    const npviBenchmark = parseFloat(benchmark.replace(/[^\d.-]/g, '')) || 0;
+    let npviBenchmark = parseFloat(benchmark.replace(/[^\d.-]/g, '')) || 0;
     if (projectedRevenue <= 0) {
       toast.error('Enter the projected company revenue');
-      return;
-    }
-    if (npviBenchmark <= 0) {
-      toast.error('Enter the NPVI benchmark');
       return;
     }
     setInteractive(true);
     try {
       const targets = await Promise.all(chosen.map(d => fetchRevenueTargets(d.site)));
+      if (npviBenchmark <= 0) {
+        // Fall back to the current group vitality index so a missing target never blocks the export.
+        const company = chosen.reduce((s, d, i) => {
+          const t = targets[i] || {};
+          return s + (year === 'all'
+            ? (t.all || Object.entries(t).filter(([k]) => k !== 'all').reduce((a, [, v]) => a + (v || 0), 0))
+            : (t[year] || 0));
+        }, 0);
+        const stat = stats.reduce((s, x) => s + x.revenue, 0);
+        npviBenchmark = company > 0 && stat > 0
+          ? (stat / company) * 100
+          : (projectedRevenue > 0 ? (stat / projectedRevenue) * 100 : 0);
+      }
       const data = buildInteractiveGroupData(
         chosen.map((d, i) => {
           const t = targets[i] || {};
@@ -141,6 +150,7 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
         npiOnly,
         { projectedRevenue, npviBenchmark }
       );
+
       await exportInteractiveGroupReport(data);
       toast.success(`Interactive group PDF generated for ${chosen.length} site(s)`);
       setConfigOpen(false);
