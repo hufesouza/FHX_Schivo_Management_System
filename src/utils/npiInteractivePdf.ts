@@ -557,48 +557,18 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     });
 
     // SECTION F - customer concentration
-    let cy = Math.min(((pdf as any).lastAutoTable?.finalY || sy + 24) + 6, 160);
+    let cy = Math.min(((pdf as any).lastAutoTable?.finalY || sy + 24) + 6, 150);
     sectionTitle('Customer concentration', cy);
     pill('VIEW CUSTOMER DETAILS >', pw - M - 48, cy - 4, 48, 6, false, custOf(0, 0));
     const sumTop = (n: number) => G.customers.slice(0, n).reduce((s, c) => s + (G.custTotals[c] || 0), 0);
     const share = (v: number) => (gTotal > 0 ? `${((v / gTotal) * 100).toFixed(1)}%` : 'n/a');
     const top1Name = G.customers[0] || 'n/a';
-    cy = kpiGrid([
+    kpiGrid([
       { label: `Top customer - ${clip(top1Name, 26)}`, value: `${fmtM(sumTop(1))}  (${share(sumTop(1))})`, accent: [59, 130, 246], tint: [239, 246, 255] },
       { label: 'Top 3 customers', value: `${fmtM(sumTop(3))}  (${share(sumTop(3))})`, accent: [37, 99, 235], tint: [239, 246, 255] },
       { label: 'Top 10 customers', value: `${fmtM(sumTop(10))}  (${share(sumTop(10))})`, accent: [15, 23, 42], tint: [241, 245, 249] },
       { label: 'Active customers', value: String(G.customers.length), accent: [100, 116, 139], tint: [248, 250, 252] },
-    ], cy + 4, 12);
-
-
-    // MANAGEMENT INSIGHT
-    sectionTitle('Management insight', cy - 1);
-    const insight = [
-      actualNpvi === null
-        ? `NPI revenue for the period is ${fmtM(gTotal)}; actual company revenue is not set, so the vitality index cannot be calculated.`
-        : `NPI currently represents ${actualNpvi.toFixed(2)}% of actual company revenue of ${fmtM(actualCompany)}.`,
-      requiredNpi > 0
-        ? `Against the ${fmtM(projected)} projected revenue target, ${fmtM(requiredNpi)} of NPI revenue is required to hold the ${bench.toFixed(2)}% benchmark. Current NPI revenue is ${fmtM(gTotal)}, ${npiGap > 0 ? `leaving a ${fmtM(npiGap)} gap` : `which is ${fmtM(-npiGap)} above the requirement`}.`
-        : 'No projected revenue or NPVI benchmark was provided for this report, so target coverage is not calculated.',
-      openCoverage !== null
-        ? `Current open NPI of ${fmtM(gOpen)} provides ${openCoverage.toFixed(0)}% coverage of this gap (coverage indicator, not a forecast).`
-        : requiredNpi > 0 ? 'There is no outstanding NPI gap for the selected benchmark.' : '',
-      runVs !== null
-        ? `The annualised NPI run rate over ${monthsElapsed} reported month(s) is ${fmtM(runRate)}, i.e. ${runVs.toFixed(1)}% of the requirement - status ${status}.`
-        : '',
-      `${clip(top1Name, 30)} is the largest customer at ${share(sumTop(1))} of NPI revenue; the top 10 represent ${share(sumTop(10))}.`,
-    ].filter(Boolean).join(' ');
-
-    const boxY = cy + 1;
-    pdf.setFillColor(248, 250, 252);
-    pdf.setDrawColor(214, 222, 233);
-    const boxH = Math.max(10, Math.min(18, ph - 13 - boxY));
-    pdf.roundedRect(M, boxY, pw - 2 * M, boxH, 1.8, 1.8, 'FD');
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(6.8);
-    pdf.setTextColor(30, 41, 59);
-    const lines = (pdf.splitTextToSize(insight, pw - 2 * M - 8) as string[]).slice(0, 4);
-    lines.forEach((ln, i) => pdf.text(ln, M + 4, boxY + 4.5 + i * 3.6));
+    ], cy + 4, 15);
 
 
     footer(OVERVIEW);
