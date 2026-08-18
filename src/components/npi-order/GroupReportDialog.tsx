@@ -14,6 +14,7 @@ import { NpiSite } from '@/lib/npiSites';
 import { SiteDataset, availableYears, computeSiteStats, loadSiteDataset } from '@/utils/npiOrderReport';
 import { exportMultiSiteReport } from '@/utils/npiMultiSitePdf';
 import { buildInteractiveGroupData, exportInteractiveGroupReport } from '@/utils/npiInteractivePdf';
+import { fetchRevenueTargets } from '@/lib/npiRevenueTargets';
 
 
 const fmtEur = (n: number) =>
@@ -91,8 +92,19 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
     }
     setInteractive(true);
     try {
+      const targets = await Promise.all(chosen.map(d => fetchRevenueTargets(d.site)));
       const data = buildInteractiveGroupData(
-        chosen.map(d => ({ ds: d, label: sites.find(s => s.id === d.site)?.title || d.site })),
+        chosen.map((d, i) => {
+          const t = targets[i] || {};
+          const rev = year === 'all'
+            ? (t.all || Object.entries(t).filter(([k]) => k !== 'all').reduce((s, [, v]) => s + (v || 0), 0))
+            : (t[year] || 0);
+          return {
+            ds: d,
+            label: sites.find(s => s.id === d.site)?.title || d.site,
+            companyRevenue: rev || undefined,
+          };
+        }),
         year,
         npiOnly
       );
