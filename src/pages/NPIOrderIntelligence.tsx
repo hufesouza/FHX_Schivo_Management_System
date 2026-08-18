@@ -1234,7 +1234,24 @@ export default function NPIOrderIntelligence() {
                         </BarChart>
                       </ResponsiveContainer>
                     </ChartCard>
+                    <div className="md:col-span-2">
+                      <ChartCard title="Top 10 Customers by Month (Revenue)">
+                        <ResponsiveContainer width="100%" height={400}>
+                          <BarChart data={top10CustomerMonthly} margin={{ left: 10, right: 10, top: 10, bottom: 10 }}>
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+                            <YAxis tickFormatter={(v) => `${sym}${(v / 1000).toFixed(0)}k`} />
+                            <Tooltip formatter={(v: any) => fmtEur(v as number)} />
+                            <Legend wrapperStyle={{ fontSize: 11 }} />
+                            {top10Customers.map((name, i) => (
+                              <Bar key={name} dataKey={name} stackId="c" fill={COLORS[i % COLORS.length]} />
+                            ))}
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </ChartCard>
+                    </div>
                   </TabsContent>
+
 
                   <TabsContent value="part" className="grid md:grid-cols-2 gap-4 mt-4">
                     <ChartCard title="Revenue by Part (Top 15)">
