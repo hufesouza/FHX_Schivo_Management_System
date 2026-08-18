@@ -568,7 +568,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       { label: 'Top 3 customers', value: `${fmtM(sumTop(3))}  (${share(sumTop(3))})`, accent: [37, 99, 235], tint: [239, 246, 255] },
       { label: 'Top 10 customers', value: `${fmtM(sumTop(10))}  (${share(sumTop(10))})`, accent: [15, 23, 42], tint: [241, 245, 249] },
       { label: 'Active customers', value: String(G.customers.length), accent: [100, 116, 139], tint: [248, 250, 252] },
-    ], cy + 4, 15);
+    ], cy + 4, 16);
 
 
     footer(OVERVIEW);
