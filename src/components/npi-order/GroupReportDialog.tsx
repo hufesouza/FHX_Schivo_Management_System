@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FileDown, Loader2 } from 'lucide-react';
+import { FileDown, FileText, Loader2 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
@@ -13,6 +13,8 @@ import { toast } from 'sonner';
 import { NpiSite } from '@/lib/npiSites';
 import { SiteDataset, availableYears, computeSiteStats, loadSiteDataset } from '@/utils/npiOrderReport';
 import { exportMultiSiteReport } from '@/utils/npiMultiSitePdf';
+import { buildInteractiveData, exportInteractiveCustomerReport } from '@/utils/npiInteractivePdf';
+
 
 const fmtEur = (n: number) =>
   new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n || 0);
@@ -30,6 +32,32 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
   const [year, setYear] = useState('all');
   const [npiOnly, setNpiOnly] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [interactive, setInteractive] = useState(false);
+  const [interactiveSite, setInteractiveSite] = useState('');
+
+  useEffect(() => {
+    if (!interactiveSite) {
+      const first = datasets.find(d => d.rows.length > 0);
+      if (first) setInteractiveSite(first.site);
+    }
+  }, [datasets, interactiveSite]);
+
+  const handleInteractive = async () => {
+    const ds = datasets.find(d => d.site === interactiveSite);
+    if (!ds) return;
+    setInteractive(true);
+    try {
+      const label = sites.find(s => s.id === ds.site)?.title || ds.site;
+      const data = buildInteractiveData(ds, label, year, npiOnly);
+      await exportInteractiveCustomerReport(data);
+      toast.success('Interactive PDF generated — open it in Adobe Acrobat Reader');
+    } catch (e: any) {
+      toast.error('Could not generate the interactive PDF: ' + e.message);
+    } finally {
+      setInteractive(false);
+    }
+  };
+
 
   useEffect(() => {
     if (!open) return;
@@ -166,8 +194,40 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
                 </div>
               </div>
             )}
+
+            <div className="rounded-lg border border-dashed p-3 space-y-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <FileText className="h-4 w-4" /> Interactive report (test)
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  One self-contained PDF with clickable month and customer controls (AcroForm + Acrobat
+                  JavaScript). Open it in Adobe Acrobat Reader — browser viewers ignore PDF form logic.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <div className="flex-1 space-y-2">
+                  <Label>Site for the interactive PDF</Label>
+                  <Select value={interactiveSite} onValueChange={setInteractiveSite}>
+                    <SelectTrigger><SelectValue placeholder="Select a site" /></SelectTrigger>
+                    <SelectContent>
+                      {datasets.filter(d => d.rows.length > 0).map(d => (
+                        <SelectItem key={d.site} value={d.site}>
+                          {sites.find(s => s.id === d.site)?.title || d.site}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button variant="secondary" onClick={handleInteractive} disabled={interactive || !interactiveSite}>
+                  {interactive ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                  Generate Interactive Group Report
+                </Button>
+              </div>
+            </div>
           </div>
         )}
+
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
