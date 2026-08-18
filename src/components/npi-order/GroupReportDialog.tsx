@@ -85,9 +85,35 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
     }
   };
 
-  const handleInteractive = async () => {
+  const openConfig = async () => {
     if (!chosen.length) {
       toast.error('Select at least one site with uploaded data');
+      return;
+    }
+    setConfigOpen(true);
+    // Prefill the benchmark with the current group NPVI when we can compute it.
+    try {
+      const targets = await Promise.all(chosen.map(d => fetchRevenueTargets(d.site)));
+      const company = chosen.reduce((s, d, i) => {
+        const t = targets[i] || {};
+        return s + (year === 'all'
+          ? (t.all || Object.entries(t).filter(([k]) => k !== 'all').reduce((a, [, v]) => a + (v || 0), 0))
+          : (t[year] || 0));
+      }, 0);
+      const stat = stats.reduce((s, x) => s + x.revenue, 0);
+      if (company > 0 && stat > 0) setBenchmark(((stat / company) * 100).toFixed(2));
+    } catch { /* keep whatever the user has */ }
+  };
+
+  const handleInteractive = async () => {
+    const projectedRevenue = parseFloat(projected.replace(/[^\d.-]/g, '')) || 0;
+    const npviBenchmark = parseFloat(benchmark.replace(/[^\d.-]/g, '')) || 0;
+    if (projectedRevenue <= 0) {
+      toast.error('Enter the projected company revenue');
+      return;
+    }
+    if (npviBenchmark <= 0) {
+      toast.error('Enter the NPVI benchmark');
       return;
     }
     setInteractive(true);
@@ -106,16 +132,19 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
           };
         }),
         year,
-        npiOnly
+        npiOnly,
+        { projectedRevenue, npviBenchmark }
       );
       await exportInteractiveGroupReport(data);
       toast.success(`Interactive group PDF generated for ${chosen.length} site(s)`);
+      setConfigOpen(false);
     } catch (e: any) {
       toast.error('Could not generate the interactive PDF: ' + e.message);
     } finally {
       setInteractive(false);
     }
   };
+
 
 
   return (
