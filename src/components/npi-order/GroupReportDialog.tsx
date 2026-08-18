@@ -13,6 +13,8 @@ import { toast } from 'sonner';
 import { NpiSite } from '@/lib/npiSites';
 import { SiteDataset, availableYears, computeSiteStats, loadSiteDataset } from '@/utils/npiOrderReport';
 import { exportMultiSiteReport } from '@/utils/npiMultiSitePdf';
+import { buildInteractiveData, exportInteractiveCustomerReport } from '@/utils/npiInteractivePdf';
+
 
 const fmtEur = (n: number) =>
   new Intl.NumberFormat('en-IE', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(n || 0);
