@@ -599,7 +599,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     sectionTitle('Site comparison', y);
     autoTable(pdf, {
       startY: y + 4,
-      head: [['Site', 'NPI revenue', 'Share of group', 'Company revenue', 'New Product Vitality Index', 'Closed', 'Open', 'Customers']],
+      head: [['Site', 'NPI revenue', 'Share of group', 'Site revenue', 'New Product Vitality Index', 'Closed', 'Open', 'Customers']],
       body: data.sites.slice(1).map(S => {
         const t = siteTotal(S);
         const closed = data.months.reduce((s, m) => s + S.customers.reduce((a, c) => a + cellOf(S, c, m.k).c, 0), 0);
