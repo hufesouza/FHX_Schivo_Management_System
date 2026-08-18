@@ -197,14 +197,15 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
             <div className="rounded-lg border border-dashed p-3 space-y-3">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm font-medium">
-                  <FileText className="h-4 w-4" /> Interactive report (test)
+                  <FileText className="h-4 w-4" /> Interactive group report
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  One self-contained PDF covering all selected sites (plus a group aggregate), with
-                  clickable site, month and customer controls (AcroForm + Acrobat JavaScript). Open it in
-                  Adobe Acrobat Reader — browser viewers ignore PDF form logic.
+                  One self-contained PDF covering all selected sites (plus a group aggregate), styled like
+                  the group report, with clickable SITE and MONTH buttons plus a monthly matrix per site.
+                  Works in any PDF reader.
                 </p>
               </div>
+
               <Button
                 variant="secondary"
                 onClick={handleInteractive}
