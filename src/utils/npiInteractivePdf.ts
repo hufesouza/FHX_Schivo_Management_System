@@ -359,17 +359,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     const panelY = 87;
     const panelH = 0;
 
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(15, 23, 42);
-        pdf.text(r[1], x + panW - 4, panelY + 10.5 + i * 4, { align: 'right' });
-      });
-      pdf.setFillColor(...statusCol);
-      pdf.roundedRect(x + 4, panelY + 23, 44, 5.4, 1.2, 1.2, 'F');
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(7.2);
-      pdf.setTextColor(255, 255, 255);
-      pdf.text(status, x + 26, panelY + 26.7, { align: 'center' });
-    }
+
 
 
     // SECTION E - site performance (compact)
