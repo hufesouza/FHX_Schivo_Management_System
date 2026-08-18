@@ -27,6 +27,13 @@ export type SiteBlock = {
   totals: Record<string, number>;
 };
 
+export type ExecParams = {
+  /** projected full-year COMPANY revenue (not NPI) entered by the user */
+  projectedRevenue: number;
+  /** NPVI benchmark / target in percent, e.g. 4.28 */
+  npviBenchmark: number;
+};
+
 export type InteractiveGroupData = {
   title: string;
   period: string;
@@ -35,6 +42,7 @@ export type InteractiveGroupData = {
   sites: SiteBlock[];
   /** number of customer pages rendered per site */
   custPages: number;
+  params: ExecParams;
 };
 
 const emptyCell = (): Cell => ({ t: 0, o: 0, c: 0 });
@@ -43,9 +51,11 @@ export const buildInteractiveGroupData = (
   inputs: { ds: SiteDataset; label: string; companyRevenue?: number }[],
   year: string,
   npiOnly: boolean,
+  params: ExecParams = { projectedRevenue: 0, npviBenchmark: 0 },
   maxMonths = 12,
   maxCustomers = 10
 ): InteractiveGroupData => {
+
   const prepared = inputs.map(({ ds, label, companyRevenue }) => {
     let rows: NormRow[] = ds.rows;
     if (npiOnly && ds.hasNpiCol) rows = rows.filter(r => r.isNpi);
