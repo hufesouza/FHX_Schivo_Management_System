@@ -200,10 +200,12 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
                   <FileText className="h-4 w-4" /> Interactive group report
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  One self-contained PDF covering all selected sites (plus a group aggregate), styled like
-                  the group report, with clickable SITE and MONTH buttons plus a monthly matrix per site.
-                  Works in any PDF reader.
+                  One self-contained PDF: a group overview page (revenue, NPVI, site comparison, top
+                  customers) plus clickable SITE, MONTH and CUSTOMER buttons, a monthly matrix and a
+                  dedicated page per top customer with NPVI contribution. Opens in single-page mode so
+                  only the page you are on is shown. Works in any PDF reader.
                 </p>
+
               </div>
 
               <Button
