@@ -256,6 +256,7 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
     opts: { size?: number; bg?: any; fg?: any; border?: any } = {}
   ) => {
     const b = form.createButton(name);
+    b.acroField.setFontSize(opts.size ?? 8);
     b.addToPage(label, page, {
       x, y, width, height,
       font: bold,
@@ -264,7 +265,6 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
       borderColor: opts.border ?? line,
       borderWidth: 0.8,
     });
-    b.acroField.setFontSize(opts.size ?? 8);
     setAction(b, script);
     return b;
   };
@@ -280,6 +280,7 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
     opts: { size?: number; align?: TextAlignment; fg?: any; boldFont?: boolean } = {}
   ) => {
     const f = form.createTextField(name);
+    f.setFontSize(opts.size ?? 9);
     f.setText(value);
     f.setAlignment(opts.align ?? TextAlignment.Left);
     f.enableReadOnly();
@@ -287,12 +288,14 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
       x, y, width, height,
       font: opts.boldFont ? bold : helv,
       textColor: opts.fg ?? navy,
-      backgroundColor: undefined,
+      backgroundColor: white,
+      borderColor: white,
       borderWidth: 0,
     });
     f.setFontSize(opts.size ?? 9);
     return f;
   };
+
 
   const header = (page: any, title: string, subtitle: string) => {
     page.drawRectangle({ x: 0, y: H - 62, width: W, height: 62, color: navy });
