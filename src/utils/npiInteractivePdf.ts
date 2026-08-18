@@ -327,6 +327,67 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
     page.drawText(label, { x: x + 10, y: y + h - 15, size: 7, font: bold, color: slate });
   };
 
+  // ---- pre-rendered initial state (latest month, top customer) ----
+  const mi0 = data.months.length - 1;
+  const k0 = data.months[mi0].k;
+  const kp0 = mi0 > 0 ? data.months[mi0 - 1].k : null;
+  const cellOf = (c: string, k: string) => data.cust[c]?.[k] || { t: 0, o: 0, c: 0 };
+  const eurS = (n: number) =>
+    'EUR ' + new Intl.NumberFormat('en-IE', { maximumFractionDigits: 0 }).format(Math.round(n || 0));
+  const pctS = (n: number | null) => (n === null ? 'n/a' : (n >= 0 ? '+' : '') + n.toFixed(1) + '%');
+  const rank0 = data.customers
+    .map(c => ({ n: c, v: cellOf(c, k0).t }))
+    .filter(r => r.v > 0)
+    .sort((a, b) => b.v - a.v);
+  const cust0 = rank0[0]?.n || data.customers[0] || '';
+  const total0 = data.totals[k0] || 0;
+  const top10_0 = rank0.slice(0, 10).reduce((s, r) => s + r.v, 0);
+  const prevTotal0 = kp0 ? data.totals[kp0] || 0 : 0;
+  const cur0 = cellOf(cust0, k0);
+  const prev0 = kp0 ? cellOf(cust0, kp0) : { t: 0, o: 0, c: 0 };
+  let totT0 = 0, totO0 = 0, totC0 = 0, ytd0 = 0;
+  data.months.forEach(m => {
+    const c = cellOf(cust0, m.k);
+    totT0 += c.t; totO0 += c.o; totC0 += c.c;
+    if (m.k.slice(0, 4) === k0.slice(0, 4) && m.k <= k0) ytd0 += c.t;
+  });
+  const maxv0 = Math.max(...data.months.map(m => cellOf(cust0, m.k).t), 0);
+  const init: Record<string, string> = {
+    k_month: `Selected month: ${data.months[mi0].label}`,
+    k_total: eurS(total0),
+    k_top10: eurS(top10_0),
+    k_other: eurS(total0 - top10_0),
+    k_topcust: rank0.length ? `${rank0[0].n}  (${eurS(rank0[0].v)})` : '-',
+    k_mom: pctS(prevTotal0 > 0 ? ((total0 - prevTotal0) / prevTotal0) * 100 : null),
+    rank_title: `Top 10 Customers - ${data.months[mi0].label}`,
+    c_name: cust0 || '-',
+    c_sub: `Selected month: ${data.months[mi0].label}   |   Rank #${(rank0.findIndex(r => r.n === cust0) + 1) || '-'}   |   Share of month ${total0 > 0 ? ((cur0.t / total0) * 100).toFixed(1) + '%' : '-'}`,
+    c_total: eurS(totT0),
+    c_cur: eurS(cur0.t),
+    c_prev: eurS(prev0.t),
+    c_mom: pctS(prev0.t > 0 ? ((cur0.t - prev0.t) / prev0.t) * 100 : null),
+    c_ytd: eurS(ytd0),
+    c_closed: eurS(cur0.c),
+    c_open: eurS(cur0.o),
+    c_toreceive: eurS(cur0.o),
+    c_closed_p: eurS(totC0),
+    c_open_p: eurS(totO0),
+    c_toreceive_p: eurS(totO0),
+  };
+  rank0.slice(0, 10).forEach((r, j) => {
+    const pv = kp0 ? cellOf(r.n, kp0).t : 0;
+    init[`rr${j}`] = eurS(r.v);
+    init[`rp${j}`] = total0 > 0 ? ((r.v / total0) * 100).toFixed(1) + '%' : '-';
+    init[`rd${j}`] = pv > 0 ? pctS(((r.v - pv) / pv) * 100) : 'new';
+  });
+  data.months.forEach((m, i) => {
+    const c = cellOf(cust0, m.k);
+    init[`h_m${i}`] = m.label;
+    init[`h_v${i}`] = eurS(c.t);
+    init[`h_s${i}`] = c.t > 0 ? (c.o > 0 && c.c > 0 ? 'Open / Closed' : c.o > 0 ? 'Open (to receive)' : 'Closed') : '-';
+  });
+  const I = (n: string) => init[n] ?? '';
+
   // ================= PAGE 1 : OVERVIEW =================
   const p1 = pages[0];
   header(p1, 'Top 10 Customers by Month', 'Customer Revenue & Financial Overview');
