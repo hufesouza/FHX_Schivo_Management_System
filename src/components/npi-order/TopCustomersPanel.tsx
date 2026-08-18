@@ -50,10 +50,12 @@ const DeltaText = ({ d, suffix }: { d: Delta; suffix?: string }) => {
   );
 };
 
+const ALL = '__all__';
+
 export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
-  const [range, setRange] = useState('8');
+  const [range, setRange] = useState('12');
   const [metric, setMetric] = useState('revenue');
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>(ALL);
 
   // month -> customer -> revenue
   const { monthKeys, byMonth, totals } = useMemo(() => {
@@ -77,8 +79,8 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
   }, [monthKeys, range]);
 
   useEffect(() => {
-    if (!visibleMonths.length) { setSelectedMonth(''); return; }
-    if (!visibleMonths.includes(selectedMonth)) {
+    if (!visibleMonths.length) { setSelectedMonth(ALL); return; }
+    if (selectedMonth !== ALL && !visibleMonths.includes(selectedMonth)) {
       // default to the most recent month that is not in the future
       const now = new Date();
       const nowKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -88,36 +90,64 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
   }, [visibleMonths, selectedMonth]);
 
 
+  const isAll = selectedMonth === ALL;
   const monthIdx = monthKeys.indexOf(selectedMonth);
   const prevMonthKey = monthIdx > 0 ? monthKeys[monthIdx - 1] : '';
 
+  // previous comparable window (same number of months immediately before the visible range)
+  const prevWindow = useMemo(() => {
+    if (!visibleMonths.length) return [] as string[];
+    const firstIdx = monthKeys.indexOf(visibleMonths[0]);
+    const n = visibleMonths.length;
+    return monthKeys.slice(Math.max(0, firstIdx - n), firstIdx);
+  }, [monthKeys, visibleMonths]);
+
+  const periodLabel = isAll
+    ? visibleMonths.length
+      ? `${monthLabel(visibleMonths[0])} – ${monthLabel(visibleMonths[visibleMonths.length - 1])}`
+      : '—'
+    : selectedMonth
+      ? monthLabel(selectedMonth)
+      : '—';
+
   const ranking = useMemo(() => {
-    const inner = byMonth.get(selectedMonth);
-    const prev = byMonth.get(prevMonthKey);
-    const totalRev = totals.get(selectedMonth) || 0;
-    const list = inner
-      ? Array.from(inner.entries())
-          .filter(([, v]) => v > 0)
-          .sort((a, b) => b[1] - a[1])
-      : [];
+    const aggregate = (keys: string[]) => {
+      const m = new Map<string, number>();
+      let total = 0;
+      keys.forEach(k => {
+        const inner = byMonth.get(k);
+        if (inner) inner.forEach((v, name) => m.set(name, (m.get(name) || 0) + v));
+        total += totals.get(k) || 0;
+      });
+      return { m, total };
+    };
+
+    const cur = isAll ? aggregate(visibleMonths) : aggregate(selectedMonth ? [selectedMonth] : []);
+    const prevAgg = isAll ? aggregate(prevWindow) : aggregate(prevMonthKey ? [prevMonthKey] : []);
+    const prev = prevAgg.m;
+    const totalRev = cur.total;
+    const list = Array.from(cur.m.entries())
+      .filter(([, v]) => v > 0)
+      .sort((a, b) => b[1] - a[1]);
     const top = list.slice(0, 10).map(([name, revenue], i) => ({
       name,
       revenue,
       color: PALETTE[i % PALETTE.length],
       share: totalRev > 0 ? (revenue / totalRev) * 100 : 0,
-      d: delta(revenue, prev?.get(name) || 0),
+      d: delta(revenue, prev.get(name) || 0),
     }));
     const topTotal = top.reduce((s, c) => s + c.revenue, 0);
-    const prevTopTotal = top.reduce((s, c) => s + (prev?.get(c.name) || 0), 0);
+    const prevTopTotal = top.reduce((s, c) => s + (prev.get(c.name) || 0), 0);
     return {
       top,
       totalRev,
       topTotal,
       others: Math.max(totalRev - topTotal, 0),
       topDelta: delta(topTotal, prevTopTotal),
-      monthDelta: delta(totalRev, totals.get(prevMonthKey) || 0),
+      monthDelta: delta(totalRev, prevAgg.total),
     };
-  }, [byMonth, totals, selectedMonth, prevMonthKey]);
+  }, [byMonth, totals, selectedMonth, prevMonthKey, isAll, visibleMonths, prevWindow]);
+
 
   const colorOf = useMemo(() => {
     const m = new Map<string, string>();
@@ -180,8 +210,9 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
             </SelectContent>
           </Select>
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="h-9 w-[120px] text-sm"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[140px] text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
+              <SelectItem value={ALL}>Whole range</SelectItem>
               {visibleMonths.map(k => <SelectItem key={k} value={k}>{monthLabel(k)}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -222,12 +253,12 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
         <Card className="border-border shadow-sm">
           <CardContent className="p-4 space-y-5">
             <h3 className="text-sm font-semibold text-foreground">
-              Month Overview ({selectedMonth ? monthLabel(selectedMonth) : '—'})
+              {isAll ? 'Period Overview' : 'Month Overview'} ({periodLabel})
             </h3>
             <div>
               <div className="text-xs text-muted-foreground">Total Revenue</div>
               <div className="text-2xl font-semibold text-foreground tabular-nums">{fmtCompact(ranking.totalRev)}</div>
-              <DeltaText d={ranking.monthDelta} suffix={prevMonthKey ? `vs ${monthLabel(prevMonthKey)}` : ''} />
+              <DeltaText d={ranking.monthDelta} suffix={isAll ? 'vs previous period' : prevMonthKey ? `vs ${monthLabel(prevMonthKey)}` : ''} />
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Top 10 Customers</div>
@@ -252,7 +283,7 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
         <Card className="border-border shadow-sm">
           <CardContent className="p-4">
             <h3 className="text-sm font-semibold text-foreground mb-3">
-              Top 10 Customers – Current Month ({selectedMonth ? monthLabel(selectedMonth) : '—'})
+              Top 10 Customers – {isAll ? 'Period' : 'Current Month'} ({periodLabel})
             </h3>
             <Table>
               <TableHeader>
@@ -261,7 +292,7 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
                   <TableHead className="text-xs">Customer</TableHead>
                   <TableHead className="text-xs text-right">Revenue</TableHead>
                   <TableHead className="text-xs text-right">% of Total</TableHead>
-                  <TableHead className="text-xs text-right">vs Last Month</TableHead>
+                  <TableHead className="text-xs text-right">{isAll ? 'vs Prev Period' : 'vs Last Month'}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -280,7 +311,7 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
                   </TableRow>
                 ))}
                 {!ranking.top.length && (
-                  <TableRow><TableCell colSpan={5} className="text-xs text-muted-foreground text-center py-6">No revenue in this month.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-xs text-muted-foreground text-center py-6">No revenue in this period.</TableCell></TableRow>
                 )}
                 <TableRow className="bg-muted/40 font-semibold">
                   <TableCell colSpan={2} className="text-xs">Top 10 Total</TableCell>
@@ -298,7 +329,7 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
         <Card className="border-border shadow-sm">
           <CardContent className="p-4">
             <h3 className="text-sm font-semibold text-foreground mb-3">
-              Revenue Share – Current Month ({selectedMonth ? monthLabel(selectedMonth) : '—'})
+              Revenue Share – {isAll ? 'Period' : 'Current Month'} ({periodLabel})
             </h3>
             <div className="grid gap-4 sm:grid-cols-[200px_minmax(0,1fr)] items-center">
               <ResponsiveContainer width="100%" height={210}>
