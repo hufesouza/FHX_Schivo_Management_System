@@ -50,10 +50,12 @@ const DeltaText = ({ d, suffix }: { d: Delta; suffix?: string }) => {
   );
 };
 
+const ALL = '__all__';
+
 export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
-  const [range, setRange] = useState('8');
+  const [range, setRange] = useState('12');
   const [metric, setMetric] = useState('revenue');
-  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedMonth, setSelectedMonth] = useState<string>(ALL);
 
   // month -> customer -> revenue
   const { monthKeys, byMonth, totals } = useMemo(() => {
@@ -77,8 +79,8 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
   }, [monthKeys, range]);
 
   useEffect(() => {
-    if (!visibleMonths.length) { setSelectedMonth(''); return; }
-    if (!visibleMonths.includes(selectedMonth)) {
+    if (!visibleMonths.length) { setSelectedMonth(ALL); return; }
+    if (selectedMonth !== ALL && !visibleMonths.includes(selectedMonth)) {
       // default to the most recent month that is not in the future
       const now = new Date();
       const nowKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -208,8 +210,9 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
             </SelectContent>
           </Select>
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="h-9 w-[120px] text-sm"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[140px] text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
+              <SelectItem value={ALL}>Whole range</SelectItem>
               {visibleMonths.map(k => <SelectItem key={k} value={k}>{monthLabel(k)}</SelectItem>)}
             </SelectContent>
           </Select>
@@ -250,12 +253,12 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
         <Card className="border-border shadow-sm">
           <CardContent className="p-4 space-y-5">
             <h3 className="text-sm font-semibold text-foreground">
-              Month Overview ({selectedMonth ? monthLabel(selectedMonth) : '—'})
+              {isAll ? 'Period Overview' : 'Month Overview'} ({periodLabel})
             </h3>
             <div>
               <div className="text-xs text-muted-foreground">Total Revenue</div>
               <div className="text-2xl font-semibold text-foreground tabular-nums">{fmtCompact(ranking.totalRev)}</div>
-              <DeltaText d={ranking.monthDelta} suffix={prevMonthKey ? `vs ${monthLabel(prevMonthKey)}` : ''} />
+              <DeltaText d={ranking.monthDelta} suffix={isAll ? 'vs previous period' : prevMonthKey ? `vs ${monthLabel(prevMonthKey)}` : ''} />
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Top 10 Customers</div>
@@ -280,7 +283,7 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
         <Card className="border-border shadow-sm">
           <CardContent className="p-4">
             <h3 className="text-sm font-semibold text-foreground mb-3">
-              Top 10 Customers – Current Month ({selectedMonth ? monthLabel(selectedMonth) : '—'})
+              Top 10 Customers – {isAll ? 'Period' : 'Current Month'} ({periodLabel})
             </h3>
             <Table>
               <TableHeader>
@@ -289,7 +292,7 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
                   <TableHead className="text-xs">Customer</TableHead>
                   <TableHead className="text-xs text-right">Revenue</TableHead>
                   <TableHead className="text-xs text-right">% of Total</TableHead>
-                  <TableHead className="text-xs text-right">vs Last Month</TableHead>
+                  <TableHead className="text-xs text-right">{isAll ? 'vs Prev Period' : 'vs Last Month'}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -308,7 +311,7 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
                   </TableRow>
                 ))}
                 {!ranking.top.length && (
-                  <TableRow><TableCell colSpan={5} className="text-xs text-muted-foreground text-center py-6">No revenue in this month.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={5} className="text-xs text-muted-foreground text-center py-6">No revenue in this period.</TableCell></TableRow>
                 )}
                 <TableRow className="bg-muted/40 font-semibold">
                   <TableCell colSpan={2} className="text-xs">Top 10 Total</TableCell>
@@ -326,7 +329,7 @@ export function TopCustomersPanel({ rows }: { rows: CustomerRevRow[] }) {
         <Card className="border-border shadow-sm">
           <CardContent className="p-4">
             <h3 className="text-sm font-semibold text-foreground mb-3">
-              Revenue Share – Current Month ({selectedMonth ? monthLabel(selectedMonth) : '—'})
+              Revenue Share – {isAll ? 'Period' : 'Current Month'} ({periodLabel})
             </h3>
             <div className="grid gap-4 sm:grid-cols-[200px_minmax(0,1fr)] items-center">
               <ResponsiveContainer width="100%" height={210}>
