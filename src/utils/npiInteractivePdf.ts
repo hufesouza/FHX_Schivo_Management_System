@@ -535,14 +535,18 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       ]],
       margin: { left: M, right: M },
       theme: 'grid',
-      styles: { fontSize: 7.4, cellPadding: 1.4, halign: 'right', textColor: [30, 41, 59], lineColor: [226, 232, 240] },
+      styles: { fontSize: 7.2, cellPadding: 1.3, halign: 'right', textColor: [30, 41, 59], lineColor: [226, 232, 240] },
       columnStyles: {
         0: { halign: 'left', cellWidth: 58, fontStyle: 'bold' },
         6: { halign: 'left', cellWidth: 52, textColor: [37, 99, 235] },
       },
-      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 6.8, halign: 'right' },
+      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 6.6, halign: 'right' },
       footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', halign: 'right' },
       alternateRowStyles: { fillColor: [249, 250, 252] },
+      didParseCell: (d: any) => {
+        if (d.section === 'head' && (d.column.index === 0 || d.column.index === 6)) d.cell.styles.halign = 'left';
+      },
+
       didDrawCell: (d: any) => {
         if (d.section === 'body' && d.column.index === 0) {
           const S = detail[d.row.index];
