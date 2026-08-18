@@ -360,22 +360,23 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     navs.forEach((n, i) => darkPill(n.t, M + i * (nbw + 4), 31, nbw, n.p));
 
     // SECTION A
-    sectionTitle('Company performance', 45);
-    let y = kpiGrid([
+    sectionTitle('Company performance', 44);
+    kpiGrid([
       { label: 'Company revenue (actual)', value: actualCompany > 0 ? fmtM(actualCompany) : 'not set', accent: [15, 23, 42], tint: [241, 245, 249] },
       { label: 'Projected company revenue', value: projected > 0 ? fmtM(projected) : 'not set', accent: [59, 130, 246], tint: [239, 246, 255] },
       { label: 'Revenue achievement', value: pctTxt(achievement), accent: [37, 99, 235], tint: [239, 246, 255] },
       { label: 'Revenue gap', value: projected > 0 && actualCompany > 0 ? fmtM(revGap) : 'n/a', accent: [244, 63, 94], tint: [255, 241, 242] },
-    ], 49, 15);
+    ], 46, 14);
 
     // SECTION B
-    sectionTitle('NPI performance', y - 1);
-    y = kpiGrid([
+    sectionTitle('NPI performance', 66);
+    kpiGrid([
       { label: 'NPI revenue (period)', value: fmtM(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
       { label: 'Actual New Product Vitality Index', value: actualNpvi === null ? 'n/a' : `${actualNpvi.toFixed(2)}%`, accent: [139, 92, 246], tint: [245, 243, 255] },
       { label: 'Required NPI revenue', value: requiredNpi > 0 ? fmtM(requiredNpi) : 'n/a', accent: [15, 23, 42], tint: [241, 245, 249] },
-      { label: 'NPI gap', value: requiredNpi > 0 ? fmtM(npiGap) : 'n/a', accent: npiGap > 0 ? [244, 63, 94] : [16, 185, 129], tint: npiGap > 0 ? [255, 241, 242] : [236, 253, 245] },
-    ], y + 3, 15);
+      { label: npiGap > 0 ? 'NPI gap' : 'NPI surplus', value: requiredNpi > 0 ? fmtM(Math.abs(npiGap)) : 'n/a', accent: npiGap > 0 ? [244, 63, 94] : [16, 185, 129], tint: npiGap > 0 ? [255, 241, 242] : [236, 253, 245] },
+    ], 68, 14);
+
 
     // three panels: target coverage / pipeline / outlook
     const panelY = y + 1;
