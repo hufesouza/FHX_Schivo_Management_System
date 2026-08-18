@@ -379,8 +379,9 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
 
 
     // three panels: target coverage / pipeline / outlook
-    const panelY = y + 1;
-    const panelH = 34;
+    const panelY = 87;
+    const panelH = 30;
+
     const pgap = 5;
     const panW = (pw - 2 * M - 2 * pgap) / 3;
     const panel = (i: number, title: string) => {
