@@ -1,3 +1,4 @@
+(globalThis as any).localStorage = { getItem: () => null, setItem(){} };
 import { buildInteractiveData, exportInteractiveCustomerReport } from './src/utils/npiInteractivePdf';
 (globalThis as any).document = { createElement: () => ({ click(){}, set href(_:any){}, set download(_:any){} }) };
 (globalThis as any).URL.createObjectURL = () => 'blob:x';
