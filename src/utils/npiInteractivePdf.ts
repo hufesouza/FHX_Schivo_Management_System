@@ -314,22 +314,11 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
 
     const P = data.params || { projectedRevenue: 0, npviBenchmark: 0 };
     const projected = P.projectedRevenue > 0 ? P.projectedRevenue : 0;
-    const bench = P.npviBenchmark > 0 ? P.npviBenchmark : 0;
     const actualCompany = G.companyRevenue > 0 ? G.companyRevenue : 0;
     const actualNpvi = actualCompany > 0 ? (gTotal / actualCompany) * 100 : null;
-    const requiredNpi = projected > 0 && bench > 0 ? (projected * bench) / 100 : 0;
-    const npiGap = requiredNpi > 0 ? requiredNpi - gTotal : 0;
-    const coverage = requiredNpi > 0 ? (gTotal / requiredNpi) * 100 : null;
+    const npviVsProjected = projected > 0 ? (gTotal / projected) * 100 : null;
     const achievement = projected > 0 && actualCompany > 0 ? (actualCompany / projected) * 100 : null;
-    const revGap = projected > 0 && actualCompany > 0 ? projected - actualCompany : 0;
-    const openCoverage = npiGap > 0 ? (gOpen / npiGap) * 100 : null;
-    const monthsElapsed = data.months.filter(m => (G.totals[m.k] || 0) !== 0).length || nMonths;
-    const runRate = monthsElapsed > 0 ? (gTotal / monthsElapsed) * 12 : 0;
-    const runVs = requiredNpi > 0 && runRate > 0 ? (runRate / requiredNpi) * 100 : null;
-    const status =
-      runVs === null ? 'NO TARGET SET' : runVs >= 100 ? 'ON TRACK' : runVs >= 90 ? 'AT RISK' : 'BELOW TARGET';
-    const statusCol: [number, number, number] =
-      runVs === null ? [100, 116, 139] : runVs >= 100 ? [16, 185, 129] : runVs >= 90 ? [245, 158, 11] : [244, 63, 94];
+
 
     const fmtM = (n: number) => {
       const v = n || 0;
@@ -356,134 +345,21 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       { label: 'Site revenue (actual)', value: actualCompany > 0 ? fmtM(actualCompany) : 'not set', accent: [15, 23, 42], tint: [241, 245, 249] },
       { label: 'Projected company revenue', value: projected > 0 ? fmtM(projected) : 'not set', accent: [59, 130, 246], tint: [239, 246, 255] },
       { label: 'Revenue achievement', value: pctTxt(achievement), accent: [37, 99, 235], tint: [239, 246, 255] },
-      { label: 'Revenue gap', value: projected > 0 && actualCompany > 0 ? fmtM(revGap) : 'n/a', accent: [244, 63, 94], tint: [255, 241, 242] },
     ], 47.5, 14);
 
     // SECTION B
     sectionTitle('NPI performance', 66);
     kpiGrid([
       { label: 'NPI revenue (period)', value: fmtM(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
+      { label: 'Open NPI (to invoice)', value: fmtM(gOpen), accent: [245, 158, 11], tint: [255, 251, 235] },
       { label: 'Actual New Product Vitality Index', value: actualNpvi === null ? 'n/a' : `${actualNpvi.toFixed(2)}%`, accent: [139, 92, 246], tint: [245, 243, 255] },
-      { label: 'Required NPI revenue', value: requiredNpi > 0 ? fmtM(requiredNpi) : 'n/a', accent: [15, 23, 42], tint: [241, 245, 249] },
-      { label: npiGap > 0 ? 'NPI gap' : 'NPI surplus', value: requiredNpi > 0 ? fmtM(Math.abs(npiGap)) : 'n/a', accent: npiGap > 0 ? [244, 63, 94] : [16, 185, 129], tint: npiGap > 0 ? [255, 241, 242] : [236, 253, 245] },
-    ], 69.5, 14);
+      { label: 'New Product Vitality Index vs projected revenue', value: npviVsProjected === null ? 'n/a' : `${npviVsProjected.toFixed(2)}%`, accent: [37, 99, 235], tint: [239, 246, 255] },
+    ], 69.5, 16);
 
-
-    // three panels: target coverage / pipeline / outlook
     const panelY = 87;
-    const panelH = 30;
-
-    const pgap = 5;
-    const panW = (pw - 2 * M - 2 * pgap) / 3;
-    const panel = (i: number, title: string) => {
-      const x = M + i * (panW + pgap);
-      pdf.setFillColor(255, 255, 255);
-      pdf.setDrawColor(214, 222, 233);
-      pdf.roundedRect(x, panelY, panW, panelH, 1.8, 1.8, 'FD');
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(6.4);
-      pdf.setTextColor(100, 116, 139);
-      pdf.text(title.toUpperCase(), x + 4, panelY + 5.5);
-      return x;
-    };
-
-    // panel 1 - NPI target coverage gauge
-    {
-      const x = panel(0, 'NPI target coverage');
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(16);
-      pdf.setTextColor(15, 23, 42);
-      pdf.text(pctTxt(coverage), x + 4, panelY + 14);
-      const gw = panW - 8;
-      const gy = panelY + 16.5;
-      pdf.setFillColor(226, 232, 240);
-      pdf.roundedRect(x + 4, gy, gw, 4, 1, 1, 'F');
-      const frac = coverage === null ? 0 : Math.max(0, Math.min(1, coverage / 100));
-      if (frac > 0) {
-        pdf.setFillColor(...(coverage !== null && coverage >= 100 ? [16, 185, 129] : [59, 130, 246]) as [number, number, number]);
-        pdf.roundedRect(x + 4, gy, Math.max(1, gw * frac), 4, 1, 1, 'F');
-      }
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(6.6);
-      pdf.setTextColor(71, 85, 105);
-      pdf.text(
-        requiredNpi > 0
-          ? `${fmtM(gTotal)} achieved / ${fmtM(requiredNpi)} required`
-          : 'Enter projected revenue and NPVI benchmark',
-        x + 4, gy + 7.5
-      );
-      if (requiredNpi > 0) {
-        pdf.text(
-          npiGap > 0 ? `${fmtM(npiGap)} remaining` : `${fmtM(-npiGap)} above requirement`,
-          x + 4, gy + 11.3
-        );
-      }
-    }
+    const panelH = 0;
 
 
-    // panel 2 - pipeline coverage
-    {
-      const x = panel(1, 'NPI pipeline coverage');
-      const rows: [string, string][] = [
-        ['Current NPI revenue', fmtM(gTotal)],
-        ['Open NPI (to invoice)', fmtM(gOpen)],
-        [npiGap > 0 ? 'NPI gap' : 'NPI surplus', requiredNpi > 0 ? fmtM(Math.abs(npiGap)) : 'n/a'],
-      ];
-      rows.forEach((r, i) => {
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(6.8);
-        pdf.setTextColor(71, 85, 105);
-        pdf.text(r[0], x + 4, panelY + 10.5 + i * 4.2);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(15, 23, 42);
-        pdf.text(r[1], x + panW - 4, panelY + 10.5 + i * 4.2, { align: 'right' });
-      });
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(11);
-      pdf.setTextColor(...(openCoverage !== null && openCoverage >= 100 ? [16, 185, 129] : [245, 158, 11]) as [number, number, number]);
-      pdf.text(
-        openCoverage === null ? (requiredNpi > 0 ? 'no gap' : 'n/a') : `${openCoverage.toFixed(0)}%`,
-        x + 4, panelY + 27
-      );
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(6.2);
-      pdf.setTextColor(71, 85, 105);
-      const msg =
-        requiredNpi <= 0
-          ? 'Benchmark not provided - coverage not calculated.'
-          : npiGap <= 0
-            ? 'No NPI gap: current NPI revenue already meets the requirement.'
-            : openCoverage !== null && openCoverage >= 100
-              ? `Open NPI provides ${openCoverage.toFixed(0)}% coverage of the identified NPI gap.`
-              : `Open NPI provides ${(openCoverage || 0).toFixed(0)}% coverage of the identified NPI gap (not sufficient).`;
-      pdf.text(pdf.splitTextToSize(msg, panW - 28), x + 24, panelY + 24.5);
-    }
-
-    // panel 3 - outlook
-    {
-      const x = panel(2, 'NPI outlook');
-      const rows: [string, string][] = [
-        [`Annualised NPI run rate (${monthsElapsed} mth)`, runRate > 0 ? fmtM(runRate) : 'n/a'],
-        ['Required NPI revenue', requiredNpi > 0 ? fmtM(requiredNpi) : 'n/a'],
-        ['Forecast gap / surplus', requiredNpi > 0 && runRate > 0 ? fmtM(runRate - requiredNpi) : 'n/a'],
-        ['Run rate vs required', pctTxt(runVs)],
-      ];
-      rows.forEach((r, i) => {
-        pdf.setFont('helvetica', 'normal');
-        pdf.setFontSize(6.6);
-        pdf.setTextColor(71, 85, 105);
-        pdf.text(r[0], x + 4, panelY + 10.5 + i * 4);
-        pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(15, 23, 42);
-        pdf.text(r[1], x + panW - 4, panelY + 10.5 + i * 4, { align: 'right' });
-      });
-      pdf.setFillColor(...statusCol);
-      pdf.roundedRect(x + 4, panelY + 23, 44, 5.4, 1.2, 1.2, 'F');
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(7.2);
-      pdf.setTextColor(255, 255, 255);
-      pdf.text(status, x + 26, panelY + 26.7, { align: 'center' });
-    }
 
 
     // SECTION E - site performance (compact)

@@ -301,19 +301,8 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
                         Total projected company revenue — not NPI revenue.
                       </p>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="npvi-bench">NPVI benchmark / target (%)</Label>
-                      <Input
-                        id="npvi-bench"
-                        inputMode="decimal"
-                        placeholder="4.28"
-                        value={benchmark}
-                        onChange={e => setBenchmark(e.target.value)}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        Prefilled with the current group vitality index; edit as needed.
-                      </p>
-                    </div>
+
+
                   </div>
                   <DialogFooter>
                     <Button variant="outline" onClick={() => setConfigOpen(false)}>Cancel</Button>
