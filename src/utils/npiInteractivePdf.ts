@@ -253,16 +253,16 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
     width: number,
     height: number,
     script: string,
-    opts: { size?: number; bg?: any; fg?: any; border?: any } = {}
+    opts: { size?: number; bg?: any; fg?: any; border?: any; transparent?: boolean } = {}
   ) => {
     const b = form.createButton(name);
     b.addToPage(label, page, {
       x, y, width, height,
       font: bold,
       textColor: opts.fg ?? navy,
-      backgroundColor: opts.bg ?? light,
-      borderColor: opts.border ?? line,
-      borderWidth: 0.8,
+      backgroundColor: opts.transparent ? undefined : opts.bg ?? light,
+      borderColor: opts.transparent ? undefined : opts.border ?? line,
+      borderWidth: opts.transparent ? 0 : 0.8,
     });
     b.setFontSize(opts.size ?? 8);
     setAction(b, script);
@@ -439,7 +439,7 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
     p1.drawText(String(j + 1), { x: 40, y: y + 5, size: 8.5, font: bold, color: slate });
     txt(`rn${j}`, rank0[j] ? `${j + 1}.  ${rank0[j].n}` : '', p1, 72, y + 2, 330, 15, { size: 8.5, boldFont: true });
     btn(`rc${j}`, '', p1, 72, y, 330, 18, `setCustomerByRank(${j});`, {
-      size: 8.5, bg: undefined, fg: white, border: white,
+      size: 8.5, transparent: true,
     });
     txt(`rr${j}`, I(`rr${j}`), p1, 402, y + 2, 100, 14, { size: 8.5, align: TextAlignment.Right, boldFont: true });
     txt(`rp${j}`, I(`rp${j}`), p1, 512, y + 2, 80, 14, { size: 8.5, align: TextAlignment.Right });
