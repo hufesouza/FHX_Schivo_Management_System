@@ -97,7 +97,7 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
         npiOnly
       );
       await exportInteractiveGroupReport(data);
-      toast.success(`Interactive group PDF generated for ${chosen.length} site(s) — open it in Adobe Acrobat Reader`);
+      toast.success(`Interactive group PDF generated for ${chosen.length} site(s)`);
     } catch (e: any) {
       toast.error('Could not generate the interactive PDF: ' + e.message);
     } finally {
