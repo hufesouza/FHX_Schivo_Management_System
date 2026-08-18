@@ -589,15 +589,17 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       `${clip(top1Name, 30)} is the largest customer at ${share(sumTop(1))} of NPI revenue; the top 10 represent ${share(sumTop(10))}.`,
     ].filter(Boolean).join(' ');
 
-    const boxY = cy + 2;
+    const boxY = cy + 1;
     pdf.setFillColor(248, 250, 252);
     pdf.setDrawColor(214, 222, 233);
-    const boxH = Math.min(20, ph - 12 - boxY);
+    const boxH = Math.max(10, Math.min(18, ph - 13 - boxY));
     pdf.roundedRect(M, boxY, pw - 2 * M, boxH, 1.8, 1.8, 'FD');
     pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(7.2);
+    pdf.setFontSize(6.8);
     pdf.setTextColor(30, 41, 59);
-    pdf.text(pdf.splitTextToSize(insight, pw - 2 * M - 8), M + 4, boxY + 5);
+    const lines = (pdf.splitTextToSize(insight, pw - 2 * M - 8) as string[]).slice(0, 4);
+    lines.forEach((ln, i) => pdf.text(ln, M + 4, boxY + 4.5 + i * 3.6));
+
 
     footer(OVERVIEW);
   }
