@@ -557,7 +557,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     });
 
     // SECTION F - customer concentration
-    let cy = ((pdf as any).lastAutoTable?.finalY || sy + 24) + 6;
+    let cy = Math.min(((pdf as any).lastAutoTable?.finalY || sy + 24) + 6, 160);
     sectionTitle('Customer concentration', cy);
     pill('VIEW CUSTOMER DETAILS >', pw - M - 48, cy - 4, 48, 6, false, custOf(0, 0));
     const sumTop = (n: number) => G.customers.slice(0, n).reduce((s, c) => s + (G.custTotals[c] || 0), 0);
@@ -568,7 +568,8 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       { label: 'Top 3 customers', value: `${fmtM(sumTop(3))}  (${share(sumTop(3))})`, accent: [37, 99, 235], tint: [239, 246, 255] },
       { label: 'Top 10 customers', value: `${fmtM(sumTop(10))}  (${share(sumTop(10))})`, accent: [15, 23, 42], tint: [241, 245, 249] },
       { label: 'Active customers', value: String(G.customers.length), accent: [100, 116, 139], tint: [248, 250, 252] },
-    ], cy + 3, 13);
+    ], cy + 3, 12);
+
 
     // MANAGEMENT INSIGHT
     sectionTitle('Management insight', cy - 1);
