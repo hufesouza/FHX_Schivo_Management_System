@@ -38,7 +38,7 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
   const [interactive, setInteractive] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [projected, setProjected] = useState('');
-  const [benchmark, setBenchmark] = useState('');
+  const [loadError, setLoadError] = useState('');
 
 
 
@@ -47,11 +47,16 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
     if (!open) return;
     let active = true;
     setLoading(true);
+    setLoadError('');
     (async () => {
-      const loaded = await Promise.all(sites.map(s => loadSiteDataset(s.id)));
+      const results = await Promise.allSettled(sites.map(s => loadSiteDataset(s.id)));
       if (!active) return;
+      const loaded = results.flatMap(result => result.status === 'fulfilled' ? [result.value] : []);
       setDatasets(loaded);
       setSelected(loaded.filter(d => d.rows.length > 0).map(d => d.site));
+      if (results.some(result => result.status === 'rejected')) {
+        setLoadError('Some sites could not be loaded. Available sites can still be reported.');
+      }
       setLoading(false);
     })();
     return () => { active = false; };
@@ -91,29 +96,31 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
     }
   };
 
-  const openConfig = async () => {
+  const openConfig = () => {
     if (!chosen.length) {
       toast.error('Select at least one site with uploaded data');
       return;
     }
     setConfigOpen(true);
-    // Prefill the benchmark with the current group NPVI when we can compute it.
-    try {
-      const targets = await Promise.all(chosen.map(d => fetchRevenueTargets(d.site)));
-      const company = chosen.reduce((s, d, i) => {
-        const t = targets[i] || {};
-        return s + (year === 'all'
-          ? (t.all || Object.entries(t).filter(([k]) => k !== 'all').reduce((a, [, v]) => a + (v || 0), 0))
-          : (t[year] || 0));
-      }, 0);
-      const stat = stats.reduce((s, x) => s + x.revenue, 0);
-      if (company > 0 && stat > 0) setBenchmark(((stat / company) * 100).toFixed(2));
-    } catch { /* keep whatever the user has */ }
+  };
+
+  const parseRevenue = (value: string) => {
+    const clean = value.replace(/[€\s]/g, '');
+    const normalized = clean.includes(',') && clean.includes('.')
+      ? (clean.lastIndexOf(',') > clean.lastIndexOf('.')
+          ? clean.replace(/\./g, '').replace(',', '.')
+          : clean.replace(/,/g, ''))
+      : clean.includes(',')
+        ? clean.replace(/,/g, '')
+        : clean.split('.').length > 2
+          ? clean.replace(/\./g, '')
+          : clean;
+    const amount = Number(normalized.replace(/[^\d.-]/g, ''));
+    return Number.isFinite(amount) ? amount : 0;
   };
 
   const handleInteractive = async () => {
-    const projectedRevenue = parseFloat(projected.replace(/[^\d.-]/g, '')) || 0;
-    let npviBenchmark = parseFloat(benchmark.replace(/[^\d.-]/g, '')) || 0;
+    const projectedRevenue = parseRevenue(projected);
     if (projectedRevenue <= 0) {
       toast.error('Enter the projected company revenue');
       return;
@@ -121,19 +128,6 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
     setInteractive(true);
     try {
       const targets = await Promise.all(chosen.map(d => fetchRevenueTargets(d.site)));
-      if (npviBenchmark <= 0) {
-        // Fall back to the current group vitality index so a missing target never blocks the export.
-        const company = chosen.reduce((s, d, i) => {
-          const t = targets[i] || {};
-          return s + (year === 'all'
-            ? (t.all || Object.entries(t).filter(([k]) => k !== 'all').reduce((a, [, v]) => a + (v || 0), 0))
-            : (t[year] || 0));
-        }, 0);
-        const stat = stats.reduce((s, x) => s + x.revenue, 0);
-        npviBenchmark = company > 0 && stat > 0
-          ? (stat / company) * 100
-          : (projectedRevenue > 0 ? (stat / projectedRevenue) * 100 : 0);
-      }
       const data = buildInteractiveGroupData(
         chosen.map((d, i) => {
           const t = targets[i] || {};
@@ -148,12 +142,13 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
         }),
         year,
         npiOnly,
-        { projectedRevenue, npviBenchmark }
+        { projectedRevenue, npviBenchmark: 0 }
       );
 
       await exportInteractiveGroupReport(data);
       toast.success(`Interactive group PDF generated for ${chosen.length} site(s)`);
       setConfigOpen(false);
+      onOpenChange(false);
     } catch (e: any) {
       toast.error('Could not generate the interactive PDF: ' + e.message);
     } finally {
@@ -178,8 +173,33 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
           <div className="flex items-center gap-2 py-8 justify-center text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading site data…
           </div>
+        ) : configOpen ? (
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="projected-rev">Projected company revenue (full year)</Label>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">€</span>
+                <Input
+                  id="projected-rev"
+                  inputMode="decimal"
+                  autoFocus
+                  placeholder="114000000"
+                  value={projected}
+                  onChange={e => setProjected(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && !interactive) void handleInteractive(); }}
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Total projected company revenue — not NPI revenue.
+              </p>
+            </div>
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+              Generating for {chosen.length} site(s) · {year === 'all' ? 'All years' : year} · {fmtEur(total)} NPI revenue
+            </div>
+          </div>
         ) : (
           <div className="space-y-5">
+            {loadError && <p className="text-sm text-destructive">{loadError}</p>}
             <div className="space-y-2">
               <Label>Sites</Label>
               <div className="grid gap-2 sm:grid-cols-2">
@@ -275,58 +295,28 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
                 Generate Interactive PDF
               </Button>
 
-              <Dialog open={configOpen} onOpenChange={setConfigOpen}>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Generate Interactive PDF</DialogTitle>
-                    <DialogDescription>
-                      These values are embedded in this report only and drive the executive summary
-                      on page 1.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="projected-rev">Projected company revenue (full year)</Label>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-muted-foreground">€</span>
-                        <Input
-                          id="projected-rev"
-                          inputMode="decimal"
-                          placeholder="114000000"
-                          value={projected}
-                          onChange={e => setProjected(e.target.value)}
-                        />
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        Total projected company revenue — not NPI revenue.
-                      </p>
-                    </div>
-
-
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setConfigOpen(false)}>Cancel</Button>
-                    <Button onClick={handleInteractive} disabled={interactive}>
-                      {interactive ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                      Generate report
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-
-
             </div>
           </div>
         )}
 
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button onClick={handleGenerate} disabled={loading || generating || stats.length === 0}>
-            {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
-            Generate PDF
-          </Button>
-        </DialogFooter>
+        {configOpen ? (
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfigOpen(false)} disabled={interactive}>Back</Button>
+            <Button onClick={handleInteractive} disabled={interactive || !projected.trim()}>
+              {interactive ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+              Generate report
+            </Button>
+          </DialogFooter>
+        ) : (
+          <DialogFooter>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button onClick={handleGenerate} disabled={loading || generating || stats.length === 0}>
+              {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
+              Generate PDF
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   );
