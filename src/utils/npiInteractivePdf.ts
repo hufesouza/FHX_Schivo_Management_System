@@ -402,7 +402,7 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
   const mCount = data.months.length;
   const mW = Math.min(60, (W - 64 - (mCount - 1) * 5) / mCount);
   data.months.forEach((m, i) => {
-    btn(`m1_${i}`, m.label, p1, 32 + i * (mW + 5), H - 108, mW, 22, `setMonth(${i});`, { size: 8 });
+    btn(`m1_${i}`, m.label, p1, 32 + i * (mW + 5), H - 108, mW, 22, `setMonth(${i});`, { size: 8, bg: i === mi0 ? navy : light, fg: i === mi0 ? white : navy });
   });
 
   // KPI cards
@@ -417,12 +417,12 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
   kpis.forEach(([label, field], i) => {
     const x = 32 + i * (cw + 8);
     card(p1, x, H - 190, cw, 62, label);
-    txt(field, '', p1, x + 8, H - 178, cw - 16, 22, { size: field === 'k_topcust' ? 9 : 14, boldFont: true });
+    txt(field, I(field), p1, x + 8, H - 178, cw - 16, 22, { size: field === 'k_topcust' ? 9 : 14, boldFont: true });
   });
-  txt('k_month', '', p1, 32, H - 205, 200, 12, { size: 8, fg: slate });
+  txt('k_month', I('k_month'), p1, 32, H - 205, 200, 12, { size: 8, fg: slate });
 
   // ranking table
-  txt('rank_title', '', p1, 32, H - 230, 400, 14, { size: 11, boldFont: true });
+  txt('rank_title', I('rank_title'), p1, 32, H - 230, 400, 14, { size: 11, boldFont: true });
   const cols = [
     { label: 'RANK', x: 32, w: 40 },
     { label: 'CUSTOMER (click to select)', x: 72, w: 330 },
@@ -438,12 +438,12 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
     const y = ry - j * 24;
     p1.drawLine({ start: { x: 32, y: y - 3 }, end: { x: W - 32, y: y - 3 }, color: line, thickness: 0.5 });
     p1.drawText(String(j + 1), { x: 40, y: y + 5, size: 8.5, font: bold, color: slate });
-    btn(`rc${j}`, '', p1, 72, y, 330, 18, `setCustomerByRank(${j});`, {
+    btn(`rc${j}`, rank0[j] ? `${j + 1}.  ${rank0[j].n}` : '', p1, 72, y, 330, 18, `setCustomerByRank(${j});`, {
       size: 8.5, bg: white, fg: navy, border: white,
     });
-    txt(`rr${j}`, '', p1, 402, y + 2, 100, 14, { size: 8.5, align: TextAlignment.Right, boldFont: true });
-    txt(`rp${j}`, '', p1, 512, y + 2, 80, 14, { size: 8.5, align: TextAlignment.Right });
-    txt(`rd${j}`, '', p1, 602, y + 2, 100, 14, { size: 8.5, align: TextAlignment.Right });
+    txt(`rr${j}`, I(`rr${j}`), p1, 402, y + 2, 100, 14, { size: 8.5, align: TextAlignment.Right, boldFont: true });
+    txt(`rp${j}`, I(`rp${j}`), p1, 512, y + 2, 80, 14, { size: 8.5, align: TextAlignment.Right });
+    txt(`rd${j}`, I(`rd${j}`), p1, 602, y + 2, 100, 14, { size: 8.5, align: TextAlignment.Right });
   }
 
   // ================= PAGE 2 : CUSTOMER =================
@@ -452,13 +452,13 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
   nav(p2, 'p2');
 
   data.months.forEach((m, i) => {
-    btn(`m2_${i}`, m.label, p2, 32 + i * (mW + 5), H - 90, mW, 20, `setMonth(${i});`, { size: 8 });
+    btn(`m2_${i}`, m.label, p2, 32 + i * (mW + 5), H - 90, mW, 20, `setMonth(${i});`, { size: 8, bg: i === mi0 ? navy : light, fg: i === mi0 ? white : navy });
   });
 
   p2.drawText('CUSTOMER', { x: 32, y: H - 108, size: 7, font: bold, color: slate });
   const dd = form.createDropdown('cust_select');
   dd.setOptions(data.customers);
-  dd.select(data.customers[0]);
+  dd.select(cust0);
   dd.addToPage(p2, {
     x: 32, y: H - 132, width: 330, height: 20,
     font: helv, textColor: navy, backgroundColor: white, borderColor: line, borderWidth: 1,
@@ -470,8 +470,8 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
     w.dict.set(PDFName.of('AA'), doc.context.obj({ V: jsAction('setCustomer(event.value);') }));
   });
 
-  txt('c_name', '', p2, 372, H - 130, 440, 18, { size: 13, boldFont: true });
-  txt('c_sub', '', p2, 372, H - 146, 440, 12, { size: 8, fg: slate });
+  txt('c_name', I('c_name'), p2, 372, H - 130, 440, 18, { size: 13, boldFont: true });
+  txt('c_sub', I('c_sub'), p2, 372, H - 146, 440, 12, { size: 8, fg: slate });
 
   const custKpis: [string, string][] = [
     ['TOTAL REVENUE (PERIOD)', 'c_total'],
@@ -483,7 +483,7 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
   custKpis.forEach(([label, field], i) => {
     const x = 32 + i * (cw + 8);
     card(p2, x, H - 216, cw, 58, label);
-    txt(field, '', p2, x + 8, H - 205, cw - 16, 20, { size: 12, boldFont: true });
+    txt(field, I(field), p2, x + 8, H - 205, cw - 16, 20, { size: 12, boldFont: true });
   });
 
   // financial status
@@ -499,8 +499,8 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
   statuses.forEach(([label, f1, f2], i) => {
     const x = 32 + i * (sw + 10);
     card(p2, x, H - 310, sw, 66, label);
-    txt(f1, '', p2, x + 8, H - 288, sw - 16, 20, { size: 12, boldFont: true });
-    txt(f2, '', p2, x + 8, H - 304, sw - 16, 14, { size: 8, fg: slate });
+    txt(f1, I(f1), p2, x + 8, H - 288, sw - 16, 20, { size: 12, boldFont: true });
+    txt(f2, I(f2), p2, x + 8, H - 304, sw - 16, 14, { size: 8, fg: slate });
   });
 
   // monthly history + bars
@@ -514,12 +514,14 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
   const barTop = H - 352;
   data.months.forEach((_, i) => {
     const y = H - 366 - i * rowH;
-    txt(`h_m${i}`, '', p2, 38, y, 76, 13, { size: 8, boldFont: true });
-    txt(`h_v${i}`, '', p2, 116, y, 110, 13, { size: 8, align: TextAlignment.Right });
-    txt(`h_s${i}`, '', p2, 240, y, 140, 13, { size: 8, fg: slate });
+    txt(`h_m${i}`, I(`h_m${i}`), p2, 38, y, 76, 13, { size: 8, boldFont: true });
+    txt(`h_v${i}`, I(`h_v${i}`), p2, 116, y, 110, 13, { size: 8, align: TextAlignment.Right });
+    txt(`h_s${i}`, I(`h_s${i}`), p2, 240, y, 140, 13, { size: 8, fg: slate });
     const b = form.createButton(`bar${i}`);
     b.addToPage('', p2, {
-      x: 470, y: barTop - (i + 1) * rowH + 4, width: 20, height: rowH - 4,
+      x: 470, y: barTop - (i + 1) * rowH + 4,
+      width: Math.max(1, (maxv0 > 0 ? cellOf(cust0, data.months[i].k).t / maxv0 : 0) * 320),
+      height: rowH - 4,
       font: helv, backgroundColor: rgb(0.23, 0.51, 0.96), borderWidth: 0, textColor: white,
     });
     setAction(b, `setMonth(${i});`);
