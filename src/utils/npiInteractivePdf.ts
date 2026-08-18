@@ -189,7 +189,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(6.5);
     pdf.setTextColor(100, 116, 139);
-    pdf.text('Interactive report - click OVERVIEW / SITE / MONTH / CUSTOMER buttons to navigate. Works in any PDF reader.', M, ph - 6);
+    pdf.text('Interactive report - click EXEC SUMMARY / SITE / MONTH / CUSTOMER buttons to navigate. Works in any PDF reader.', M, ph - 6);
     pdf.text(`Page ${n} of ${totalPages}`, pw - M, ph - 6, { align: 'right' });
   };
 
@@ -366,7 +366,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       { label: 'Projected company revenue', value: projected > 0 ? fmtM(projected) : 'not set', accent: [59, 130, 246], tint: [239, 246, 255] },
       { label: 'Revenue achievement', value: pctTxt(achievement), accent: [37, 99, 235], tint: [239, 246, 255] },
       { label: 'Revenue gap', value: projected > 0 && actualCompany > 0 ? fmtM(revGap) : 'n/a', accent: [244, 63, 94], tint: [255, 241, 242] },
-    ], 46, 14);
+    ], 47.5, 14);
 
     // SECTION B
     sectionTitle('NPI performance', 66);
@@ -375,7 +375,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       { label: 'Actual New Product Vitality Index', value: actualNpvi === null ? 'n/a' : `${actualNpvi.toFixed(2)}%`, accent: [139, 92, 246], tint: [245, 243, 255] },
       { label: 'Required NPI revenue', value: requiredNpi > 0 ? fmtM(requiredNpi) : 'n/a', accent: [15, 23, 42], tint: [241, 245, 249] },
       { label: npiGap > 0 ? 'NPI gap' : 'NPI surplus', value: requiredNpi > 0 ? fmtM(Math.abs(npiGap)) : 'n/a', accent: npiGap > 0 ? [244, 63, 94] : [16, 185, 129], tint: npiGap > 0 ? [255, 241, 242] : [236, 253, 245] },
-    ], 68, 14);
+    ], 69.5, 14);
 
 
     // three panels: target coverage / pipeline / outlook
@@ -436,7 +436,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       const rows: [string, string][] = [
         ['Current NPI revenue', fmtM(gTotal)],
         ['Open NPI (to invoice)', fmtM(gOpen)],
-        ['NPI gap', requiredNpi > 0 ? fmtM(npiGap) : 'n/a'],
+        [npiGap > 0 ? 'NPI gap' : 'NPI surplus', requiredNpi > 0 ? fmtM(Math.abs(npiGap)) : 'n/a'],
       ];
       rows.forEach((r, i) => {
         pdf.setFont('helvetica', 'normal');
@@ -568,7 +568,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       { label: 'Top 3 customers', value: `${fmtM(sumTop(3))}  (${share(sumTop(3))})`, accent: [37, 99, 235], tint: [239, 246, 255] },
       { label: 'Top 10 customers', value: `${fmtM(sumTop(10))}  (${share(sumTop(10))})`, accent: [15, 23, 42], tint: [241, 245, 249] },
       { label: 'Active customers', value: String(G.customers.length), accent: [100, 116, 139], tint: [248, 250, 252] },
-    ], cy + 3, 12);
+    ], cy + 4, 12);
 
 
     // MANAGEMENT INSIGHT
