@@ -200,29 +200,21 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
                   <FileText className="h-4 w-4" /> Interactive report (test)
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  One self-contained PDF with clickable month and customer controls (AcroForm + Acrobat
-                  JavaScript). Open it in Adobe Acrobat Reader — browser viewers ignore PDF form logic.
+                  One self-contained PDF covering all selected sites (plus a group aggregate), with
+                  clickable site, month and customer controls (AcroForm + Acrobat JavaScript). Open it in
+                  Adobe Acrobat Reader — browser viewers ignore PDF form logic.
                 </p>
               </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                <div className="flex-1 space-y-2">
-                  <Label>Site for the interactive PDF</Label>
-                  <Select value={interactiveSite} onValueChange={setInteractiveSite}>
-                    <SelectTrigger><SelectValue placeholder="Select a site" /></SelectTrigger>
-                    <SelectContent>
-                      {datasets.filter(d => d.rows.length > 0).map(d => (
-                        <SelectItem key={d.site} value={d.site}>
-                          {sites.find(s => s.id === d.site)?.title || d.site}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button variant="secondary" onClick={handleInteractive} disabled={interactive || !interactiveSite}>
-                  {interactive ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                  Generate Interactive Group Report
-                </Button>
-              </div>
+              <Button
+                variant="secondary"
+                onClick={handleInteractive}
+                disabled={interactive || chosen.length === 0}
+                className="w-full sm:w-auto"
+              >
+                {interactive ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                Generate Interactive Group Report
+              </Button>
+
             </div>
           </div>
         )}
