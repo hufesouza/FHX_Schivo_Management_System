@@ -256,7 +256,6 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
     opts: { size?: number; bg?: any; fg?: any; border?: any } = {}
   ) => {
     const b = form.createButton(name);
-    b.acroField.setFontSize(opts.size ?? 8);
     b.addToPage(label, page, {
       x, y, width, height,
       font: bold,
@@ -265,6 +264,7 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
       borderColor: opts.border ?? line,
       borderWidth: 0.8,
     });
+    b.setFontSize(opts.size ?? 8);
     setAction(b, script);
     return b;
   };
@@ -280,7 +280,6 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
     opts: { size?: number; align?: TextAlignment; fg?: any; boldFont?: boolean } = {}
   ) => {
     const f = form.createTextField(name);
-    f.setFontSize(opts.size ?? 9);
     f.setText(value);
     f.setAlignment(opts.align ?? TextAlignment.Left);
     f.enableReadOnly();
@@ -463,7 +462,7 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
     x: 32, y: H - 132, width: 330, height: 20,
     font: helv, textColor: navy, backgroundColor: white, borderColor: line, borderWidth: 1,
   });
-  dd.acroField.setFontSize(9);
+  dd.setFontSize(9);
   // commit on selection change + run selection script
   dd.acroField.dict.set(PDFName.of('Ff'), doc.context.obj((1 << 26)));
   dd.acroField.getWidgets().forEach(w => {
