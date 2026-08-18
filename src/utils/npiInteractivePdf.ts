@@ -255,7 +255,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
         view === 'matrix' ? matrixOf(i) : view === 'customer' ? custOf(i, ci ?? 0) : pageOf(i, mi ?? 0);
       pill(s.label, M + i * (sw + 3), 31, sw, 7, i === si, target);
     });
-    darkPill('OVERVIEW', pw - M - navW, 31, 40, OVERVIEW);
+    darkPill('< EXEC SUMMARY', pw - M - navW, 31, 40, OVERVIEW);
     darkPill('MONTHLY MATRIX', pw - M - 42, 31, 42, matrixOf(si));
 
     label('MONTH', 45);
