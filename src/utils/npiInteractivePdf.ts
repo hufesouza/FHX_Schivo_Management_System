@@ -125,7 +125,7 @@ const fmtEur = (n: number) => {
 };
 const fmtNum = (n: number) => (n ? new Intl.NumberFormat('en-IE').format(Math.round(n)) : '-');
 const fmtPct = (n: number | null) => (n === null ? 'n/a' : `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`);
-const fmtPp = (n: number | null) => (n === null ? 'n/a' : `${n.toFixed(2)} pp`);
+const fmtPp = (n: number | null) => (n === null ? 'n/a' : `${n.toFixed(2)}%`);
 const clip = (s: string, n: number) => (s.length > n ? s.slice(0, n - 1) + '.' : s);
 
 export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
@@ -158,7 +158,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     S.customers.map(c => ({ n: c, v: cellOf(S, c, k).t })).filter(r => r.v > 0).sort((a, b) => b.v - a.v);
 
   // ---------- shared chrome ----------
-  const header = (subtitle: string) => {
+  const header = (_subtitle?: string) => {
     pdf.setFillColor(15, 23, 42);
     pdf.rect(0, 0, pw, 22, 'F');
     pdf.setFillColor(59, 130, 246);
@@ -166,11 +166,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     pdf.setTextColor(255, 255, 255);
     pdf.setFont('helvetica', 'bold');
     pdf.setFontSize(14);
-    pdf.text('NPI Order Report - Interactive Group Sites', M, 10);
-    pdf.setFont('helvetica', 'normal');
-    pdf.setFontSize(8.5);
-    pdf.setTextColor(190, 205, 226);
-    pdf.text(`${subtitle}  |  Period: ${data.period}  |  Generated ${dateStr}`, M, 16.5);
+    pdf.text('NPI Vitality Scoring', M, 13.5);
   };
 
   const footer = (n: number) => {
@@ -310,7 +306,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     let y = kpiGrid([
       { label: 'NPI revenue (period)', value: fmtEur(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
       { label: 'Company revenue', value: G.companyRevenue > 0 ? fmtEur(G.companyRevenue) : 'not set', accent: [15, 23, 42], tint: [241, 245, 249] },
-      { label: 'NPVI', value: npvi(gTotal, G.companyRevenue) === null ? 'n/a' : fmtPp(npvi(gTotal, G.companyRevenue)), accent: [139, 92, 246], tint: [245, 243, 255] },
+      { label: 'New Product Vitality Index', value: npvi(gTotal, G.companyRevenue) === null ? 'n/a' : fmtPp(npvi(gTotal, G.companyRevenue)), accent: [139, 92, 246], tint: [245, 243, 255] },
       { label: 'Invoiced (closed)', value: fmtEur(gClosed), accent: [16, 185, 129], tint: [236, 253, 245] },
       { label: 'To invoice (open)', value: fmtEur(gOpen), accent: [245, 158, 11], tint: [255, 251, 235] },
       { label: 'Customers', value: String(G.customers.length), accent: [100, 116, 139], tint: [248, 250, 252] },
@@ -319,7 +315,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     sectionTitle('Site comparison', y);
     autoTable(pdf, {
       startY: y + 4,
-      head: [['Site', 'NPI revenue', 'Share of group', 'Company revenue', 'NPVI', 'Closed', 'Open', 'Customers']],
+      head: [['Site', 'NPI revenue', 'Share of group', 'Company revenue', 'New Product Vitality Index', 'Closed', 'Open', 'Customers']],
       body: data.sites.slice(1).map(S => {
         const t = siteTotal(S);
         const closed = data.months.reduce((s, m) => s + S.customers.reduce((a, c) => a + cellOf(S, c, m.k).c, 0), 0);
@@ -350,12 +346,12 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     });
 
     let y2 = ((pdf as any).lastAutoTable?.finalY || y + 30) + 8;
-    sectionTitle('Top 10 group customers - revenue and NPVI contribution', y2);
+    sectionTitle('Top 10 group customers - revenue and New Product Vitality Index contribution', y2);
     const top = G.customers.slice(0, 10);
     const maxV = Math.max(1, ...top.map(c => G.custTotals[c] || 0));
     autoTable(pdf, {
       startY: y2 + 4,
-      head: [['#', 'Customer', 'Share', 'Revenue', '% of group', 'NPVI contribution', 'Go to']],
+      head: [['#', 'Customer', 'Share', 'Revenue', '% of NPI Revenue', 'New Product Vitality Index contribution']],
       body: top.map((c, i) => [
         String(i + 1),
         clip(c, 40),
@@ -363,7 +359,6 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
         fmtEur(G.custTotals[c] || 0),
         gTotal > 0 ? `${(((G.custTotals[c] || 0) / gTotal) * 100).toFixed(1)}%` : '-',
         npvi(G.custTotals[c] || 0, G.companyRevenue) === null ? 'n/a' : fmtPp(npvi(G.custTotals[c] || 0, G.companyRevenue)),
-        i < nCust ? 'open >' : '-',
       ]),
       margin: { left: M, right: M },
       theme: 'grid',
@@ -375,9 +370,8 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
         1: { cellWidth: 66 },
         2: { cellWidth: 46 },
         3: { cellWidth: 28, halign: 'right', fontStyle: 'bold' },
-        4: { cellWidth: 24, halign: 'right' },
-        5: { cellWidth: 32, halign: 'right' },
-        6: { halign: 'center', textColor: [59, 130, 246], fontStyle: 'bold' },
+        4: { cellWidth: 28, halign: 'right' },
+        5: { halign: 'right' },
       },
       didDrawCell: (d: any) => {
         if (d.section !== 'body') return;
@@ -391,7 +385,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
           pdf.setFillColor(59, 130, 246);
           pdf.roundedRect(d.cell.x + 2, cy, Math.max(0.8, ((G.custTotals[name] || 0) / maxV) * bw), 3, 0.8, 0.8, 'F');
         }
-        if (d.column.index === 6 && d.row.index < nCust) {
+        if (d.column.index === 1 && d.row.index < nCust) {
           pdf.link(d.cell.x, d.cell.y, d.cell.width, d.cell.height, { pageNumber: custOf(0, d.row.index) });
         }
       },
@@ -419,7 +413,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
 
       y = kpiGrid([
         { label: 'Revenue in month', value: fmtEur(total), accent: [59, 130, 246], tint: [239, 246, 255] },
-        { label: 'NPVI in month', value: monthNpvi === null ? 'n/a' : fmtPp(monthNpvi), accent: [139, 92, 246], tint: [245, 243, 255] },
+        { label: 'New Product Vitality Index in month', value: monthNpvi === null ? 'n/a' : fmtPp(monthNpvi), accent: [139, 92, 246], tint: [245, 243, 255] },
         { label: 'Top 10 customers', value: fmtEur(top10), accent: [15, 23, 42], tint: [241, 245, 249] },
         { label: 'Other customers', value: fmtEur(total - top10), accent: [100, 116, 139], tint: [248, 250, 252] },
         { label: 'Invoiced (closed)', value: fmtEur(closed), accent: [16, 185, 129], tint: [236, 253, 245] },
@@ -434,7 +428,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       const shown = r.slice(0, 10);
       autoTable(pdf, {
         startY: y,
-        head: [['#', 'Customer', 'Share', 'Revenue', '% of month', 'NPVI', 'vs prev. month', 'Closed', 'Open']],
+        head: [['#', 'Customer', 'Share', 'Revenue', '% of NPI Revenue', 'New Product Vitality Index', 'vs prev. month', 'Closed', 'Open']],
         body: shown.map((x, j) => {
           const pv = prevK ? cellOf(S, x.n, prevK).t : 0;
           const c = cellOf(S, x.n, k);
@@ -505,7 +499,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     const top = S.customers.slice(0, 18);
     autoTable(pdf, {
       startY: y + 5,
-      head: [['Customer', ...data.months.map(m => m.label), 'Total', 'NPVI']],
+      head: [['Customer', ...data.months.map(m => m.label), 'Total', 'New Product Vitality Index']],
       body: top.map((c, j) => {
         const vals = data.months.map(m => cellOf(S, c, m.k).t);
         const tot = vals.reduce((s, v) => s + v, 0);
@@ -569,7 +563,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
 
       y = kpiGrid([
         { label: 'Revenue (period)', value: fmtEur(tot), accent: [59, 130, 246], tint: [239, 246, 255] },
-        { label: 'NPVI contribution', value: npvi(tot, S.companyRevenue) === null ? 'n/a' : fmtPp(npvi(tot, S.companyRevenue)), accent: [139, 92, 246], tint: [245, 243, 255] },
+        { label: 'New Product Vitality Index contribution', value: npvi(tot, S.companyRevenue) === null ? 'n/a' : fmtPp(npvi(tot, S.companyRevenue)), accent: [139, 92, 246], tint: [245, 243, 255] },
         { label: 'Share of site', value: site > 0 ? `${((tot / site) * 100).toFixed(1)}%` : '-', accent: [15, 23, 42], tint: [241, 245, 249] },
         { label: 'Invoiced (closed)', value: fmtEur(closed), accent: [16, 185, 129], tint: [236, 253, 245] },
         { label: 'To invoice (open)', value: fmtEur(open), accent: [245, 158, 11], tint: [255, 251, 235] },
@@ -578,13 +572,13 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
         { label: 'Last vs prev month', value: prev > 0 ? fmtPct(((last - prev) / prev) * 100) : last > 0 ? 'new' : 'n/a', accent: [244, 63, 94], tint: [255, 241, 242] },
       ], y);
 
-      sectionTitle(`Monthly detail and NPVI - ${clip(name, 40)}`, y);
+      sectionTitle(`Monthly detail and New Product Vitality Index - ${clip(name, 40)}`, y);
       y += 6;
 
       const maxV = Math.max(1, ...vals.map(v => v.t));
       autoTable(pdf, {
         startY: y,
-        head: [['Month', 'Trend', 'Revenue', 'Closed', 'Open', '% of site month', 'NPVI', 'Rank in month']],
+        head: [['Month', 'Trend', 'Revenue', 'Closed', 'Open', '% of site month', 'New Product Vitality Index', 'Rank in month']],
         body: data.months.map((m, i) => {
           const c = vals[i];
           const monthTotal = S.totals[m.k] || 0;
