@@ -144,16 +144,16 @@ function paintOverview() {
   for (var j = 0; j < 10; j++) {
     var row = r[j];
     if (row) {
-      setCap("rc" + j, (j + 1) + ".  " + row.n);
+      setF("rn" + j, (j + 1) + ".  " + row.n);
       setF("rr" + j, eur(row.v));
       setF("rp" + j, total > 0 ? ((row.v / total) * 100).toFixed(1) + "%" : "-");
       var pv = prevK ? cell(row.n, prevK).t : 0;
       setF("rd" + j, pv > 0 ? pct(((row.v - pv) / pv) * 100) : (row.v > 0 ? "new" : "-"));
-      fill("rc" + j, row.n === CUST ? BLUE : WHITE);
-      var fb = this.getField("rc" + j); if (fb) fb.textColor = row.n === CUST ? WHITE : NAVY;
+      fill("rn" + j, row.n === CUST ? BLUE : WHITE);
+      var fb = this.getField("rn" + j); if (fb) fb.textColor = row.n === CUST ? WHITE : NAVY;
     } else {
-      setCap("rc" + j, ""); setF("rr" + j, ""); setF("rp" + j, ""); setF("rd" + j, "");
-      fill("rc" + j, WHITE);
+      setF("rn" + j, ""); setF("rr" + j, ""); setF("rp" + j, ""); setF("rd" + j, "");
+      fill("rn" + j, WHITE);
     }
   }
 }
@@ -437,8 +437,9 @@ export async function exportInteractiveCustomerReport(data: InteractiveData) {
     const y = ry - j * 24;
     p1.drawLine({ start: { x: 32, y: y - 3 }, end: { x: W - 32, y: y - 3 }, color: line, thickness: 0.5 });
     p1.drawText(String(j + 1), { x: 40, y: y + 5, size: 8.5, font: bold, color: slate });
-    btn(`rc${j}`, rank0[j] ? `${j + 1}.  ${rank0[j].n}` : '', p1, 72, y, 330, 18, `setCustomerByRank(${j});`, {
-      size: 8.5, bg: white, fg: navy, border: white,
+    txt(`rn${j}`, rank0[j] ? `${j + 1}.  ${rank0[j].n}` : '', p1, 72, y + 2, 330, 15, { size: 8.5, boldFont: true });
+    btn(`rc${j}`, '', p1, 72, y, 330, 18, `setCustomerByRank(${j});`, {
+      size: 8.5, bg: undefined, fg: white, border: white,
     });
     txt(`rr${j}`, I(`rr${j}`), p1, 402, y + 2, 100, 14, { size: 8.5, align: TextAlignment.Right, boldFont: true });
     txt(`rp${j}`, I(`rp${j}`), p1, 512, y + 2, 80, 14, { size: 8.5, align: TextAlignment.Right });
