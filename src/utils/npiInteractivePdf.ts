@@ -362,7 +362,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     // SECTION A
     sectionTitle('Company performance', 44);
     kpiGrid([
-      { label: 'Company revenue (actual)', value: actualCompany > 0 ? fmtM(actualCompany) : 'not set', accent: [15, 23, 42], tint: [241, 245, 249] },
+      { label: 'Site revenue (actual)', value: actualCompany > 0 ? fmtM(actualCompany) : 'not set', accent: [15, 23, 42], tint: [241, 245, 249] },
       { label: 'Projected company revenue', value: projected > 0 ? fmtM(projected) : 'not set', accent: [59, 130, 246], tint: [239, 246, 255] },
       { label: 'Revenue achievement', value: pctTxt(achievement), accent: [37, 99, 235], tint: [239, 246, 255] },
       { label: 'Revenue gap', value: projected > 0 && actualCompany > 0 ? fmtM(revGap) : 'n/a', accent: [244, 63, 94], tint: [255, 241, 242] },
