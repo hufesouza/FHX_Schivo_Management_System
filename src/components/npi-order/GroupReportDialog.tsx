@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { FileDown, Loader2 } from 'lucide-react';
+import { FileDown, FileText, Loader2 } from 'lucide-react';
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/components/ui/dialog';
