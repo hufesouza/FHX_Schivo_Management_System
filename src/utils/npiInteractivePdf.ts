@@ -373,45 +373,35 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     };
     const closedOf = (S: SiteBlock) =>
       data.months.reduce((s, m) => s + S.customers.reduce((a, c) => a + cellOf(S, c, m.k).c, 0), 0);
-    const leadRev = detail.reduce((b, S) => (siteTotal(S) > siteTotal(b) ? S : b), detail[0]);
-    const leadNpvi = detail.reduce((b, S) => (npviOf(S) > npviOf(b) ? S : b), detail[0]);
-    const leadOpen = detail.reduce(
-      (b, S) => (siteTotal(S) - closedOf(S) > siteTotal(b) - closedOf(b) ? S : b), detail[0]);
-
     autoTable(pdf, {
       startY: sy + 3,
-      head: [['Site', 'NPI revenue', '% of NPI Revenue', 'New Product Vitality Index', 'Closed', 'Open', 'Leading in']],
+      head: [['Site', 'NPI revenue', '% of NPI Revenue', 'New Product Vitality Index', 'Closed', 'Open']],
       body: detail.map(S => {
         const t = siteTotal(S);
         const c = closedOf(S);
-        const tags: string[] = [];
-        if (S === leadRev) tags.push('NPI revenue');
-        if (S === leadNpvi) tags.push('vitality');
-        if (S === leadOpen) tags.push('open NPI');
         return [
           clip(S.label, 34), fmtM(t),
           gTotal > 0 ? `${((t / gTotal) * 100).toFixed(1)}%` : '-',
           S.companyRevenue > 0 ? `${npviOf(S).toFixed(2)}%` : 'n/a',
-          fmtM(c), fmtM(t - c), tags.join(', ') || '-',
+          fmtM(c), fmtM(t - c),
         ];
       }),
       foot: [[
         'GROUP', fmtM(gTotal), '100.0%',
         actualNpvi === null ? 'n/a' : `${actualNpvi.toFixed(2)}%`,
-        fmtM(gClosed), fmtM(gOpen), '',
+        fmtM(gClosed), fmtM(gOpen),
       ]],
       margin: { left: M, right: M },
       theme: 'grid',
       styles: { fontSize: 7.2, cellPadding: 1.3, halign: 'right', textColor: [30, 41, 59], lineColor: [226, 232, 240] },
       columnStyles: {
         0: { halign: 'left', cellWidth: 58, fontStyle: 'bold' },
-        6: { halign: 'left', cellWidth: 52, textColor: [37, 99, 235] },
       },
       headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 6.6, halign: 'right' },
       footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', halign: 'right' },
       alternateRowStyles: { fillColor: [249, 250, 252] },
       didParseCell: (d: any) => {
-        if (d.section === 'head' && (d.column.index === 0 || d.column.index === 6)) d.cell.styles.halign = 'left';
+        if (d.section === 'head' && d.column.index === 0) d.cell.styles.halign = 'left';
       },
 
       didDrawCell: (d: any) => {
