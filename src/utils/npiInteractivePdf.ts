@@ -589,7 +589,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
 
     let y = kpiGrid([
       { label: 'NPI revenue (period)', value: fmtEur(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
-      { label: 'Company revenue', value: G.companyRevenue > 0 ? fmtEur(G.companyRevenue) : 'not set', accent: [15, 23, 42], tint: [241, 245, 249] },
+      { label: 'Site revenue', value: G.companyRevenue > 0 ? fmtEur(G.companyRevenue) : 'not set', accent: [15, 23, 42], tint: [241, 245, 249] },
       { label: 'New Product Vitality Index', value: npvi(gTotal, G.companyRevenue) === null ? 'n/a' : fmtPp(npvi(gTotal, G.companyRevenue)), accent: [139, 92, 246], tint: [245, 243, 255] },
       { label: 'Invoiced (closed)', value: fmtEur(gClosed), accent: [16, 185, 129], tint: [236, 253, 245] },
       { label: 'To invoice (open)', value: fmtEur(gOpen), accent: [245, 158, 11], tint: [255, 251, 235] },
