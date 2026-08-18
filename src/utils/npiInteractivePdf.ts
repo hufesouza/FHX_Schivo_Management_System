@@ -400,6 +400,11 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     sectionTitle('Top 10 group customers - revenue and New Product Vitality Index contribution', yc);
     const topC = G.customers.slice(0, 10);
     const maxC = Math.max(1, ...topC.map(c => G.custTotals[c] || 0));
+    // Fit head + every row inside the remaining space on page 1 so the last
+    // customers never spill onto page 2.
+    const availC = ph - 14 - (yc + 4);
+    const rowHC = Math.max(3.6, Math.min(6, availC / (topC.length + 1.2)));
+    const padC = Math.max(0.5, Math.min(1.6, (rowHC - 3) / 2));
     autoTable(pdf, {
       startY: yc + 4,
       head: [['#', 'Customer', 'Share', 'Revenue', '% of NPI Revenue', 'New Product Vitality Index contribution']],
@@ -413,9 +418,12 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       ]),
       margin: { left: M, right: M },
       theme: 'grid',
-      styles: { fontSize: 7.6, cellPadding: 1.6, textColor: [30, 41, 59], lineColor: [226, 232, 240] },
-      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7, halign: 'left' },
+      pageBreak: 'avoid',
+      rowPageBreak: 'avoid',
+      styles: { fontSize: 7.6, cellPadding: padC, minCellHeight: rowHC, textColor: [30, 41, 59], lineColor: [226, 232, 240] },
+      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7, halign: 'left', minCellHeight: rowHC },
       alternateRowStyles: { fillColor: [249, 250, 252] },
+
       columnStyles: {
         0: { cellWidth: 9, halign: 'center', fontStyle: 'bold', textColor: [100, 116, 139] },
         1: { cellWidth: 66 },
@@ -505,6 +513,9 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     sectionTitle('Top 10 group customers - revenue and New Product Vitality Index contribution', y2);
     const top = G.customers.slice(0, 10);
     const maxV = Math.max(1, ...top.map(c => G.custTotals[c] || 0));
+    const availV = ph - 14 - (y2 + 4);
+    const rowHV = Math.max(3.6, Math.min(6, availV / (top.length + 1.2)));
+    const padV = Math.max(0.5, Math.min(1.6, (rowHV - 3) / 2));
     autoTable(pdf, {
       startY: y2 + 4,
       head: [['#', 'Customer', 'Share', 'Revenue', '% of NPI Revenue', 'New Product Vitality Index contribution']],
@@ -518,9 +529,12 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       ]),
       margin: { left: M, right: M },
       theme: 'grid',
-      styles: { fontSize: 7.6, cellPadding: 1.6, textColor: [30, 41, 59], lineColor: [226, 232, 240] },
-      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7, halign: 'left' },
+      pageBreak: 'avoid',
+      rowPageBreak: 'avoid',
+      styles: { fontSize: 7.6, cellPadding: padV, minCellHeight: rowHV, textColor: [30, 41, 59], lineColor: [226, 232, 240] },
+      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 7, halign: 'left', minCellHeight: rowHV },
       alternateRowStyles: { fillColor: [249, 250, 252] },
+
       columnStyles: {
         0: { cellWidth: 9, halign: 'center', fontStyle: 'bold', textColor: [100, 116, 139] },
         1: { cellWidth: 66 },
