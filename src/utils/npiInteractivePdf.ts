@@ -27,6 +27,13 @@ export type SiteBlock = {
   totals: Record<string, number>;
 };
 
+export type ExecParams = {
+  /** projected full-year COMPANY revenue (not NPI) entered by the user */
+  projectedRevenue: number;
+  /** NPVI benchmark / target in percent, e.g. 4.28 */
+  npviBenchmark: number;
+};
+
 export type InteractiveGroupData = {
   title: string;
   period: string;
@@ -35,6 +42,7 @@ export type InteractiveGroupData = {
   sites: SiteBlock[];
   /** number of customer pages rendered per site */
   custPages: number;
+  params: ExecParams;
 };
 
 const emptyCell = (): Cell => ({ t: 0, o: 0, c: 0 });
@@ -43,9 +51,11 @@ export const buildInteractiveGroupData = (
   inputs: { ds: SiteDataset; label: string; companyRevenue?: number }[],
   year: string,
   npiOnly: boolean,
+  params: ExecParams = { projectedRevenue: 0, npviBenchmark: 0 },
   maxMonths = 12,
   maxCustomers = 10
 ): InteractiveGroupData => {
+
   const prepared = inputs.map(({ ds, label, companyRevenue }) => {
     let rows: NormRow[] = ds.rows;
     if (npiOnly && ds.hasNpiCol) rows = rows.filter(r => r.isNpi);
@@ -115,7 +125,9 @@ export const buildInteractiveGroupData = (
     months: months.map(k => ({ k, label: mLabel(k) })),
     sites,
     custPages: Math.max(1, Math.min(maxCustomers, Math.max(...sites.map(s => s.customers.length), 1))),
+    params,
   };
+
 };
 
 // ---------- PDF generation (link-driven interactivity) ----------
@@ -142,12 +154,14 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
   const nMonths = data.months.length;
   const nCust = data.custPages;
   const perSite = nMonths + 1 + nCust;                    // month pages + matrix + customer pages
-  const OVERVIEW = 1;
-  const base = (si: number) => OVERVIEW + si * perSite;
+  const OVERVIEW = 1;          // executive summary
+  const GROUP = 2;             // group deep dive (site comparison + top group customers)
+  const base = (si: number) => GROUP + si * perSite;
   const pageOf = (si: number, mi: number) => base(si) + mi + 1;
   const matrixOf = (si: number) => base(si) + nMonths + 1;
   const custOf = (si: number, ci: number) => base(si) + nMonths + 1 + ci + 1;
-  const totalPages = OVERVIEW + nSites * perSite;
+  const totalPages = GROUP + nSites * perSite;
+
 
   for (let i = 1; i < totalPages; i++) pdf.addPage();
 
@@ -175,7 +189,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     pdf.setFont('helvetica', 'normal');
     pdf.setFontSize(6.5);
     pdf.setTextColor(100, 116, 139);
-    pdf.text('Interactive report - click OVERVIEW / SITE / MONTH / CUSTOMER buttons to navigate. Works in any PDF reader.', M, ph - 6);
+    pdf.text('Interactive report - click EXEC SUMMARY / SITE / MONTH / CUSTOMER buttons to navigate. Works in any PDF reader.', M, ph - 6);
     pdf.text(`Page ${n} of ${totalPages}`, pw - M, ph - 6, { align: 'right' });
   };
 
@@ -241,7 +255,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
         view === 'matrix' ? matrixOf(i) : view === 'customer' ? custOf(i, ci ?? 0) : pageOf(i, mi ?? 0);
       pill(s.label, M + i * (sw + 3), 31, sw, 7, i === si, target);
     });
-    darkPill('OVERVIEW', pw - M - navW, 31, 40, OVERVIEW);
+    darkPill('< EXEC SUMMARY', pw - M - navW, 31, 40, OVERVIEW);
     darkPill('MONTHLY MATRIX', pw - M - 42, 31, 42, matrixOf(si));
 
     label('MONTH', 45);
@@ -286,22 +300,322 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     return y + cardH + 7;
   };
 
-  // ---------- OVERVIEW page ----------
+  // ---------- shared group figures ----------
+  const G = data.sites[0];
+  const gTotal = siteTotal(G);
+  const gClosed = data.months.reduce(
+    (s, m) => s + G.customers.reduce((a, c) => a + cellOf(G, c, m.k).c, 0), 0);
+  const gOpen = gTotal - gClosed;
+
+  // ---------- PAGE 1: EXECUTIVE SUMMARY ----------
   {
     pdf.setPage(OVERVIEW);
-    header('Group overview  |  NPI revenue, NPVI and site comparison');
+    header();
+
+    const P = data.params || { projectedRevenue: 0, npviBenchmark: 0 };
+    const projected = P.projectedRevenue > 0 ? P.projectedRevenue : 0;
+    const bench = P.npviBenchmark > 0 ? P.npviBenchmark : 0;
+    const actualCompany = G.companyRevenue > 0 ? G.companyRevenue : 0;
+    const actualNpvi = actualCompany > 0 ? (gTotal / actualCompany) * 100 : null;
+    const requiredNpi = projected > 0 && bench > 0 ? (projected * bench) / 100 : 0;
+    const npiGap = requiredNpi > 0 ? requiredNpi - gTotal : 0;
+    const coverage = requiredNpi > 0 ? (gTotal / requiredNpi) * 100 : null;
+    const achievement = projected > 0 && actualCompany > 0 ? (actualCompany / projected) * 100 : null;
+    const revGap = projected > 0 && actualCompany > 0 ? projected - actualCompany : 0;
+    const openCoverage = npiGap > 0 ? (gOpen / npiGap) * 100 : null;
+    const monthsElapsed = data.months.filter(m => (G.totals[m.k] || 0) !== 0).length || nMonths;
+    const runRate = monthsElapsed > 0 ? (gTotal / monthsElapsed) * 12 : 0;
+    const runVs = requiredNpi > 0 && runRate > 0 ? (runRate / requiredNpi) * 100 : null;
+    const status =
+      runVs === null ? 'NO TARGET SET' : runVs >= 100 ? 'ON TRACK' : runVs >= 90 ? 'AT RISK' : 'BELOW TARGET';
+    const statusCol: [number, number, number] =
+      runVs === null ? [100, 116, 139] : runVs >= 100 ? [16, 185, 129] : runVs >= 90 ? [245, 158, 11] : [244, 63, 94];
+
+    const fmtM = (n: number) => {
+      const v = n || 0;
+      const a = Math.abs(v);
+      if (a >= 1e6) return `${v < 0 ? '-' : ''}\u20AC${(a / 1e6).toFixed(2)}M`;
+      if (a >= 1e3) return `${v < 0 ? '-' : ''}\u20AC${(a / 1e3).toFixed(0)}k`;
+      return fmtEur(v);
+    };
+    const pctTxt = (n: number | null) => (n === null ? 'n/a' : `${n.toFixed(1)}%`);
+
+    // scope line
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(7.4);
+    pdf.setTextColor(100, 116, 139);
+    pdf.text(
+      `Executive summary  |  ${data.scope}  |  Period ${data.period}  |  Projected company revenue ${projected > 0 ? fmtM(projected) : 'not provided'}  |  NPVI benchmark ${bench > 0 ? bench.toFixed(2) + '%' : 'not provided'}`,
+      M, 28
+    );
+
+    // deep dive buttons (top right area / row)
+    const navs: { t: string; p: number }[] = [
+      { t: 'SITE PERFORMANCE >', p: GROUP },
+      { t: 'MONTHLY PERFORMANCE >', p: pageOf(0, nMonths - 1) },
+      { t: 'CUSTOMER PERFORMANCE >', p: custOf(0, 0) },
+      { t: 'NPI PIPELINE >', p: matrixOf(0) },
+    ];
+    const nbw = (pw - 2 * M - 3 * 4) / 4;
+    navs.forEach((n, i) => darkPill(n.t, M + i * (nbw + 4), 31, nbw, n.p));
+
+    // SECTION A
+    sectionTitle('Company performance', 44);
+    kpiGrid([
+      { label: 'Company revenue (actual)', value: actualCompany > 0 ? fmtM(actualCompany) : 'not set', accent: [15, 23, 42], tint: [241, 245, 249] },
+      { label: 'Projected company revenue', value: projected > 0 ? fmtM(projected) : 'not set', accent: [59, 130, 246], tint: [239, 246, 255] },
+      { label: 'Revenue achievement', value: pctTxt(achievement), accent: [37, 99, 235], tint: [239, 246, 255] },
+      { label: 'Revenue gap', value: projected > 0 && actualCompany > 0 ? fmtM(revGap) : 'n/a', accent: [244, 63, 94], tint: [255, 241, 242] },
+    ], 47.5, 14);
+
+    // SECTION B
+    sectionTitle('NPI performance', 66);
+    kpiGrid([
+      { label: 'NPI revenue (period)', value: fmtM(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
+      { label: 'Actual New Product Vitality Index', value: actualNpvi === null ? 'n/a' : `${actualNpvi.toFixed(2)}%`, accent: [139, 92, 246], tint: [245, 243, 255] },
+      { label: 'Required NPI revenue', value: requiredNpi > 0 ? fmtM(requiredNpi) : 'n/a', accent: [15, 23, 42], tint: [241, 245, 249] },
+      { label: npiGap > 0 ? 'NPI gap' : 'NPI surplus', value: requiredNpi > 0 ? fmtM(Math.abs(npiGap)) : 'n/a', accent: npiGap > 0 ? [244, 63, 94] : [16, 185, 129], tint: npiGap > 0 ? [255, 241, 242] : [236, 253, 245] },
+    ], 69.5, 14);
+
+
+    // three panels: target coverage / pipeline / outlook
+    const panelY = 87;
+    const panelH = 30;
+
+    const pgap = 5;
+    const panW = (pw - 2 * M - 2 * pgap) / 3;
+    const panel = (i: number, title: string) => {
+      const x = M + i * (panW + pgap);
+      pdf.setFillColor(255, 255, 255);
+      pdf.setDrawColor(214, 222, 233);
+      pdf.roundedRect(x, panelY, panW, panelH, 1.8, 1.8, 'FD');
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(6.4);
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(title.toUpperCase(), x + 4, panelY + 5.5);
+      return x;
+    };
+
+    // panel 1 - NPI target coverage gauge
+    {
+      const x = panel(0, 'NPI target coverage');
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(16);
+      pdf.setTextColor(15, 23, 42);
+      pdf.text(pctTxt(coverage), x + 4, panelY + 14);
+      const gw = panW - 8;
+      const gy = panelY + 16.5;
+      pdf.setFillColor(226, 232, 240);
+      pdf.roundedRect(x + 4, gy, gw, 4, 1, 1, 'F');
+      const frac = coverage === null ? 0 : Math.max(0, Math.min(1, coverage / 100));
+      if (frac > 0) {
+        pdf.setFillColor(...(coverage !== null && coverage >= 100 ? [16, 185, 129] : [59, 130, 246]) as [number, number, number]);
+        pdf.roundedRect(x + 4, gy, Math.max(1, gw * frac), 4, 1, 1, 'F');
+      }
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(6.6);
+      pdf.setTextColor(71, 85, 105);
+      pdf.text(
+        requiredNpi > 0
+          ? `${fmtM(gTotal)} achieved / ${fmtM(requiredNpi)} required`
+          : 'Enter projected revenue and NPVI benchmark',
+        x + 4, gy + 7.5
+      );
+      if (requiredNpi > 0) {
+        pdf.text(
+          npiGap > 0 ? `${fmtM(npiGap)} remaining` : `${fmtM(-npiGap)} above requirement`,
+          x + 4, gy + 11.3
+        );
+      }
+    }
+
+
+    // panel 2 - pipeline coverage
+    {
+      const x = panel(1, 'NPI pipeline coverage');
+      const rows: [string, string][] = [
+        ['Current NPI revenue', fmtM(gTotal)],
+        ['Open NPI (to invoice)', fmtM(gOpen)],
+        [npiGap > 0 ? 'NPI gap' : 'NPI surplus', requiredNpi > 0 ? fmtM(Math.abs(npiGap)) : 'n/a'],
+      ];
+      rows.forEach((r, i) => {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(6.8);
+        pdf.setTextColor(71, 85, 105);
+        pdf.text(r[0], x + 4, panelY + 10.5 + i * 4.2);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(15, 23, 42);
+        pdf.text(r[1], x + panW - 4, panelY + 10.5 + i * 4.2, { align: 'right' });
+      });
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(11);
+      pdf.setTextColor(...(openCoverage !== null && openCoverage >= 100 ? [16, 185, 129] : [245, 158, 11]) as [number, number, number]);
+      pdf.text(
+        openCoverage === null ? (requiredNpi > 0 ? 'no gap' : 'n/a') : `${openCoverage.toFixed(0)}%`,
+        x + 4, panelY + 27
+      );
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(6.2);
+      pdf.setTextColor(71, 85, 105);
+      const msg =
+        requiredNpi <= 0
+          ? 'Benchmark not provided - coverage not calculated.'
+          : npiGap <= 0
+            ? 'No NPI gap: current NPI revenue already meets the requirement.'
+            : openCoverage !== null && openCoverage >= 100
+              ? `Open NPI provides ${openCoverage.toFixed(0)}% coverage of the identified NPI gap.`
+              : `Open NPI provides ${(openCoverage || 0).toFixed(0)}% coverage of the identified NPI gap (not sufficient).`;
+      pdf.text(pdf.splitTextToSize(msg, panW - 28), x + 24, panelY + 24.5);
+    }
+
+    // panel 3 - outlook
+    {
+      const x = panel(2, 'NPI outlook');
+      const rows: [string, string][] = [
+        [`Annualised NPI run rate (${monthsElapsed} mth)`, runRate > 0 ? fmtM(runRate) : 'n/a'],
+        ['Required NPI revenue', requiredNpi > 0 ? fmtM(requiredNpi) : 'n/a'],
+        ['Forecast gap / surplus', requiredNpi > 0 && runRate > 0 ? fmtM(runRate - requiredNpi) : 'n/a'],
+        ['Run rate vs required', pctTxt(runVs)],
+      ];
+      rows.forEach((r, i) => {
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(6.6);
+        pdf.setTextColor(71, 85, 105);
+        pdf.text(r[0], x + 4, panelY + 10.5 + i * 4);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(15, 23, 42);
+        pdf.text(r[1], x + panW - 4, panelY + 10.5 + i * 4, { align: 'right' });
+      });
+      pdf.setFillColor(...statusCol);
+      pdf.roundedRect(x + 4, panelY + 23, 44, 5.4, 1.2, 1.2, 'F');
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(7.2);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text(status, x + 26, panelY + 26.7, { align: 'center' });
+    }
+
+
+    // SECTION E - site performance (compact)
+    let sy = panelY + panelH + 6;
+    sectionTitle('Site performance', sy);
+    pill('VIEW SITE DETAILS >', pw - M - 42, sy - 4, 42, 6, false, GROUP);
+    const detail = data.sites.slice(1, 7);
+    const npviOf = (S: SiteBlock) => {
+      const t = siteTotal(S);
+      return S.companyRevenue > 0 ? (t / S.companyRevenue) * 100 : 0;
+    };
+    const closedOf = (S: SiteBlock) =>
+      data.months.reduce((s, m) => s + S.customers.reduce((a, c) => a + cellOf(S, c, m.k).c, 0), 0);
+    const leadRev = detail.reduce((b, S) => (siteTotal(S) > siteTotal(b) ? S : b), detail[0]);
+    const leadNpvi = detail.reduce((b, S) => (npviOf(S) > npviOf(b) ? S : b), detail[0]);
+    const leadOpen = detail.reduce(
+      (b, S) => (siteTotal(S) - closedOf(S) > siteTotal(b) - closedOf(b) ? S : b), detail[0]);
+
+    autoTable(pdf, {
+      startY: sy + 3,
+      head: [['Site', 'NPI revenue', '% of NPI Revenue', 'New Product Vitality Index', 'Closed', 'Open', 'Leading in']],
+      body: detail.map(S => {
+        const t = siteTotal(S);
+        const c = closedOf(S);
+        const tags: string[] = [];
+        if (S === leadRev) tags.push('NPI revenue');
+        if (S === leadNpvi) tags.push('vitality');
+        if (S === leadOpen) tags.push('open NPI');
+        return [
+          clip(S.label, 34), fmtM(t),
+          gTotal > 0 ? `${((t / gTotal) * 100).toFixed(1)}%` : '-',
+          S.companyRevenue > 0 ? `${npviOf(S).toFixed(2)}%` : 'n/a',
+          fmtM(c), fmtM(t - c), tags.join(', ') || '-',
+        ];
+      }),
+      foot: [[
+        'GROUP', fmtM(gTotal), '100.0%',
+        actualNpvi === null ? 'n/a' : `${actualNpvi.toFixed(2)}%`,
+        fmtM(gClosed), fmtM(gOpen), '',
+      ]],
+      margin: { left: M, right: M },
+      theme: 'grid',
+      styles: { fontSize: 7.2, cellPadding: 1.3, halign: 'right', textColor: [30, 41, 59], lineColor: [226, 232, 240] },
+      columnStyles: {
+        0: { halign: 'left', cellWidth: 58, fontStyle: 'bold' },
+        6: { halign: 'left', cellWidth: 52, textColor: [37, 99, 235] },
+      },
+      headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 6.6, halign: 'right' },
+      footStyles: { fillColor: [241, 245, 249], textColor: [15, 23, 42], fontStyle: 'bold', halign: 'right' },
+      alternateRowStyles: { fillColor: [249, 250, 252] },
+      didParseCell: (d: any) => {
+        if (d.section === 'head' && (d.column.index === 0 || d.column.index === 6)) d.cell.styles.halign = 'left';
+      },
+
+      didDrawCell: (d: any) => {
+        if (d.section === 'body' && d.column.index === 0) {
+          const S = detail[d.row.index];
+          const si = data.sites.indexOf(S);
+          if (si > 0) pdf.link(d.cell.x, d.cell.y, d.cell.width, d.cell.height, { pageNumber: pageOf(si, nMonths - 1) });
+        }
+      },
+    });
+
+    // SECTION F - customer concentration
+    let cy = Math.min(((pdf as any).lastAutoTable?.finalY || sy + 24) + 6, 160);
+    sectionTitle('Customer concentration', cy);
+    pill('VIEW CUSTOMER DETAILS >', pw - M - 48, cy - 4, 48, 6, false, custOf(0, 0));
+    const sumTop = (n: number) => G.customers.slice(0, n).reduce((s, c) => s + (G.custTotals[c] || 0), 0);
+    const share = (v: number) => (gTotal > 0 ? `${((v / gTotal) * 100).toFixed(1)}%` : 'n/a');
+    const top1Name = G.customers[0] || 'n/a';
+    cy = kpiGrid([
+      { label: `Top customer - ${clip(top1Name, 26)}`, value: `${fmtM(sumTop(1))}  (${share(sumTop(1))})`, accent: [59, 130, 246], tint: [239, 246, 255] },
+      { label: 'Top 3 customers', value: `${fmtM(sumTop(3))}  (${share(sumTop(3))})`, accent: [37, 99, 235], tint: [239, 246, 255] },
+      { label: 'Top 10 customers', value: `${fmtM(sumTop(10))}  (${share(sumTop(10))})`, accent: [15, 23, 42], tint: [241, 245, 249] },
+      { label: 'Active customers', value: String(G.customers.length), accent: [100, 116, 139], tint: [248, 250, 252] },
+    ], cy + 4, 12);
+
+
+    // MANAGEMENT INSIGHT
+    sectionTitle('Management insight', cy - 1);
+    const insight = [
+      actualNpvi === null
+        ? `NPI revenue for the period is ${fmtM(gTotal)}; actual company revenue is not set, so the vitality index cannot be calculated.`
+        : `NPI currently represents ${actualNpvi.toFixed(2)}% of actual company revenue of ${fmtM(actualCompany)}.`,
+      requiredNpi > 0
+        ? `Against the ${fmtM(projected)} projected revenue target, ${fmtM(requiredNpi)} of NPI revenue is required to hold the ${bench.toFixed(2)}% benchmark. Current NPI revenue is ${fmtM(gTotal)}, ${npiGap > 0 ? `leaving a ${fmtM(npiGap)} gap` : `which is ${fmtM(-npiGap)} above the requirement`}.`
+        : 'No projected revenue or NPVI benchmark was provided for this report, so target coverage is not calculated.',
+      openCoverage !== null
+        ? `Current open NPI of ${fmtM(gOpen)} provides ${openCoverage.toFixed(0)}% coverage of this gap (coverage indicator, not a forecast).`
+        : requiredNpi > 0 ? 'There is no outstanding NPI gap for the selected benchmark.' : '',
+      runVs !== null
+        ? `The annualised NPI run rate over ${monthsElapsed} reported month(s) is ${fmtM(runRate)}, i.e. ${runVs.toFixed(1)}% of the requirement - status ${status}.`
+        : '',
+      `${clip(top1Name, 30)} is the largest customer at ${share(sumTop(1))} of NPI revenue; the top 10 represent ${share(sumTop(10))}.`,
+    ].filter(Boolean).join(' ');
+
+    const boxY = cy + 1;
+    pdf.setFillColor(248, 250, 252);
+    pdf.setDrawColor(214, 222, 233);
+    const boxH = Math.max(10, Math.min(18, ph - 13 - boxY));
+    pdf.roundedRect(M, boxY, pw - 2 * M, boxH, 1.8, 1.8, 'FD');
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(6.8);
+    pdf.setTextColor(30, 41, 59);
+    const lines = (pdf.splitTextToSize(insight, pw - 2 * M - 8) as string[]).slice(0, 4);
+    lines.forEach((ln, i) => pdf.text(ln, M + 4, boxY + 4.5 + i * 3.6));
+
+
+    footer(OVERVIEW);
+  }
+
+  // ---------- PAGE 2: GROUP DEEP DIVE ----------
+  {
+    pdf.setPage(GROUP);
+    header();
 
     label('GO TO SITE', 29);
-    const sw = Math.min(58, (pw - 2 * M - (nSites - 1) * 3) / nSites);
+    const sw = Math.min(58, (pw - 2 * M - 84 - (nSites - 1) * 3) / nSites);
     data.sites.forEach((s, i) => {
       pill(s.label, M + i * (sw + 3), 31, sw, 7, false, pageOf(i, nMonths - 1));
     });
-
-    const G = data.sites[0];
-    const gTotal = siteTotal(G);
-    const gClosed = data.months.reduce(
-      (s, m) => s + G.customers.reduce((a, c) => a + cellOf(G, c, m.k).c, 0), 0);
-    const gOpen = gTotal - gClosed;
+    darkPill('< EXEC SUMMARY', pw - M - 84, 31, 40, OVERVIEW);
+    darkPill('MONTHLY MATRIX', pw - M - 42, 31, 42, matrixOf(0));
 
     let y = kpiGrid([
       { label: 'NPI revenue (period)', value: fmtEur(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
@@ -390,8 +704,9 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
         }
       },
     });
-    footer(OVERVIEW);
+    footer(GROUP);
   }
+
 
   // ---------- month pages ----------
   data.sites.forEach((S, si) => {

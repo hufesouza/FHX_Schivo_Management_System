@@ -6,6 +6,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -34,6 +36,10 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
   const [npiOnly, setNpiOnly] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [interactive, setInteractive] = useState(false);
+  const [configOpen, setConfigOpen] = useState(false);
+  const [projected, setProjected] = useState('');
+  const [benchmark, setBenchmark] = useState('');
+
 
 
 
@@ -85,9 +91,35 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
     }
   };
 
-  const handleInteractive = async () => {
+  const openConfig = async () => {
     if (!chosen.length) {
       toast.error('Select at least one site with uploaded data');
+      return;
+    }
+    setConfigOpen(true);
+    // Prefill the benchmark with the current group NPVI when we can compute it.
+    try {
+      const targets = await Promise.all(chosen.map(d => fetchRevenueTargets(d.site)));
+      const company = chosen.reduce((s, d, i) => {
+        const t = targets[i] || {};
+        return s + (year === 'all'
+          ? (t.all || Object.entries(t).filter(([k]) => k !== 'all').reduce((a, [, v]) => a + (v || 0), 0))
+          : (t[year] || 0));
+      }, 0);
+      const stat = stats.reduce((s, x) => s + x.revenue, 0);
+      if (company > 0 && stat > 0) setBenchmark(((stat / company) * 100).toFixed(2));
+    } catch { /* keep whatever the user has */ }
+  };
+
+  const handleInteractive = async () => {
+    const projectedRevenue = parseFloat(projected.replace(/[^\d.-]/g, '')) || 0;
+    const npviBenchmark = parseFloat(benchmark.replace(/[^\d.-]/g, '')) || 0;
+    if (projectedRevenue <= 0) {
+      toast.error('Enter the projected company revenue');
+      return;
+    }
+    if (npviBenchmark <= 0) {
+      toast.error('Enter the NPVI benchmark');
       return;
     }
     setInteractive(true);
@@ -106,16 +138,19 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
           };
         }),
         year,
-        npiOnly
+        npiOnly,
+        { projectedRevenue, npviBenchmark }
       );
       await exportInteractiveGroupReport(data);
       toast.success(`Interactive group PDF generated for ${chosen.length} site(s)`);
+      setConfigOpen(false);
     } catch (e: any) {
       toast.error('Could not generate the interactive PDF: ' + e.message);
     } finally {
       setInteractive(false);
     }
   };
+
 
 
   return (
@@ -222,13 +257,64 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
 
               <Button
                 variant="secondary"
-                onClick={handleInteractive}
+                onClick={openConfig}
                 disabled={interactive || chosen.length === 0}
                 className="w-full sm:w-auto"
               >
                 {interactive ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                Generate Interactive Group Report
+                Generate Interactive PDF
               </Button>
+
+              <Dialog open={configOpen} onOpenChange={setConfigOpen}>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Generate Interactive PDF</DialogTitle>
+                    <DialogDescription>
+                      These values are embedded in this report only and drive the executive summary
+                      on page 1.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="projected-rev">Projected company revenue (full year)</Label>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">€</span>
+                        <Input
+                          id="projected-rev"
+                          inputMode="decimal"
+                          placeholder="114000000"
+                          value={projected}
+                          onChange={e => setProjected(e.target.value)}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Total projected company revenue — not NPI revenue.
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="npvi-bench">NPVI benchmark / target (%)</Label>
+                      <Input
+                        id="npvi-bench"
+                        inputMode="decimal"
+                        placeholder="4.28"
+                        value={benchmark}
+                        onChange={e => setBenchmark(e.target.value)}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Prefilled with the current group vitality index; edit as needed.
+                      </p>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setConfigOpen(false)}>Cancel</Button>
+                    <Button onClick={handleInteractive} disabled={interactive}>
+                      {interactive ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+                      Generate report
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
 
             </div>
           </div>
