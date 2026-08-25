@@ -32,6 +32,10 @@ export type ExecParams = {
   projectedRevenue: number;
   /** NPVI benchmark / target in percent, e.g. 4.28 */
   npviBenchmark: number;
+  /** month the uploaded data ends on, e.g. "July 2026" */
+  endMonthLabel?: string;
+  /** year label used on the operational plan revenue card */
+  planYear?: string;
 };
 
 export type InteractiveGroupData = {
