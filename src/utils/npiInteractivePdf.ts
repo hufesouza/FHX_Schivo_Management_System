@@ -355,7 +355,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     // KPI row 2 - projected revenue metrics
     y = kpiGrid([
       { label: `Full year${planYearTxt} Operational Plan Revenue`, value: projected > 0 ? fmtM(projected) : 'not set', accent: [37, 99, 235], tint: [239, 246, 255] },
-      { label: `New Product Vitality Index vs Full year ${planYearTxt.replace(/^\s+/, ' ')} Operational Plan Revenue`, value: npviVsProjected === null ? 'n/a' : `${npviVsProjected.toFixed(2)}%`, accent: [139, 92, 246], tint: [245, 243, 255] },
+      { label: `New Product Vitality Index vs Full year${planYearTxt} Operational Plan Revenue`, value: npviVsProjected === null ? 'n/a' : `${npviVsProjected.toFixed(2)}%`, accent: [139, 92, 246], tint: [245, 243, 255] },
     ], y - 2, 15);
 
     sectionTitle('Site comparison', y);
