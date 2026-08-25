@@ -129,7 +129,7 @@ export const buildInteractiveGroupData = (
     months: months.map(k => ({ k, label: mLabel(k) })),
     sites,
     custPages: Math.max(1, Math.min(maxCustomers, Math.max(...sites.map(s => s.customers.length), 1))),
-    params,
+    params: { ...params, planYear: params.planYear ?? year },
   };
 
 };
