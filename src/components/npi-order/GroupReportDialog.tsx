@@ -219,6 +219,18 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
                 Total projected company revenue — not NPI revenue.
               </p>
             </div>
+            <div className="space-y-2">
+              <Label>Data ends on (month)</Label>
+              <Select value={endMonth} onValueChange={setEndMonth}>
+                <SelectTrigger><SelectValue placeholder="Select month" /></SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map(m => <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Used on the KPI card “NPI revenue (to the end of …)”.
+              </p>
+            </div>
             <div className="rounded-lg border bg-muted/40 p-3 text-sm">
               Generating for {chosen.length} site(s) · {year === 'all' ? 'All years' : year} · {fmtEur(total)} NPI revenue
             </div>
