@@ -186,7 +186,7 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>Generate group report</DialogTitle>
           <DialogDescription>
@@ -195,6 +195,7 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
           </DialogDescription>
         </DialogHeader>
 
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
         {loading ? (
           <div className="flex items-center gap-2 py-8 justify-center text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading site data…
@@ -311,28 +312,28 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
 
           </div>
         )}
+        </div>
 
 
         {configOpen ? (
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t pt-4">
             <Button variant="outline" onClick={() => setConfigOpen(false)} disabled={interactive}>Back</Button>
             <Button onClick={handleInteractive} disabled={interactive || !projected.trim()}>
               {interactive ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-              Generate report
+              Generate Interactive PDF
             </Button>
           </DialogFooter>
         ) : (
-          <DialogFooter className="sm:items-center">
+          <DialogFooter className="shrink-0 border-t pt-4 sm:items-center">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
             <Button
-              variant="secondary"
               onClick={openConfig}
               disabled={loading || interactive || chosen.length === 0}
             >
               {interactive ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
               Interactive PDF
             </Button>
-            <Button onClick={handleGenerate} disabled={loading || generating || stats.length === 0}>
+            <Button variant="secondary" onClick={handleGenerate} disabled={loading || generating || stats.length === 0}>
               {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
               Standard PDF
             </Button>
