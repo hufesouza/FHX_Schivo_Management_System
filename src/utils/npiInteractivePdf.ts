@@ -321,7 +321,8 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     const actualCompany = G.companyRevenue > 0 ? G.companyRevenue : 0;
     const actualNpvi = actualCompany > 0 ? (gTotal / actualCompany) * 100 : null;
     const npviVsProjected = projected > 0 ? (gTotal / projected) * 100 : null;
-    const achievement = projected > 0 && actualCompany > 0 ? (actualCompany / projected) * 100 : null;
+    const endMonthTxt = P.endMonthLabel || data.months[data.months.length - 1]?.label || data.period;
+    const planYearTxt = P.planYear && P.planYear !== 'all' ? ` ${P.planYear}` : '';
 
     const fmtM = (n: number) => {
       const v = n || 0;
