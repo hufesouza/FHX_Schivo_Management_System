@@ -77,6 +77,27 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
 
   const total = stats.reduce((a, s) => a + s.revenue, 0);
 
+  // months present in the selected data (used for "data ends on" in the interactive PDF)
+  const monthOptions = useMemo(() => {
+    const keys = new Set<string>();
+    chosen.forEach(d => d.rows.forEach(r => {
+      if (!r.date) return;
+      if (year !== 'all' && String(r.date.getFullYear()) !== year) return;
+      keys.add(`${r.date.getFullYear()}-${String(r.date.getMonth() + 1).padStart(2, '0')}`);
+    }));
+    return Array.from(keys).sort().map(k => {
+      const [y, m] = k.split('-').map(Number);
+      return { key: k, label: new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) };
+    });
+  }, [chosen, year]);
+
+  useEffect(() => {
+    if (!monthOptions.length) { setEndMonth(''); return; }
+    setEndMonth(prev => (monthOptions.some(m => m.key === prev) ? prev : monthOptions[monthOptions.length - 1].key));
+  }, [monthOptions]);
+
+
+
   const toggle = (id: string) =>
     setSelected(prev => (prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]));
 
