@@ -346,7 +346,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     // KPI row 1 - group figures
     let y = kpiGrid([
       { label: `NPI revenue (to the end of ${endMonthTxt})`, value: fmtEur(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
-      { label: 'New Prototype Vitality Index YTD', value: actualNpvi === null ? 'n/a' : `${actualNpvi.toFixed(2)}%`, accent: [139, 92, 246], tint: [245, 243, 255] },
+      { label: 'Prototype Vitality Index YTD', value: actualNpvi === null ? 'n/a' : `${actualNpvi.toFixed(2)}%`, accent: [139, 92, 246], tint: [245, 243, 255] },
       { label: 'Invoiced (closed)', value: fmtEur(gClosed), accent: [16, 185, 129], tint: [236, 253, 245] },
       { label: 'To invoice (open)', value: fmtEur(gOpen), accent: [245, 158, 11], tint: [255, 251, 235] },
       { label: 'Customers', value: String(G.customers.length), accent: [100, 116, 139], tint: [248, 250, 252] },
