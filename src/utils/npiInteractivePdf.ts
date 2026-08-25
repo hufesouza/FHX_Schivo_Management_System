@@ -367,7 +367,6 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
           clip(S.label, 34),
           fmtEur(t),
           gTotal > 0 ? `${((t / gTotal) * 100).toFixed(1)}%` : '-',
-          S.companyRevenue > 0 ? fmtEur(S.companyRevenue) : 'not set',
           npvi(t, S.companyRevenue) === null ? 'n/a' : fmtPp(npvi(t, S.companyRevenue)),
           fmtEur(closed),
           fmtEur(t - closed),
@@ -376,7 +375,6 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       }),
       foot: [[
         'GROUP', fmtEur(gTotal), '100.0%',
-        actualCompany > 0 ? fmtEur(actualCompany) : 'not set',
         actualNpvi === null ? 'n/a' : `${actualNpvi.toFixed(2)}%`,
         fmtEur(gClosed), fmtEur(gOpen), String(G.customers.length),
       ]],
