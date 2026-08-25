@@ -343,8 +343,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
 
     // KPI row 1 - group figures
     let y = kpiGrid([
-      { label: 'NPI revenue (period)', value: fmtEur(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
-      { label: 'Site revenue', value: actualCompany > 0 ? fmtEur(actualCompany) : 'not set', accent: [15, 23, 42], tint: [241, 245, 249] },
+      { label: `NPI revenue (to the end of ${endMonthTxt})`, value: fmtEur(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
       { label: 'New Product Vitality Index', value: actualNpvi === null ? 'n/a' : `${actualNpvi.toFixed(2)}%`, accent: [139, 92, 246], tint: [245, 243, 255] },
       { label: 'Invoiced (closed)', value: fmtEur(gClosed), accent: [16, 185, 129], tint: [236, 253, 245] },
       { label: 'To invoice (open)', value: fmtEur(gOpen), accent: [245, 158, 11], tint: [255, 251, 235] },
@@ -353,15 +352,14 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
 
     // KPI row 2 - projected revenue metrics
     y = kpiGrid([
-      { label: 'Projected company revenue', value: projected > 0 ? fmtM(projected) : 'not set', accent: [37, 99, 235], tint: [239, 246, 255] },
-      { label: 'Revenue achievement', value: pctTxt(achievement), accent: [37, 99, 235], tint: [239, 246, 255] },
+      { label: `Full year${planYearTxt} Operational Plan Revenue`, value: projected > 0 ? fmtM(projected) : 'not set', accent: [37, 99, 235], tint: [239, 246, 255] },
       { label: 'New Product Vitality Index vs projected revenue', value: npviVsProjected === null ? 'n/a' : `${npviVsProjected.toFixed(2)}%`, accent: [139, 92, 246], tint: [245, 243, 255] },
     ], y - 2, 15);
 
     sectionTitle('Site comparison', y);
     autoTable(pdf, {
       startY: y + 4,
-      head: [['Site', 'NPI revenue', 'Share of group', 'Site revenue', 'New Product Vitality Index', 'Closed', 'Open', 'Customers']],
+      head: [['Site', 'NPI revenue', 'Share of group', 'New Product Vitality Index', 'Closed', 'Open', 'Customers']],
       body: data.sites.slice(1).map(S => {
         const t = siteTotal(S);
         const closed = data.months.reduce((s, m) => s + S.customers.reduce((a, c) => a + cellOf(S, c, m.k).c, 0), 0);
