@@ -271,31 +271,6 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
               </div>
             )}
 
-            <div className="rounded-lg border border-dashed p-3 space-y-3">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-sm font-medium">
-                  <FileText className="h-4 w-4" /> Interactive group report
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  One self-contained PDF: a group overview page (revenue, NPVI, site comparison, top
-                  customers) plus clickable SITE, MONTH and CUSTOMER buttons, a monthly matrix and a
-                  dedicated page per top customer with NPVI contribution. Opens in single-page mode so
-                  only the page you are on is shown. Works in any PDF reader.
-                </p>
-
-              </div>
-
-              <Button
-                variant="secondary"
-                onClick={openConfig}
-                disabled={interactive || chosen.length === 0}
-                className="w-full sm:w-auto"
-              >
-                {interactive ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
-                Generate Interactive PDF
-              </Button>
-
-            </div>
           </div>
         )}
 
@@ -309,11 +284,19 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
             </Button>
           </DialogFooter>
         ) : (
-          <DialogFooter>
+          <DialogFooter className="sm:items-center">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+            <Button
+              variant="secondary"
+              onClick={openConfig}
+              disabled={loading || interactive || chosen.length === 0}
+            >
+              {interactive ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileText className="h-4 w-4 mr-2" />}
+              Interactive PDF
+            </Button>
             <Button onClick={handleGenerate} disabled={loading || generating || stats.length === 0}>
               {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <FileDown className="h-4 w-4 mr-2" />}
-              Generate PDF
+              Standard PDF
             </Button>
           </DialogFooter>
         )}
