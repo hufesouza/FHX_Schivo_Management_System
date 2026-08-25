@@ -164,7 +164,11 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
         }),
         year,
         npiOnly,
-        { projectedRevenue, npviBenchmark: 0 }
+        {
+          projectedRevenue,
+          npviBenchmark: 0,
+          endMonthLabel: monthOptions.find(m => m.key === endMonth)?.label,
+        }
       );
 
       await exportInteractiveGroupReport(data);
