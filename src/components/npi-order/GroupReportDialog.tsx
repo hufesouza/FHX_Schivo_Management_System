@@ -38,6 +38,7 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
   const [interactive, setInteractive] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [projected, setProjected] = useState('');
+  const [endMonth, setEndMonth] = useState('');
   const [loadError, setLoadError] = useState('');
 
 
