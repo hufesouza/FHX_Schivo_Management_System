@@ -32,6 +32,10 @@ export type ExecParams = {
   projectedRevenue: number;
   /** NPVI benchmark / target in percent, e.g. 4.28 */
   npviBenchmark: number;
+  /** month the uploaded data ends on, e.g. "July 2026" */
+  endMonthLabel?: string;
+  /** year label used on the operational plan revenue card */
+  planYear?: string;
 };
 
 export type InteractiveGroupData = {
@@ -125,7 +129,7 @@ export const buildInteractiveGroupData = (
     months: months.map(k => ({ k, label: mLabel(k) })),
     sites,
     custPages: Math.max(1, Math.min(maxCustomers, Math.max(...sites.map(s => s.customers.length), 1))),
-    params,
+    params: { ...params, planYear: params.planYear ?? year },
   };
 
 };
@@ -306,6 +310,8 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
   const gClosed = data.months.reduce(
     (s, m) => s + G.customers.reduce((a, c) => a + cellOf(G, c, m.k).c, 0), 0);
   const gOpen = gTotal - gClosed;
+  const endMonthLabelG =
+    data.params?.endMonthLabel || data.months[data.months.length - 1]?.label || data.period;
 
   // ---------- PAGE 1: OVERVIEW ----------
   {
@@ -317,7 +323,8 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     const actualCompany = G.companyRevenue > 0 ? G.companyRevenue : 0;
     const actualNpvi = actualCompany > 0 ? (gTotal / actualCompany) * 100 : null;
     const npviVsProjected = projected > 0 ? (gTotal / projected) * 100 : null;
-    const achievement = projected > 0 && actualCompany > 0 ? (actualCompany / projected) * 100 : null;
+    const endMonthTxt = endMonthLabelG;
+    const planYearTxt = P.planYear && P.planYear !== 'all' ? ` ${P.planYear}` : '';
 
     const fmtM = (n: number) => {
       const v = n || 0;
@@ -338,8 +345,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
 
     // KPI row 1 - group figures
     let y = kpiGrid([
-      { label: 'NPI revenue (period)', value: fmtEur(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
-      { label: 'Site revenue', value: actualCompany > 0 ? fmtEur(actualCompany) : 'not set', accent: [15, 23, 42], tint: [241, 245, 249] },
+      { label: `NPI revenue (to the end of ${endMonthTxt})`, value: fmtEur(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
       { label: 'New Product Vitality Index', value: actualNpvi === null ? 'n/a' : `${actualNpvi.toFixed(2)}%`, accent: [139, 92, 246], tint: [245, 243, 255] },
       { label: 'Invoiced (closed)', value: fmtEur(gClosed), accent: [16, 185, 129], tint: [236, 253, 245] },
       { label: 'To invoice (open)', value: fmtEur(gOpen), accent: [245, 158, 11], tint: [255, 251, 235] },
@@ -348,15 +354,14 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
 
     // KPI row 2 - projected revenue metrics
     y = kpiGrid([
-      { label: 'Projected company revenue', value: projected > 0 ? fmtM(projected) : 'not set', accent: [37, 99, 235], tint: [239, 246, 255] },
-      { label: 'Revenue achievement', value: pctTxt(achievement), accent: [37, 99, 235], tint: [239, 246, 255] },
+      { label: `Full year${planYearTxt} Operational Plan Revenue`, value: projected > 0 ? fmtM(projected) : 'not set', accent: [37, 99, 235], tint: [239, 246, 255] },
       { label: 'New Product Vitality Index vs projected revenue', value: npviVsProjected === null ? 'n/a' : `${npviVsProjected.toFixed(2)}%`, accent: [139, 92, 246], tint: [245, 243, 255] },
     ], y - 2, 15);
 
     sectionTitle('Site comparison', y);
     autoTable(pdf, {
       startY: y + 4,
-      head: [['Site', 'NPI revenue', 'Share of group', 'Site revenue', 'New Product Vitality Index', 'Closed', 'Open', 'Customers']],
+      head: [['Site', 'NPI revenue', 'Share of group', 'New Product Vitality Index', 'Closed', 'Open', 'Customers']],
       body: data.sites.slice(1).map(S => {
         const t = siteTotal(S);
         const closed = data.months.reduce((s, m) => s + S.customers.reduce((a, c) => a + cellOf(S, c, m.k).c, 0), 0);
@@ -364,7 +369,6 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
           clip(S.label, 34),
           fmtEur(t),
           gTotal > 0 ? `${((t / gTotal) * 100).toFixed(1)}%` : '-',
-          S.companyRevenue > 0 ? fmtEur(S.companyRevenue) : 'not set',
           npvi(t, S.companyRevenue) === null ? 'n/a' : fmtPp(npvi(t, S.companyRevenue)),
           fmtEur(closed),
           fmtEur(t - closed),
@@ -373,7 +377,6 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       }),
       foot: [[
         'GROUP', fmtEur(gTotal), '100.0%',
-        actualCompany > 0 ? fmtEur(actualCompany) : 'not set',
         actualNpvi === null ? 'n/a' : `${actualNpvi.toFixed(2)}%`,
         fmtEur(gClosed), fmtEur(gOpen), String(G.customers.length),
       ]],
@@ -468,8 +471,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     darkPill('MONTHLY MATRIX', pw - M - 42, 31, 42, matrixOf(0));
 
     let y = kpiGrid([
-      { label: 'NPI revenue (period)', value: fmtEur(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
-      { label: 'Site revenue', value: G.companyRevenue > 0 ? fmtEur(G.companyRevenue) : 'not set', accent: [15, 23, 42], tint: [241, 245, 249] },
+      { label: `NPI revenue (to the end of ${endMonthLabelG})`, value: fmtEur(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
       { label: 'New Product Vitality Index', value: npvi(gTotal, G.companyRevenue) === null ? 'n/a' : fmtPp(npvi(gTotal, G.companyRevenue)), accent: [139, 92, 246], tint: [245, 243, 255] },
       { label: 'Invoiced (closed)', value: fmtEur(gClosed), accent: [16, 185, 129], tint: [236, 253, 245] },
       { label: 'To invoice (open)', value: fmtEur(gOpen), accent: [245, 158, 11], tint: [255, 251, 235] },
@@ -479,7 +481,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     sectionTitle('Site comparison', y);
     autoTable(pdf, {
       startY: y + 4,
-      head: [['Site', 'NPI revenue', 'Share of group', 'Site revenue', 'New Product Vitality Index', 'Closed', 'Open', 'Customers']],
+      head: [['Site', 'NPI revenue', 'Share of group', 'New Product Vitality Index', 'Closed', 'Open', 'Customers']],
       body: data.sites.slice(1).map(S => {
         const t = siteTotal(S);
         const closed = data.months.reduce((s, m) => s + S.customers.reduce((a, c) => a + cellOf(S, c, m.k).c, 0), 0);
@@ -487,7 +489,6 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
           clip(S.label, 34),
           fmtEur(t),
           gTotal > 0 ? `${((t / gTotal) * 100).toFixed(1)}%` : '-',
-          S.companyRevenue > 0 ? fmtEur(S.companyRevenue) : 'not set',
           npvi(t, S.companyRevenue) === null ? 'n/a' : fmtPp(npvi(t, S.companyRevenue)),
           fmtEur(closed),
           fmtEur(t - closed),
@@ -496,7 +497,6 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       }),
       foot: [[
         'GROUP', fmtEur(gTotal), '100.0%',
-        G.companyRevenue > 0 ? fmtEur(G.companyRevenue) : 'not set',
         npvi(gTotal, G.companyRevenue) === null ? 'n/a' : fmtPp(npvi(gTotal, G.companyRevenue)),
         fmtEur(gClosed), fmtEur(gOpen), String(G.customers.length),
       ]],

@@ -38,6 +38,7 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
   const [interactive, setInteractive] = useState(false);
   const [configOpen, setConfigOpen] = useState(false);
   const [projected, setProjected] = useState('');
+  const [endMonth, setEndMonth] = useState('');
   const [loadError, setLoadError] = useState('');
 
 
@@ -75,6 +76,27 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
   );
 
   const total = stats.reduce((a, s) => a + s.revenue, 0);
+
+  // months present in the selected data (used for "data ends on" in the interactive PDF)
+  const monthOptions = useMemo(() => {
+    const keys = new Set<string>();
+    chosen.forEach(d => d.rows.forEach(r => {
+      if (!r.date) return;
+      if (year !== 'all' && String(r.date.getFullYear()) !== year) return;
+      keys.add(`${r.date.getFullYear()}-${String(r.date.getMonth() + 1).padStart(2, '0')}`);
+    }));
+    return Array.from(keys).sort().map(k => {
+      const [y, m] = k.split('-').map(Number);
+      return { key: k, label: new Date(y, m - 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) };
+    });
+  }, [chosen, year]);
+
+  useEffect(() => {
+    if (!monthOptions.length) { setEndMonth(''); return; }
+    setEndMonth(prev => (monthOptions.some(m => m.key === prev) ? prev : monthOptions[monthOptions.length - 1].key));
+  }, [monthOptions]);
+
+
 
   const toggle = (id: string) =>
     setSelected(prev => (prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]));
@@ -142,7 +164,11 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
         }),
         year,
         npiOnly,
-        { projectedRevenue, npviBenchmark: 0 }
+        {
+          projectedRevenue,
+          npviBenchmark: 0,
+          endMonthLabel: monthOptions.find(m => m.key === endMonth)?.label,
+        }
       );
 
       await exportInteractiveGroupReport(data);
@@ -191,6 +217,18 @@ export function GroupReportDialog({ open, onOpenChange, sites }: Props) {
               </div>
               <p className="text-xs text-muted-foreground">
                 Total projected company revenue — not NPI revenue.
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label>Data ends on (month)</Label>
+              <Select value={endMonth} onValueChange={setEndMonth}>
+                <SelectTrigger><SelectValue placeholder="Select month" /></SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map(m => <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Used on the KPI card “NPI revenue (to the end of …)”.
               </p>
             </div>
             <div className="rounded-lg border bg-muted/40 p-3 text-sm">
