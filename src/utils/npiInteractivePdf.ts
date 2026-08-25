@@ -469,8 +469,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     darkPill('MONTHLY MATRIX', pw - M - 42, 31, 42, matrixOf(0));
 
     let y = kpiGrid([
-      { label: 'NPI revenue (period)', value: fmtEur(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
-      { label: 'Site revenue', value: G.companyRevenue > 0 ? fmtEur(G.companyRevenue) : 'not set', accent: [15, 23, 42], tint: [241, 245, 249] },
+      { label: `NPI revenue (to the end of ${endMonthLabelG})`, value: fmtEur(gTotal), accent: [59, 130, 246], tint: [239, 246, 255] },
       { label: 'New Product Vitality Index', value: npvi(gTotal, G.companyRevenue) === null ? 'n/a' : fmtPp(npvi(gTotal, G.companyRevenue)), accent: [139, 92, 246], tint: [245, 243, 255] },
       { label: 'Invoiced (closed)', value: fmtEur(gClosed), accent: [16, 185, 129], tint: [236, 253, 245] },
       { label: 'To invoice (open)', value: fmtEur(gOpen), accent: [245, 158, 11], tint: [255, 251, 235] },
@@ -480,7 +479,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     sectionTitle('Site comparison', y);
     autoTable(pdf, {
       startY: y + 4,
-      head: [['Site', 'NPI revenue', 'Share of group', 'Site revenue', 'New Product Vitality Index', 'Closed', 'Open', 'Customers']],
+      head: [['Site', 'NPI revenue', 'Share of group', 'New Product Vitality Index', 'Closed', 'Open', 'Customers']],
       body: data.sites.slice(1).map(S => {
         const t = siteTotal(S);
         const closed = data.months.reduce((s, m) => s + S.customers.reduce((a, c) => a + cellOf(S, c, m.k).c, 0), 0);
@@ -488,7 +487,6 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
           clip(S.label, 34),
           fmtEur(t),
           gTotal > 0 ? `${((t / gTotal) * 100).toFixed(1)}%` : '-',
-          S.companyRevenue > 0 ? fmtEur(S.companyRevenue) : 'not set',
           npvi(t, S.companyRevenue) === null ? 'n/a' : fmtPp(npvi(t, S.companyRevenue)),
           fmtEur(closed),
           fmtEur(t - closed),
@@ -497,7 +495,6 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
       }),
       foot: [[
         'GROUP', fmtEur(gTotal), '100.0%',
-        G.companyRevenue > 0 ? fmtEur(G.companyRevenue) : 'not set',
         npvi(gTotal, G.companyRevenue) === null ? 'n/a' : fmtPp(npvi(gTotal, G.companyRevenue)),
         fmtEur(gClosed), fmtEur(gOpen), String(G.customers.length),
       ]],
