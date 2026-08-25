@@ -776,7 +776,7 @@ export default function NPIOrderIntelligence() {
       pdf.setFontSize(9.5);
       pdf.setTextColor(30, 64, 175);
       pdf.setFont('helvetica', 'bold');
-      pdf.text('New Product Vitality Index', margin + 4, y + 7);
+      pdf.text('Prototype Vitality Index', margin + 4, y + 7);
       pdf.setFont('helvetica', 'normal');
       pdf.setFontSize(7.5);
       pdf.setTextColor(71, 85, 105);
@@ -1149,7 +1149,7 @@ export default function NPIOrderIntelligence() {
                     <div className="flex flex-col md:flex-row md:items-center gap-5">
                       <div className="md:w-1/3">
                         <div className="flex items-center gap-2">
-                          <h2 className="text-base font-semibold tracking-tight text-foreground">New Product Vitality Index</h2>
+                          <h2 className="text-base font-semibold tracking-tight text-foreground">Prototype Vitality Index</h2>
                           <TooltipProvider>
                             <ShadcnTooltip>
                               <TooltipTrigger asChild>
