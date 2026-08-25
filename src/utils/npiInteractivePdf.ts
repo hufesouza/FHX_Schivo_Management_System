@@ -310,6 +310,8 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
   const gClosed = data.months.reduce(
     (s, m) => s + G.customers.reduce((a, c) => a + cellOf(G, c, m.k).c, 0), 0);
   const gOpen = gTotal - gClosed;
+  const endMonthLabelG =
+    data.params?.endMonthLabel || data.months[data.months.length - 1]?.label || data.period;
 
   // ---------- PAGE 1: OVERVIEW ----------
   {
@@ -321,6 +323,7 @@ export async function exportInteractiveGroupReport(data: InteractiveGroupData) {
     const actualCompany = G.companyRevenue > 0 ? G.companyRevenue : 0;
     const actualNpvi = actualCompany > 0 ? (gTotal / actualCompany) * 100 : null;
     const npviVsProjected = projected > 0 ? (gTotal / projected) * 100 : null;
+    const endMonthTxt = endMonthLabelG;
     const endMonthTxt = P.endMonthLabel || data.months[data.months.length - 1]?.label || data.period;
     const planYearTxt = P.planYear && P.planYear !== 'all' ? ` ${P.planYear}` : '';
 
