@@ -416,7 +416,7 @@ export default function OrdersUpload() {
                         <Input type="date" value={l.due_date || ''} onChange={(e) => setLine(l.key, { due_date: e.target.value || null })} />
                       </div>
                       <div>
-                        <Label>Unit price</Label>
+                        <Label>Unit price (€)</Label>
                         <Input type="number" step="any" value={l.unit_price ?? ''}
                           onChange={(e) => {
                             const u = asNum(e.target.value);
@@ -427,9 +427,15 @@ export default function OrdersUpload() {
                           }} />
                       </div>
                       <div>
-                        <Label>Total price</Label>
+                        <Label>Total price (€)</Label>
                         <Input type="number" step="any" value={l.total_price ?? ''} onChange={(e) => setLine(l.key, { total_price: asNum(e.target.value) })} />
                       </div>
+                      {draft.currency !== 'EUR' && (
+                        <div className="sm:col-span-2 lg:col-span-2 self-end text-xs text-muted-foreground">
+                          On the document: {fmtOriginal(l.original_unit_price, draft.currency)} each ·{' '}
+                          {fmtOriginal(l.original_total_price, draft.currency)} total
+                        </div>
+                      )}
                       <div>
                         <Label>Status</Label>
                         <StatusSelect value={l.status} onChange={(s) => setLine(l.key, { status: s })} />
