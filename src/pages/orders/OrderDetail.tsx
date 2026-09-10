@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -35,6 +36,7 @@ const emptyOrder = (): Partial<OtOrder> => ({
   special_requirements: '',
   status: 'New',
   machine_id: null,
+  is_nre: false,
 });
 
 const num = (v: string) => (v === '' ? null : Number(v));
