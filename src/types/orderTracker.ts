@@ -41,6 +41,8 @@ export interface OtPurchaseOrder {
   file_name: string | null;
   file_type: string | null;
   notes: string | null;
+  currency: string | null;
+  fx_rate_to_eur: number | null;
   created_at: string;
 }
 
@@ -63,6 +65,14 @@ export interface OtOrder {
   special_requirements: string | null;
   status: OrderStatus;
   machine_id: string | null;
+  /** Currency of the original purchase order document (ISO code). */
+  currency: string | null;
+  /** Unit price exactly as written on the PO, in the original currency. */
+  original_unit_price: number | null;
+  /** Total price exactly as written on the PO, in the original currency. */
+  original_total_price: number | null;
+  /** Multiplier used to convert the original currency into euro. */
+  fx_rate_to_eur: number | null;
   created_at: string;
   updated_at: string;
 }
