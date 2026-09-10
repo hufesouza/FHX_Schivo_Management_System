@@ -21,6 +21,7 @@ Field synonyms (non-exhaustive — use judgement):
 - Customer PO Number: "PO No", "Purchase Order", "Order No", "Order Number", "PO#", "Bestellnummer".
 - PO Date: "Order Date", "Date", "Issued", "Document date".
 - Part Number: "Part No", "Item Number", "PN", "Product Code", "Material", "SKU", "Customer Part".
+- Part Revision: "Rev", "Rev.", "Revision", "Iss", "Issue", "Drawing Rev", "Version", or a revision suffix on the part number (e.g. "12345-A Rev B" -> part_number "12345-A", part_revision "B").
 - Part Description: "Description", "Item Description", "Designation", "Material description".
 - Quantity: "Qty", "Order Qty", "Quantity Ordered", "Pcs", "Units".
 - Due Date: "Delivery Date", "Required Date", "Requested Delivery", "Need By", "Ship Date", "Dock Date".
@@ -52,6 +53,7 @@ JSON schema:
     {
       "line_number": number|null,
       "part_number": string|null,
+      "part_revision": string|null,
       "part_description": string|null,
       "quantity": number|null,
       "due_date": string|null,

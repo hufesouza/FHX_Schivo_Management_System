@@ -24,6 +24,7 @@ const emptyOrder = (): Partial<OtOrder> => ({
   po_number: '',
   po_date: null,
   part_number: '',
+  part_revision: '',
   part_description: '',
   quantity: null,
   due_date: null,
@@ -147,6 +148,10 @@ export default function OrderDetail() {
             <div>
               <Label>Part number</Label>
               <Input value={form.part_number || ''} onChange={(e) => set('part_number', e.target.value)} />
+            </div>
+            <div>
+              <Label>Rev</Label>
+              <Input value={form.part_revision || ''} onChange={(e) => set('part_revision', e.target.value)} />
             </div>
             <div>
               <Label>Line number</Label>

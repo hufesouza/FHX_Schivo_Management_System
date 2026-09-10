@@ -55,6 +55,7 @@ export interface OtOrder {
   po_date: string | null;
   line_number: number | null;
   part_number: string | null;
+  part_revision: string | null;
   part_description: string | null;
   quantity: number | null;
   due_date: string | null;
