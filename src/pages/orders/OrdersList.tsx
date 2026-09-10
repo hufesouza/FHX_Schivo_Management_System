@@ -36,6 +36,7 @@ export default function OrdersList() {
   const [fCustomer, setFCustomer] = useState(ALL);
   const [fStatus, setFStatus] = useState(ALL);
   const [fMachine, setFMachine] = useState(ALL);
+  const [fType, setFType] = useState<'all' | 'parts' | 'nre'>('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [sort, setSort] = useState<SortKey>('priority');
@@ -60,6 +61,8 @@ export default function OrdersList() {
       if (fCustomer !== ALL && o.customer_name !== fCustomer) return false;
       if (fStatus !== ALL && o.status !== fStatus) return false;
       if (fMachine !== ALL && (o.machine_id || '') !== (fMachine === '__none__' ? '' : fMachine)) return false;
+      if (fType === 'parts' && o.is_nre) return false;
+      if (fType === 'nre' && !o.is_nre) return false;
       if (fromDate && (!o.due_date || o.due_date < fromDate)) return false;
       if (toDate && (!o.due_date || o.due_date > toDate)) return false;
       if (q) {
