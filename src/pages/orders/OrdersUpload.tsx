@@ -92,22 +92,30 @@ export default function OrdersUpload() {
         throw new Error((data as { error?: string })?.error || 'Analysis failed');
       }
       const d = data as Record<string, unknown>;
+      const currency = normaliseCurrency(asStr(d.currency)) || 'EUR';
+      const rate = await getEurRate(currency);
       const rawLines = Array.isArray(d.lines) ? (d.lines as Record<string, unknown>[]) : [];
-      const lines: DraftLine[] = (rawLines.length ? rawLines : [{}]).map((l, i) => ({
-        key: crypto.randomUUID(),
-        line_number: asNum(l.line_number) ?? i + 1,
-        part_number: asStr(l.part_number),
-        part_description: asStr(l.part_description),
-        quantity: asNum(l.quantity),
-        due_date: asDate(l.due_date),
-        unit_price: asNum(l.unit_price),
-        total_price: asNum(l.total_price),
-        notes: asStr(l.notes),
-        requirements: asStr(l.requirements),
-        special_requirements: asStr(l.special_requirements),
-        status: 'New',
-        machine_id: null,
-      }));
+      const lines: DraftLine[] = (rawLines.length ? rawLines : [{}]).map((l, i) => {
+        const origUnit = asNum(l.unit_price);
+        const origTotal = asNum(l.total_price);
+        return {
+          key: crypto.randomUUID(),
+          line_number: asNum(l.line_number) ?? i + 1,
+          part_number: asStr(l.part_number),
+          part_description: asStr(l.part_description),
+          quantity: asNum(l.quantity),
+          due_date: asDate(l.due_date),
+          unit_price: toEur(origUnit, rate),
+          total_price: toEur(origTotal, rate),
+          original_unit_price: origUnit,
+          original_total_price: origTotal,
+          notes: asStr(l.notes),
+          requirements: asStr(l.requirements),
+          special_requirements: asStr(l.special_requirements),
+          status: 'New' as OrderStatus,
+          machine_id: null,
+        };
+      });
       setDraft({
         customer_name: asStr(d.customer_name),
         po_number: asStr(d.po_number),
@@ -115,6 +123,8 @@ export default function OrdersUpload() {
         notes: asStr(d.notes),
         requirements: asStr(d.requirements),
         special_requirements: asStr(d.special_requirements),
+        currency,
+        fx_rate_to_eur: rate,
         lines,
         low_confidence: Array.isArray(d.low_confidence) ? (d.low_confidence as string[]) : [],
       });
