@@ -15,6 +15,7 @@ import { MachineSelect } from '@/components/orders/MachineSelect';
 import { StatusSelect } from '@/components/orders/StatusSelect';
 import { ensureCustomer, getPoFileUrl, useOrder, useOrders, usePurchaseOrder } from '@/hooks/useOrderTracker';
 import { daysRemaining, dueBucket, fmtDate, type OtOrder } from '@/types/orderTracker';
+import { fmtOriginal } from '@/utils/currency';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
