@@ -394,12 +394,21 @@ export default function OrdersUpload() {
                         Line {l.line_number ?? idx + 1}
                         <span className={cn('ml-2 rounded border px-1.5 py-0.5 text-[10px] font-medium', b.className)}>{b.label}</span>
                       </p>
-                      <Button
-                        size="icon" variant="ghost" className="h-8 w-8 text-destructive"
-                        onClick={() => setDraft({ ...draft, lines: draft.lines.filter((x) => x.key !== l.key) })}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-3">
+                        <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-2 py-1 text-xs font-medium">
+                          <Checkbox
+                            checked={l.is_nre}
+                            onCheckedChange={(v) => setLine(l.key, { is_nre: v === true, machine_id: v === true ? null : l.machine_id })}
+                          />
+                          NRE — not a manufactured part
+                        </label>
+                        <Button
+                          size="icon" variant="ghost" className="h-8 w-8 text-destructive"
+                          onClick={() => setDraft({ ...draft, lines: draft.lines.filter((x) => x.key !== l.key) })}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                       <div>
