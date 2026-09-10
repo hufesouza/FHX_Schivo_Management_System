@@ -27,6 +27,7 @@ export default function OrdersDashboard() {
     const open = orders.filter((o) => isOpen(o.status));
     const counts: Record<DueBucketKey, number> = {
       overdue: 0, d7: 0, d14: 0, d21: 0, d30: 0, d30plus: 0, none: 0,
+      shipped: 0, shipped_late: 0, closed: 0,
     };
     open.filter((o) => !o.is_nre).forEach((o) => { counts[dueBucket(o.due_date).key] += 1; });
     const openNre = open.filter((o) => o.is_nre);
