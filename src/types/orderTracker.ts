@@ -83,7 +83,10 @@ export interface OtOrder {
   updated_at: string;
 }
 
-export type DueBucketKey = 'overdue' | 'd7' | 'd14' | 'd21' | 'd30' | 'd30plus' | 'none';
+export type DueBucketKey =
+  | 'overdue' | 'd7' | 'd14' | 'd21' | 'd30' | 'd30plus' | 'none'
+  | 'shipped' | 'shipped_late' | 'closed';
+
 
 export interface DueBucket {
   key: DueBucketKey;
