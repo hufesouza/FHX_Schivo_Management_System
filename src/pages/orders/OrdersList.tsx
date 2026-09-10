@@ -36,6 +36,7 @@ export default function OrdersList() {
   const [fCustomer, setFCustomer] = useState(ALL);
   const [fStatus, setFStatus] = useState(ALL);
   const [fMachine, setFMachine] = useState(ALL);
+  const [fType, setFType] = useState<'all' | 'parts' | 'nre'>('all');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [sort, setSort] = useState<SortKey>('priority');
@@ -60,6 +61,8 @@ export default function OrdersList() {
       if (fCustomer !== ALL && o.customer_name !== fCustomer) return false;
       if (fStatus !== ALL && o.status !== fStatus) return false;
       if (fMachine !== ALL && (o.machine_id || '') !== (fMachine === '__none__' ? '' : fMachine)) return false;
+      if (fType === 'parts' && o.is_nre) return false;
+      if (fType === 'nre' && !o.is_nre) return false;
       if (fromDate && (!o.due_date || o.due_date < fromDate)) return false;
       if (toDate && (!o.due_date || o.due_date > toDate)) return false;
       if (q) {
@@ -69,7 +72,7 @@ export default function OrdersList() {
       }
       return true;
     });
-  }, [orders, scope, due, fCustomer, fStatus, fMachine, fromDate, toDate, search]);
+  }, [orders, scope, due, fCustomer, fStatus, fMachine, fType, fromDate, toDate, search]);
 
   const sorted = useMemo(() => {
     const dir = asc ? 1 : -1;
@@ -110,7 +113,7 @@ export default function OrdersList() {
   };
 
   const clearAll = () => {
-    setSearch(''); setFCustomer(ALL); setFStatus(ALL); setFMachine(ALL);
+    setSearch(''); setFCustomer(ALL); setFStatus(ALL); setFMachine(ALL); setFType('all');
     setFromDate(''); setToDate(''); setPage(0); setParams({});
   };
 
@@ -173,6 +176,14 @@ export default function OrdersList() {
               {machines.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={fType} onValueChange={(v) => { setFType(v as 'all' | 'parts' | 'nre'); setPage(0); }}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Parts &amp; NRE</SelectItem>
+              <SelectItem value="parts">Manufactured parts</SelectItem>
+              <SelectItem value="nre">NRE only</SelectItem>
+            </SelectContent>
+          </Select>
           <div className="flex items-end gap-2">
             <div>
               <label className="text-xs text-muted-foreground">Due from</label>
@@ -183,7 +194,7 @@ export default function OrdersList() {
               <Input type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setPage(0); }} className="w-[145px]" />
             </div>
           </div>
-          {(activeChip || search || fCustomer !== ALL || fStatus !== ALL || fMachine !== ALL || fromDate || toDate) && (
+          {(activeChip || search || fCustomer !== ALL || fStatus !== ALL || fMachine !== ALL || fType !== 'all' || fromDate || toDate) && (
             <Button variant="ghost" size="sm" onClick={clearAll}>
               <X className="mr-1 h-4 w-4" /> Clear {activeChip && <span className="ml-1 text-xs uppercase">({activeChip})</span>}
             </Button>
@@ -229,7 +240,15 @@ export default function OrdersList() {
                       >
                         <td className="px-3 py-2 font-medium">{o.customer_name || '—'}</td>
                         <td className="px-3 py-2 text-muted-foreground">{o.po_number || '—'}</td>
-                        <td className="px-3 py-2">{o.part_number || '—'}{o.part_revision ? ` Rev ${o.part_revision}` : ''}</td>
+                        <td className="px-3 py-2">
+                          {o.is_nre && (
+                            <span className="mr-2 inline-flex rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-violet-600">
+                              NRE
+                            </span>
+                          )}
+                          {o.part_number || (o.is_nre ? 'Engineering charge' : '—')}
+                          {o.part_revision ? ` Rev ${o.part_revision}` : ''}
+                        </td>
                         <td className="max-w-[240px] truncate px-3 py-2 text-muted-foreground">{o.part_description || '—'}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{fmtQty(o.quantity)}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{fmtDate(o.due_date)}</td>
@@ -242,7 +261,7 @@ export default function OrdersList() {
                           </span>
                         </td>
                         <td className="px-3 py-2"><StatusBadge status={o.status} /></td>
-                        <td className="px-3 py-2">{machineName(o.machine_id)}</td>
+                        <td className="px-3 py-2">{o.is_nre ? <span className="text-muted-foreground">n/a</span> : machineName(o.machine_id)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{fmtMoney(o.unit_price)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{fmtMoney(o.total_price)}</td>
                         <td className="px-2 py-2">

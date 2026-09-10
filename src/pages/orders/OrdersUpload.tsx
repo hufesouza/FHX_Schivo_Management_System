@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, Upload, Sparkles, Plus, Trash2, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { readDocument, SUPPORTED_EXTENSIONS } from '@/utils/documentReader';
 import { supabase } from '@/integrations/supabase/client';
@@ -34,6 +35,7 @@ interface DraftLine {
   special_requirements: string;
   status: OrderStatus;
   machine_id: string | null;
+  is_nre: boolean;
 }
 
 interface Draft {
@@ -64,8 +66,10 @@ const newLine = (): DraftLine => ({
   due_date: null, unit_price: null, total_price: null,
   original_unit_price: null, original_total_price: null,
   notes: '', requirements: '', special_requirements: '',
-  status: 'New', machine_id: null,
+  status: 'New', machine_id: null, is_nre: false,
 });
+
+const NRE_HINT = /\b(nre|non[\s-]?recurring|tooling charge|setup charge|engineering charge|fixture cost|programming charge|one[\s-]?off charge)\b/i;
 
 export default function OrdersUpload() {
   const navigate = useNavigate();
@@ -117,6 +121,9 @@ export default function OrdersUpload() {
           special_requirements: asStr(l.special_requirements),
           status: 'New' as OrderStatus,
           machine_id: null,
+          is_nre:
+            l.is_nre === true ||
+            NRE_HINT.test(`${asStr(l.part_description)} ${asStr(l.part_number)} ${asStr(l.notes)}`),
         };
       });
       setDraft({
@@ -220,7 +227,8 @@ export default function OrdersUpload() {
         requirements: l.requirements || draft.requirements || null,
         special_requirements: l.special_requirements || draft.special_requirements || null,
         status: l.status,
-        machine_id: l.machine_id,
+        machine_id: l.is_nre ? null : l.machine_id,
+        is_nre: l.is_nre,
         currency: draft.currency || 'EUR',
         original_unit_price: l.original_unit_price,
         original_total_price: l.original_total_price,
@@ -387,12 +395,21 @@ export default function OrdersUpload() {
                         Line {l.line_number ?? idx + 1}
                         <span className={cn('ml-2 rounded border px-1.5 py-0.5 text-[10px] font-medium', b.className)}>{b.label}</span>
                       </p>
-                      <Button
-                        size="icon" variant="ghost" className="h-8 w-8 text-destructive"
-                        onClick={() => setDraft({ ...draft, lines: draft.lines.filter((x) => x.key !== l.key) })}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-3">
+                        <label className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-2 py-1 text-xs font-medium">
+                          <Checkbox
+                            checked={l.is_nre}
+                            onCheckedChange={(v) => setLine(l.key, { is_nre: v === true, machine_id: v === true ? null : l.machine_id })}
+                          />
+                          NRE — not a manufactured part
+                        </label>
+                        <Button
+                          size="icon" variant="ghost" className="h-8 w-8 text-destructive"
+                          onClick={() => setDraft({ ...draft, lines: draft.lines.filter((x) => x.key !== l.key) })}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                       <div>

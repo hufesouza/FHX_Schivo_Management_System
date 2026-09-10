@@ -2296,6 +2296,7 @@ export type Database = {
           due_date: string | null
           fx_rate_to_eur: number | null
           id: string
+          is_nre: boolean
           line_number: number | null
           machine_id: string | null
           notes: string | null
@@ -2324,6 +2325,7 @@ export type Database = {
           due_date?: string | null
           fx_rate_to_eur?: number | null
           id?: string
+          is_nre?: boolean
           line_number?: number | null
           machine_id?: string | null
           notes?: string | null
@@ -2352,6 +2354,7 @@ export type Database = {
           due_date?: string | null
           fx_rate_to_eur?: number | null
           id?: string
+          is_nre?: boolean
           line_number?: number | null
           machine_id?: string | null
           notes?: string | null

@@ -27,20 +27,24 @@ export default function OrdersDashboard() {
     const counts: Record<DueBucketKey, number> = {
       overdue: 0, d7: 0, d14: 0, d21: 0, d30: 0, d30plus: 0, none: 0,
     };
-    open.forEach((o) => { counts[dueBucket(o.due_date).key] += 1; });
+    open.filter((o) => !o.is_nre).forEach((o) => { counts[dueBucket(o.due_date).key] += 1; });
+    const openNre = open.filter((o) => o.is_nre);
+    const openParts = open.filter((o) => !o.is_nre);
     return {
-      open: open.length,
+      open: openParts.length,
       counts,
       completed: orders.filter((o) => o.status === 'Completed' || o.status === 'Shipped').length,
       cancelled: orders.filter((o) => o.status === 'Cancelled').length,
-      openValue: open.reduce((s, o) => s + (Number(o.total_price) || 0), 0),
+      openValue: openParts.reduce((s, o) => s + (Number(o.total_price) || 0), 0),
+      nreCount: openNre.length,
+      nreValue: openNre.reduce((s, o) => s + (Number(o.total_price) || 0), 0),
     };
   }, [orders]);
 
   const urgent = useMemo(
     () =>
       orders
-        .filter((o) => isOpen(o.status) && o.due_date && daysRemaining(o.due_date)! <= 7)
+        .filter((o) => isOpen(o.status) && !o.is_nre && o.due_date && daysRemaining(o.due_date)! <= 7)
         .sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''))
         .slice(0, 12),
     [orders],
@@ -61,7 +65,8 @@ export default function OrdersDashboard() {
   const go = (params: string) => navigate(`/orders/list?${params}`);
 
   const kpis: { label: string; value: number; onClick: () => void; tone: string }[] = [
-    { label: 'Total open orders', value: stats.open, onClick: () => go('scope=open'), tone: 'bg-primary/5 border-primary/20' },
+    { label: 'Open part orders', value: stats.open, onClick: () => go('scope=open'), tone: 'bg-primary/5 border-primary/20' },
+    { label: 'Open NRE lines', value: stats.nreCount, onClick: () => go('scope=open'), tone: 'bg-violet-500/10 text-violet-600 border-violet-500/30' },
     { label: 'Overdue', value: stats.counts.overdue, onClick: () => go('scope=open&due=overdue'), tone: DUE_BUCKETS.overdue.className },
     { label: 'Due < 7 days', value: stats.counts.d7, onClick: () => go('scope=open&due=d7'), tone: DUE_BUCKETS.d7.className },
     { label: 'Due 8–14 days', value: stats.counts.d14, onClick: () => go('scope=open&due=d14'), tone: DUE_BUCKETS.d14.className },
@@ -168,7 +173,9 @@ export default function OrdersDashboard() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-3xl font-semibold tabular-nums text-primary">{fmtMoney(stats.openValue)}</p>
-                  <p className="text-xs text-muted-foreground">Across {stats.open} open order lines</p>
+                  <p className="text-xs text-muted-foreground">Across {stats.open} open part lines</p>
+                  <p className="mt-3 text-lg font-semibold tabular-nums text-violet-600">{fmtMoney(stats.nreValue)}</p>
+                  <p className="text-xs text-muted-foreground">NRE (non-recurring engineering) · {stats.nreCount} line{stats.nreCount === 1 ? '' : 's'}</p>
                 </CardContent>
               </Card>
 

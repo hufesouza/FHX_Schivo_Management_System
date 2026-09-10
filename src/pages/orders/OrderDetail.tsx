@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -35,6 +36,7 @@ const emptyOrder = (): Partial<OtOrder> => ({
   special_requirements: '',
   status: 'New',
   machine_id: null,
+  is_nre: false,
 });
 
 const num = (v: string) => (v === '' ? null : Number(v));
@@ -137,6 +139,18 @@ export default function OrderDetail() {
               <Label>Customer name</Label>
               <Input value={form.customer_name || ''} onChange={(e) => set('customer_name', e.target.value)} />
             </div>
+            <label className="sm:col-span-2 flex cursor-pointer items-center gap-3 rounded-md border border-border bg-muted/30 p-3">
+              <Checkbox
+                checked={!!form.is_nre}
+                onCheckedChange={(v) =>
+                  setForm((f) => ({ ...f, is_nre: v === true, machine_id: v === true ? null : f.machine_id }))
+                }
+              />
+              <span className="text-sm">
+                <span className="font-medium">NRE — not a manufactured part</span>
+                <span className="block text-xs text-muted-foreground">Non-Recurring Engineering charge (tooling, programming, setup, fixtures)</span>
+              </span>
+            </label>
             <div>
               <Label>Customer PO number</Label>
               <Input value={form.po_number || ''} onChange={(e) => set('po_number', e.target.value)} />
