@@ -1,63 +1,40 @@
+# Order Tracker
 
-## Goal
-Rework the **NPI Order Intelligence** page (`src/pages/NPIOrderIntelligence.tsx`) to consume the new spreadsheet format (`NPI_Order.xlsx`), add year filtering, a side-by-side year comparison mode (including NPVI), and extend the PDF export accordingly.
+A new module for managing customer Purchase Orders, added as a card on the NPI Engineering Modules page. You upload a PO in any layout, the system reads it, you review and correct the extracted lines, and each line becomes its own order tracked by due date.
 
-## New spreadsheet contract
-Detected columns in the uploaded file (first sheet):
-`#, SO_Number, SO_Line_DB, SO_Line_Display, PO_SO_Line, PO_Fallback_From, PO_Fallback_To, NPI?, SO_Item, SO_Description, SO_Quantity, SO_OpenQty, Unit_Price, SO_Line_Total, SO_Line_Status, Customer_Code, Customer_Name, SO_Date, Customer_Reference, PO_Count, Released_PO_Count, Issued_PO_Count, Closed_PO_Count`
+## What you get
 
-Column mapping (fuzzy detection kept as fallback for older files):
-- Customer → `Customer_Name`
-- Order No → `SO_Number` (fallback: PO)
-- Part → `SO_Item`
-- Description → `SO_Description`
-- Revenue → **`SO_Line_Total`**
-- Status → **`SO_Line_Status`** (`C` = Closed/Invoiced, `O` = Open/To-be-invoiced; any other value falls back to old keyword logic)
-- Date → `SO_Date`
-- Quantity → `SO_Quantity`, Open Qty → `SO_OpenQty`, Unit Price → `Unit_Price`
-- NPI flag → `NPI?` (auto-filter rows to `Yes` when column present, with a toggle to include all)
-- Commodity → not present in the new file, keep the section but show "Unspecified" gracefully
+**Order Tracker home (`/orders`)** — clean dashboard as the landing page:
+- KPI cards: Total Open, Overdue, Due < 7 days, 8-14, 15-21, 22-30, > 30 days, Completed, Cancelled. Clicking a card opens the Orders table filtered to it.
+- Overdue and urgent orders highlighted at the top.
 
-`isOpenStatus` becomes: if status is exactly `O`/`Open` → open; `C`/`Closed` → closed; else fall back to keyword logic.
+**Orders table** — professional data table with columns: Customer, PO Number, Part Number, Description, Quantity, Due Date, Days Remaining, Status, Machine, Unit Price, Total Price.
+- Default sort by urgency: overdue first, then < 7, 8-14, 15-21, 22-30, > 30 days.
+- Manual sorting by Due Date, Customer, Part Number, Status, Machine.
+- Filters for Customer, Status, Machine and a due-date range; search across customer, PO number, part number and description.
+- Pagination, create, duplicate, edit, delete (with a confirm step).
+- Status is a dropdown: New, Planning, In Progress, Waiting for Material, Waiting for Customer, On Hold, Completed, Shipped, Cancelled.
+- Machine is a dropdown of existing machines with a "＋ Add machine" option right inside the dropdown, so no separate page is needed. Renaming or removing a machine is done from the same dropdown list.
 
-## Feature changes
+**Order view** — click a row to open the full record; every field editable and saved in place, with a link back to the original uploaded PO file.
 
-### 1. Year filter
-- Derive a sorted list of years from `SO_Date`.
-- Add a "Year" select (All / 2024 / 2025 / …) at the top of the filters row.
-- Applies to KPIs, all tabs (Customers, Commodities, Monthly Trends, Orders, Data Quality), and single-year PDF.
+**Upload PO** — drag and drop or pick a file (PDF, Excel, Word, images). The file is stored, analysed, and you land on an editable review screen listing every detected line item. Anything the system could not read confidently is left blank and flagged in amber for your attention. You fix what's wrong, then confirm to create one order per line, all linked to the same customer and PO.
 
-### 2. Compare Years mode
-New view toggle: **Single Year** ↔ **Compare Years**.
+**Customers** — customer list with name, ID, contact details and notes. Each customer page shows their open, overdue and upcoming orders plus full history.
 
-In Compare mode:
-- Two Year selects: **Year A** and **Year B** (default: two most recent years).
-- Optional per-year Total Company Revenue inputs (stored in `localStorage` per year, e.g. `npi-oi-total-company-revenue:2025`) → per-year NPVI.
-- Side-by-side comparison cards for: Total Orders, Open, Closed, Total Revenue, Open Value, Closed Value, **NPVI %** — each with delta (absolute + %) and up/down arrow.
-- Charts:
-  - Grouped bar: Revenue by Month, Year A vs Year B (Jan–Dec on X axis).
-  - Grouped bar: Orders by Month, Year A vs Year B.
-  - Top 10 Customers Revenue, grouped bars A vs B (union of top customers from both years).
-- Existing per-year tabs (Customers/Commodities/Trends/Orders/Data Quality) remain available; year filter still respected.
+**Settings** — status list, machine list and default preferences for the module.
 
-### 3. PDF export
-- Keep existing single-year PDF, driven by the active year filter (title includes the year).
-- New "Export Comparison PDF" button visible in Compare mode:
-  - Header + filters chip lists both years.
-  - Comparison KPI grid (6 metrics × A/B/Δ).
-  - Per-year NPVI banners side by side.
-  - Comparison charts captured via existing `html2canvas` offscreen container pattern.
-  - Reuses branding and layout of current PDF for consistency.
+Navigation inside the module: Dashboard, Orders, Upload PO, Customers, Settings.
 
-### 4. Small UX tweaks
-- Column label defaults update to reflect new schema (e.g., "SO Number" instead of "PO Number") when auto-detected.
-- Data Quality tab: sums populated non-null across all rows unchanged, still works with new columns.
+## Extraction approach
 
-## Files
-- **Modify** `src/pages/NPIOrderIntelligence.tsx` — all logic and UI changes above (single-file page, no new components strictly required, but the compare view will be extracted into a `CompareYearsView` sub-component within the same file to keep JSX readable).
+The reader does not assume a fixed layout. Headings, labels and table structure are interpreted so that "Part Number", "Item Number", "PN" and "Product Code" all map to Part Number, and "Due Date", "Delivery Date", "Required Date", "Requested Delivery" all map to Due Date. Same for quantity, price and PO number variants. Dates are read in day/month order. Multiple line items produce multiple orders sharing one customer and PO number.
 
-No database, hook, or route changes. Session/localStorage keys are extended (`npi-oi-total-company-revenue:<year>`) but the old global key stays as fallback for backward compatibility.
+## Technical notes
 
-## Out of scope
-- Persisting uploads to the database (still client-side only, per current design).
-- Commodity source data (not in new file).
+- **Tables** (Lovable Cloud): `ot_purchase_orders` (customer, po_number, po_date, source file path, raw extraction json), `ot_orders` (one row per line item, FK to purchase order + customer, part_number, part_description, quantity, due_date, unit_price, total_price, notes, requirements, special_requirements, status, machine_id, timestamps), `ot_customers`, `ot_machines`. RLS: authenticated users can read/write; GRANTs to `authenticated` and `service_role`; `updated_at` triggers.
+- **Storage**: new private bucket `purchase-orders` for the uploaded source files, with RLS on `storage.objects` for authenticated access and signed URLs for viewing.
+- **Extraction edge function** `extract-purchase-order`: receives the stored file path, converts PDFs/images to base64 for a vision-capable Lovable AI Gateway model (`google/gemini-2.5-flash`) and passes parsed sheet/document text for Excel and Word. Returns structured JSON with a per-field confidence flag so low-confidence values render blank + flagged. Client-side pre-parsing uses the existing `xlsx` dependency for spreadsheets and `mammoth` for Word.
+- **Frontend**: `src/pages/orders/*` (Dashboard, OrdersTable, OrderDetail, UploadPO, Customers, Settings) under `AppLayout`, routed in `App.tsx` at `/orders/...`, plus a new card on `NPIHub`. Shared hook `useOrders` for querying, sorting buckets and mutations; `dueDateBucket()` helper computes days remaining and category in one place so the dashboard, table and future scheduling all agree.
+- **Extensibility**: order rows keep `machine_id` and status as first-class columns and the PO stays linked to every line, so production scheduling, capacity planning, material availability and reporting can join onto these tables later without restructuring.
+- Machines list is independent of the scheduling module's machines.
