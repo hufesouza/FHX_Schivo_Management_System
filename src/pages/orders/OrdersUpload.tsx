@@ -25,6 +25,8 @@ interface DraftLine {
   due_date: string | null;
   unit_price: number | null;
   total_price: number | null;
+  original_unit_price: number | null;
+  original_total_price: number | null;
   notes: string;
   requirements: string;
   special_requirements: string;
@@ -39,6 +41,9 @@ interface Draft {
   notes: string;
   requirements: string;
   special_requirements: string;
+  /** Currency of the uploaded document. Prices are stored in EUR. */
+  currency: string;
+  fx_rate_to_eur: number;
   lines: DraftLine[];
   low_confidence: string[];
 }
@@ -55,6 +60,7 @@ const newLine = (): DraftLine => ({
   key: crypto.randomUUID(),
   line_number: null, part_number: '', part_description: '', quantity: null,
   due_date: null, unit_price: null, total_price: null,
+  original_unit_price: null, original_total_price: null,
   notes: '', requirements: '', special_requirements: '',
   status: 'New', machine_id: null,
 });
