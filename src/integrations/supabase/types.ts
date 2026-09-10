@@ -2303,6 +2303,7 @@ export type Database = {
           original_unit_price: number | null
           part_description: string | null
           part_number: string | null
+          part_revision: string | null
           po_date: string | null
           po_number: string | null
           purchase_order_id: string | null
@@ -2330,6 +2331,7 @@ export type Database = {
           original_unit_price?: number | null
           part_description?: string | null
           part_number?: string | null
+          part_revision?: string | null
           po_date?: string | null
           po_number?: string | null
           purchase_order_id?: string | null
@@ -2357,6 +2359,7 @@ export type Database = {
           original_unit_price?: number | null
           part_description?: string | null
           part_number?: string | null
+          part_revision?: string | null
           po_date?: string | null
           po_number?: string | null
           purchase_order_id?: string | null
