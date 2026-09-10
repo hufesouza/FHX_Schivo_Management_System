@@ -1,0 +1,1 @@
+ALTER TABLE public.ot_orders ADD COLUMN IF NOT EXISTS part_revision text;

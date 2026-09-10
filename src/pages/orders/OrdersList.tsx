@@ -229,7 +229,7 @@ export default function OrdersList() {
                       >
                         <td className="px-3 py-2 font-medium">{o.customer_name || '—'}</td>
                         <td className="px-3 py-2 text-muted-foreground">{o.po_number || '—'}</td>
-                        <td className="px-3 py-2">{o.part_number || '—'}</td>
+                        <td className="px-3 py-2">{o.part_number || '—'}{o.part_revision ? ` Rev ${o.part_revision}` : ''}</td>
                         <td className="max-w-[240px] truncate px-3 py-2 text-muted-foreground">{o.part_description || '—'}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{fmtQty(o.quantity)}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{fmtDate(o.due_date)}</td>

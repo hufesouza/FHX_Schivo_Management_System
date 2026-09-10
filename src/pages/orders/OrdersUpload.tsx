@@ -21,6 +21,7 @@ interface DraftLine {
   key: string;
   line_number: number | null;
   part_number: string;
+  part_revision: string;
   part_description: string;
   quantity: number | null;
   due_date: string | null;
@@ -59,7 +60,7 @@ const asDate = (v: unknown) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.t
 
 const newLine = (): DraftLine => ({
   key: crypto.randomUUID(),
-  line_number: null, part_number: '', part_description: '', quantity: null,
+  line_number: null, part_number: '', part_revision: '', part_description: '', quantity: null,
   due_date: null, unit_price: null, total_price: null,
   original_unit_price: null, original_total_price: null,
   notes: '', requirements: '', special_requirements: '',
@@ -103,6 +104,7 @@ export default function OrdersUpload() {
           key: crypto.randomUUID(),
           line_number: asNum(l.line_number) ?? i + 1,
           part_number: asStr(l.part_number),
+          part_revision: asStr(l.part_revision ?? l.revision ?? l.rev),
           part_description: asStr(l.part_description),
           quantity: asNum(l.quantity),
           due_date: asDate(l.due_date),
@@ -208,6 +210,7 @@ export default function OrdersUpload() {
         po_date: draft.po_date,
         line_number: l.line_number,
         part_number: l.part_number || null,
+        part_revision: l.part_revision || null,
         part_description: l.part_description || null,
         quantity: l.quantity,
         due_date: l.due_date,
@@ -395,6 +398,10 @@ export default function OrdersUpload() {
                       <div>
                         <Label>Part number</Label>
                         <Input value={l.part_number} onChange={(e) => setLine(l.key, { part_number: e.target.value })} />
+                      </div>
+                      <div>
+                        <Label>Rev</Label>
+                        <Input value={l.part_revision} onChange={(e) => setLine(l.key, { part_revision: e.target.value })} />
                       </div>
                       <div className="lg:col-span-2">
                         <Label>Description</Label>
