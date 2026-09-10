@@ -66,6 +66,9 @@ export interface OtOrder {
   special_requirements: string | null;
   status: OrderStatus;
   machine_id: string | null;
+  /** Date the line actually shipped — set when the status becomes Shipped. */
+  shipped_date: string | null;
+
   /** Non-Recurring Engineering charge — not a manufactured part. */
   is_nre: boolean;
   /** Currency of the original purchase order document (ISO code). */
