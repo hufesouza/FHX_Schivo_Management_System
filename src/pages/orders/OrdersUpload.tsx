@@ -396,6 +396,10 @@ export default function OrdersUpload() {
                         <Label>Part number</Label>
                         <Input value={l.part_number} onChange={(e) => setLine(l.key, { part_number: e.target.value })} />
                       </div>
+                      <div>
+                        <Label>Rev</Label>
+                        <Input value={l.part_revision} onChange={(e) => setLine(l.key, { part_revision: e.target.value })} />
+                      </div>
                       <div className="lg:col-span-2">
                         <Label>Description</Label>
                         <Input value={l.part_description} onChange={(e) => setLine(l.key, { part_description: e.target.value })} />
