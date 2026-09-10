@@ -1,0 +1,1 @@
+ALTER TABLE public.ot_orders ADD COLUMN IF NOT EXISTS shipped_date date;

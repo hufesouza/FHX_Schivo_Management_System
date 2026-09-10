@@ -12,7 +12,7 @@ import {
 import { Loader2, Plus, Search, Trash2, Copy, ArrowUpDown, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useMachines, useOrders } from '@/hooks/useOrderTracker';
 import {
-  DUE_BUCKETS, daysRemaining, dueBucket, fmtDate, fmtMoney, fmtQty, isOpen,
+  DUE_BUCKETS, daysRemaining, orderBucket, shipDelay, fmtDate, fmtMoney, fmtQty, isOpen,
   type DueBucketKey, type OrderStatus, ORDER_STATUSES, type OtOrder,
 } from '@/types/orderTracker';
 import { StatusBadge } from '@/components/orders/StatusSelect';
@@ -57,7 +57,7 @@ export default function OrdersList() {
       if (scope === 'open' && !isOpen(o.status)) return false;
       if (scope === 'completed' && !(o.status === 'Completed' || o.status === 'Shipped')) return false;
       if (scope === 'cancelled' && o.status !== 'Cancelled') return false;
-      if (due !== ALL && dueBucket(o.due_date).key !== due) return false;
+      if (due !== ALL && orderBucket(o).key !== due) return false;
       if (fCustomer !== ALL && o.customer_name !== fCustomer) return false;
       if (fStatus !== ALL && o.status !== fStatus) return false;
       if (fMachine !== ALL && (o.machine_id || '') !== (fMachine === '__none__' ? '' : fMachine)) return false;
@@ -80,8 +80,8 @@ export default function OrdersList() {
     copy.sort((a, b) => {
       switch (sort) {
         case 'priority': {
-          const ra = dueBucket(a.due_date).rank;
-          const rb = dueBucket(b.due_date).rank;
+          const ra = orderBucket(a).rank;
+          const rb = orderBucket(b).rank;
           if (ra !== rb) return (ra - rb) * dir;
           return ((a.due_date || '9999').localeCompare(b.due_date || '9999')) * dir;
         }
@@ -230,8 +230,10 @@ export default function OrdersList() {
                 </thead>
                 <tbody>
                   {rows.map((o) => {
-                    const b = dueBucket(o.due_date);
-                    const days = daysRemaining(o.due_date);
+                    const b = orderBucket(o);
+                    const shipped = b.key === 'shipped' || b.key === 'shipped_late';
+                    const delay = shipDelay(o);
+                    const days = shipped || b.key === 'closed' ? null : daysRemaining(o.due_date);
                     return (
                       <tr
                         key={o.id}
@@ -251,13 +253,19 @@ export default function OrdersList() {
                         </td>
                         <td className="max-w-[240px] truncate px-3 py-2 text-muted-foreground">{o.part_description || '—'}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{fmtQty(o.quantity)}</td>
-                        <td className="px-3 py-2 whitespace-nowrap">{fmtDate(o.due_date)}</td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          {fmtDate(o.due_date)}
+                          {o.shipped_date && (
+                            <span className="block text-xs text-muted-foreground">Shipped {fmtDate(o.shipped_date)}</span>
+                          )}
+                        </td>
                         <td className={cn('px-3 py-2 text-right tabular-nums font-semibold', b.key === 'overdue' && 'text-destructive')}>
                           {days === null ? '—' : days}
                         </td>
                         <td className="px-3 py-2">
                           <span className={cn('inline-flex whitespace-nowrap rounded border px-2 py-0.5 text-xs font-medium', b.className)}>
                             {b.label}
+                            {b.key === 'shipped_late' && delay ? ` +${delay}d` : ''}
                           </span>
                         </td>
                         <td className="px-3 py-2"><StatusBadge status={o.status} /></td>

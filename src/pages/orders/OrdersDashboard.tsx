@@ -9,6 +9,7 @@ import {
   DUE_BUCKETS,
   daysRemaining,
   dueBucket,
+  orderBucket,
   fmtDate,
   fmtMoney,
   isOpen,
@@ -26,6 +27,7 @@ export default function OrdersDashboard() {
     const open = orders.filter((o) => isOpen(o.status));
     const counts: Record<DueBucketKey, number> = {
       overdue: 0, d7: 0, d14: 0, d21: 0, d30: 0, d30plus: 0, none: 0,
+      shipped: 0, shipped_late: 0, closed: 0,
     };
     open.filter((o) => !o.is_nre).forEach((o) => { counts[dueBucket(o.due_date).key] += 1; });
     const openNre = open.filter((o) => o.is_nre);
@@ -38,6 +40,7 @@ export default function OrdersDashboard() {
       openValue: openParts.reduce((s, o) => s + (Number(o.total_price) || 0), 0),
       nreCount: openNre.length,
       nreValue: openNre.reduce((s, o) => s + (Number(o.total_price) || 0), 0),
+      shippedLate: orders.filter((o) => orderBucket(o).key === 'shipped_late').length,
     };
   }, [orders]);
 
@@ -74,6 +77,7 @@ export default function OrdersDashboard() {
     { label: 'Due 22–30 days', value: stats.counts.d30, onClick: () => go('scope=open&due=d30'), tone: DUE_BUCKETS.d30.className },
     { label: 'Due > 30 days', value: stats.counts.d30plus, onClick: () => go('scope=open&due=d30plus'), tone: DUE_BUCKETS.d30plus.className },
     { label: 'Completed / shipped', value: stats.completed, onClick: () => go('scope=completed'), tone: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30' },
+    { label: 'Shipped late', value: stats.shippedLate, onClick: () => go('scope=completed&due=shipped_late'), tone: 'bg-rose-500/10 text-rose-600 border-rose-500/30' },
     { label: 'Cancelled', value: stats.cancelled, onClick: () => go('scope=cancelled'), tone: 'bg-muted text-muted-foreground border-border' },
   ];
 
