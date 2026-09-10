@@ -164,7 +164,7 @@ export default function OrderDetail() {
               <Input type="date" value={form.due_date || ''} onChange={(e) => set('due_date', e.target.value || null)} />
             </div>
             <div>
-              <Label>Unit price</Label>
+              <Label>Unit price (€)</Label>
               <Input
                 type="number" step="any" value={form.unit_price ?? ''}
                 onChange={(e) => {
@@ -178,9 +178,17 @@ export default function OrderDetail() {
               />
             </div>
             <div>
-              <Label>Total price</Label>
+              <Label>Total price (€)</Label>
               <Input type="number" step="any" value={form.total_price ?? ''} onChange={(e) => set('total_price', num(e.target.value))} />
             </div>
+            {form.currency && form.currency !== 'EUR' && (
+              <div className="sm:col-span-2 rounded-md border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
+                Purchase order was in <span className="font-medium text-foreground">{form.currency}</span>:{' '}
+                {fmtOriginal(form.original_unit_price ?? null, form.currency)} each ·{' '}
+                {fmtOriginal(form.original_total_price ?? null, form.currency)} total
+                {form.fx_rate_to_eur ? ` (converted at 1 ${form.currency} = € ${Number(form.fx_rate_to_eur).toFixed(4)})` : ''}
+              </div>
+            )}
             <div className="sm:col-span-2">
               <Label>Notes</Label>
               <Textarea rows={3} value={form.notes || ''} onChange={(e) => set('notes', e.target.value)} />
