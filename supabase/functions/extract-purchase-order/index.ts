@@ -27,6 +27,7 @@ Field synonyms (non-exhaustive — use judgement):
 - Due Date: "Delivery Date", "Required Date", "Requested Delivery", "Need By", "Ship Date", "Dock Date".
 - Unit Price: "Price", "Unit Cost", "Price Each", "Rate".
 - Total Price: "Amount", "Extended Price", "Line Total", "Net Value".
+- NRE (is_nre): true when the line is a Non-Recurring Engineering charge rather than a manufactured part — "NRE", "Non-Recurring Engineering", tooling charge, fixture cost, programming/setup charge, one-off engineering fee, first article engineering, freight/service only lines. Otherwise false.
 - Requirements / Special Requirements: certificates, material certs, packaging, inspection, FAI, traceability, quality clauses, notes on the line or in the terms.
 
 Rules:
@@ -61,7 +62,8 @@ JSON schema:
       "total_price": number|null,
       "notes": string|null,
       "requirements": string|null,
-      "special_requirements": string|null
+      "special_requirements": string|null,
+      "is_nre": boolean
     }
   ],
   "low_confidence": string[]

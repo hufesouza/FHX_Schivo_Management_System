@@ -173,7 +173,9 @@ export default function OrdersDashboard() {
                 </CardHeader>
                 <CardContent>
                   <p className="text-3xl font-semibold tabular-nums text-primary">{fmtMoney(stats.openValue)}</p>
-                  <p className="text-xs text-muted-foreground">Across {stats.open} open order lines</p>
+                  <p className="text-xs text-muted-foreground">Across {stats.open} open part lines</p>
+                  <p className="mt-3 text-lg font-semibold tabular-nums text-violet-600">{fmtMoney(stats.nreValue)}</p>
+                  <p className="text-xs text-muted-foreground">NRE (non-recurring engineering) · {stats.nreCount} line{stats.nreCount === 1 ? '' : 's'}</p>
                 </CardContent>
               </Card>
 
