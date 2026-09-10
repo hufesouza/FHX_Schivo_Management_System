@@ -305,6 +305,22 @@ export default function OrdersUpload() {
                 <Label>PO date</Label>
                 <Input type="date" value={draft.po_date || ''} onChange={(e) => setDraft({ ...draft, po_date: e.target.value || null })} />
               </div>
+              <div>
+                <Label>Currency on the document</Label>
+                <Input
+                  value={draft.currency}
+                  onChange={(e) => setDraft({ ...draft, currency: e.target.value.toUpperCase() })}
+                  onBlur={(e) => changeCurrency(e.target.value)}
+                  placeholder="EUR"
+                />
+              </div>
+              <div className="sm:col-span-2 flex items-end">
+                <p className="text-sm text-muted-foreground">
+                  {draft.currency === 'EUR'
+                    ? 'Prices are already in euro.'
+                    : `Prices converted to euro at 1 ${draft.currency} = € ${draft.fx_rate_to_eur.toFixed(4)}. The original amounts are kept on each order.`}
+                </p>
+              </div>
               <div className="sm:col-span-3">
                 <Label>Notes</Label>
                 <Textarea rows={2} value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
