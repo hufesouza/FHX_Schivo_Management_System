@@ -148,7 +148,29 @@ export const DUE_BUCKETS: Record<DueBucketKey, DueBucket> = {
     className: 'bg-muted text-muted-foreground border-border',
     dotClassName: 'bg-muted-foreground',
   },
+  shipped: {
+    key: 'shipped',
+    label: 'SHIPPED ON TIME',
+    rank: 7,
+    className: 'bg-teal-500/10 text-teal-600 border-teal-500/30',
+    dotClassName: 'bg-teal-500',
+  },
+  shipped_late: {
+    key: 'shipped_late',
+    label: 'SHIPPED LATE',
+    rank: 8,
+    className: 'bg-rose-500/10 text-rose-600 border-rose-500/30',
+    dotClassName: 'bg-rose-500',
+  },
+  closed: {
+    key: 'closed',
+    label: 'CLOSED',
+    rank: 9,
+    className: 'bg-muted text-muted-foreground border-border',
+    dotClassName: 'bg-muted-foreground',
+  },
 };
+
 
 const startOfToday = () => {
   const d = new Date();
