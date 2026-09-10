@@ -13,6 +13,7 @@ import { ensureCustomer, useOrders } from '@/hooks/useOrderTracker';
 import { MachineSelect } from '@/components/orders/MachineSelect';
 import { StatusSelect } from '@/components/orders/StatusSelect';
 import { dueBucket, type OrderStatus } from '@/types/orderTracker';
+import { fmtOriginal, getEurRate, normaliseCurrency, toEur } from '@/utils/currency';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -25,6 +26,8 @@ interface DraftLine {
   due_date: string | null;
   unit_price: number | null;
   total_price: number | null;
+  original_unit_price: number | null;
+  original_total_price: number | null;
   notes: string;
   requirements: string;
   special_requirements: string;
@@ -39,6 +42,9 @@ interface Draft {
   notes: string;
   requirements: string;
   special_requirements: string;
+  /** Currency of the uploaded document. Prices are stored in EUR. */
+  currency: string;
+  fx_rate_to_eur: number;
   lines: DraftLine[];
   low_confidence: string[];
 }
@@ -55,6 +61,7 @@ const newLine = (): DraftLine => ({
   key: crypto.randomUUID(),
   line_number: null, part_number: '', part_description: '', quantity: null,
   due_date: null, unit_price: null, total_price: null,
+  original_unit_price: null, original_total_price: null,
   notes: '', requirements: '', special_requirements: '',
   status: 'New', machine_id: null,
 });
@@ -86,22 +93,30 @@ export default function OrdersUpload() {
         throw new Error((data as { error?: string })?.error || 'Analysis failed');
       }
       const d = data as Record<string, unknown>;
+      const currency = normaliseCurrency(asStr(d.currency)) || 'EUR';
+      const rate = await getEurRate(currency);
       const rawLines = Array.isArray(d.lines) ? (d.lines as Record<string, unknown>[]) : [];
-      const lines: DraftLine[] = (rawLines.length ? rawLines : [{}]).map((l, i) => ({
-        key: crypto.randomUUID(),
-        line_number: asNum(l.line_number) ?? i + 1,
-        part_number: asStr(l.part_number),
-        part_description: asStr(l.part_description),
-        quantity: asNum(l.quantity),
-        due_date: asDate(l.due_date),
-        unit_price: asNum(l.unit_price),
-        total_price: asNum(l.total_price),
-        notes: asStr(l.notes),
-        requirements: asStr(l.requirements),
-        special_requirements: asStr(l.special_requirements),
-        status: 'New',
-        machine_id: null,
-      }));
+      const lines: DraftLine[] = (rawLines.length ? rawLines : [{}]).map((l, i) => {
+        const origUnit = asNum(l.unit_price);
+        const origTotal = asNum(l.total_price);
+        return {
+          key: crypto.randomUUID(),
+          line_number: asNum(l.line_number) ?? i + 1,
+          part_number: asStr(l.part_number),
+          part_description: asStr(l.part_description),
+          quantity: asNum(l.quantity),
+          due_date: asDate(l.due_date),
+          unit_price: toEur(origUnit, rate),
+          total_price: toEur(origTotal, rate),
+          original_unit_price: origUnit,
+          original_total_price: origTotal,
+          notes: asStr(l.notes),
+          requirements: asStr(l.requirements),
+          special_requirements: asStr(l.special_requirements),
+          status: 'New' as OrderStatus,
+          machine_id: null,
+        };
+      });
       setDraft({
         customer_name: asStr(d.customer_name),
         po_number: asStr(d.po_number),
@@ -109,6 +124,8 @@ export default function OrdersUpload() {
         notes: asStr(d.notes),
         requirements: asStr(d.requirements),
         special_requirements: asStr(d.special_requirements),
+        currency,
+        fx_rate_to_eur: rate,
         lines,
         low_confidence: Array.isArray(d.low_confidence) ? (d.low_confidence as string[]) : [],
       });
@@ -121,6 +138,30 @@ export default function OrdersUpload() {
 
   const setLine = (key: string, patch: Partial<DraftLine>) =>
     setDraft((d) => d && { ...d, lines: d.lines.map((l) => (l.key === key ? { ...l, ...patch } : l)) });
+
+  /** Re-converts every line when the user corrects the document currency. */
+  const changeCurrency = async (raw: string) => {
+    const code = normaliseCurrency(raw) || 'EUR';
+    const rate = await getEurRate(code);
+    setDraft((d) =>
+      d && {
+        ...d,
+        currency: code,
+        fx_rate_to_eur: rate,
+        lines: d.lines.map((l) => {
+          const origUnit = l.original_unit_price ?? l.unit_price;
+          const origTotal = l.original_total_price ?? l.total_price;
+          return {
+            ...l,
+            original_unit_price: origUnit,
+            original_total_price: origTotal,
+            unit_price: toEur(origUnit, rate),
+            total_price: toEur(origTotal, rate),
+          };
+        }),
+      },
+    );
+  };
 
   const confirm = async () => {
     if (!draft) return;
@@ -152,6 +193,8 @@ export default function OrdersUpload() {
           file_name: file?.name || null,
           file_type: file?.type || null,
           notes: draft.notes || null,
+          currency: draft.currency || 'EUR',
+          fx_rate_to_eur: draft.fx_rate_to_eur,
         })
         .select('id')
         .single();
@@ -175,6 +218,10 @@ export default function OrdersUpload() {
         special_requirements: l.special_requirements || draft.special_requirements || null,
         status: l.status,
         machine_id: l.machine_id,
+        currency: draft.currency || 'EUR',
+        original_unit_price: l.original_unit_price,
+        original_total_price: l.original_total_price,
+        fx_rate_to_eur: draft.fx_rate_to_eur,
       }));
 
       const { error: ordErr } = await supabase.from('ot_orders').insert(payload as never);
@@ -282,6 +329,22 @@ export default function OrdersUpload() {
                 <Label>PO date</Label>
                 <Input type="date" value={draft.po_date || ''} onChange={(e) => setDraft({ ...draft, po_date: e.target.value || null })} />
               </div>
+              <div>
+                <Label>Currency on the document</Label>
+                <Input
+                  value={draft.currency}
+                  onChange={(e) => setDraft({ ...draft, currency: e.target.value.toUpperCase() })}
+                  onBlur={(e) => changeCurrency(e.target.value)}
+                  placeholder="EUR"
+                />
+              </div>
+              <div className="sm:col-span-2 flex items-end">
+                <p className="text-sm text-muted-foreground">
+                  {draft.currency === 'EUR'
+                    ? 'Prices are already in euro.'
+                    : `Prices converted to euro at 1 ${draft.currency} = € ${draft.fx_rate_to_eur.toFixed(4)}. The original amounts are kept on each order.`}
+                </p>
+              </div>
               <div className="sm:col-span-3">
                 <Label>Notes</Label>
                 <Textarea rows={2} value={draft.notes} onChange={(e) => setDraft({ ...draft, notes: e.target.value })} />
@@ -353,7 +416,7 @@ export default function OrdersUpload() {
                         <Input type="date" value={l.due_date || ''} onChange={(e) => setLine(l.key, { due_date: e.target.value || null })} />
                       </div>
                       <div>
-                        <Label>Unit price</Label>
+                        <Label>Unit price (€)</Label>
                         <Input type="number" step="any" value={l.unit_price ?? ''}
                           onChange={(e) => {
                             const u = asNum(e.target.value);
@@ -364,9 +427,15 @@ export default function OrdersUpload() {
                           }} />
                       </div>
                       <div>
-                        <Label>Total price</Label>
+                        <Label>Total price (€)</Label>
                         <Input type="number" step="any" value={l.total_price ?? ''} onChange={(e) => setLine(l.key, { total_price: asNum(e.target.value) })} />
                       </div>
+                      {draft.currency !== 'EUR' && (
+                        <div className="sm:col-span-2 lg:col-span-2 self-end text-xs text-muted-foreground">
+                          On the document: {fmtOriginal(l.original_unit_price, draft.currency)} each ·{' '}
+                          {fmtOriginal(l.original_total_price, draft.currency)} total
+                        </div>
+                      )}
                       <div>
                         <Label>Status</Label>
                         <StatusSelect value={l.status} onChange={(s) => setLine(l.key, { status: s })} />

@@ -2290,13 +2290,17 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          currency: string | null
           customer_id: string | null
           customer_name: string
           due_date: string | null
+          fx_rate_to_eur: number | null
           id: string
           line_number: number | null
           machine_id: string | null
           notes: string | null
+          original_total_price: number | null
+          original_unit_price: number | null
           part_description: string | null
           part_number: string | null
           po_date: string | null
@@ -2313,13 +2317,17 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          currency?: string | null
           customer_id?: string | null
           customer_name?: string
           due_date?: string | null
+          fx_rate_to_eur?: number | null
           id?: string
           line_number?: number | null
           machine_id?: string | null
           notes?: string | null
+          original_total_price?: number | null
+          original_unit_price?: number | null
           part_description?: string | null
           part_number?: string | null
           po_date?: string | null
@@ -2336,13 +2344,17 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          currency?: string | null
           customer_id?: string | null
           customer_name?: string
           due_date?: string | null
+          fx_rate_to_eur?: number | null
           id?: string
           line_number?: number | null
           machine_id?: string | null
           notes?: string | null
+          original_total_price?: number | null
+          original_unit_price?: number | null
           part_description?: string | null
           part_number?: string | null
           po_date?: string | null
@@ -2384,11 +2396,13 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          currency: string | null
           customer_id: string | null
           customer_name: string | null
           file_name: string | null
           file_path: string | null
           file_type: string | null
+          fx_rate_to_eur: number | null
           id: string
           notes: string | null
           po_date: string | null
@@ -2399,11 +2413,13 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          currency?: string | null
           customer_id?: string | null
           customer_name?: string | null
           file_name?: string | null
           file_path?: string | null
           file_type?: string | null
+          fx_rate_to_eur?: number | null
           id?: string
           notes?: string | null
           po_date?: string | null
@@ -2414,11 +2430,13 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          currency?: string | null
           customer_id?: string | null
           customer_name?: string | null
           file_name?: string | null
           file_path?: string | null
           file_type?: string | null
+          fx_rate_to_eur?: number | null
           id?: string
           notes?: string | null
           po_date?: string | null

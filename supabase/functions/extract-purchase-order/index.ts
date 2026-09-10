@@ -35,7 +35,8 @@ Rules:
 4. If a value is not present or you are not confident, use null. NEVER invent or guess values.
 5. If a line has no due date but the PO has a single global delivery date, use that global date for every line.
 6. If unit price is missing but total price and quantity exist, you may compute unit price (and vice versa).
-7. List the names of fields you were unsure about in "low_confidence" (e.g. ["po_number","lines[0].due_date"]).
+7. Currency: ALWAYS report it as a 3-letter ISO 4217 code (EUR, USD, GBP, CHF, JPY...). Infer it from currency symbols ($, €, £), from wording ("Total USD", "Preis in EUR"), from the customer address/country, or from the price column header. Only use null when there is genuinely no price information at all.
+8. List the names of fields you were unsure about in "low_confidence" (e.g. ["po_number","lines[0].due_date"]).
 8. Respond with JSON only, matching the schema exactly. No markdown, no commentary.
 
 JSON schema:
