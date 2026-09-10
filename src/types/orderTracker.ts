@@ -199,6 +199,35 @@ export const dueBucket = (dueDate: string | null): DueBucket => {
 
 export const isOpen = (status: OrderStatus) => !CLOSED_STATUSES.includes(status);
 
+/** Days late at shipping. Positive = shipped after the due date. */
+export const shipDelay = (
+  o: { due_date: string | null; shipped_date: string | null },
+): number | null => {
+  if (!o.due_date || !o.shipped_date) return null;
+  const due = new Date(`${o.due_date}T00:00:00`).getTime();
+  const shipped = new Date(`${o.shipped_date}T00:00:00`).getTime();
+  if (isNaN(due) || isNaN(shipped)) return null;
+  return Math.round((shipped - due) / 86400000);
+};
+
+/**
+ * Priority for an order, respecting its status: once shipped it can never be
+ * "overdue" — it is either shipped on time or shipped late. Completed and
+ * cancelled lines are simply closed.
+ */
+export const orderBucket = (
+  o: { status: OrderStatus; due_date: string | null; shipped_date: string | null },
+): DueBucket => {
+  if (o.status === 'Shipped') {
+    const delay = shipDelay(o);
+    if (delay === null) return DUE_BUCKETS.shipped;
+    return delay > 0 ? DUE_BUCKETS.shipped_late : DUE_BUCKETS.shipped;
+  }
+  if (o.status === 'Completed' || o.status === 'Cancelled') return DUE_BUCKETS.closed;
+  return dueBucket(o.due_date);
+};
+
+
 export const fmtMoney = (v: number | null | undefined) =>
   v === null || v === undefined || isNaN(Number(v))
     ? '—'
