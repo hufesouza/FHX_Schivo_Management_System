@@ -72,7 +72,7 @@ export default function OrdersList() {
       }
       return true;
     });
-  }, [orders, scope, due, fCustomer, fStatus, fMachine, fromDate, toDate, search]);
+  }, [orders, scope, due, fCustomer, fStatus, fMachine, fType, fromDate, toDate, search]);
 
   const sorted = useMemo(() => {
     const dir = asc ? 1 : -1;
@@ -113,7 +113,7 @@ export default function OrdersList() {
   };
 
   const clearAll = () => {
-    setSearch(''); setFCustomer(ALL); setFStatus(ALL); setFMachine(ALL);
+    setSearch(''); setFCustomer(ALL); setFStatus(ALL); setFMachine(ALL); setFType('all');
     setFromDate(''); setToDate(''); setPage(0); setParams({});
   };
 
@@ -176,6 +176,14 @@ export default function OrdersList() {
               {machines.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Select value={fType} onValueChange={(v) => { setFType(v as 'all' | 'parts' | 'nre'); setPage(0); }}>
+            <SelectTrigger className="w-[160px]"><SelectValue placeholder="Type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Parts &amp; NRE</SelectItem>
+              <SelectItem value="parts">Manufactured parts</SelectItem>
+              <SelectItem value="nre">NRE only</SelectItem>
+            </SelectContent>
+          </Select>
           <div className="flex items-end gap-2">
             <div>
               <label className="text-xs text-muted-foreground">Due from</label>
@@ -186,7 +194,7 @@ export default function OrdersList() {
               <Input type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setPage(0); }} className="w-[145px]" />
             </div>
           </div>
-          {(activeChip || search || fCustomer !== ALL || fStatus !== ALL || fMachine !== ALL || fromDate || toDate) && (
+          {(activeChip || search || fCustomer !== ALL || fStatus !== ALL || fMachine !== ALL || fType !== 'all' || fromDate || toDate) && (
             <Button variant="ghost" size="sm" onClick={clearAll}>
               <X className="mr-1 h-4 w-4" /> Clear {activeChip && <span className="ml-1 text-xs uppercase">({activeChip})</span>}
             </Button>
