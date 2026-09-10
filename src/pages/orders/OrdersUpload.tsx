@@ -169,6 +169,8 @@ export default function OrdersUpload() {
           file_name: file?.name || null,
           file_type: file?.type || null,
           notes: draft.notes || null,
+          currency: draft.currency || 'EUR',
+          fx_rate_to_eur: draft.fx_rate_to_eur,
         })
         .select('id')
         .single();
@@ -192,6 +194,10 @@ export default function OrdersUpload() {
         special_requirements: l.special_requirements || draft.special_requirements || null,
         status: l.status,
         machine_id: l.machine_id,
+        currency: draft.currency || 'EUR',
+        original_unit_price: l.original_unit_price,
+        original_total_price: l.original_total_price,
+        fx_rate_to_eur: draft.fx_rate_to_eur,
       }));
 
       const { error: ordErr } = await supabase.from('ot_orders').insert(payload as never);
