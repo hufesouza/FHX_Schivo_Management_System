@@ -139,6 +139,30 @@ export default function OrdersUpload() {
   const setLine = (key: string, patch: Partial<DraftLine>) =>
     setDraft((d) => d && { ...d, lines: d.lines.map((l) => (l.key === key ? { ...l, ...patch } : l)) });
 
+  /** Re-converts every line when the user corrects the document currency. */
+  const changeCurrency = async (raw: string) => {
+    const code = normaliseCurrency(raw) || 'EUR';
+    const rate = await getEurRate(code);
+    setDraft((d) =>
+      d && {
+        ...d,
+        currency: code,
+        fx_rate_to_eur: rate,
+        lines: d.lines.map((l) => {
+          const origUnit = l.original_unit_price ?? l.unit_price;
+          const origTotal = l.original_total_price ?? l.total_price;
+          return {
+            ...l,
+            original_unit_price: origUnit,
+            original_total_price: origTotal,
+            unit_price: toEur(origUnit, rate),
+            total_price: toEur(origTotal, rate),
+          };
+        }),
+      },
+    );
+  };
+
   const confirm = async () => {
     if (!draft) return;
     if (!draft.customer_name.trim()) return toast.error('Customer name is required');
