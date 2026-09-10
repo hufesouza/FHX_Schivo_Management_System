@@ -34,6 +34,7 @@ interface DraftLine {
   special_requirements: string;
   status: OrderStatus;
   machine_id: string | null;
+  is_nre: boolean;
 }
 
 interface Draft {
@@ -64,8 +65,10 @@ const newLine = (): DraftLine => ({
   due_date: null, unit_price: null, total_price: null,
   original_unit_price: null, original_total_price: null,
   notes: '', requirements: '', special_requirements: '',
-  status: 'New', machine_id: null,
+  status: 'New', machine_id: null, is_nre: false,
 });
+
+const NRE_HINT = /\b(nre|non[\s-]?recurring|tooling charge|setup charge|engineering charge|fixture cost|programming charge|one[\s-]?off charge)\b/i;
 
 export default function OrdersUpload() {
   const navigate = useNavigate();

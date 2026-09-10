@@ -66,6 +66,8 @@ export interface OtOrder {
   special_requirements: string | null;
   status: OrderStatus;
   machine_id: string | null;
+  /** Non-Recurring Engineering charge — not a manufactured part. */
+  is_nre: boolean;
   /** Currency of the original purchase order document (ISO code). */
   currency: string | null;
   /** Unit price exactly as written on the PO, in the original currency. */
