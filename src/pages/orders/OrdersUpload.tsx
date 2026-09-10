@@ -13,6 +13,7 @@ import { ensureCustomer, useOrders } from '@/hooks/useOrderTracker';
 import { MachineSelect } from '@/components/orders/MachineSelect';
 import { StatusSelect } from '@/components/orders/StatusSelect';
 import { dueBucket, type OrderStatus } from '@/types/orderTracker';
+import { fmtOriginal, getEurRate, normaliseCurrency, toEur } from '@/utils/currency';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
