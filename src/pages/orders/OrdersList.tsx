@@ -240,7 +240,15 @@ export default function OrdersList() {
                       >
                         <td className="px-3 py-2 font-medium">{o.customer_name || '—'}</td>
                         <td className="px-3 py-2 text-muted-foreground">{o.po_number || '—'}</td>
-                        <td className="px-3 py-2">{o.part_number || '—'}{o.part_revision ? ` Rev ${o.part_revision}` : ''}</td>
+                        <td className="px-3 py-2">
+                          {o.is_nre && (
+                            <span className="mr-2 inline-flex rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-violet-600">
+                              NRE
+                            </span>
+                          )}
+                          {o.part_number || (o.is_nre ? 'Engineering charge' : '—')}
+                          {o.part_revision ? ` Rev ${o.part_revision}` : ''}
+                        </td>
                         <td className="max-w-[240px] truncate px-3 py-2 text-muted-foreground">{o.part_description || '—'}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{fmtQty(o.quantity)}</td>
                         <td className="px-3 py-2 whitespace-nowrap">{fmtDate(o.due_date)}</td>
@@ -253,7 +261,7 @@ export default function OrdersList() {
                           </span>
                         </td>
                         <td className="px-3 py-2"><StatusBadge status={o.status} /></td>
-                        <td className="px-3 py-2">{machineName(o.machine_id)}</td>
+                        <td className="px-3 py-2">{o.is_nre ? <span className="text-muted-foreground">n/a</span> : machineName(o.machine_id)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{fmtMoney(o.unit_price)}</td>
                         <td className="px-3 py-2 text-right tabular-nums">{fmtMoney(o.total_price)}</td>
                         <td className="px-2 py-2">
