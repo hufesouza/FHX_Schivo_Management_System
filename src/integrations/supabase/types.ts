@@ -2310,6 +2310,7 @@ export type Database = {
           purchase_order_id: string | null
           quantity: number | null
           requirements: string | null
+          shipped_date: string | null
           special_requirements: string | null
           status: Database["public"]["Enums"]["ot_order_status"]
           total_price: number | null
@@ -2339,6 +2340,7 @@ export type Database = {
           purchase_order_id?: string | null
           quantity?: number | null
           requirements?: string | null
+          shipped_date?: string | null
           special_requirements?: string | null
           status?: Database["public"]["Enums"]["ot_order_status"]
           total_price?: number | null
@@ -2368,6 +2370,7 @@ export type Database = {
           purchase_order_id?: string | null
           quantity?: number | null
           requirements?: string | null
+          shipped_date?: string | null
           special_requirements?: string | null
           status?: Database["public"]["Enums"]["ot_order_status"]
           total_price?: number | null
