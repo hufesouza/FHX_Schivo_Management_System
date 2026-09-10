@@ -15,7 +15,7 @@ import { Loader2, Save, Trash2, Copy, FileText, ArrowLeft } from 'lucide-react';
 import { MachineSelect } from '@/components/orders/MachineSelect';
 import { StatusSelect } from '@/components/orders/StatusSelect';
 import { ensureCustomer, getPoFileUrl, useOrder, useOrders, usePurchaseOrder } from '@/hooks/useOrderTracker';
-import { daysRemaining, dueBucket, fmtDate, type OtOrder } from '@/types/orderTracker';
+import { daysRemaining, orderBucket, shipDelay, fmtDate, type OtOrder } from '@/types/orderTracker';
 import { fmtOriginal } from '@/utils/currency';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -36,8 +36,11 @@ const emptyOrder = (): Partial<OtOrder> => ({
   special_requirements: '',
   status: 'New',
   machine_id: null,
+  shipped_date: null,
   is_nre: false,
 });
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
 
 const num = (v: string) => (v === '' ? null : Number(v));
 
@@ -58,8 +61,20 @@ export default function OrderDetail() {
   const set = <K extends keyof OtOrder>(key: K, value: OtOrder[K] | null) =>
     setForm((f) => ({ ...f, [key]: value }));
 
-  const bucket = useMemo(() => dueBucket(form.due_date ?? null), [form.due_date]);
-  const days = daysRemaining(form.due_date ?? null);
+  const bucket = useMemo(
+    () =>
+      orderBucket({
+        status: form.status || 'New',
+        due_date: form.due_date ?? null,
+        shipped_date: form.shipped_date ?? null,
+      }),
+    [form.status, form.due_date, form.shipped_date],
+  );
+  const isShipped = form.status === 'Shipped';
+  const delay = shipDelay({ due_date: form.due_date ?? null, shipped_date: form.shipped_date ?? null });
+  const days = isShipped || form.status === 'Completed' || form.status === 'Cancelled'
+    ? null
+    : daysRemaining(form.due_date ?? null);
 
   const onSave = async () => {
     if (!form.customer_name?.trim()) {
@@ -230,8 +245,36 @@ export default function OrderDetail() {
             <CardContent className="space-y-4">
               <div>
                 <Label>Status</Label>
-                <StatusSelect value={form.status || 'New'} onChange={(s) => set('status', s)} />
+                <StatusSelect
+                  value={form.status || 'New'}
+                  onChange={(s) =>
+                    setForm((f) => ({
+                      ...f,
+                      status: s,
+                      shipped_date: s === 'Shipped' ? f.shipped_date || todayISO() : f.shipped_date,
+                    }))
+                  }
+                />
               </div>
+              {isShipped && (
+                <div>
+                  <Label>Ship date</Label>
+                  <Input
+                    type="date"
+                    value={form.shipped_date || ''}
+                    onChange={(e) => set('shipped_date', e.target.value || null)}
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {form.shipped_date
+                      ? delay === null
+                        ? 'No due date to compare against.'
+                        : delay > 0
+                          ? `Shipped ${delay} day${delay === 1 ? '' : 's'} after the due date.`
+                          : 'Shipped on time.'
+                      : 'Please confirm the date this order shipped.'}
+                  </p>
+                </div>
+              )}
               <div>
                 <Label>Machine</Label>
                 <MachineSelect value={form.machine_id ?? null} onChange={(m) => set('machine_id', m)} />
