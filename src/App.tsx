@@ -26,6 +26,12 @@ import SchedulerJobs from "./pages/scheduler/SchedulerJobs";
 import SchedulerMachines from "./pages/scheduler/SchedulerMachines";
 import SchedulerSetters from "./pages/scheduler/SchedulerSetters";
 import SchedulerAudit from "./pages/scheduler/SchedulerAudit";
+import OrdersDashboard from "./pages/orders/OrdersDashboard";
+import OrdersList from "./pages/orders/OrdersList";
+import OrderDetail from "./pages/orders/OrderDetail";
+import OrdersUpload from "./pages/orders/OrdersUpload";
+import OrdersCustomers from "./pages/orders/OrdersCustomers";
+import OrdersSettings from "./pages/orders/OrdersSettings";
 
 
 const queryClient = new QueryClient();
@@ -61,6 +67,14 @@ const App = () => (
           <Route path="/scheduling/machines" element={<SchedulerMachines />} />
           <Route path="/scheduling/setters" element={<SchedulerSetters />} />
           <Route path="/scheduling/audit" element={<SchedulerAudit />} />
+
+          {/* Order Tracker */}
+          <Route path="/orders" element={<OrdersDashboard />} />
+          <Route path="/orders/list" element={<OrdersList />} />
+          <Route path="/orders/view/:id" element={<OrderDetail />} />
+          <Route path="/orders/upload" element={<OrdersUpload />} />
+          <Route path="/orders/customers" element={<OrdersCustomers />} />
+          <Route path="/orders/settings" element={<OrdersSettings />} />
 
           {/* Change Control Module */}
           <Route path="/change-control" element={<ChangeControlHub />} />

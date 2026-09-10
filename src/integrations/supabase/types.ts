@@ -2229,6 +2229,213 @@ export type Database = {
           },
         ]
       }
+      ot_customers: {
+        Row: {
+          contact_email: string | null
+          contact_name: string | null
+          contact_phone: string | null
+          created_at: string
+          customer_code: string | null
+          id: string
+          name: string
+          notes: string | null
+          updated_at: string
+        }
+        Insert: {
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          customer_code?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Update: {
+          contact_email?: string | null
+          contact_name?: string | null
+          contact_phone?: string | null
+          created_at?: string
+          customer_code?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ot_machines: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ot_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          customer_name: string
+          due_date: string | null
+          id: string
+          line_number: number | null
+          machine_id: string | null
+          notes: string | null
+          part_description: string | null
+          part_number: string | null
+          po_date: string | null
+          po_number: string | null
+          purchase_order_id: string | null
+          quantity: number | null
+          requirements: string | null
+          special_requirements: string | null
+          status: Database["public"]["Enums"]["ot_order_status"]
+          total_price: number | null
+          unit_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name?: string
+          due_date?: string | null
+          id?: string
+          line_number?: number | null
+          machine_id?: string | null
+          notes?: string | null
+          part_description?: string | null
+          part_number?: string | null
+          po_date?: string | null
+          po_number?: string | null
+          purchase_order_id?: string | null
+          quantity?: number | null
+          requirements?: string | null
+          special_requirements?: string | null
+          status?: Database["public"]["Enums"]["ot_order_status"]
+          total_price?: number | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name?: string
+          due_date?: string | null
+          id?: string
+          line_number?: number | null
+          machine_id?: string | null
+          notes?: string | null
+          part_description?: string | null
+          part_number?: string | null
+          po_date?: string | null
+          po_number?: string | null
+          purchase_order_id?: string | null
+          quantity?: number | null
+          requirements?: string | null
+          special_requirements?: string | null
+          status?: Database["public"]["Enums"]["ot_order_status"]
+          total_price?: number | null
+          unit_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ot_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "ot_customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ot_orders_machine_id_fkey"
+            columns: ["machine_id"]
+            isOneToOne: false
+            referencedRelation: "ot_machines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ot_orders_purchase_order_id_fkey"
+            columns: ["purchase_order_id"]
+            isOneToOne: false
+            referencedRelation: "ot_purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ot_purchase_orders: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          customer_name: string | null
+          file_name: string | null
+          file_path: string | null
+          file_type: string | null
+          id: string
+          notes: string | null
+          po_date: string | null
+          po_number: string | null
+          raw_extraction: Json | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          file_type?: string | null
+          id?: string
+          notes?: string | null
+          po_date?: string | null
+          po_number?: string | null
+          raw_extraction?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          customer_name?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          file_type?: string | null
+          id?: string
+          notes?: string | null
+          po_date?: string | null
+          po_number?: string | null
+          raw_extraction?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ot_purchase_orders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "ot_customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       part_bom_components: {
         Row: {
           assembly_part_id: string
@@ -4507,6 +4714,16 @@ export type Database = {
         | "submitted"
         | "won"
         | "lost"
+      ot_order_status:
+        | "New"
+        | "Planning"
+        | "In Progress"
+        | "Waiting for Material"
+        | "Waiting for Customer"
+        | "On Hold"
+        | "Completed"
+        | "Shipped"
+        | "Cancelled"
       sched_job_priority: "low" | "medium" | "high" | "critical"
       sched_job_status:
         | "planned"
@@ -4658,6 +4875,17 @@ export const Constants = {
         "submitted",
         "won",
         "lost",
+      ],
+      ot_order_status: [
+        "New",
+        "Planning",
+        "In Progress",
+        "Waiting for Material",
+        "Waiting for Customer",
+        "On Hold",
+        "Completed",
+        "Shipped",
+        "Cancelled",
       ],
       sched_job_priority: ["low", "medium", "high", "critical"],
       sched_job_status: [
