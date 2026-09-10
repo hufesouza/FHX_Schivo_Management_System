@@ -120,6 +120,9 @@ export default function OrdersUpload() {
           special_requirements: asStr(l.special_requirements),
           status: 'New' as OrderStatus,
           machine_id: null,
+          is_nre:
+            l.is_nre === true ||
+            NRE_HINT.test(`${asStr(l.part_description)} ${asStr(l.part_number)} ${asStr(l.notes)}`),
         };
       });
       setDraft({
