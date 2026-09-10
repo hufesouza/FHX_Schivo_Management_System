@@ -50,6 +50,15 @@ const subModules = [
     available: true,
   },
   {
+    id: 'order-tracker',
+    title: 'Order Tracker',
+    description: 'Upload customer purchase orders, extract the line items automatically and track every order to delivery',
+    icon: ClipboardList,
+    href: '/orders',
+    color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+    available: true,
+  },
+  {
     id: 'order-intelligence',
     title: 'NPI Order Dashboard',
     description: 'Upload NPI order Excel and get KPIs, NPVI, customer/commodity analysis and monthly trends',
