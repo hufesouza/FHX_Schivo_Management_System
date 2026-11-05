@@ -14,6 +14,255 @@ export type Database = {
   }
   public: {
     Tables: {
+      ae_bom_items: {
+        Row: {
+          child_part_id: string
+          created_at: string
+          id: string
+          item_number: string
+          parent_part_id: string
+          quantity: number
+          side: string
+          source_drawing_id: string | null
+          source_page: number | null
+          source_row: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          child_part_id: string
+          created_at?: string
+          id?: string
+          item_number: string
+          parent_part_id: string
+          quantity?: number
+          side?: string
+          source_drawing_id?: string | null
+          source_page?: number | null
+          source_row?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          child_part_id?: string
+          created_at?: string
+          id?: string
+          item_number?: string
+          parent_part_id?: string
+          quantity?: number
+          side?: string
+          source_drawing_id?: string | null
+          source_page?: number | null
+          source_row?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ae_bom_items_child_part_id_fkey"
+            columns: ["child_part_id"]
+            isOneToOne: false
+            referencedRelation: "ae_parts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ae_bom_items_parent_part_id_fkey"
+            columns: ["parent_part_id"]
+            isOneToOne: false
+            referencedRelation: "ae_parts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ae_bom_items_source_drawing_id_fkey"
+            columns: ["source_drawing_id"]
+            isOneToOne: false
+            referencedRelation: "ae_drawings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ae_drawings: {
+        Row: {
+          created_at: string
+          description: string | null
+          drawing_number: string | null
+          extraction: Json | null
+          file_name: string
+          filename_revision: string | null
+          id: string
+          issues: Json
+          page_count: number | null
+          revision: string | null
+          revision_discrepancy: boolean
+          status: string
+          storage_path: string
+          updated_at: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          drawing_number?: string | null
+          extraction?: Json | null
+          file_name: string
+          filename_revision?: string | null
+          id?: string
+          issues?: Json
+          page_count?: number | null
+          revision?: string | null
+          revision_discrepancy?: boolean
+          status?: string
+          storage_path: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          drawing_number?: string | null
+          extraction?: Json | null
+          file_name?: string
+          filename_revision?: string | null
+          id?: string
+          issues?: Json
+          page_count?: number | null
+          revision?: string | null
+          revision_discrepancy?: boolean
+          status?: string
+          storage_path?: string
+          updated_at?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
+      ae_parts: {
+        Row: {
+          created_at: string
+          description: string | null
+          drawing_id: string | null
+          drawing_number: string | null
+          id: string
+          part_number: string
+          part_type: string
+          side: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          drawing_id?: string | null
+          drawing_number?: string | null
+          id?: string
+          part_number: string
+          part_type?: string
+          side?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          drawing_id?: string | null
+          drawing_number?: string | null
+          id?: string
+          part_number?: string
+          part_type?: string
+          side?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ae_parts_drawing_id_fkey"
+            columns: ["drawing_id"]
+            isOneToOne: false
+            referencedRelation: "ae_drawings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ae_process_steps: {
+        Row: {
+          assembly_part_id: string
+          bom_item_ids: string[]
+          created_at: string
+          id: string
+          inspection: string | null
+          instruction: string | null
+          needs_review: boolean
+          origin: string
+          predecessor_ids: string[]
+          sequence: number
+          source_drawing_id: string | null
+          source_note: string | null
+          source_page: number | null
+          source_wording: string | null
+          specs: string | null
+          status: string
+          title: string
+          tools: string | null
+          updated_at: string
+        }
+        Insert: {
+          assembly_part_id: string
+          bom_item_ids?: string[]
+          created_at?: string
+          id?: string
+          inspection?: string | null
+          instruction?: string | null
+          needs_review?: boolean
+          origin?: string
+          predecessor_ids?: string[]
+          sequence?: number
+          source_drawing_id?: string | null
+          source_note?: string | null
+          source_page?: number | null
+          source_wording?: string | null
+          specs?: string | null
+          status?: string
+          title: string
+          tools?: string | null
+          updated_at?: string
+        }
+        Update: {
+          assembly_part_id?: string
+          bom_item_ids?: string[]
+          created_at?: string
+          id?: string
+          inspection?: string | null
+          instruction?: string | null
+          needs_review?: boolean
+          origin?: string
+          predecessor_ids?: string[]
+          sequence?: number
+          source_drawing_id?: string | null
+          source_note?: string | null
+          source_page?: number | null
+          source_wording?: string | null
+          specs?: string | null
+          status?: string
+          title?: string
+          tools?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ae_process_steps_assembly_part_id_fkey"
+            columns: ["assembly_part_id"]
+            isOneToOne: false
+            referencedRelation: "ae_parts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ae_process_steps_source_drawing_id_fkey"
+            columns: ["source_drawing_id"]
+            isOneToOne: false
+            referencedRelation: "ae_drawings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       capacity_data: {
         Row: {
           created_at: string
