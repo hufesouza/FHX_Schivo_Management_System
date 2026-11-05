@@ -1,0 +1,1 @@
+ALTER TABLE public.ae_parts ADD COLUMN sourcing_type text NOT NULL DEFAULT 'unknown' CHECK (sourcing_type IN ('unknown', 'manufactured', 'purchased')), ADD COLUMN manufacturing_location text, ADD COLUMN supplier_name text;

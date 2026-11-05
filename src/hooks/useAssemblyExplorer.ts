@@ -9,7 +9,9 @@ import type {
   AeIssue,
   AePart,
   AeProcessStep,
+  AePartSourcing,
 } from '@/types/assemblyExplorer';
+import { normalizeSourcing } from '@/types/assemblyExplorer';
 
 const BUCKET = 'assembly-drawings';
 
@@ -54,10 +56,11 @@ export function useAeProcessSteps(assemblyPartId: string | null) {
     queryKey: ['ae_process_steps', assemblyPartId],
     enabled: !!assemblyPartId,
     queryFn: async () => {
+      if (!assemblyPartId) return [];
       const { data, error } = await supabase
         .from('ae_process_steps')
         .select('*')
-        .eq('assembly_part_id', assemblyPartId!)
+        .eq('assembly_part_id', assemblyPartId)
         .order('sequence');
       if (error) throw error;
       return (data ?? []) as unknown as AeProcessStep[];
@@ -325,6 +328,23 @@ export function useUpdateBomItem() {
       toast.success('Relationship updated');
     },
     onError: (err) => toast.error(err instanceof Error ? err.message : 'Update failed'),
+  });
+}
+
+export function useUpdatePartSourcing() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, sourcing }: { id: string; sourcing: AePartSourcing }) => {
+      const { data, error } = await supabase.from('ae_parts')
+        .update(normalizeSourcing(sourcing)).eq('id', id).select().single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ae_parts'] });
+      toast.success('Part sourcing saved');
+    },
+    onError: (err) => toast.error(err instanceof Error ? err.message : 'Could not save sourcing'),
   });
 }
 

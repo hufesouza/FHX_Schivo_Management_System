@@ -19,12 +19,15 @@ import {
   Upload,
 } from 'lucide-react';
 import AssemblyGraph from '@/components/assembly/AssemblyGraph';
+import PartSourcingEditor from '@/components/assembly/PartSourcingEditor';
 import {
   buildBomTree,
   findPath,
   rolledUpQuantity,
   SIDE_LABELS,
   PART_TYPE_LABELS,
+  SOURCING_LABELS,
+  sourcingDetail,
   type AeBomItem,
   type AePart,
   type BomTreeNode,
@@ -65,6 +68,7 @@ const AssemblyExplorer = () => {
   );
 
   const effectiveRootId = rootId ?? finishedGoods[0]?.id ?? null;
+  const currentSelected = selected ? { ...selected, part: (parts ?? []).find((p) => p.id === selected.part.id) ?? selected.part } : null;
 
   const tree = useMemo(() => {
     if (!effectiveRootId || !parts || !bomItems) return null;
@@ -92,7 +96,7 @@ const AssemblyExplorer = () => {
     const q = search.trim().toLowerCase();
     const matches = new Set<string>();
     const walk = (node: BomTreeNode) => {
-      const hay = `${node.part.part_number} ${node.part.description ?? ''} ${node.part.drawing_number ?? ''}`.toLowerCase();
+      const hay = `${node.part.part_number} ${node.part.description ?? ''} ${node.part.drawing_number ?? ''} ${node.part.manufacturing_location ?? ''} ${node.part.supplier_name ?? ''}`.toLowerCase();
       if (hay.includes(q)) {
         const path = findPath(tree, node.part.id);
         path?.forEach((id) => matches.add(id));
@@ -125,9 +129,9 @@ const AssemblyExplorer = () => {
 
   return (
     <AppLayout title="Assembly Explorer" subtitle="Interactive assembly structure" showBackButton backTo="/npi">
-      <div className="flex h-[calc(100vh-64px)]">
+      <div className="flex flex-col lg:flex-row min-h-[700px] lg:h-[calc(100vh-64px)]">
         {/* Left sidebar */}
-        <aside className="w-72 border-r flex flex-col">
+        <aside className="w-full lg:w-60 lg:shrink-0 border-r flex flex-col max-h-72 lg:max-h-none">
           <div className="p-3 space-y-3">
             <Button className="w-full" onClick={() => navigate('/assembly-explorer/upload')}>
               <Upload className="h-4 w-4 mr-2" /> Upload drawings
@@ -217,7 +221,7 @@ const AssemblyExplorer = () => {
               value={viewMode}
               onValueChange={(v) => v && setViewMode(v as typeof viewMode)}
             >
-              <ToggleGroupItem value="graph"><GitBranch className="h-4 w-4 mr-1" /> Graph</ToggleGroupItem>
+              <ToggleGroupItem value="graph"><GitBranch className="h-4 w-4 mr-1" /> Flowchart</ToggleGroupItem>
               <ToggleGroupItem value="bom"><ListTree className="h-4 w-4 mr-1" /> BOM</ToggleGroupItem>
             </ToggleGroup>
             {selected && (
@@ -241,7 +245,7 @@ const AssemblyExplorer = () => {
               </div>
             )}
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 min-h-[500px] lg:min-h-0">
             {loading ? (
               <div className="h-full flex items-center justify-center">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -266,10 +270,10 @@ const AssemblyExplorer = () => {
         </section>
 
         {/* Right details panel */}
-        <aside className="w-96 border-l overflow-y-auto">
-          {selected && tree ? (
+        <aside className="w-full lg:w-80 lg:shrink-0 border-l overflow-y-auto">
+          {currentSelected && tree ? (
             <DetailsPanel
-              node={selected}
+              node={currentSelected}
               tree={tree}
               parts={parts ?? []}
               bomItems={bomItems ?? []}
@@ -333,7 +337,10 @@ const BomTreeView = ({
       style={{ paddingLeft: `${depth * 22 + 8}px` }}
     >
       <span className="font-medium">{node.part.part_number}</span>
-      <span className="text-muted-foreground truncate">{node.part.description}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-muted-foreground truncate">{node.part.description}</span>
+        <span className="block text-xs text-muted-foreground truncate">{SOURCING_LABELS[node.part.sourcing_type ?? 'unknown']} · {sourcingDetail(node.part)}</span>
+      </span>
       <Badge variant="outline" className="ml-auto shrink-0">{SIDE_LABELS[node.item?.side ?? node.part.side]}</Badge>
       {node.item && <span className="text-xs text-muted-foreground shrink-0">×{node.item.quantity}</span>}
       {depth > 0 && <span className="text-xs text-muted-foreground shrink-0">(total {node.rolledQty})</span>}
@@ -368,7 +375,7 @@ const DetailsPanel = ({
   const parents = whereUsed
     .map((i) => parts.find((p) => p.id === i.parent_part_id))
     .filter(Boolean);
-  const missingDrawing = !node.part.drawing_number && node.part.part_type !== 'finished_good';
+  const missingDrawing = !node.part.drawing_number && node.part.part_type !== 'finished_good' && node.part.sourcing_type !== 'purchased';
 
   return (
     <div className="p-4 space-y-4">
@@ -382,6 +389,8 @@ const DetailsPanel = ({
         </div>
         <p className="text-sm text-muted-foreground">{PART_TYPE_LABELS[node.part.part_type]}</p>
       </div>
+
+      <PartSourcingEditor key={node.part.id} part={node.part} />
 
       {missingDrawing && (
         <Card className="border-amber-500/40">
@@ -449,7 +458,7 @@ const DetailsPanel = ({
 
       <div className="flex flex-col gap-2">
         {node.item?.source_drawing_id && (
-          <Button variant="outline" onClick={() => onOpenSource(node.item!.source_drawing_id, node.item!.source_page)}>
+          <Button variant="outline" onClick={() => onOpenSource(node.item?.source_drawing_id ?? null, node.item?.source_page)}>
             <FileText className="h-4 w-4 mr-2" /> Open source drawing{node.item.source_page ? ` (page ${node.item.source_page})` : ''}
           </Button>
         )}

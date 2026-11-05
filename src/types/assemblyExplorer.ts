@@ -2,6 +2,29 @@ export type AeSide = 'left' | 'right' | 'common';
 export type AePartType = 'finished_good' | 'subassembly' | 'component';
 export type AeStatus = 'draft' | 'reviewed';
 export type AeStepOrigin = 'drawing' | 'manual' | 'ai';
+export type AeSourcingType = 'unknown' | 'manufactured' | 'purchased';
+
+export type AePartSourcing = Pick<AePart, 'sourcing_type' | 'manufacturing_location' | 'supplier_name'>;
+
+export const SOURCING_LABELS: Record<AeSourcingType, string> = {
+  unknown: 'Not classified',
+  manufactured: 'Manufactured',
+  purchased: 'Purchased',
+};
+
+export function sourcingDetail(part: AePartSourcing): string {
+  if (part.sourcing_type === 'manufactured') return part.manufacturing_location?.trim() || 'Manufacturing location not set';
+  if (part.sourcing_type === 'purchased') return part.supplier_name?.trim() || 'Supplier not set';
+  return 'Make / buy not set';
+}
+
+export function normalizeSourcing(input: AePartSourcing): AePartSourcing {
+  return {
+    sourcing_type: input.sourcing_type,
+    manufacturing_location: input.sourcing_type === 'manufactured' ? input.manufacturing_location?.trim() || null : null,
+    supplier_name: input.sourcing_type === 'purchased' ? input.supplier_name?.trim() || null : null,
+  };
+}
 
 export interface AeDrawing {
   id: string;
@@ -65,6 +88,9 @@ export interface AePart {
   part_number: string;
   description: string | null;
   part_type: AePartType;
+  sourcing_type: AeSourcingType;
+  manufacturing_location: string | null;
+  supplier_name: string | null;
   side: AeSide;
   drawing_number: string | null;
   drawing_id: string | null;
