@@ -135,7 +135,11 @@ const AssemblyGraph = ({ root, collapsed, onToggle, selectedId, onSelect, highli
   };
 
   useEffect(() => {
-    fitToScreen();
+    const el = containerRef.current;
+    const rootLayout = nodes.find((n) => !n.parent);
+    if (!el || !rootLayout) return;
+    const zoom = el.clientWidth < 500 ? 0.8 : 1;
+    setView({ x: 24, y: el.clientHeight / 2 - (rootLayout.y + NODE_H / 2) * zoom, zoom });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [root?.part.id]);
 
@@ -150,20 +154,21 @@ const AssemblyGraph = ({ root, collapsed, onToggle, selectedId, onSelect, highli
   return (
     <div
       ref={containerRef}
-      className="relative h-full w-full overflow-hidden bg-muted/20 cursor-grab active:cursor-grabbing"
+      className="relative h-[500px] lg:h-full w-full overflow-hidden bg-muted/20 cursor-grab active:cursor-grabbing touch-none"
       aria-label="Assembly BOM flowchart"
-      onMouseDown={(e) => {
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
         dragRef.current = { startX: e.clientX, startY: e.clientY, baseX: view.x, baseY: view.y };
       }}
-      onMouseMove={(e) => {
+      onPointerMove={(e) => {
         const drag = dragRef.current;
         if (!drag) return;
         setView((v) => ({ ...v, x: drag.baseX + e.clientX - drag.startX, y: drag.baseY + e.clientY - drag.startY }));
       }}
-      onMouseUp={() => (dragRef.current = null)}
-      onMouseLeave={() => (dragRef.current = null)}
+      onPointerUp={() => (dragRef.current = null)}
+      onPointerCancel={() => (dragRef.current = null)}
     >
-      <div className="absolute top-3 right-3 z-10 flex gap-1">
+      <div className="absolute top-3 right-3 z-10 flex gap-1" onPointerDown={(e) => e.stopPropagation()}>
         <Button size="icon" variant="secondary" aria-label="Zoom in" title="Zoom in" onClick={() => zoomBy(1.2)}><Plus className="h-4 w-4" /></Button>
         <Button size="icon" variant="secondary" aria-label="Zoom out" title="Zoom out" onClick={() => zoomBy(1 / 1.2)}><Minus className="h-4 w-4" /></Button>
         <Button size="icon" variant="secondary" aria-label="Fit flowchart" title="Fit flowchart" onClick={fitToScreen}><Maximize className="h-4 w-4" /></Button>
@@ -220,6 +225,7 @@ const AssemblyGraph = ({ root, collapsed, onToggle, selectedId, onSelect, highli
                   e.stopPropagation();
                   onSelect(node);
                 }}
+                onPointerDown={(e) => e.stopPropagation()}
                 className="cursor-pointer"
                 role="button"
                 tabIndex={0}
