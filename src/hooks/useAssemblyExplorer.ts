@@ -366,7 +366,7 @@ export function useSaveProcessStep() {
         const { error } = await supabase.from('ae_process_steps').update(updates as never).eq('id', id);
         if (error) throw error;
       } else {
-        const { error = null } = await supabase.from('ae_process_steps').insert(step as never);
+        const { error } = await supabase.from('ae_process_steps').insert(step as never);
         if (error) throw error;
       }
     },
