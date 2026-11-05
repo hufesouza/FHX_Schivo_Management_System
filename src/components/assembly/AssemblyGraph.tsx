@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { BomTreeNode } from '@/types/assemblyExplorer';
-import { SIDE_LABELS } from '@/types/assemblyExplorer';
+import { SIDE_LABELS, SOURCING_LABELS, sourcingDetail } from '@/types/assemblyExplorer';
 import { Button } from '@/components/ui/button';
 import { Maximize, Minus, Plus } from 'lucide-react';
 
-const NODE_W = 230;
-const NODE_H = 86;
+const NODE_W = 286;
+const NODE_H = 150;
 const H_GAP = 60;
-const V_GAP = 20;
+const V_GAP = 28;
 
 interface LayoutNode {
   node: BomTreeNode;
@@ -76,12 +76,8 @@ function layoutTree(
   return { nodes, width: maxX, height: maxY };
 }
 
-const sideBadgeClass = (side: string) =>
-  side === 'left'
-    ? 'fill-sky-600'
-    : side === 'right'
-      ? 'fill-violet-600'
-      : 'fill-slate-500';
+const sourcingClass = (type: string) => type === 'manufactured'
+  ? 'fill-primary' : type === 'purchased' ? 'fill-accent' : 'fill-muted-foreground';
 
 const AssemblyGraph = ({ root, collapsed, onToggle, selectedId, onSelect, highlightPath }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -133,7 +129,7 @@ const AssemblyGraph = ({ root, collapsed, onToggle, selectedId, onSelect, highli
     const px = rect.width / 2;
     const py = rect.height / 2;
     const { x, y, zoom } = viewRef.current;
-    const next = Math.min(2.5, Math.max(0.15, zoom * factor));
+      const next = Math.min(2.5, Math.max(0.15, zoom * factor));
     const k = next / zoom;
     setView({ zoom: next, x: px - (px - x) * k, y: py - (py - y) * k });
   };
@@ -155,6 +151,7 @@ const AssemblyGraph = ({ root, collapsed, onToggle, selectedId, onSelect, highli
     <div
       ref={containerRef}
       className="relative h-full w-full overflow-hidden bg-muted/20 cursor-grab active:cursor-grabbing"
+      aria-label="Assembly BOM flowchart"
       onMouseDown={(e) => {
         dragRef.current = { startX: e.clientX, startY: e.clientY, baseX: view.x, baseY: view.y };
       }}
@@ -167,22 +164,28 @@ const AssemblyGraph = ({ root, collapsed, onToggle, selectedId, onSelect, highli
       onMouseLeave={() => (dragRef.current = null)}
     >
       <div className="absolute top-3 right-3 z-10 flex gap-1">
-        <Button size="icon" variant="secondary" onClick={() => zoomBy(1.2)}><Plus className="h-4 w-4" /></Button>
-        <Button size="icon" variant="secondary" onClick={() => zoomBy(1 / 1.2)}><Minus className="h-4 w-4" /></Button>
-        <Button size="icon" variant="secondary" onClick={fitToScreen}><Maximize className="h-4 w-4" /></Button>
+        <Button size="icon" variant="secondary" aria-label="Zoom in" title="Zoom in" onClick={() => zoomBy(1.2)}><Plus className="h-4 w-4" /></Button>
+        <Button size="icon" variant="secondary" aria-label="Zoom out" title="Zoom out" onClick={() => zoomBy(1 / 1.2)}><Minus className="h-4 w-4" /></Button>
+        <Button size="icon" variant="secondary" aria-label="Fit flowchart" title="Fit flowchart" onClick={fitToScreen}><Maximize className="h-4 w-4" /></Button>
       </div>
 
       <svg
         width="100%"
         height="100%"
-        style={{ display: 'block' }}
+        className="block"
       >
+        <defs>
+          <marker id="bom-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" className="fill-muted-foreground" />
+          </marker>
+        </defs>
         <g transform={`translate(${view.x},${view.y}) scale(${view.zoom})`}>
           {/* edges */}
           {nodes
             .filter((n) => n.parent)
             .map((n) => {
-              const p = n.parent!;
+              const p = n.parent;
+              if (!p) return null;
               const x1 = p.x + NODE_W;
               const y1 = p.y + NODE_H / 2;
               const x2 = n.x;
@@ -192,9 +195,10 @@ const AssemblyGraph = ({ root, collapsed, onToggle, selectedId, onSelect, highli
               return (
                 <path
                   key={`e-${p.node.part.id}-${n.node.part.id}-${n.node.item?.id ?? 'root'}`}
-                  d={`M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`}
+                  d={`M ${x1} ${y1} H ${midX} V ${y2} H ${x2 - 5}`}
                   fill="none"
-                  className={highlighted ? 'stroke-primary' : 'stroke-border'}
+                  markerEnd="url(#bom-arrow)"
+                  className={highlighted ? 'stroke-primary' : 'stroke-muted-foreground/50'}
                   strokeWidth={highlighted ? 3 : 1.5}
                 />
               );
@@ -217,7 +221,12 @@ const AssemblyGraph = ({ root, collapsed, onToggle, selectedId, onSelect, highli
                   onSelect(node);
                 }}
                 className="cursor-pointer"
+                role="button"
+                tabIndex={0}
+                aria-label={`Select part ${node.part.part_number}`}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(node); } }}
               >
+                <title>{`${node.part.part_number} — ${node.part.description ?? ''}\n${SOURCING_LABELS[node.part.sourcing_type ?? 'unknown']}: ${sourcingDetail(node.part)}`}</title>
                 <rect
                   width={NODE_W}
                   height={NODE_H}
@@ -231,23 +240,22 @@ const AssemblyGraph = ({ root, collapsed, onToggle, selectedId, onSelect, highli
                   }`}
                   strokeWidth={selected ? 2.5 : 1.5}
                 />
-                {/* side stripe */}
-                <rect width={5} height={NODE_H} rx={2} className={sideBadgeClass(node.item?.side ?? node.part.side)} />
-                <text x={14} y={20} className="fill-foreground" fontSize={12} fontWeight={600}>
-                  {(node.part.description ?? node.part.part_number).slice(0, 30)}
-                </text>
-                <text x={14} y={38} className="fill-muted-foreground" fontSize={11}>
-                  {node.part.part_type === 'finished_good' ? 'FG' : 'PN'}: {node.part.part_number}
-                </text>
-                <text x={14} y={54} className="fill-muted-foreground" fontSize={11}>
-                  {node.part.drawing_number ? `DWG: ${node.part.drawing_number}` : 'Referenced drawing missing'}
-                </text>
-                <text x={14} y={70} className="fill-muted-foreground" fontSize={10}>
-                  {SIDE_LABELS[node.item?.side ?? node.part.side]}
-                  {node.item ? ` · Item ${node.item.item_number} · Qty ${node.item.quantity}` : ''}
-                  {node.part.status === 'draft' ? ' · DRAFT' : ''}
-                  {node.repeated ? ' · shared' : ''}
-                </text>
+                <rect width={5} height={NODE_H} rx={2} className={sourcingClass(node.part.sourcing_type)} />
+                <foreignObject x={14} y={10} width={NODE_W - 46} height={NODE_H - 16}>
+                  <div className="text-foreground text-xs leading-tight">
+                    <p className="font-semibold truncate">{node.part.part_number}</p>
+                    <p className="mt-1 h-8 text-muted-foreground line-clamp-2">{node.part.description ?? 'No description'}</p>
+                    <p className="mt-2 flex items-center gap-1.5 font-semibold">
+                      <span className={`h-2 w-2 shrink-0 rounded-full ${node.part.sourcing_type === 'manufactured' ? 'bg-primary' : node.part.sourcing_type === 'purchased' ? 'bg-accent' : 'bg-muted-foreground'}`} />
+                      {SOURCING_LABELS[node.part.sourcing_type ?? 'unknown']}
+                    </p>
+                    <p className="mt-1 truncate text-muted-foreground" title={sourcingDetail(node.part)}>{sourcingDetail(node.part)}</p>
+                    <p className="mt-2 text-[10px] text-muted-foreground truncate">
+                      {SIDE_LABELS[node.item?.side ?? node.part.side]}{node.item ? ` · Item ${node.item.item_number} · Qty ${node.item.quantity}` : ''}{node.repeated ? ' · shared' : ''}
+                    </p>
+                    <p className="mt-1 text-[10px] text-muted-foreground truncate">{node.part.drawing_number ? `DWG ${node.part.drawing_number}` : node.part.sourcing_type === 'purchased' ? 'No drawing linked' : 'Referenced drawing missing'}</p>
+                  </div>
+                </foreignObject>
                 {hasChildren && (
                   <g
                     transform={`translate(${NODE_W - 22}, ${NODE_H / 2 - 11})`}
