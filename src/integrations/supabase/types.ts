@@ -142,10 +142,13 @@ export type Database = {
           drawing_id: string | null
           drawing_number: string | null
           id: string
+          manufacturing_location: string | null
           part_number: string
           part_type: string
           side: string
+          sourcing_type: string
           status: string
+          supplier_name: string | null
           updated_at: string
         }
         Insert: {
@@ -154,10 +157,13 @@ export type Database = {
           drawing_id?: string | null
           drawing_number?: string | null
           id?: string
+          manufacturing_location?: string | null
           part_number: string
           part_type?: string
           side?: string
+          sourcing_type?: string
           status?: string
+          supplier_name?: string | null
           updated_at?: string
         }
         Update: {
@@ -166,10 +172,13 @@ export type Database = {
           drawing_id?: string | null
           drawing_number?: string | null
           id?: string
+          manufacturing_location?: string | null
           part_number?: string
           part_type?: string
           side?: string
+          sourcing_type?: string
           status?: string
+          supplier_name?: string | null
           updated_at?: string
         }
         Relationships: [

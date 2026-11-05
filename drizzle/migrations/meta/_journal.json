@@ -15,6 +15,13 @@
       "when": 1793884710752,
       "tag": "0001_assembly_drawings_storage_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793887667648,
+      "tag": "0002_assembly_part_sourcing",
+      "breakpoints": true
     }
   ]
 }
