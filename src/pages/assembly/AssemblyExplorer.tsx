@@ -26,6 +26,7 @@ import {
   SIDE_LABELS,
   PART_TYPE_LABELS,
   type AeBomItem,
+  type AePart,
   type BomTreeNode,
   type VariantMode,
 } from '@/types/assemblyExplorer';
@@ -355,7 +356,7 @@ const DetailsPanel = ({
 }: {
   node: BomTreeNode;
   tree: BomTreeNode;
-  parts: ReturnType<typeof useAeParts>['data'] extends infer T ? (T extends (infer U)[] ? U[] : never) : never;
+  parts: AePart[];
   bomItems: AeBomItem[];
   onOpenSource: (drawingId: string | null, page?: number | null) => void;
   onOpenProcess: (partId: string) => void;
