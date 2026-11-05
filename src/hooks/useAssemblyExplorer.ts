@@ -66,13 +66,15 @@ export function useAeProcessSteps(assemblyPartId: string | null) {
 }
 
 export async function getDrawingSignedUrl(storagePath: string): Promise<string | null> {
-  const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(storagePath, 3600);
-  if (error) return null;
-  return data?.signedUrl ?? null;
+  // Load the file and show it from the app itself, so the browser doesn't block the embedded drawing.
+  const { data, error } = await supabase.storage.from(BUCKET).download(storagePath);
+  if (error || !data) return null;
+  return URL.createObjectURL(new Blob([data], { type: 'application/pdf' }));
 }
 
 function detectFilenameRevision(fileName: string): string | null {
-  const match = fileName.match(/rev[-_ ]?([A-Za-z0-9.]+)/i);
+  const base = fileName.replace(/\.[A-Za-z0-9]+$/, '');
+  const match = base.match(/rev[-_ ]?([A-Za-z0-9]+(?:\.[A-Za-z0-9]+)*)/i);
   return match ? match[1].toUpperCase() : null;
 }
 
