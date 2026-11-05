@@ -1,0 +1,4 @@
+CREATE POLICY "Authenticated users can read assembly drawings" ON storage.objects FOR SELECT TO authenticated USING (bucket_id = 'assembly-drawings');
+CREATE POLICY "Authenticated users can upload assembly drawings" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'assembly-drawings');
+CREATE POLICY "Authenticated users can update assembly drawings" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id = 'assembly-drawings') WITH CHECK (bucket_id = 'assembly-drawings');
+CREATE POLICY "Authenticated users can delete assembly drawings" ON storage.objects FOR DELETE TO authenticated USING (bucket_id = 'assembly-drawings');

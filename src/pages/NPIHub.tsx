@@ -28,7 +28,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import fhxLogoFull from '@/assets/fhx-logo-full.png';
 
-import { BarChart3, LineChart } from 'lucide-react';
+import { BarChart3, LineChart, Network } from 'lucide-react';
 
 const subModules = [
   {
@@ -65,6 +65,15 @@ const subModules = [
     icon: LineChart,
     href: '/npi/order-intelligence',
     color: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+    available: true,
+  },
+  {
+    id: 'assembly-explorer',
+    title: 'Assembly Explorer',
+    description: 'Upload engineering drawings and explore Left/Right assembly structures, BOMs and process flows',
+    icon: Network,
+    href: '/assembly-explorer',
+    color: 'bg-violet-500/10 text-violet-600 border-violet-500/20',
     available: true,
   },
 ];

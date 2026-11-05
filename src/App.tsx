@@ -32,6 +32,10 @@ import OrderDetail from "./pages/orders/OrderDetail";
 import OrdersUpload from "./pages/orders/OrdersUpload";
 import OrdersCustomers from "./pages/orders/OrdersCustomers";
 import OrdersSettings from "./pages/orders/OrdersSettings";
+import AssemblyExplorer from "./pages/assembly/AssemblyExplorer";
+import AssemblyUpload from "./pages/assembly/AssemblyUpload";
+import AssemblyReview from "./pages/assembly/AssemblyReview";
+import AssemblyProcess from "./pages/assembly/AssemblyProcess";
 
 
 const queryClient = new QueryClient();
@@ -75,6 +79,12 @@ const App = () => (
           <Route path="/orders/upload" element={<OrdersUpload />} />
           <Route path="/orders/customers" element={<OrdersCustomers />} />
           <Route path="/orders/settings" element={<OrdersSettings />} />
+
+          {/* Assembly Explorer */}
+          <Route path="/assembly-explorer" element={<AssemblyExplorer />} />
+          <Route path="/assembly-explorer/upload" element={<AssemblyUpload />} />
+          <Route path="/assembly-explorer/review/:drawingId" element={<AssemblyReview />} />
+          <Route path="/assembly-explorer/process/:partId" element={<AssemblyProcess />} />
 
           {/* Change Control Module */}
           <Route path="/change-control" element={<ChangeControlHub />} />
