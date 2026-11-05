@@ -198,7 +198,7 @@ export function useConfirmDrawing() {
           if (Object.keys(updates).length > 0) {
             const { data: updated, error } = await supabase
               .from('ae_parts')
-              .update(updates)
+              .update(updates as never)
               .eq('id', part.id)
               .select()
               .single();
