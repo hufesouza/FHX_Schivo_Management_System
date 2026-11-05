@@ -22,6 +22,7 @@ import AssemblyGraph from '@/components/assembly/AssemblyGraph';
 import PartSourcingEditor from '@/components/assembly/PartSourcingEditor';
 import {
   buildBomTree,
+  resolveAssemblyRoot,
   findPath,
   rolledUpQuantity,
   SIDE_LABELS,
@@ -67,7 +68,7 @@ const AssemblyExplorer = () => {
     [parts],
   );
 
-  const effectiveRootId = rootId ?? finishedGoods[0]?.id ?? null;
+  const effectiveRootId = resolveAssemblyRoot(parts ?? [], rootId ?? finishedGoods[0]?.id ?? null, variant)?.id ?? null;
   const currentSelected = selected ? { ...selected, part: (parts ?? []).find((p) => p.id === selected.part.id) ?? selected.part } : null;
 
   const tree = useMemo(() => {
@@ -148,7 +149,14 @@ const AssemblyExplorer = () => {
             <ToggleGroup
               type="single"
               value={variant}
-              onValueChange={(v) => v && setVariant(v as VariantMode)}
+              onValueChange={(v) => {
+                if (!v) return;
+                const nextVariant = v as VariantMode;
+                setRootId(resolveAssemblyRoot(parts ?? [], effectiveRootId, nextVariant)?.id ?? null);
+                setVariant(nextVariant);
+                setSelected(null);
+                setCollapsed(new Set());
+              }}
               className="justify-start"
             >
               <ToggleGroupItem value="left">Left</ToggleGroupItem>
@@ -178,7 +186,9 @@ const AssemblyExplorer = () => {
                   key={fg.id}
                   onClick={() => {
                     setRootId(fg.id);
+                    if (fg.side !== 'common' && variant !== 'compare') setVariant(fg.side);
                     setSelected(null);
+                    setCollapsed(new Set());
                   }}
                   className={`w-full text-left rounded-md px-3 py-2 text-sm transition-colors ${
                     effectiveRootId === fg.id ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-muted'

@@ -138,6 +138,19 @@ export interface AeProcessStep {
 
 export type VariantMode = 'left' | 'right' | 'compare';
 
+/** Keep the selected assembly aligned with the side filter, preferring its drawing family. */
+export function resolveAssemblyRoot(parts: AePart[], selectedId: string | null, variant: VariantMode): AePart | null {
+  const assemblies = parts.filter((part) => part.part_type === 'finished_good');
+  const selected = assemblies.find((part) => part.id === selectedId);
+  if (variant === 'compare') return selected ?? assemblies[0] ?? null;
+  if (selected && sideVisible(selected.side, variant)) return selected;
+  const matching = assemblies.filter((part) => part.side === variant);
+  return matching.find((part) => selected?.drawing_id && part.drawing_id === selected.drawing_id)
+    ?? matching[0]
+    ?? assemblies.find((part) => part.side === 'common')
+    ?? null;
+}
+
 /** A BOM item is visible for a variant when it is common or matches the side. */
 export function sideVisible(itemSide: AeSide, variant: VariantMode): boolean {
   if (variant === 'compare') return true;
