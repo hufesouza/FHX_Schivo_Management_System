@@ -26,7 +26,7 @@ import {
   useDeleteProcessStep,
   useSaveProcessStep,
 } from '@/hooks/useAssemblyExplorer';
-import type { AeProcessStep, AeStepOrigin } from '@/types/assemblyExplorer';
+import type { AeBomItem, AeProcessStep, AeStepOrigin } from '@/types/assemblyExplorer';
 import { toast } from 'sonner';
 
 const ORIGIN_LABELS: Record<AeStepOrigin, string> = {
@@ -70,11 +70,9 @@ const AssemblyProcess = () => {
 
   const openSource = async (drawingId: string | null, page?: number | null) => {
     if (!drawingId) return;
-    const url = await getDrawingSignedUrl(
-      (await import('@/integrations/supabase/client')).supabase
-        ? (await fetchDrawingPath(drawingId)) ?? ''
-        : '',
-    );
+    const path = await fetchDrawingPath(drawingId);
+    if (!path) return;
+    const url = await getDrawingSignedUrl(path);
     if (url) window.open(`${url}#page=${page ?? 1}`, '_blank');
     else toast.error('Could not open the source drawing');
   };
@@ -256,7 +254,7 @@ const StepEditor = ({
   onSave,
 }: {
   step: Partial<AeProcessStep>;
-  assemblyItems: ReturnType<typeof useAeBomItems>['data'] extends infer T ? (T extends (infer U)[] ? U[] : never) : never;
+  assemblyItems: AeBomItem[];
   parts: import('@/types/assemblyExplorer').AePart[];
   allSteps: AeProcessStep[];
   onClose: () => void;
