@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { describe, test } from 'node:test';
 import { deepStrictEqual, strictEqual } from 'node:assert';
 import { normalizeSourcing, sourcingDetail } from './assemblyExplorer';
